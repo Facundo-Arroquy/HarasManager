@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutGrid, Settings, LogOut, Stethoscope } from 'lucide-react'
+import { LayoutGrid, Settings, LogOut, Stethoscope, SlidersHorizontal } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 interface NavItem {
@@ -20,6 +20,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Administración',
     icon: <Settings size={18} />,
     roles: ['admin'],
+  },
+  {
+    to: '/config',
+    label: 'Configuración',
+    icon: <SlidersHorizontal size={18} />,
+    roles: ['admin', 'jugador', 'piloto'],
   },
 ]
 

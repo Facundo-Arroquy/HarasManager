@@ -7,6 +7,7 @@ import LoginPage from './pages/auth/LoginPage'
 import CaballosPage from './pages/caballos/CaballosPage'
 import HistorialPage from './pages/historial/HistorialPage'
 import AdminPage from './pages/admin/AdminPage'
+import ConfigPage from './pages/config/ConfigPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth()
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/config" element={<ConfigPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
