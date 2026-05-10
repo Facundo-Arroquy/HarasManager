@@ -6,6 +6,7 @@ import { caballoService } from '../../services/caballoService'
 import { campoService, type CampoConConteo } from '../../services/campoService'
 import { historialService } from '../../services/historialService'
 import Spinner from '../../components/ui/Spinner'
+import { hoyAR, formatFechaCorta } from '../../utils/fecha'
 
 type Caballo    = Awaited<ReturnType<typeof caballoService.listar>>[number]
 type HistResumen = Awaited<ReturnType<typeof historialService.listarRecientesTodos>>[number]
@@ -17,10 +18,6 @@ const CAT_STYLE: Record<string, string> = {
   Yegua:    'bg-pink-950/70 text-pink-300',
   Padrillo: 'bg-blue-950/70 text-blue-300',
   Potrillo: 'bg-amber-950/70 text-amber-300',
-}
-
-function fmtCorta(iso: string) {
-  return new Date(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
 }
 
 export default function DashboardPage() {
@@ -56,7 +53,7 @@ export default function DashboardPage() {
       count: caballos.filter((c) => c.categoria === cat).length,
     })), [caballos])
 
-  const hoy = new Date().toISOString().split('T')[0]
+  const hoy = hoyAR()   // fecha actual en America/Argentina/Buenos_Aires
   const ultimasConsultas  = historial.slice(0, 5)
   const proximasConsultas = useMemo(() =>
     historial
@@ -188,7 +185,7 @@ export default function DashboardPage() {
                     <p className="text-xs font-medium text-zinc-200 truncate">{h.caballo_nombre}</p>
                     <p className="text-[11px] text-zinc-500 truncate">{h.tipo}</p>
                   </div>
-                  <span className="text-[11px] text-zinc-600 shrink-0">{fmtCorta(h.fecha_consulta)}</span>
+                  <span className="text-[11px] text-zinc-600 shrink-0">{formatFechaCorta(h.fecha_consulta)}</span>
                 </button>
               ))}
             </div>
@@ -213,7 +210,7 @@ export default function DashboardPage() {
                     <p className="text-xs font-medium text-zinc-200 truncate">{h.caballo_nombre}</p>
                     <p className="text-[11px] text-zinc-500 truncate">{h.tipo}</p>
                   </div>
-                  <span className="text-[11px] text-amber-600 shrink-0">{fmtCorta(h.proxima_consulta!)}</span>
+                  <span className="text-[11px] text-amber-600 shrink-0">{formatFechaCorta(h.proxima_consulta)}</span>
                 </button>
               ))}
             </div>
