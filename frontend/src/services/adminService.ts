@@ -180,13 +180,13 @@ export async function otorgarAcceso(
       id: `av-${Date.now()}`,
       vet_id: vet.id,
       vet: { nombre: vet.nombre, apellido: vet.apellido, email: vet.email },
-      marca_id: payload.marca_id ?? null,
-      marca: marca ? { nombre: marca.nombre } : null,
-      caballo_id: payload.caballo_id ?? null,
-      caballo: caballo ? { nombre: caballo.nombre } : null,
+      marca_id: (payload.marca_id ?? null) as any,
+      marca: (marca ? { nombre: marca.nombre } : null) as any,
+      caballo_id: (payload.caballo_id ?? null) as any,
+      caballo: (caballo ? { nombre: caballo.nombre } : null) as any,
       activo: true,
       otorgado_por: otorgadoPor,
-    })
+    } as any)
     return
   }
 
