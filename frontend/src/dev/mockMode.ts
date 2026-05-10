@@ -6,6 +6,8 @@ const KEY_MOCK_ON    = 'hm_dev_mock_on'
 const KEY_MOCK_USER  = 'hm_dev_mock_user'
 
 export function isMockMode(): boolean {
+  // Activo en desarrollo O si se setea VITE_DEMO_MODE=true en Vercel
+  if (import.meta.env.VITE_DEMO_MODE === 'true') return true
   if (!import.meta.env.DEV) return false
   return localStorage.getItem(KEY_MOCK_ON) !== 'false'
 }
