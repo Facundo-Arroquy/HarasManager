@@ -4,6 +4,7 @@ import Spinner from './components/ui/Spinner'
 import AppLayout from './components/layout/AppLayout'
 import DevPanel from './dev/DevPanel'
 import LoginPage from './pages/auth/LoginPage'
+import DashboardPage from './pages/dashboard/DashboardPage'
 import CaballosPage from './pages/caballos/CaballosPage'
 import HistorialPage from './pages/historial/HistorialPage'
 import AdminPage from './pages/admin/AdminPage'
@@ -38,7 +39,8 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/caballos" replace />} />
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
           <Route path="/admin" element={<AdminPage />} />

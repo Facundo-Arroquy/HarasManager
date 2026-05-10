@@ -24,7 +24,68 @@ export interface NuevaConsultaPayload {
   }>
 }
 
+interface HistorialResumen {
+  id: string
+  fecha_consulta: string
+  proxima_consulta: string | null
+  caballo_id: string
+  caballo_nombre: string
+  tipo: string
+  diagnostico: string | null
+}
+
 export const historialService = {
+  async listarRecientesTodos(sociedadId: string, limit = 8): Promise<HistorialResumen[]> {
+    if (isMockMode()) {
+      const { MOCK_CABALLOS } = await import('../dev/mockData')
+      const entries: HistorialResumen[] = []
+
+      for (const [caballoId, consultas] of Object.entries(MOCK_HISTORIAL)) {
+        const caballo = MOCK_CABALLOS.find((c) => c.id === caballoId)
+        if (!caballo) continue
+        for (const c of consultas as any[]) {
+          entries.push({
+            id: c.id,
+            fecha_consulta:   c.fecha_consulta,
+            proxima_consulta: c.proxima_consulta ?? null,
+            caballo_id:       caballoId,
+            caballo_nombre:   caballo.nombre,
+            tipo:             c.cat_tipo_consulta?.nombre ?? 'Consulta',
+            diagnostico:      c.diagnostico ?? null,
+          })
+        }
+      }
+
+      return entries
+        .sort((a, b) => new Date(b.fecha_consulta).getTime() - new Date(a.fecha_consulta).getTime())
+        .slice(0, limit)
+    }
+
+    const supabase = getSupabaseClient()
+    // RLS restringe por sociedad; el filtro explicit es por si acaso
+    const { data, error } = await supabase
+      .from('historial_clinico')
+      .select(`
+        id, fecha_consulta, proxima_consulta, diagnostico, caballo_id,
+        caballo!inner(nombre, sociedad_id),
+        cat_tipo_consulta(nombre)
+      `)
+      .eq('caballo.sociedad_id', sociedadId)
+      .order('fecha_consulta', { ascending: false })
+      .limit(limit)
+    if (error) throw error
+
+    return (data ?? []).map((h: any) => ({
+      id:               h.id,
+      fecha_consulta:   h.fecha_consulta,
+      proxima_consulta: h.proxima_consulta ?? null,
+      caballo_id:       h.caballo_id,
+      caballo_nombre:   h.caballo?.nombre ?? '—',
+      tipo:             h.cat_tipo_consulta?.nombre ?? 'Consulta',
+      diagnostico:      h.diagnostico ?? null,
+    }))
+  },
+
   async listarPorCaballo(caballoId: string) {
     if (isMockMode()) {
       const entries = (MOCK_HISTORIAL[caballoId] ?? []) as object[]

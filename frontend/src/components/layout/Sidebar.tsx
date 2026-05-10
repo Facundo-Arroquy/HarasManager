@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutGrid, Settings, LogOut, Stethoscope, SlidersHorizontal } from 'lucide-react'
+import { LayoutDashboard, LayoutGrid, Settings, LogOut, Stethoscope, SlidersHorizontal } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 interface NavItem {
@@ -10,6 +10,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  {
+    to: '/dashboard',
+    label: 'Panel',
+    icon: <LayoutDashboard size={18} />,
+  },
   {
     to: '/caballos',
     label: 'Caballos',
