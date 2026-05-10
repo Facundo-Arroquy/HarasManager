@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { caballoService, type NuevoCaballoPayload } from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { getMarcas, type MarcaAdmin } from '../../services/adminService'
+import { campoService, type Campo } from '../../services/campoService'
 
 interface Props {
   onClose: () => void
@@ -19,6 +20,9 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
   const [razas,   setRazas]   = useState<{ id: number; nombre: string }[]>([])
   const [pelajes, setPelajes] = useState<{ id: number; nombre: string }[]>([])
   const [marcas,  setMarcas]  = useState<MarcaAdmin[]>([])
+  const [campos,  setCampos]  = useState<Campo[]>([])
+  const [nuevoCampo, setNuevoCampo] = useState('')
+  const [creandoCampo, setCreandoCampo] = useState(false)
 
   const [form, setForm] = useState({
     nombre: '',
@@ -29,6 +33,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
     numero_chip: '',
     numero_registro: '',
     marca_id: miMarcaId ?? '',
+    campo_id: '' as string,
   })
 
   const [saving, setSaving] = useState(false)
@@ -39,10 +44,12 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
       catalogoService.razas(),
       catalogoService.pelajes(),
       sociedadActiva ? getMarcas(sociedadActiva.id) : Promise.resolve([]),
-    ]).then(([r, p, m]) => {
+      sociedadActiva ? campoService.listar(sociedadActiva.id) : Promise.resolve([]),
+    ]).then(([r, p, m, c]) => {
       setRazas(r)
       setPelajes(p)
       setMarcas(m)
+      setCampos(c)
       setForm((f) => ({
         ...f,
         raza_id:   r[0]?.id ?? 0,
@@ -78,6 +85,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
           numero_chip:      form.numero_chip.trim() || undefined,
           numero_registro:  form.numero_registro.trim() || undefined,
           marca_id:         form.marca_id,
+          campo_id:         form.campo_id || null,
         },
         sociedadActiva.id
       )
@@ -196,6 +204,56 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
               </p>
             </div>
           )}
+
+          {/* Campo / Caballeriza */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">Campo / Caballeriza</label>
+            <div className="flex gap-2">
+              <select
+                value={form.campo_id}
+                onChange={(e) => set('campo_id', e.target.value)}
+                className="flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                <option value="">— Sin asignar —</option>
+                {campos.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => setCreandoCampo((v) => !v)}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-md border border-zinc-700 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition-colors"
+                title="Crear nuevo campo"
+              >
+                <Plus size={13} />
+                Nuevo
+              </button>
+            </div>
+            {creandoCampo && (
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="text"
+                  value={nuevoCampo}
+                  onChange={(e) => setNuevoCampo(e.target.value)}
+                  placeholder="Nombre del campo"
+                  className="flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <button
+                  type="button"
+                  disabled={!nuevoCampo.trim()}
+                  onClick={async () => {
+                    if (!nuevoCampo.trim() || !sociedadActiva) return
+                    const c = await campoService.crear(nuevoCampo.trim(), undefined, sociedadActiva.id)
+                    setCampos((prev) => [...prev, c])
+                    set('campo_id', c.id)
+                    setNuevoCampo('')
+                    setCreandoCampo(false)
+                  }}
+                  className="px-3 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-600 text-xs font-medium text-white disabled:opacity-40 transition-colors"
+                >
+                  Crear
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Chip + Registro */}
           <div className="grid grid-cols-2 gap-3">

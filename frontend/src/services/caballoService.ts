@@ -12,6 +12,7 @@ export interface NuevoCaballoPayload {
   numero_chip?: string
   numero_registro?: string
   marca_id: string
+  campo_id?: string | null
 }
 
 export interface TransferirPayload {
@@ -49,11 +50,12 @@ export const caballoService = {
     const { data, error } = await supabase
       .from('caballo')
       .select(`
-        id, nombre, fecha_nacimiento, categoria, marca_id,
+        id, nombre, fecha_nacimiento, categoria, marca_id, campo_id,
         numero_chip, numero_registro, activo,
         cat_raza(nombre),
         cat_pelaje(nombre),
-        marca(nombre)
+        marca(nombre),
+        campo(nombre)
       `)
       .eq('sociedad_id', sociedadId)
       .eq('activo', true)
@@ -87,9 +89,11 @@ export const caballoService = {
 
   async crear(payload: NuevoCaballoPayload, sociedadId: string) {
     if (isMockMode()) {
+      const { MOCK_CAMPOS } = await import('../dev/mockData')
       const raza   = MOCK_RAZAS.find((r) => r.id === payload.raza_id)
       const pelaje = MOCK_PELAJES.find((p) => p.id === payload.pelaje_id)
       const marca  = MOCK_MARCAS.find((m) => m.id === payload.marca_id)
+      const campo  = payload.campo_id ? MOCK_CAMPOS.find((c) => c.id === payload.campo_id) : null
       const nuevo = {
         id: `cab-${Date.now()}`,
         nombre: payload.nombre,
@@ -101,10 +105,12 @@ export const caballoService = {
         numero_registro: payload.numero_registro ?? '',
         sociedad_id: sociedadId,
         marca_id: payload.marca_id,
+        campo_id: payload.campo_id ?? null,
         activo: true,
         cat_raza:  raza   ? { nombre: raza.nombre }   : null,
         cat_pelaje: pelaje ? { nombre: pelaje.nombre } : null,
         marca: marca ? { nombre: marca.nombre, dominio_email: marca.dominio_email } : null,
+        campo: campo ? { nombre: campo.nombre } : null,
       }
       MOCK_CABALLOS.push(nuevo)
       return nuevo
@@ -123,6 +129,7 @@ export const caballoService = {
         numero_registro: payload.numero_registro,
         sociedad_id: sociedadId,
         marca_id: payload.marca_id,
+        campo_id: payload.campo_id ?? null,
       })
       .select()
       .single()

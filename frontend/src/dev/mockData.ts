@@ -47,6 +47,15 @@ export const MOCK_MARCAS = [
   },
 ]
 
+// ── Campos / Caballerizas ────────────────────────────────────────────────────
+// Ubicaciones físicas del haras, visibles para todos los miembros.
+
+export const MOCK_CAMPOS = [
+  { id: 'camp-001', sociedad_id: 'mock-sociedad-001', nombre: 'Potrero Norte',    descripcion: 'Potrero principal de entrenamiento' },
+  { id: 'camp-002', sociedad_id: 'mock-sociedad-001', nombre: 'Caballeriza Sur',  descripcion: 'Boxes cubiertos, 12 animales' },
+  { id: 'camp-003', sociedad_id: 'mock-sociedad-001', nombre: 'Potrero de Cría',  descripcion: 'Yeguas y potrancas en gestación' },
+]
+
 // ── Caballos ─────────────────────────────────────────────────────────────────
 // cab-001 a cab-006 → Estancia Los Álamos (mock-marca-001)
 // cab-007 a cab-008 → Polo Club BA (mock-marca-002)
@@ -63,10 +72,12 @@ export const MOCK_CABALLOS = [
     numero_registro: 'SA-0001',
     sociedad_id: 'mock-sociedad-001',
     marca_id: 'mock-marca-001',
+    campo_id: 'camp-001',
     activo: true,
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Zaino' },
     marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
+    campo: { nombre: 'Potrero Norte' },
   },
   {
     id: 'cab-002',
@@ -79,10 +90,12 @@ export const MOCK_CABALLOS = [
     numero_registro: 'SA-0002',
     sociedad_id: 'mock-sociedad-001',
     marca_id: 'mock-marca-001',
+    campo_id: 'camp-003',
     activo: true,
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Tordillo' },
     marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
+    campo: { nombre: 'Potrero de Cría' },
   },
   {
     id: 'cab-003',
@@ -95,10 +108,12 @@ export const MOCK_CABALLOS = [
     numero_registro: 'SA-0003',
     sociedad_id: 'mock-sociedad-001',
     marca_id: 'mock-marca-001',
+    campo_id: 'camp-002',
     activo: true,
     cat_raza: { nombre: 'Pura Sangre de Carrera' },
     cat_pelaje: { nombre: 'Alazán' },
     marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
+    campo: { nombre: 'Caballeriza Sur' },
   },
   {
     id: 'cab-004',
@@ -111,10 +126,12 @@ export const MOCK_CABALLOS = [
     numero_registro: 'SA-0004',
     sociedad_id: 'mock-sociedad-001',
     marca_id: 'mock-marca-001',
+    campo_id: 'camp-001',
     activo: true,
     cat_raza: { nombre: 'Criollo' },
     cat_pelaje: { nombre: 'Bayo' },
     marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
+    campo: { nombre: 'Potrero Norte' },
   },
   {
     id: 'cab-005',
@@ -127,10 +144,12 @@ export const MOCK_CABALLOS = [
     numero_registro: 'SA-0005',
     sociedad_id: 'mock-sociedad-001',
     marca_id: 'mock-marca-001',
+    campo_id: 'camp-002',
     activo: true,
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Zaino' },
     marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
+    campo: { nombre: 'Caballeriza Sur' },
   },
   {
     id: 'cab-006',
@@ -143,10 +162,12 @@ export const MOCK_CABALLOS = [
     numero_registro: 'SA-0006',
     sociedad_id: 'mock-sociedad-001',
     marca_id: 'mock-marca-001',
+    campo_id: null,   // sin campo asignado
     activo: true,
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Tordillo' },
     marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
+    campo: null,
   },
   {
     id: 'cab-007',
@@ -159,10 +180,12 @@ export const MOCK_CABALLOS = [
     numero_registro: 'SA-0007',
     sociedad_id: 'mock-sociedad-001',
     marca_id: 'mock-marca-002',
+    campo_id: 'camp-001',
     activo: true,
     cat_raza: { nombre: 'Pura Sangre de Carrera' },
     cat_pelaje: { nombre: 'Zaino' },
     marca: { nombre: 'Polo Club Buenos Aires', dominio_email: 'pcba.com.ar' },
+    campo: { nombre: 'Potrero Norte' },
   },
   {
     id: 'cab-008',
@@ -175,10 +198,12 @@ export const MOCK_CABALLOS = [
     numero_registro: '',
     sociedad_id: 'mock-sociedad-001',
     marca_id: 'mock-marca-002',
+    campo_id: null,   // sin campo asignado
     activo: true,
     cat_raza: { nombre: 'Criollo' },
     cat_pelaje: { nombre: 'Alazán' },
     marca: { nombre: 'Polo Club Buenos Aires', dominio_email: 'pcba.com.ar' },
+    campo: null,
   },
 ]
 

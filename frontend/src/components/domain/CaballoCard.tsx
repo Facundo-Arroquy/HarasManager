@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Stethoscope, ChevronRight, ArrowLeftRight } from 'lucide-react'
 import { calcularEdad } from '../../utils/fecha'
+import type { Campo } from '../../services/campoService'
 
 interface CaballoCardProps {
   caballo: {
@@ -13,9 +14,12 @@ interface CaballoCardProps {
     marca?: { nombre: string } | null
     cat_raza?: { nombre: string } | null
     cat_pelaje?: { nombre: string } | null
+    campo?: { nombre: string } | null
   }
   canTransfer?: boolean
   onTransferir?: () => void
+  campos?: Campo[]
+  onCampoChange?: (campoId: string) => void
 }
 
 const CATEGORIA_STYLE: Record<string, string> = {
@@ -25,8 +29,8 @@ const CATEGORIA_STYLE: Record<string, string> = {
   Potrillo: 'bg-amber-950 text-amber-300 ring-1 ring-amber-800',
 }
 
-export default function CaballoCard({ caballo, canTransfer, onTransferir }: CaballoCardProps) {
-  const navigate  = useNavigate()
+export default function CaballoCard({ caballo, canTransfer, onTransferir, campos, onCampoChange }: CaballoCardProps) {
+  const navigate   = useNavigate()
   const badgeClass = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
 
   return (
@@ -68,6 +72,21 @@ export default function CaballoCard({ caballo, canTransfer, onTransferir }: Caba
           </div>
         )}
       </dl>
+
+      {/* Selector de campo inline (admin/jugador/piloto) */}
+      {onCampoChange && campos && campos.length > 0 && (
+        <select
+          defaultValue={(caballo as any).campo_id ?? ''}
+          onChange={(e) => onCampoChange(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+        >
+          <option value="">Sin campo</option>
+          {campos.map((c) => (
+            <option key={c.id} value={c.id}>{c.nombre}</option>
+          ))}
+        </select>
+      )}
 
       {/* Acciones */}
       <div className="mt-auto flex flex-col gap-2">

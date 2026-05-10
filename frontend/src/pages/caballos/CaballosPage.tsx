@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
-import { Search, Plus } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Search, Plus, MapPin } from 'lucide-react'
 import { caballoService } from '../../services/caballoService'
+import { campoService, type Campo } from '../../services/campoService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
@@ -12,40 +13,66 @@ type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
 
 const CATEGORIAS = ['Todos', 'Caballo', 'Yegua', 'Padrillo', 'Potrillo']
 
+const canManageCampos = (rol: string | null) =>
+  rol === 'admin' || rol === 'jugador' || rol === 'piloto'
+
 export default function CaballosPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const rol        = useAuthStore((s) => s.rol)
 
-  const [caballos,  setCaballos]  = useState<Caballo[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [error,     setError]     = useState<string | null>(null)
-  const [busqueda,  setBusqueda]  = useState('')
-  const [filtro,    setFiltro]    = useState('Todos')
+  const [caballos,  setCaballos] = useState<Caballo[]>([])
+  const [campos,    setCampos]   = useState<Campo[]>([])
+  const [loading,   setLoading]  = useState(true)
+  const [error,     setError]    = useState<string | null>(null)
+  const [busqueda,  setBusqueda] = useState('')
+  const [filtro,    setFiltro]   = useState('Todos')
 
-  const [showConsulta,   setShowConsulta]   = useState(false)
-  const [showNuevo,      setShowNuevo]      = useState(false)
+  const [showConsulta,    setShowConsulta]    = useState(false)
+  const [showNuevo,       setShowNuevo]       = useState(false)
   const [caballoTransfer, setCaballoTransfer] = useState<Caballo | null>(null)
 
-  const canCreateHorse  = rol === 'admin'
-  const canTransfer     = rol === 'admin'
-
-  function cargarCaballos() {
+  async function cargar() {
     if (!sociedadId) return
     setLoading(true)
-    caballoService
-      .listar(sociedadId)
-      .then(setCaballos)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false))
+    try {
+      const [c, f] = await Promise.all([
+        caballoService.listar(sociedadId),
+        campoService.listar(sociedadId),
+      ])
+      setCaballos(c)
+      setCampos(f)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  useEffect(cargarCaballos, [sociedadId])
+  useEffect(() => { cargar() }, [sociedadId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filtrados = caballos.filter((c) => {
-    const okNombre = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
-    const okCat    = filtro === 'Todos' || c.categoria === filtro
-    return okNombre && okCat
-  })
+  const filtrados = useMemo(
+    () =>
+      caballos.filter((c) => {
+        const okNombre = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
+        const okCat    = filtro === 'Todos' || c.categoria === filtro
+        return okNombre && okCat
+      }),
+    [caballos, busqueda, filtro]
+  )
+
+  // Agrupar: cada campo en orden + "Sin campo" al final
+  const grupos = useMemo(() => {
+    const byCampo: Record<string, Caballo[]> = {}
+    for (const c of filtrados) {
+      const key = (c as any).campo_id ?? '__sin_campo__'
+      if (!byCampo[key]) byCampo[key] = []
+      byCampo[key].push(c)
+    }
+    return byCampo
+  }, [filtrados])
+
+  const camposConCaballos = campos.filter((c) => grupos[c.id]?.length)
+  const sinCampo          = grupos['__sin_campo__'] ?? []
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -54,27 +81,24 @@ export default function CaballosPage() {
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Caballos</h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {loading ? '…' : `${caballos.length} animales registrados`}
+            {loading ? '…' : `${caballos.length} animales · ${campos.length} campos`}
           </p>
         </div>
-
         <div className="flex items-center gap-2 shrink-0">
           {rol === 'veterinario' && (
             <button
               onClick={() => setShowConsulta(true)}
               className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors"
             >
-              <Plus size={15} />
-              Nueva consulta
+              <Plus size={15} /> Nueva consulta
             </button>
           )}
-          {canCreateHorse && (
+          {rol === 'admin' && (
             <button
               onClick={() => setShowNuevo(true)}
               className="flex items-center gap-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 px-3 py-2 text-sm font-medium text-zinc-100 transition-colors"
             >
-              <Plus size={15} />
-              Nuevo caballo
+              <Plus size={15} /> Nuevo caballo
             </button>
           )}
         </div>
@@ -110,58 +134,106 @@ export default function CaballosPage() {
       </div>
 
       {/* Estados */}
-      {loading && (
-        <div className="flex justify-center py-20"><Spinner size="lg" /></div>
-      )}
-      {error && (
-        <div className="rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-300">
-          Error: {error}
-        </div>
-      )}
+      {loading && <div className="flex justify-center py-20"><Spinner size="lg" /></div>}
+      {error   && <div className="rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-300">Error: {error}</div>}
       {!loading && !error && filtrados.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-zinc-500 text-sm">
-          Sin resultados
-        </div>
+        <div className="flex flex-col items-center justify-center py-20 text-zinc-500 text-sm">Sin resultados</div>
       )}
 
-      {/* Grid */}
+      {/* Vista agrupada por campo */}
       {!loading && !error && filtrados.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtrados.map((caballo) => (
-            <CaballoCard
-              key={caballo.id}
-              caballo={caballo}
-              canTransfer={canTransfer}
-              onTransferir={() => setCaballoTransfer(caballo)}
+        <div className="space-y-8">
+          {camposConCaballos.map((campo) => (
+            <CampoSection
+              key={campo.id}
+              campo={campo}
+              caballos={grupos[campo.id]}
+              todos={campos}
+              rol={rol}
+              onTransferir={setCaballoTransfer}
+              onCampoChange={cargar}
             />
           ))}
+
+          {sinCampo.length > 0 && (
+            <CampoSection
+              campo={null}
+              caballos={sinCampo}
+              todos={campos}
+              rol={rol}
+              onTransferir={setCaballoTransfer}
+              onCampoChange={cargar}
+            />
+          )}
         </div>
       )}
 
-      {/* Modal — nueva consulta (sin caballo preseleccionado) */}
       {showConsulta && (
-        <NuevaConsultaModal
-          onClose={() => setShowConsulta(false)}
-          onSuccess={cargarCaballos}
-        />
+        <NuevaConsultaModal onClose={() => setShowConsulta(false)} onSuccess={cargar} />
       )}
-
-      {/* Modal — nuevo caballo */}
       {showNuevo && (
         <NuevoCaballoModal
           onClose={() => setShowNuevo(false)}
-          onSuccess={() => { setShowNuevo(false); cargarCaballos() }}
+          onSuccess={() => { setShowNuevo(false); cargar() }}
         />
       )}
-
-      {/* Modal — transferir propiedad */}
       {caballoTransfer && (
         <TransferirMarcaModal
           caballo={caballoTransfer}
           onClose={() => setCaballoTransfer(null)}
-          onSuccess={() => { setCaballoTransfer(null); cargarCaballos() }}
+          onSuccess={() => { setCaballoTransfer(null); cargar() }}
         />
       )}
     </div>
+  )
+}
+
+// ── Sección de un campo ───────────────────────────────────────────────────────
+
+interface CampoSectionProps {
+  campo: Campo | null
+  caballos: Caballo[]
+  todos: Campo[]
+  rol: string | null
+  onTransferir: (c: Caballo) => void
+  onCampoChange: () => void
+}
+
+function CampoSection({ campo, caballos, todos, rol, onTransferir, onCampoChange }: CampoSectionProps) {
+  const puedeGestionar = canManageCampos(rol)
+
+  async function handleCampoChange(caballoId: string, nuevoId: string) {
+    await campoService.asignarCaballo(caballoId, nuevoId || null)
+    onCampoChange()
+  }
+
+  return (
+    <section>
+      {/* Encabezado de sección */}
+      <div className="flex items-center gap-2 mb-3">
+        <MapPin size={14} className={campo ? 'text-emerald-500' : 'text-zinc-600'} />
+        <h2 className="text-sm font-semibold text-zinc-300">
+          {campo?.nombre ?? 'Sin campo asignado'}
+        </h2>
+        {campo?.descripcion && (
+          <span className="text-xs text-zinc-600">· {campo.descripcion}</span>
+        )}
+        <span className="ml-auto text-xs text-zinc-600">
+          {caballos.length} animal{caballos.length !== 1 ? 'es' : ''}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {caballos.map((caballo) => (
+          <CaballoCard
+            key={caballo.id}
+            caballo={caballo}
+            canTransfer={rol === 'admin'}
+            onTransferir={() => onTransferir(caballo)}
+            campos={puedeGestionar ? todos : []}
+            onCampoChange={puedeGestionar ? (nuevoId) => handleCampoChange(caballo.id, nuevoId) : undefined}
+          />
+        ))}
+      </div>
+    </section>
   )
 }
