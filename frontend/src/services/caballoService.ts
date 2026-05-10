@@ -72,7 +72,7 @@ export const caballoService = {
       .eq('activo', true)
       .order('nombre')
     if (error) throw error
-    return data
+    return data as any
   },
 
   async obtener(id: string) {
@@ -123,7 +123,7 @@ export const caballoService = {
         marca: marca ? { nombre: marca.nombre, dominio_email: marca.dominio_email } : null,
         campo: campo ? { nombre: campo.nombre } : null,
       }
-      MOCK_CABALLOS.push(nuevo)
+      MOCK_CABALLOS.push(nuevo as any)
       return nuevo
     }
 
@@ -214,9 +214,9 @@ export const caballoService = {
       if (!caballo) throw new Error('Caballo no encontrado')
       const nuevaMarca = MOCK_MARCAS.find((m) => m.id === payload.marca_nueva_id)
       caballo.marca_id = payload.marca_nueva_id
-      caballo.marca = nuevaMarca
+      caballo.marca = (nuevaMarca
         ? { nombre: nuevaMarca.nombre, dominio_email: nuevaMarca.dominio_email }
-        : null
+        : null) as any
       return
     }
 

@@ -37,7 +37,7 @@ export const campoService = {
         descripcion: descripcion?.trim() || null,
         sociedad_id: sociedadId,
       }
-      MOCK_CAMPOS.push(nuevo)
+      MOCK_CAMPOS.push(nuevo as any)
       return nuevo
     }
 
@@ -85,7 +85,7 @@ export const campoService = {
       const campo = MOCK_CAMPOS.find((c) => c.id === id)
       if (campo) {
         campo.nombre = nombre.trim()
-        campo.descripcion = descripcion?.trim() || null
+        campo.descripcion = (descripcion?.trim() || null) as any
       }
       // Sincronizar campo.nombre en los caballos que lo tienen asignado
       MOCK_CABALLOS.forEach((cab) => {
@@ -109,8 +109,8 @@ export const campoService = {
       // Desasignar caballos que estaban en este campo
       MOCK_CABALLOS.forEach((cab) => {
         if (cab.campo_id === id) {
-          cab.campo_id = null
-          cab.campo = null
+          cab.campo_id = null as any
+          cab.campo = null as any
         }
       })
       // Eliminar del array mock
