@@ -4,6 +4,8 @@ import { caballoService } from '../../services/caballoService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
+import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
+import TransferirMarcaModal from '../../components/domain/TransferirMarcaModal'
 import Spinner from '../../components/ui/Spinner'
 
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
@@ -19,7 +21,13 @@ export default function CaballosPage() {
   const [error,     setError]     = useState<string | null>(null)
   const [busqueda,  setBusqueda]  = useState('')
   const [filtro,    setFiltro]    = useState('Todos')
-  const [showModal, setShowModal] = useState(false)
+
+  const [showConsulta,   setShowConsulta]   = useState(false)
+  const [showNuevo,      setShowNuevo]      = useState(false)
+  const [caballoTransfer, setCaballoTransfer] = useState<Caballo | null>(null)
+
+  const canCreateHorse  = rol === 'admin'
+  const canTransfer     = rol === 'admin'
 
   function cargarCaballos() {
     if (!sociedadId) return
@@ -34,9 +42,9 @@ export default function CaballosPage() {
   useEffect(cargarCaballos, [sociedadId])
 
   const filtrados = caballos.filter((c) => {
-    const ok = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
-    const okCat = filtro === 'Todos' || c.categoria === filtro
-    return ok && okCat
+    const okNombre = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
+    const okCat    = filtro === 'Todos' || c.categoria === filtro
+    return okNombre && okCat
   })
 
   return (
@@ -50,16 +58,26 @@ export default function CaballosPage() {
           </p>
         </div>
 
-        {/* Solo veterinario puede crear consultas */}
-        {rol === 'veterinario' && (
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors shrink-0"
-          >
-            <Plus size={15} />
-            Nueva consulta
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {rol === 'veterinario' && (
+            <button
+              onClick={() => setShowConsulta(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors"
+            >
+              <Plus size={15} />
+              Nueva consulta
+            </button>
+          )}
+          {canCreateHorse && (
+            <button
+              onClick={() => setShowNuevo(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 px-3 py-2 text-sm font-medium text-zinc-100 transition-colors"
+            >
+              <Plus size={15} />
+              Nuevo caballo
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filtros */}
@@ -110,16 +128,38 @@ export default function CaballosPage() {
       {!loading && !error && filtrados.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtrados.map((caballo) => (
-            <CaballoCard key={caballo.id} caballo={caballo} />
+            <CaballoCard
+              key={caballo.id}
+              caballo={caballo}
+              canTransfer={canTransfer}
+              onTransferir={() => setCaballoTransfer(caballo)}
+            />
           ))}
         </div>
       )}
 
-      {/* Modal — sin caballoId pre-seleccionado: muestra selector */}
-      {showModal && (
+      {/* Modal — nueva consulta (sin caballo preseleccionado) */}
+      {showConsulta && (
         <NuevaConsultaModal
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowConsulta(false)}
           onSuccess={cargarCaballos}
+        />
+      )}
+
+      {/* Modal — nuevo caballo */}
+      {showNuevo && (
+        <NuevoCaballoModal
+          onClose={() => setShowNuevo(false)}
+          onSuccess={() => { setShowNuevo(false); cargarCaballos() }}
+        />
+      )}
+
+      {/* Modal — transferir propiedad */}
+      {caballoTransfer && (
+        <TransferirMarcaModal
+          caballo={caballoTransfer}
+          onClose={() => setCaballoTransfer(null)}
+          onSuccess={() => { setCaballoTransfer(null); cargarCaballos() }}
         />
       )}
     </div>

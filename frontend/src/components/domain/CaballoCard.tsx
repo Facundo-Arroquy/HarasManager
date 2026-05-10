@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Stethoscope, ChevronRight } from 'lucide-react'
+import { Stethoscope, ChevronRight, ArrowLeftRight } from 'lucide-react'
 import { calcularEdad } from '../../utils/fecha'
 
 interface CaballoCardProps {
@@ -9,9 +9,13 @@ interface CaballoCardProps {
     fecha_nacimiento?: string | null
     categoria?: string | null
     numero_chip?: string | null
+    marca_id?: string | null
+    marca?: { nombre: string } | null
     cat_raza?: { nombre: string } | null
     cat_pelaje?: { nombre: string } | null
   }
+  canTransfer?: boolean
+  onTransferir?: () => void
 }
 
 const CATEGORIA_STYLE: Record<string, string> = {
@@ -21,8 +25,8 @@ const CATEGORIA_STYLE: Record<string, string> = {
   Potrillo: 'bg-amber-950 text-amber-300 ring-1 ring-amber-800',
 }
 
-export default function CaballoCard({ caballo }: CaballoCardProps) {
-  const navigate = useNavigate()
+export default function CaballoCard({ caballo, canTransfer, onTransferir }: CaballoCardProps) {
+  const navigate  = useNavigate()
   const badgeClass = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
 
   return (
@@ -65,17 +69,32 @@ export default function CaballoCard({ caballo }: CaballoCardProps) {
         )}
       </dl>
 
-      {/* Acción */}
-      <button
-        onClick={() => navigate(`/caballos/${caballo.id}/historial`)}
-        className="mt-auto flex items-center justify-between rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:border-emerald-700 hover:bg-emerald-950 hover:text-emerald-300"
-      >
-        <span className="flex items-center gap-1.5">
-          <Stethoscope size={13} />
-          Ver historial clínico
-        </span>
-        <ChevronRight size={13} />
-      </button>
+      {/* Acciones */}
+      <div className="mt-auto flex flex-col gap-2">
+        <button
+          onClick={() => navigate(`/caballos/${caballo.id}/historial`)}
+          className="flex items-center justify-between rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:border-emerald-700 hover:bg-emerald-950 hover:text-emerald-300"
+        >
+          <span className="flex items-center gap-1.5">
+            <Stethoscope size={13} />
+            Ver historial clínico
+          </span>
+          <ChevronRight size={13} />
+        </button>
+
+        {canTransfer && onTransferir && (
+          <button
+            onClick={onTransferir}
+            className="flex items-center justify-between rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:border-amber-700 hover:bg-amber-950 hover:text-amber-300"
+          >
+            <span className="flex items-center gap-1.5">
+              <ArrowLeftRight size={13} />
+              Transferir propiedad
+            </span>
+            <ChevronRight size={13} />
+          </button>
+        )}
+      </div>
     </div>
   )
 }

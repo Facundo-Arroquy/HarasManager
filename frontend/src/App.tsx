@@ -6,7 +6,6 @@ import DevPanel from './dev/DevPanel'
 import LoginPage from './pages/auth/LoginPage'
 import CaballosPage from './pages/caballos/CaballosPage'
 import HistorialPage from './pages/historial/HistorialPage'
-import PropietariosPage from './pages/propietarios/PropietariosPage'
 import AdminPage from './pages/admin/AdminPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -41,7 +40,6 @@ export default function App() {
           <Route index element={<Navigate to="/caballos" replace />} />
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
-          <Route path="/propietarios" element={<PropietariosPage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Route>
 
