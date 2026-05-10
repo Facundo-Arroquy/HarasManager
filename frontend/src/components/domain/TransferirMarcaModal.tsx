@@ -72,7 +72,7 @@ export default function TransferirMarcaModal({ caballo, onClose, onSuccess }: Pr
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+      <div className="w-full max-w-md mx-4 sm:mx-0 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
           <h2 className="text-sm font-semibold text-zinc-100">Transferir propiedad</h2>

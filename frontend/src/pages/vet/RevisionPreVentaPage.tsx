@@ -128,7 +128,7 @@ export default function RevisionPreVentaPage() {
   const caballo = caballos.find((c) => c.id === caballoId)
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-zinc-100">Revisión pre-venta</h1>
@@ -224,7 +224,11 @@ export default function RevisionPreVentaPage() {
 
         <div className="space-y-2">
           {items.map((item) => (
-            <div key={item.tempId} className="grid grid-cols-[2fr_3fr_1fr_auto] gap-2 items-start">
+            /* Mobile: card apilada · Desktop: grid de 4 columnas */
+            <div
+              key={item.tempId}
+              className="rounded-lg border border-zinc-800 p-3 space-y-2 sm:border-0 sm:p-0 sm:space-y-0 sm:grid sm:grid-cols-[2fr_3fr_1fr_auto] sm:gap-2 sm:items-start"
+            >
               <input
                 type="text"
                 value={item.categoria}
@@ -239,21 +243,24 @@ export default function RevisionPreVentaPage() {
                 placeholder="Sin alteraciones…"
                 className={inputClass}
               />
-              <select
-                value={item.resultado}
-                onChange={(e) => updItem(item.tempId, 'resultado', e.target.value)}
-                className={`${selectClass} ${RES_CLASS[item.resultado]}`}
-              >
-                {RESULTADO_OPTS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => remItem(item.tempId)}
-                className="mt-0.5 p-1.5 text-zinc-600 hover:text-rose-400 transition-colors rounded"
-              >
-                <Trash2 size={14} />
-              </button>
+              {/* En mobile: select + botón en la misma fila */}
+              <div className="flex items-center gap-2 sm:contents">
+                <select
+                  value={item.resultado}
+                  onChange={(e) => updItem(item.tempId, 'resultado', e.target.value)}
+                  className={`${selectClass} ${RES_CLASS[item.resultado]} flex-1 sm:flex-none`}
+                >
+                  {RESULTADO_OPTS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => remItem(item.tempId)}
+                  className="p-1.5 text-zinc-600 hover:text-rose-400 transition-colors rounded shrink-0 sm:mt-0.5"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -294,7 +301,7 @@ export default function RevisionPreVentaPage() {
       </div>
 
       {/* ── Footer ── */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-center gap-3">
         <button
           onClick={handleReset}
           className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
