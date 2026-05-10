@@ -3,6 +3,17 @@ import { isMockMode, getMockUserId } from '../dev/mockMode'
 import { getMockUser } from '../dev/mockUsers'
 import { MOCK_CABALLOS, MOCK_ACCESOS_VET, MOCK_RAZAS, MOCK_PELAJES, MOCK_MARCAS } from '../dev/mockData'
 
+export interface ActualizarCaballoPayload {
+  nombre: string
+  fecha_nacimiento: string
+  categoria: 'Caballo' | 'Yegua' | 'Padrillo' | 'Potrillo'
+  raza_id: number
+  pelaje_id: number
+  numero_chip?: string
+  numero_registro?: string
+  campo_id?: string | null
+}
+
 export interface NuevoCaballoPayload {
   nombre: string
   fecha_nacimiento: string
@@ -51,7 +62,7 @@ export const caballoService = {
       .from('caballo')
       .select(`
         id, nombre, fecha_nacimiento, categoria, marca_id, campo_id,
-        numero_chip, numero_registro, activo,
+        raza_id, pelaje_id, numero_chip, numero_registro, activo,
         cat_raza(nombre),
         cat_pelaje(nombre),
         marca(nombre),
@@ -135,6 +146,62 @@ export const caballoService = {
       .single()
     if (error) throw error
     return data
+  },
+
+  async actualizar(id: string, payload: ActualizarCaballoPayload): Promise<void> {
+    if (isMockMode()) {
+      const { MOCK_CAMPOS } = await import('../dev/mockData')
+      const caballo = MOCK_CABALLOS.find((c) => c.id === id)
+      if (!caballo) return
+      const raza   = MOCK_RAZAS.find((r) => r.id === payload.raza_id)
+      const pelaje = MOCK_PELAJES.find((p) => p.id === payload.pelaje_id)
+      const campo  = payload.campo_id ? MOCK_CAMPOS.find((c) => c.id === payload.campo_id) : null
+      Object.assign(caballo, {
+        nombre:          payload.nombre,
+        fecha_nacimiento: payload.fecha_nacimiento,
+        categoria:       payload.categoria,
+        raza_id:         payload.raza_id,
+        pelaje_id:       payload.pelaje_id,
+        numero_chip:     payload.numero_chip ?? '',
+        numero_registro: payload.numero_registro ?? '',
+        campo_id:        payload.campo_id ?? null,
+        cat_raza:        raza   ? { nombre: raza.nombre }   : null,
+        cat_pelaje:      pelaje ? { nombre: pelaje.nombre } : null,
+        campo:           campo  ? { nombre: campo.nombre }  : null,
+      })
+      return
+    }
+
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('caballo')
+      .update({
+        nombre:           payload.nombre,
+        fecha_nacimiento: payload.fecha_nacimiento,
+        categoria:        payload.categoria,
+        raza_id:          payload.raza_id,
+        pelaje_id:        payload.pelaje_id,
+        numero_chip:      payload.numero_chip ?? null,
+        numero_registro:  payload.numero_registro ?? null,
+        campo_id:         payload.campo_id ?? null,
+      })
+      .eq('id', id)
+    if (error) throw error
+  },
+
+  async darDeBaja(id: string): Promise<void> {
+    if (isMockMode()) {
+      const caballo = MOCK_CABALLOS.find((c) => c.id === id)
+      if (caballo) caballo.activo = false
+      return
+    }
+
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('caballo')
+      .update({ activo: false })
+      .eq('id', id)
+    if (error) throw error
   },
 
   async transferir(

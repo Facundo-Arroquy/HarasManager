@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Stethoscope, ChevronRight, ArrowLeftRight } from 'lucide-react'
+import { Stethoscope, ChevronRight, ArrowLeftRight, Pencil } from 'lucide-react'
 import { calcularEdad } from '../../utils/fecha'
 import type { Campo } from '../../services/campoService'
 
@@ -9,7 +9,11 @@ interface CaballoCardProps {
     nombre: string
     fecha_nacimiento?: string | null
     categoria?: string | null
+    raza_id?: number | null
+    pelaje_id?: number | null
     numero_chip?: string | null
+    numero_registro?: string | null
+    campo_id?: string | null
     marca_id?: string | null
     marca?: { nombre: string } | null
     cat_raza?: { nombre: string } | null
@@ -18,6 +22,7 @@ interface CaballoCardProps {
   }
   canTransfer?: boolean
   onTransferir?: () => void
+  onEditar?: () => void
   campos?: Campo[]
   onCampoChange?: (campoId: string) => void
 }
@@ -29,7 +34,7 @@ const CATEGORIA_STYLE: Record<string, string> = {
   Potrillo: 'bg-amber-950 text-amber-300 ring-1 ring-amber-800',
 }
 
-export default function CaballoCard({ caballo, canTransfer, onTransferir, campos, onCampoChange }: CaballoCardProps) {
+export default function CaballoCard({ caballo, canTransfer, onTransferir, onEditar, campos, onCampoChange }: CaballoCardProps) {
   const navigate   = useNavigate()
   const badgeClass = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
 
@@ -100,6 +105,19 @@ export default function CaballoCard({ caballo, canTransfer, onTransferir, campos
           </span>
           <ChevronRight size={13} />
         </button>
+
+        {onEditar && (
+          <button
+            onClick={onEditar}
+            className="flex items-center justify-between rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            <span className="flex items-center gap-1.5">
+              <Pencil size={13} />
+              Editar
+            </span>
+            <ChevronRight size={13} />
+          </button>
+        )}
 
         {canTransfer && onTransferir && (
           <button

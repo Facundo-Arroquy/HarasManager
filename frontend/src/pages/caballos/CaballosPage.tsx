@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
+import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import TransferirMarcaModal from '../../components/domain/TransferirMarcaModal'
 import Spinner from '../../components/ui/Spinner'
 
@@ -29,6 +30,7 @@ export default function CaballosPage() {
 
   const [showConsulta,    setShowConsulta]    = useState(false)
   const [showNuevo,       setShowNuevo]       = useState(false)
+  const [caballoEditar,   setCaballoEditar]   = useState<Caballo | null>(null)
   const [caballoTransfer, setCaballoTransfer] = useState<Caballo | null>(null)
 
   async function cargar() {
@@ -93,7 +95,7 @@ export default function CaballosPage() {
               <Plus size={15} /> Nueva consulta
             </button>
           )}
-          {rol === 'admin' && (
+          {canManageCampos(rol) && (
             <button
               onClick={() => setShowNuevo(true)}
               className="flex items-center gap-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 px-3 py-2 text-sm font-medium text-zinc-100 transition-colors"
@@ -150,6 +152,7 @@ export default function CaballosPage() {
               caballos={grupos[campo.id]}
               todos={campos}
               rol={rol}
+              onEditar={setCaballoEditar}
               onTransferir={setCaballoTransfer}
               onCampoChange={cargar}
             />
@@ -161,6 +164,7 @@ export default function CaballosPage() {
               caballos={sinCampo}
               todos={campos}
               rol={rol}
+              onEditar={setCaballoEditar}
               onTransferir={setCaballoTransfer}
               onCampoChange={cargar}
             />
@@ -175,6 +179,13 @@ export default function CaballosPage() {
         <NuevoCaballoModal
           onClose={() => setShowNuevo(false)}
           onSuccess={() => { setShowNuevo(false); cargar() }}
+        />
+      )}
+      {caballoEditar && (
+        <EditarCaballoModal
+          caballo={caballoEditar}
+          onClose={() => setCaballoEditar(null)}
+          onSuccess={() => { setCaballoEditar(null); cargar() }}
         />
       )}
       {caballoTransfer && (
@@ -195,11 +206,12 @@ interface CampoSectionProps {
   caballos: Caballo[]
   todos: Campo[]
   rol: string | null
+  onEditar: (c: Caballo) => void
   onTransferir: (c: Caballo) => void
   onCampoChange: () => void
 }
 
-function CampoSection({ campo, caballos, todos, rol, onTransferir, onCampoChange }: CampoSectionProps) {
+function CampoSection({ campo, caballos, todos, rol, onEditar, onTransferir, onCampoChange }: CampoSectionProps) {
   const puedeGestionar = canManageCampos(rol)
 
   async function handleCampoChange(caballoId: string, nuevoId: string) {
@@ -229,6 +241,7 @@ function CampoSection({ campo, caballos, todos, rol, onTransferir, onCampoChange
             caballo={caballo}
             canTransfer={rol === 'admin'}
             onTransferir={() => onTransferir(caballo)}
+            onEditar={puedeGestionar ? () => onEditar(caballo) : undefined}
             campos={puedeGestionar ? todos : []}
             onCampoChange={puedeGestionar ? (nuevoId) => handleCampoChange(caballo.id, nuevoId) : undefined}
           />
