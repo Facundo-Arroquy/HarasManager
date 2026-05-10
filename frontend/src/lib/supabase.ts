@@ -6,11 +6,11 @@ export function getSupabaseClient(): SupabaseClient {
   if (client) return client
 
   const url = import.meta.env.VITE_SUPABASE_URL
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+  const key = import.meta.env.VITE_SUPABASE_ANON
 
   if (!url || !key) {
     throw new Error(
-      'Faltan variables de entorno: VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY. ' +
+      'Faltan variables de entorno: VITE_SUPABASE_URL y VITE_SUPABASE_ANON. ' +
       'Copiá .env.example a .env.local y completá los valores.'
     )
   }

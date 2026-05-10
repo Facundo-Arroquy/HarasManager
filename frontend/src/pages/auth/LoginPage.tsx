@@ -160,7 +160,7 @@ export default function LoginPage() {
                   <p className="text-xs text-amber-300 leading-relaxed">
                     Configurá <code className="font-mono text-amber-200">.env.local</code> con{' '}
                     <code className="font-mono text-amber-200">VITE_SUPABASE_URL</code> y{' '}
-                    <code className="font-mono text-amber-200">VITE_SUPABASE_ANON_KEY</code>.
+                    <code className="font-mono text-amber-200">VITE_SUPABASE_ANON</code>.
                   </p>
                 </div>
               )}
