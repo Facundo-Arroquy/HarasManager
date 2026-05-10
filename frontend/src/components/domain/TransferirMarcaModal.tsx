@@ -1,37 +1,36 @@
 import { useEffect, useState } from 'react'
 import { X, ArrowRight } from 'lucide-react'
-import { useAuth } from '../../hooks/useAuth'
+import { useAuthStore } from '../../store/authStore'
 import { caballoService } from '../../services/caballoService'
-import { getMarcas, type MarcaAdmin } from '../../services/adminService'
-
-interface Caballo {
-  id: string
-  nombre: string
-  categoria?: string | null
-  marca_id?: string | null
-  marca?: { nombre: string } | null
-}
+import { marcaService, type Marca } from '../../services/marcaService'
+import { hoyAR } from '../../utils/fecha'
 
 interface Props {
-  caballo: Caballo
+  caballo: {
+    id: string
+    nombre: string
+    categoria?: string | null
+    marca_id?: string | null
+    marca?: { nombre: string } | null
+  }
   onClose: () => void
   onSuccess: () => void
 }
 
 export default function TransferirMarcaModal({ caballo, onClose, onSuccess }: Props) {
-  const { sociedadActiva, user } = useAuth()
+  const user     = useAuthStore((s) => s.user)
+  const sociedad = useAuthStore((s) => s.sociedadActiva)
 
-  const [marcas,      setMarcas]      = useState<MarcaAdmin[]>([])
-  const [marcaNuevaId, setMarcaNuevaId] = useState('')
-  const [fecha,        setFecha]        = useState(new Date().toISOString().slice(0, 10))
-  const [observaciones, setObs]         = useState('')
-  const [saving,       setSaving]       = useState(false)
-  const [error,        setError]        = useState('')
+  const [marcas,        setMarcas]        = useState<Marca[]>([])
+  const [marcaNuevaId,  setMarcaNuevaId]  = useState('')
+  const [fecha,         setFecha]         = useState(hoyAR())
+  const [observaciones, setObs]           = useState('')
+  const [saving,        setSaving]        = useState(false)
+  const [error,         setError]         = useState('')
 
   useEffect(() => {
-    if (!sociedadActiva) return
-    getMarcas(sociedadActiva.id).then((m) => {
-      // Excluir la marca actual del caballo
+    if (!sociedad?.id) return
+    marcaService.listar(sociedad.id).then((m) => {
       const otras = m.filter((x) => x.id !== caballo.marca_id)
       setMarcas(otras)
       if (otras[0]) setMarcaNuevaId(otras[0].id)
@@ -58,6 +57,7 @@ export default function TransferirMarcaModal({ caballo, onClose, onSuccess }: Pr
         user?.id ?? ''
       )
       onSuccess()
+      onClose()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al transferir.')
     } finally {
@@ -94,7 +94,7 @@ export default function TransferirMarcaModal({ caballo, onClose, onSuccess }: Pr
 
           {/* Advertencia */}
           <p className="text-xs text-amber-400/80 bg-amber-900/20 border border-amber-800/30 rounded-md px-3 py-2">
-            Al confirmar ya no podrás ver este animal en tu listado. La transferencia queda registrada en el historial.
+            Al confirmar, la transferencia queda registrada en el historial de propiedad.
           </p>
 
           {/* Nueva marca */}
@@ -107,7 +107,9 @@ export default function TransferirMarcaModal({ caballo, onClose, onSuccess }: Pr
             >
               {marcas.length === 0 && <option value="">No hay otras marcas disponibles</option>}
               {marcas.map((m) => (
-                <option key={m.id} value={m.id}>{m.nombre} (@{m.dominio_email})</option>
+                <option key={m.id} value={m.id}>
+                  {m.nombre}{m.dominio_email ? ` (@${m.dominio_email})` : ''}
+                </option>
               ))}
             </select>
           </div>

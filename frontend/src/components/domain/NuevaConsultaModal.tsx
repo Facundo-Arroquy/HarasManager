@@ -5,10 +5,13 @@ import { catalogoService } from '../../services/catalogoService'
 import { historialService } from '../../services/historialService'
 import { useAuthStore } from '../../store/authStore'
 import Spinner from '../ui/Spinner'
+import type { HistorialEntry } from './HistorialCard'
 
 interface Props {
   /** Si se pasa, el caballo está pre-seleccionado y no se muestra el selector */
   caballoId?: string
+  /** Si se pasa, el modal opera en modo edición */
+  entryToEdit?: HistorialEntry
   onClose: () => void
   onSuccess: () => void
 }
@@ -21,7 +24,7 @@ const LADOS = ['izquierdo', 'derecho', 'bilateral', 'no aplica']
 let _id = 0
 const uid = () => String(++_id)
 
-export default function NuevaConsultaModal({ caballoId, onClose, onSuccess }: Props) {
+export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, onSuccess }: Props) {
   const user    = useAuthStore((s) => s.user)
   const sociedad = useAuthStore((s) => s.sociedadActiva)
 
@@ -69,17 +72,56 @@ export default function NuevaConsultaModal({ caballoId, onClose, onSuccess }: Pr
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  // Cargar catálogos
+  // Cargar catálogos y pre-rellenar si es edición
   useEffect(() => {
     Promise.all([
       caballoId ? Promise.resolve([]) : caballoService.listar(sociedad?.id ?? ''),
       catalogoService.tiposConsulta(),
       catalogoService.partesCuerpo(),
     ]).then(([cabs, tip, par]) => {
+      const tipArr = tip as { id: number; nombre: string }[]
+      const parArr = par as { id: number; nombre: string }[]
       setCaballos(cabs as { id: string; nombre: string }[])
-      setTipos(tip as { id: number; nombre: string }[])
-      setPartesCat(par as { id: number; nombre: string }[])
+      setTipos(tipArr)
+      setPartesCat(parArr)
+
+      if (entryToEdit) {
+        const tipoFound = tipArr.find((t) =>
+          entryToEdit.cat_tipo_consulta.id != null
+            ? t.id === entryToEdit.cat_tipo_consulta.id
+            : t.nombre === entryToEdit.cat_tipo_consulta.nombre
+        )
+        if (tipoFound) setTipoConsultaId(String(tipoFound.id))
+
+        const d = new Date(entryToEdit.fecha_consulta)
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+        setFechaConsulta(d.toISOString().slice(0, 16))
+
+        setDiagnostico(entryToEdit.diagnostico ?? '')
+        setTratamiento(entryToEdit.tratamiento ?? '')
+        setObservaciones(entryToEdit.observaciones ?? '')
+        setProximaCons(entryToEdit.proxima_consulta ?? '')
+
+        setPartes(entryToEdit.historial_parte_afectada.map((p) => {
+          const found = parArr.find((pc) => pc.nombre === p.cat_parte_cuerpo.nombre)
+          return {
+            tempId: uid(),
+            parteCuerpoId: found ? String(found.id) : '',
+            lado: p.lado ?? 'no aplica',
+            descripcion: p.descripcion ?? '',
+          }
+        }))
+
+        setMeds(entryToEdit.historial_medicamento.map((m) => ({
+          tempId: uid(),
+          medicamento: m.medicamento,
+          dosis: m.dosis ?? '',
+          via: m.via_administracion ?? '',
+          duracion: m.duracion_dias != null ? String(m.duracion_dias) : '',
+        })))
+      }
     }).finally(() => setLoadingCat(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caballoId, sociedad?.id])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -93,31 +135,47 @@ export default function NuevaConsultaModal({ caballoId, onClose, onSuccess }: Pr
     setSubmitting(true)
     setError(null)
     try {
-      await historialService.crear({
-        caballoId: selCaballoId,
-        tipoConsultaId: Number(tipoConsultaId),
-        fechaConsulta: new Date(fechaConsulta).toISOString(),
-        diagnostico:   diagnostico   || undefined,
-        tratamiento:   tratamiento   || undefined,
-        observaciones: observaciones || undefined,
-        proximaConsulta: proximaCons || undefined,
-        creadoPor: user.id,
-        partesAfectadas: partes
-          .filter((p) => p.parteCuerpoId)
-          .map((p) => ({
-            parteCuerpoId: Number(p.parteCuerpoId),
-            lado: p.lado,
-            descripcion: p.descripcion || undefined,
-          })),
-        medicamentos: meds
-          .filter((m) => m.medicamento.trim())
-          .map((m) => ({
-            medicamento:      m.medicamento,
-            dosis:            m.dosis       || undefined,
-            viaAdministracion: m.via        || undefined,
-            duracionDias:     m.duracion ? Number(m.duracion) : undefined,
-          })),
-      })
+      const partesAfectadas = partes
+        .filter((p) => p.parteCuerpoId)
+        .map((p) => ({
+          parteCuerpoId: Number(p.parteCuerpoId),
+          lado: p.lado,
+          descripcion: p.descripcion || undefined,
+        }))
+      const medicamentos = meds
+        .filter((m) => m.medicamento.trim())
+        .map((m) => ({
+          medicamento:       m.medicamento,
+          dosis:             m.dosis    || undefined,
+          viaAdministracion: m.via      || undefined,
+          duracionDias:      m.duracion ? Number(m.duracion) : undefined,
+        }))
+
+      if (entryToEdit) {
+        await historialService.actualizar(entryToEdit.id, selCaballoId, {
+          tipoConsultaId:  Number(tipoConsultaId),
+          fechaConsulta:   new Date(fechaConsulta).toISOString(),
+          diagnostico:     diagnostico   || undefined,
+          tratamiento:     tratamiento   || undefined,
+          observaciones:   observaciones || undefined,
+          proximaConsulta: proximaCons   || undefined,
+          partesAfectadas,
+          medicamentos,
+        })
+      } else {
+        await historialService.crear({
+          caballoId:       selCaballoId,
+          tipoConsultaId:  Number(tipoConsultaId),
+          fechaConsulta:   new Date(fechaConsulta).toISOString(),
+          diagnostico:     diagnostico   || undefined,
+          tratamiento:     tratamiento   || undefined,
+          observaciones:   observaciones || undefined,
+          proximaConsulta: proximaCons   || undefined,
+          creadoPor:       user.id,
+          partesAfectadas,
+          medicamentos,
+        })
+      }
       onSuccess()
       onClose()
     } catch (err) {
@@ -136,7 +194,9 @@ export default function NuevaConsultaModal({ caballoId, onClose, onSuccess }: Pr
       <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4 shrink-0">
-          <h2 className="text-base font-semibold text-zinc-100">Nueva consulta clínica</h2>
+          <h2 className="text-base font-semibold text-zinc-100">
+            {entryToEdit ? 'Editar consulta clínica' : 'Nueva consulta clínica'}
+          </h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 transition-colors">
             <X size={18} />
           </button>
@@ -377,7 +437,7 @@ export default function NuevaConsultaModal({ caballoId, onClose, onSuccess }: Pr
             className="flex items-center gap-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors"
           >
             {submitting && <Spinner size="sm" />}
-            Guardar consulta
+            {entryToEdit ? 'Guardar cambios' : 'Guardar consulta'}
           </button>
         </div>
       </div>

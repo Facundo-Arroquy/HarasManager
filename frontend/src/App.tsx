@@ -9,6 +9,7 @@ import CaballosPage from './pages/caballos/CaballosPage'
 import HistorialPage from './pages/historial/HistorialPage'
 import AdminPage from './pages/admin/AdminPage'
 import ConfigPage from './pages/config/ConfigPage'
+import RevisionPreVentaPage from './pages/vet/RevisionPreVentaPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth()
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
+          <Route path="/revision-preventa" element={<RevisionPreVentaPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/config" element={<ConfigPage />} />
         </Route>

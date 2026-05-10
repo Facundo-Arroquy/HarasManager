@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, LayoutGrid, Settings, LogOut, Stethoscope, SlidersHorizontal } from 'lucide-react'
+import { LayoutDashboard, LayoutGrid, Settings, LogOut, Stethoscope, SlidersHorizontal, ClipboardList } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 interface NavItem {
@@ -19,6 +19,12 @@ const NAV_ITEMS: NavItem[] = [
     to: '/caballos',
     label: 'Caballos',
     icon: <LayoutGrid size={18} />,
+  },
+  {
+    to: '/revision-preventa',
+    label: 'Revisión pre-venta',
+    icon: <ClipboardList size={18} />,
+    roles: ['veterinario'],
   },
   {
     to: '/admin',

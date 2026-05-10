@@ -6,7 +6,7 @@ import { historialService } from '../../services/historialService'
 import { useAuthStore } from '../../store/authStore'
 import { calcularEdad } from '../../utils/fecha'
 import Spinner from '../../components/ui/Spinner'
-import HistorialCard from '../../components/domain/HistorialCard'
+import HistorialCard, { type HistorialEntry } from '../../components/domain/HistorialCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 
 const CATEGORIA_STYLE: Record<string, string> = {
@@ -19,7 +19,8 @@ const CATEGORIA_STYLE: Record<string, string> = {
 export default function HistorialPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const rol = useAuthStore((s) => s.rol)
+  const rol  = useAuthStore((s) => s.rol)
+  const user = useAuthStore((s) => s.user)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [caballo,    setCaballo]    = useState<any>(null)
@@ -27,7 +28,8 @@ export default function HistorialPage() {
   const [historial,  setHistorial]  = useState<any[]>([])
   const [loading,    setLoading]    = useState(true)
   const [error,      setError]      = useState<string | null>(null)
-  const [showModal,  setShowModal]  = useState(false)
+  const [showModal,   setShowModal]   = useState(false)
+  const [entryToEdit, setEntryToEdit] = useState<HistorialEntry | null>(null)
 
   function cargarHistorial() {
     if (!id) return
@@ -121,20 +123,25 @@ export default function HistorialPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {historial.map((entry) => (
-            <HistorialCard
-              key={(entry as { id: string }).id}
-              entry={entry as Parameters<typeof HistorialCard>[0]['entry']}
-            />
-          ))}
+          {historial.map((entry) => {
+            const e = entry as HistorialEntry
+            return (
+              <HistorialCard
+                key={e.id}
+                entry={e}
+                onEditar={e.creado_por === user?.id ? () => setEntryToEdit(e) : undefined}
+              />
+            )
+          })}
         </div>
       )}
 
-      {/* Modal con caballo pre-seleccionado */}
-      {showModal && id && (
+      {/* Modal nueva consulta o edición */}
+      {(showModal || !!entryToEdit) && id && (
         <NuevaConsultaModal
           caballoId={id}
-          onClose={() => setShowModal(false)}
+          entryToEdit={entryToEdit ?? undefined}
+          onClose={() => { setShowModal(false); setEntryToEdit(null) }}
           onSuccess={cargarHistorial}
         />
       )}

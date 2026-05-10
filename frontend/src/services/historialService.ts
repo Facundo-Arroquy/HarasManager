@@ -101,9 +101,9 @@ export const historialService = {
     const { data, error } = await supabase
       .from('historial_clinico')
       .select(`
-        id, fecha_consulta, diagnostico, tratamiento,
+        id, fecha_consulta, diagnostico, tratamiento, creado_por,
         observaciones, proxima_consulta, created_at,
-        cat_tipo_consulta(nombre),
+        cat_tipo_consulta(id, nombre),
         usuario!creado_por(nombre, apellido),
         historial_parte_afectada(
           id, lado, descripcion,
@@ -117,6 +117,84 @@ export const historialService = {
       .order('fecha_consulta', { ascending: false })
     if (error) throw error
     return data
+  },
+
+  async actualizar(
+    historialId: string,
+    caballoId: string,
+    payload: Omit<NuevaConsultaPayload, 'caballoId' | 'creadoPor'>
+  ): Promise<void> {
+    if (isMockMode()) {
+      const { MOCK_TIPOS_CONSULTA } = await import('../dev/mockData')
+      const tipo = MOCK_TIPOS_CONSULTA.find((t) => t.id === payload.tipoConsultaId)
+      const entries = MOCK_HISTORIAL[caballoId] as any[]
+      if (!entries) return
+      const idx = entries.findIndex((e) => e.id === historialId)
+      if (idx === -1) return
+      Object.assign(entries[idx], {
+        cat_tipo_consulta:        { nombre: tipo?.nombre ?? 'Consulta' },
+        fecha_consulta:           payload.fechaConsulta,
+        diagnostico:              payload.diagnostico  ?? null,
+        tratamiento:              payload.tratamiento  ?? null,
+        observaciones:            payload.observaciones ?? null,
+        proxima_consulta:         payload.proximaConsulta ?? null,
+        historial_parte_afectada: payload.partesAfectadas.map((p, i) => ({
+          id:              `hpa-upd-${Date.now()}-${i}`,
+          lado:            p.lado,
+          descripcion:     p.descripcion ?? null,
+          cat_parte_cuerpo: { nombre: `Parte ${p.parteCuerpoId}` },
+        })),
+        historial_medicamento: payload.medicamentos.map((m, i) => ({
+          id:                 `hm-upd-${Date.now()}-${i}`,
+          medicamento:        m.medicamento,
+          dosis:              m.dosis              ?? null,
+          via_administracion: m.viaAdministracion  ?? null,
+          duracion_dias:      m.duracionDias        ?? null,
+        })),
+      })
+      return
+    }
+
+    const supabase = getSupabaseClient()
+    const { error: e1 } = await supabase
+      .from('historial_clinico')
+      .update({
+        tipo_consulta_id: payload.tipoConsultaId,
+        fecha_consulta:   payload.fechaConsulta,
+        diagnostico:      payload.diagnostico   ?? null,
+        tratamiento:      payload.tratamiento   ?? null,
+        observaciones:    payload.observaciones ?? null,
+        proxima_consulta: payload.proximaConsulta ?? null,
+      })
+      .eq('id', historialId)
+    if (e1) throw e1
+
+    await supabase.from('historial_parte_afectada').delete().eq('historial_id', historialId)
+    if (payload.partesAfectadas.length > 0) {
+      const { error: e2 } = await supabase.from('historial_parte_afectada').insert(
+        payload.partesAfectadas.map((p) => ({
+          historial_id:    historialId,
+          parte_cuerpo_id: p.parteCuerpoId,
+          lado:            p.lado,
+          descripcion:     p.descripcion ?? null,
+        }))
+      )
+      if (e2) throw e2
+    }
+
+    await supabase.from('historial_medicamento').delete().eq('historial_id', historialId)
+    if (payload.medicamentos.length > 0) {
+      const { error: e3 } = await supabase.from('historial_medicamento').insert(
+        payload.medicamentos.map((m) => ({
+          historial_id:       historialId,
+          medicamento:        m.medicamento,
+          dosis:              m.dosis             ?? null,
+          via_administracion: m.viaAdministracion ?? null,
+          duracion_dias:      m.duracionDias       ?? null,
+        }))
+      )
+      if (e3) throw e3
+    }
   },
 
   async crear(payload: NuevaConsultaPayload) {

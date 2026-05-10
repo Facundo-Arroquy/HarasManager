@@ -9,13 +9,24 @@ export function useAuth() {
 
   useEffect(() => {
     if (isMockMode()) {
+      // En mock mode seteamos la sesión del usuario simulado
+      // pero NO lo hacemos aquí — el LoginPage decide cuándo redirigir.
+      // Solo pre-cargamos si ya hay sesión activa (carga inicial desde otras páginas).
       const mockUser = getMockUser(getMockUserId())
       store.setSession({ user: { id: mockUser.id, email: mockUser.email } } as never)
       store.setSociedadActiva(mockUser.sociedad, mockUser.rol, mockUser.marcaId)
       return
     }
 
-    const supabase = getSupabaseClient()
+    // Modo producción: intentar conectar con Supabase
+    let supabase: ReturnType<typeof getSupabaseClient>
+    try {
+      supabase = getSupabaseClient()
+    } catch {
+      // Env vars no configuradas — marcar loading como false sin crashear
+      store.setLoading(false)
+      return
+    }
 
     supabase.auth.getSession().then(({ data }) => {
       store.setSession(data.session)
@@ -30,6 +41,13 @@ export function useAuth() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const signIn = async (email: string, password: string) => {
+    if (isMockMode()) {
+      // En mock mode, cualquier credencial inicia sesión con el mock user activo
+      const mockUser = getMockUser(getMockUserId())
+      store.setSession({ user: { id: mockUser.id, email: mockUser.email } } as never)
+      store.setSociedadActiva(mockUser.sociedad, mockUser.rol, mockUser.marcaId)
+      return
+    }
     const supabase = getSupabaseClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
