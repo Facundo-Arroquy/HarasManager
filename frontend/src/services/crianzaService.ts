@@ -534,6 +534,48 @@ export const crianzaService = {
 
   // ── Rol reproductivo en caballo ───────────────────────────────────────────
 
+  async listarFlushingsPorCaballo(caballoId: string): Promise<Flushing[]> {
+    if (isMockMode()) {
+      return MOCK_FLUSHINGS.filter((f) => f.caballo_id === caballoId)
+        .sort((a, b) => b.fecha.localeCompare(a.fecha))
+    }
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_flushing')
+      .select(`
+        *,
+        caballo(nombre),
+        padrillo:padrillo_id(nombre),
+        veterinario:veterinario_id(nombre, apellido)
+      `)
+      .eq('caballo_id', caballoId)
+      .order('fecha', { ascending: false })
+    if (error) throw error
+    return data as Flushing[]
+  },
+
+  async listarTransferenciasPorCaballo(caballoId: string): Promise<TransferenciaEmbrionaria[]> {
+    if (isMockMode()) {
+      return MOCK_TRANSFERENCIAS.filter(
+        (t) => t.caballo_receptora_id === caballoId || t.caballo_donante_id === caballoId
+      ).sort((a, b) => b.fecha.localeCompare(a.fecha))
+    }
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_transferencia')
+      .select(`
+        *,
+        receptora:caballo_receptora_id(nombre),
+        donante:caballo_donante_id(nombre),
+        padrillo:padrillo_id(nombre),
+        veterinario:veterinario_id(nombre, apellido)
+      `)
+      .or(`caballo_receptora_id.eq.${caballoId},caballo_donante_id.eq.${caballoId}`)
+      .order('fecha', { ascending: false })
+    if (error) throw error
+    return data as TransferenciaEmbrionaria[]
+  },
+
   async actualizarRolReproductivo(
     caballoId: string,
     rol: RolReproductivo
