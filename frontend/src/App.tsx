@@ -10,6 +10,10 @@ import HistorialPage from './pages/historial/HistorialPage'
 import AdminPage from './pages/admin/AdminPage'
 import ConfigPage from './pages/config/ConfigPage'
 import RevisionPreVentaPage from './pages/vet/RevisionPreVentaPage'
+import DashboardCriaPage from './pages/centro-cria/DashboardCriaPage'
+import RecordatoriosPage from './pages/centro-cria/RecordatoriosPage'
+import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
+import FlushingsPage from './pages/centro-cria/FlushingsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth()
@@ -47,6 +51,11 @@ export default function App() {
           <Route path="/revision-preventa" element={<RevisionPreVentaPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/config" element={<ConfigPage />} />
+          {/* Centro de Cría — accesible para veterinario y admin */}
+          <Route path="/centro-cria" element={<DashboardCriaPage />} />
+          <Route path="/centro-cria/recordatorios" element={<RecordatoriosPage />} />
+          <Route path="/centro-cria/transferencias" element={<TransferenciasPage />} />
+          <Route path="/centro-cria/flushings" element={<FlushingsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
