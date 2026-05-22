@@ -4,6 +4,8 @@ import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import type { RecordatorioCria, EstadoRecordatorio } from '../../types/crianza'
 import Spinner from '../../components/ui/Spinner'
+import FlushingModal from '../../components/centro-cria/FlushingModal'
+import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
 
 const FILTROS: { label: string; value: EstadoRecordatorio | 'todos' }[] = [
   { label: 'Todos',      value: 'todos' },
@@ -18,6 +20,8 @@ export default function RecordatoriosPage() {
   const { recordatorios, loading, cargar, actualizarEstadoRecordatorio } = useCrianzaStore()
   const [filtro, setFiltro] = useState<EstadoRecordatorio | 'todos'>('pendiente')
   const [cancelando, setCancelando] = useState<string | null>(null)
+  const [flushingRec, setFlushingRec] = useState<RecordatorioCria | null>(null)
+  const [flushingIdParaTransf, setFlushingIdParaTransf] = useState<string | null>(null)
 
   useEffect(() => {
     if (sociedadId && recordatorios.length === 0) cargar(sociedadId)
@@ -29,8 +33,12 @@ export default function RecordatoriosPage() {
 
   const listaOrdenada = [...lista].sort((a, b) => a.fecha_vto.localeCompare(b.fecha_vto))
 
-  async function marcarHecho(id: string) {
-    await actualizarEstadoRecordatorio(id, 'hecho')
+  function marcarHecho(r: RecordatorioCria) {
+    if (r.tipo === 'Flushing') {
+      setFlushingRec(r)
+    } else {
+      actualizarEstadoRecordatorio(r.id, 'hecho')
+    }
   }
 
   async function cancelar(id: string) {
@@ -86,13 +94,35 @@ export default function RecordatoriosPage() {
             <RecordatorioItem
               key={r.id}
               recordatorio={r}
-              onHecho={() => marcarHecho(r.id)}
+              onHecho={() => marcarHecho(r)}
               onCancelar={() => cancelar(r.id)}
               cancelando={cancelando === r.id}
               setCancelando={() => setCancelando(cancelando === r.id ? null : r.id)}
             />
           ))}
         </div>
+      )}
+
+      {/* Modal flushing (cuando tipo === 'Flushing') */}
+      {flushingRec && (
+        <FlushingModal
+          recordatorio={flushingRec}
+          onClose={() => setFlushingRec(null)}
+          onSuccess={(flushingId) => {
+            setFlushingRec(null)
+            // Si hubo embriones (no negativo), ofrecer registrar transferencia
+            setFlushingIdParaTransf(flushingId)
+          }}
+        />
+      )}
+
+      {/* Modal transferencia encadenado tras flushing positivo */}
+      {flushingIdParaTransf && (
+        <TransferenciaModal
+          flushingId={flushingIdParaTransf}
+          onClose={() => setFlushingIdParaTransf(null)}
+          onSuccess={() => setFlushingIdParaTransf(null)}
+        />
       )}
     </div>
   )

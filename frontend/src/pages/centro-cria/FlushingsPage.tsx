@@ -1,14 +1,15 @@
-import { useEffect } from 'react'
-import { Droplets } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Droplets, ArrowLeftRight } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
+import type { Flushing } from '../../types/crianza'
 import Spinner from '../../components/ui/Spinner'
-
-const ESTADIOS = ['Mórula', 'Blastocisto temprano', 'Blastocisto', 'Blastocisto expandido']
+import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
 
 export default function FlushingsPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const { flushings, loading, cargar } = useCrianzaStore()
+  const [flushingParaTransf, setFlushingParaTransf] = useState<Flushing | null>(null)
 
   useEffect(() => {
     if (sociedadId && flushings.length === 0) cargar(sociedadId)
@@ -92,11 +93,30 @@ export default function FlushingsPage() {
 
                   {f.notas && <p className="text-xs text-zinc-500 mt-1">{f.notas}</p>}
                 </div>
-                <span className="text-xs text-zinc-500 shrink-0">{formatFecha(f.fecha)}</span>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <span className="text-xs text-zinc-500">{formatFecha(f.fecha)}</span>
+                  {!f.cancelado && !f.es_negativo && (
+                    <button
+                      onClick={() => setFlushingParaTransf(f)}
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-blue-900/40 text-blue-400 hover:bg-blue-900/70 transition-colors"
+                    >
+                      <ArrowLeftRight size={11} />
+                      Transferir
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {flushingParaTransf && (
+        <TransferenciaModal
+          flushing={flushingParaTransf}
+          onClose={() => setFlushingParaTransf(null)}
+          onSuccess={() => setFlushingParaTransf(null)}
+        />
       )}
     </div>
   )
