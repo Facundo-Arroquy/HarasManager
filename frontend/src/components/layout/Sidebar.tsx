@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, LayoutGrid, Settings, LogOut, Stethoscope,
-  SlidersHorizontal, ClipboardList, Droplets, Bell, ArrowLeftRight, FlaskConical,
+  SlidersHorizontal, ClipboardList, Droplets, Bell, ArrowLeftRight, FlaskConical, CalendarDays,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -34,6 +34,7 @@ const NAV_GROUPS: NavGroup[] = [
     roles: ['veterinario', 'admin'],
     items: [
       { to: '/centro-cria',               label: 'Panel reproductivo', icon: <FlaskConical size={15} /> },
+      { to: '/centro-cria/programa',      label: 'Programa semanal',   icon: <CalendarDays size={15} /> },
       { to: '/centro-cria/recordatorios', label: 'Recordatorios',      icon: <Bell size={15} /> },
       { to: '/centro-cria/flushings',     label: 'Flushings',          icon: <Droplets size={15} /> },
       { to: '/centro-cria/transferencias',label: 'Transferencias',     icon: <ArrowLeftRight size={15} /> },
