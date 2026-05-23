@@ -7,7 +7,6 @@ import CaballoCard from '../../components/domain/CaballoCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
-import TransferirMarcaModal from '../../components/domain/TransferirMarcaModal'
 import Spinner from '../../components/ui/Spinner'
 
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
@@ -21,17 +20,16 @@ export default function CaballosPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const rol        = useAuthStore((s) => s.rol)
 
-  const [caballos,  setCaballos] = useState<Caballo[]>([])
-  const [campos,    setCampos]   = useState<Campo[]>([])
-  const [loading,   setLoading]  = useState(true)
-  const [error,     setError]    = useState<string | null>(null)
-  const [busqueda,  setBusqueda] = useState('')
-  const [filtro,    setFiltro]   = useState('Todos')
+  const [caballos, setCaballos] = useState<Caballo[]>([])
+  const [campos,   setCampos]   = useState<Campo[]>([])
+  const [loading,  setLoading]  = useState(true)
+  const [error,    setError]    = useState<string | null>(null)
+  const [busqueda, setBusqueda] = useState('')
+  const [filtro,   setFiltro]   = useState('Todos')
 
-  const [showConsulta,    setShowConsulta]    = useState(false)
-  const [showNuevo,       setShowNuevo]       = useState(false)
-  const [caballoEditar,   setCaballoEditar]   = useState<Caballo | null>(null)
-  const [caballoTransfer, setCaballoTransfer] = useState<Caballo | null>(null)
+  const [showConsulta,  setShowConsulta]  = useState(false)
+  const [showNuevo,     setShowNuevo]     = useState(false)
+  const [caballoEditar, setCaballoEditar] = useState<Caballo | null>(null)
 
   async function cargar() {
     if (!sociedadId) return
@@ -62,7 +60,6 @@ export default function CaballosPage() {
     [caballos, busqueda, filtro]
   )
 
-  // Agrupar: cada campo en orden + "Sin campo" al final
   const grupos = useMemo(() => {
     const byCampo: Record<string, Caballo[]> = {}
     for (const c of filtrados) {
@@ -135,14 +132,12 @@ export default function CaballosPage() {
         </div>
       </div>
 
-      {/* Estados */}
       {loading && <div className="flex justify-center py-20"><Spinner size="lg" /></div>}
       {error   && <div className="rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-300">Error: {error}</div>}
       {!loading && !error && filtrados.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-500 text-sm">Sin resultados</div>
       )}
 
-      {/* Vista agrupada por campo */}
       {!loading && !error && filtrados.length > 0 && (
         <div className="space-y-8">
           {camposConCaballos.map((campo) => (
@@ -153,11 +148,9 @@ export default function CaballosPage() {
               todos={campos}
               rol={rol}
               onEditar={setCaballoEditar}
-              onTransferir={setCaballoTransfer}
               onCampoChange={cargar}
             />
           ))}
-
           {sinCampo.length > 0 && (
             <CampoSection
               campo={null}
@@ -165,7 +158,6 @@ export default function CaballosPage() {
               todos={campos}
               rol={rol}
               onEditar={setCaballoEditar}
-              onTransferir={setCaballoTransfer}
               onCampoChange={cargar}
             />
           )}
@@ -188,13 +180,6 @@ export default function CaballosPage() {
           onSuccess={() => { setCaballoEditar(null); cargar() }}
         />
       )}
-      {caballoTransfer && (
-        <TransferirMarcaModal
-          caballo={caballoTransfer}
-          onClose={() => setCaballoTransfer(null)}
-          onSuccess={() => { setCaballoTransfer(null); cargar() }}
-        />
-      )}
     </div>
   )
 }
@@ -207,11 +192,10 @@ interface CampoSectionProps {
   todos: Campo[]
   rol: string | null
   onEditar: (c: Caballo) => void
-  onTransferir: (c: Caballo) => void
   onCampoChange: () => void
 }
 
-function CampoSection({ campo, caballos, todos, rol, onEditar, onTransferir, onCampoChange }: CampoSectionProps) {
+function CampoSection({ campo, caballos, todos, rol, onEditar, onCampoChange }: CampoSectionProps) {
   const puedeGestionar = canManageCampos(rol)
 
   async function handleCampoChange(caballoId: string, nuevoId: string) {
@@ -221,7 +205,6 @@ function CampoSection({ campo, caballos, todos, rol, onEditar, onTransferir, onC
 
   return (
     <section>
-      {/* Encabezado de sección */}
       <div className="flex items-center gap-2 mb-3">
         <MapPin size={14} className={campo ? 'text-emerald-500' : 'text-zinc-600'} />
         <h2 className="text-sm font-semibold text-zinc-300">
@@ -239,8 +222,6 @@ function CampoSection({ campo, caballos, todos, rol, onEditar, onTransferir, onC
           <CaballoCard
             key={caballo.id}
             caballo={caballo}
-            canTransfer={rol === 'admin'}
-            onTransferir={() => onTransferir(caballo)}
             onEditar={puedeGestionar ? () => onEditar(caballo) : undefined}
             campos={puedeGestionar ? todos : []}
             onCampoChange={puedeGestionar ? (nuevoId) => handleCampoChange(caballo.id, nuevoId) : undefined}

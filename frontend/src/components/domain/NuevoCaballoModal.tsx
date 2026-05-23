@@ -3,7 +3,6 @@ import { X, Plus } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { caballoService, type NuevoCaballoPayload } from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
-import { getMarcas, type MarcaAdmin } from '../../services/adminService'
 import { campoService, type Campo } from '../../services/campoService'
 
 interface Props {
@@ -14,12 +13,10 @@ interface Props {
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
 
 export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
-  const { sociedadActiva, marcaId: miMarcaId } = useAuth()
-  const esAdminHaras = miMarcaId === null
+  const { sociedadActiva } = useAuth()
 
   const [razas,   setRazas]   = useState<{ id: number; nombre: string }[]>([])
   const [pelajes, setPelajes] = useState<{ id: number; nombre: string }[]>([])
-  const [marcas,  setMarcas]  = useState<MarcaAdmin[]>([])
   const [campos,  setCampos]  = useState<Campo[]>([])
   const [nuevoCampo, setNuevoCampo] = useState('')
   const [creandoCampo, setCreandoCampo] = useState(false)
@@ -32,7 +29,6 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
     pelaje_id: 0,
     numero_chip: '',
     numero_registro: '',
-    marca_id: miMarcaId ?? '',
     campo_id: '' as string,
   })
 
@@ -43,18 +39,15 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
     Promise.all([
       catalogoService.razas(),
       catalogoService.pelajes(),
-      sociedadActiva ? getMarcas(sociedadActiva.id) : Promise.resolve([]),
       sociedadActiva ? campoService.listar(sociedadActiva.id) : Promise.resolve([]),
-    ]).then(([r, p, m, c]) => {
+    ]).then(([r, p, c]) => {
       setRazas(r)
       setPelajes(p)
-      setMarcas(m)
       setCampos(c)
       setForm((f) => ({
         ...f,
         raza_id:   r[0]?.id ?? 0,
         pelaje_id: p[0]?.id ?? 0,
-        marca_id:  miMarcaId ?? m[0]?.id ?? '',
       }))
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -69,7 +62,6 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
     if (!form.fecha_nacimiento)    return setError('La fecha de nacimiento es requerida.')
     if (!form.raza_id)             return setError('Seleccioná una raza.')
     if (!form.pelaje_id)           return setError('Seleccioná un pelaje.')
-    if (!form.marca_id)            return setError('Seleccioná una marca.')
     if (!sociedadActiva)           return
 
     setSaving(true)
@@ -84,7 +76,6 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
           pelaje_id:        Number(form.pelaje_id),
           numero_chip:      form.numero_chip.trim() || undefined,
           numero_registro:  form.numero_registro.trim() || undefined,
-          marca_id:         form.marca_id,
           campo_id:         form.campo_id || null,
         },
         sociedadActiva.id
@@ -180,30 +171,6 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
               </select>
             </div>
           </div>
-
-          {/* Marca — solo admin haras elige, admin marca la tiene fija */}
-          {esAdminHaras ? (
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Marca propietaria *</label>
-              <select
-                value={form.marca_id}
-                onChange={(e) => set('marca_id', e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              >
-                <option value="">— Seleccioná una marca —</option>
-                {marcas.map((m) => (
-                  <option key={m.id} value={m.id}>{m.nombre}</option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Marca propietaria</label>
-              <p className="text-sm text-zinc-300 px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700">
-                {marcas.find((m) => m.id === form.marca_id)?.nombre ?? '—'}
-              </p>
-            </div>
-          )}
 
           {/* Campo / Caballeriza */}
           <div className="space-y-1.5">

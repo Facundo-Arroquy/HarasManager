@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { getUsuarios, type UsuarioAdmin } from '../../services/adminService'
-import { MOCK_MARCAS } from '../../dev/mockData'
 
 const ROL_BADGE: Record<string, string> = {
   admin:       'bg-violet-900/40 text-violet-400',
@@ -11,29 +10,17 @@ const ROL_BADGE: Record<string, string> = {
   peticero:    'bg-rose-900/40 text-rose-400',
 }
 
-function marcaNombre(marcaId: string | null): string {
-  if (!marcaId) return '—'
-  return MOCK_MARCAS.find((m) => m.id === marcaId)?.nombre ?? marcaId
-}
-
 export default function UsuariosTab() {
-  const { sociedadActiva, marcaId: miMarcaId } = useAuth()
+  const { sociedadActiva } = useAuth()
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!sociedadActiva) return
     getUsuarios(sociedadActiva.id)
-      .then((data) => {
-        // Admin de marca solo ve usuarios de su propia marca
-        if (miMarcaId) {
-          setUsuarios(data.filter((u) => u.marcaId === miMarcaId))
-        } else {
-          setUsuarios(data)
-        }
-      })
+      .then(setUsuarios)
       .finally(() => setLoading(false))
-  }, [sociedadActiva, miMarcaId])
+  }, [sociedadActiva])
 
   if (loading) {
     return <p className="text-sm text-zinc-500">Cargando usuarios…</p>
@@ -54,7 +41,6 @@ export default function UsuariosTab() {
               <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Nombre</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Email</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Rol</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Marca</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800">
@@ -75,11 +61,6 @@ export default function UsuariosTab() {
                     }`}
                   >
                     {u.rol}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-zinc-400 text-xs truncate">
-                    {marcaNombre(u.marcaId)}
                   </span>
                 </td>
               </tr>

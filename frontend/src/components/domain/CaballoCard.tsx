@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Stethoscope, ChevronRight, ArrowLeftRight, Pencil } from 'lucide-react'
+import { Stethoscope, ChevronRight, Pencil } from 'lucide-react'
 import { calcularEdad } from '../../utils/fecha'
 import type { Campo } from '../../services/campoService'
 
@@ -14,14 +14,10 @@ interface CaballoCardProps {
     numero_chip?: string | null
     numero_registro?: string | null
     campo_id?: string | null
-    marca_id?: string | null
-    marca?: { nombre: string } | null
     cat_raza?: { nombre: string } | null
     cat_pelaje?: { nombre: string } | null
     campo?: { nombre: string } | null
   }
-  canTransfer?: boolean
-  onTransferir?: () => void
   onEditar?: () => void
   campos?: Campo[]
   onCampoChange?: (campoId: string) => void
@@ -34,7 +30,7 @@ const CATEGORIA_STYLE: Record<string, string> = {
   Potrillo: 'bg-amber-950 text-amber-300 ring-1 ring-amber-800',
 }
 
-export default function CaballoCard({ caballo, canTransfer, onTransferir, onEditar, campos, onCampoChange }: CaballoCardProps) {
+export default function CaballoCard({ caballo, onEditar, campos, onCampoChange }: CaballoCardProps) {
   const navigate   = useNavigate()
   const badgeClass = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
 
@@ -78,7 +74,7 @@ export default function CaballoCard({ caballo, canTransfer, onTransferir, onEdit
         )}
       </dl>
 
-      {/* Selector de campo inline (admin/jugador/piloto) */}
+      {/* Selector de campo inline */}
       {onCampoChange && campos && campos.length > 0 && (
         <select
           defaultValue={(caballo as any).campo_id ?? ''}
@@ -114,19 +110,6 @@ export default function CaballoCard({ caballo, canTransfer, onTransferir, onEdit
             <span className="flex items-center gap-1.5">
               <Pencil size={13} />
               Editar
-            </span>
-            <ChevronRight size={13} />
-          </button>
-        )}
-
-        {canTransfer && onTransferir && (
-          <button
-            onClick={onTransferir}
-            className="flex items-center justify-between rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:border-amber-700 hover:bg-amber-950 hover:text-amber-300"
-          >
-            <span className="flex items-center gap-1.5">
-              <ArrowLeftRight size={13} />
-              Transferir propiedad
             </span>
             <ChevronRight size={13} />
           </button>
