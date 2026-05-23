@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Stethoscope, ChevronRight, Pencil } from 'lucide-react'
+import { Stethoscope, ChevronRight, Pencil, CheckSquare, Square } from 'lucide-react'
 import { calcularEdad } from '../../utils/fecha'
 import type { Campo } from '../../services/campoService'
 
@@ -21,6 +21,9 @@ interface CaballoCardProps {
   onEditar?: () => void
   campos?: Campo[]
   onCampoChange?: (campoId: string) => void
+  // Selección masiva
+  seleccionado?: boolean
+  onToggle?: () => void
 }
 
 const CATEGORIA_STYLE: Record<string, string> = {
@@ -30,15 +33,33 @@ const CATEGORIA_STYLE: Record<string, string> = {
   Potrillo: 'bg-amber-950 text-amber-300 ring-1 ring-amber-800',
 }
 
-export default function CaballoCard({ caballo, onEditar, campos, onCampoChange }: CaballoCardProps) {
+export default function CaballoCard({ caballo, onEditar, campos, onCampoChange, seleccionado, onToggle }: CaballoCardProps) {
   const navigate   = useNavigate()
   const badgeClass = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
+  const enModoSeleccion = onToggle !== undefined
 
   return (
-    <div className="group flex flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-4 gap-3 transition-colors hover:border-zinc-700">
-      {/* Nombre + badge */}
+    <div
+      onClick={enModoSeleccion ? onToggle : undefined}
+      className={`group flex flex-col rounded-xl border p-4 gap-3 transition-colors ${
+        enModoSeleccion ? 'cursor-pointer' : ''
+      } ${
+        seleccionado
+          ? 'border-emerald-700 bg-emerald-950/20'
+          : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
+      }`}
+    >
+      {/* Nombre + badge / checkbox */}
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold text-zinc-100 leading-tight">
+        {enModoSeleccion && (
+          <span className="shrink-0 mt-0.5">
+            {seleccionado
+              ? <CheckSquare size={16} className="text-emerald-400" />
+              : <Square size={16} className="text-zinc-600" />
+            }
+          </span>
+        )}
+        <h3 className="flex-1 text-base font-semibold text-zinc-100 leading-tight">
           {caballo.nombre}
         </h3>
         {caballo.categoria && (
@@ -74,8 +95,8 @@ export default function CaballoCard({ caballo, onEditar, campos, onCampoChange }
         )}
       </dl>
 
-      {/* Selector de campo inline */}
-      {onCampoChange && campos && campos.length > 0 && (
+      {/* Selector de campo inline (solo fuera del modo selección) */}
+      {!enModoSeleccion && onCampoChange && campos && campos.length > 0 && (
         <select
           defaultValue={(caballo as any).campo_id ?? ''}
           onChange={(e) => onCampoChange(e.target.value)}
@@ -89,8 +110,8 @@ export default function CaballoCard({ caballo, onEditar, campos, onCampoChange }
         </select>
       )}
 
-      {/* Acciones */}
-      <div className="mt-auto flex flex-col gap-2">
+      {/* Acciones (solo fuera del modo selección) */}
+      {!enModoSeleccion && <div className="mt-auto flex flex-col gap-2">
         <button
           onClick={() => navigate(`/caballos/${caballo.id}/historial`)}
           className="flex items-center justify-between rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:border-emerald-700 hover:bg-emerald-950 hover:text-emerald-300"
@@ -114,7 +135,7 @@ export default function CaballoCard({ caballo, onEditar, campos, onCampoChange }
             <ChevronRight size={13} />
           </button>
         )}
-      </div>
+      </div>}
     </div>
   )
 }

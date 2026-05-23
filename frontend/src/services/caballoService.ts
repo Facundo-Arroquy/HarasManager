@@ -168,6 +168,37 @@ export const caballoService = {
     if (error) throw error
   },
 
+  async editarMasivo(
+    ids: string[],
+    cambios: { campo_id?: string | null; categoria?: string }
+  ): Promise<void> {
+    if (isMockMode()) {
+      const { MOCK_CAMPOS } = await import('../dev/mockData')
+      for (const id of ids) {
+        const caballo = MOCK_CABALLOS.find((c) => c.id === id)
+        if (!caballo) continue
+        if ('campo_id' in cambios) {
+          const campo = cambios.campo_id
+            ? MOCK_CAMPOS.find((c: any) => c.id === cambios.campo_id)
+            : null
+          caballo.campo_id = cambios.campo_id ?? null
+          caballo.campo = campo ? { nombre: campo.nombre } : null
+        }
+        if (cambios.categoria) {
+          caballo.categoria = cambios.categoria
+        }
+      }
+      return
+    }
+
+    const supabase = getSupabaseClient()
+    const update: Record<string, unknown> = {}
+    if ('campo_id' in cambios) update.campo_id = cambios.campo_id ?? null
+    if (cambios.categoria)     update.categoria = cambios.categoria
+    const { error } = await supabase.from('caballo').update(update).in('id', ids)
+    if (error) throw error
+  },
+
   async darDeBaja(id: string): Promise<void> {
     if (isMockMode()) {
       const caballo = MOCK_CABALLOS.find((c) => c.id === id)
