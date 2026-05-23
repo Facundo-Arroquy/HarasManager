@@ -20,17 +20,30 @@ export interface UsuarioEmpresa {
   accesosCentroC: boolean
 }
 
-// Estado mutable en memoria para el mock
+export interface NuevoUsuarioPayload {
+  nombre: string
+  apellido: string
+  email: string
+  rol: string
+  accesosCentroC: boolean
+}
+
+// ── Estado mutable en memoria (mock) ─────────────────────────────────────────
+
 let membresias = MOCK_MEMBRESIAS.map((m) => ({ ...m }))
 
-const TODAS_SOCIEDADES = [
+let sociedades: Array<{ id: string; nombre: string }> = [
   { id: MOCK_SOCIEDAD.id, nombre: MOCK_SOCIEDAD.nombre },
   ...MOCK_SOCIEDADES,
 ]
 
+// ── Servicio ──────────────────────────────────────────────────────────────────
+
 export const superAdminService = {
+  // ── Empresas ────────────────────────────────────────────────────────────────
+
   listarEmpresas(): EmpresaStats[] {
-    return TODAS_SOCIEDADES.map((soc) => ({
+    return sociedades.map((soc) => ({
       id: soc.id,
       nombre: soc.nombre,
       cantidadCaballos: MOCK_CABALLOS.filter((c) => c.sociedad_id === soc.id && c.activo).length,
@@ -38,6 +51,19 @@ export const superAdminService = {
       cantidadCampos: MOCK_CAMPOS.filter((c) => c.sociedad_id === soc.id).length,
     }))
   },
+
+  crearEmpresa(nombre: string): EmpresaStats {
+    const nueva = { id: `soc-${Date.now()}`, nombre: nombre.trim() }
+    sociedades = [...sociedades, nueva]
+    return { ...nueva, cantidadCaballos: 0, cantidadUsuarios: 0, cantidadCampos: 0 }
+  },
+
+  eliminarEmpresa(sociedadId: string): void {
+    sociedades = sociedades.filter((s) => s.id !== sociedadId)
+    membresias = membresias.filter((m) => m.sociedad_id !== sociedadId)
+  },
+
+  // ── Usuarios ─────────────────────────────────────────────────────────────────
 
   listarUsuariosPorEmpresa(sociedadId: string): UsuarioEmpresa[] {
     return membresias
@@ -52,6 +78,30 @@ export const superAdminService = {
         activo: m.activo,
         accesosCentroC: m.accesosCentroC,
       }))
+  },
+
+  crearUsuario(sociedadId: string, payload: NuevoUsuarioPayload): void {
+    const id = `m-${Date.now()}`
+    membresias = [
+      ...membresias,
+      {
+        id,
+        usuario_id: `usr-${Date.now()}`,
+        sociedad_id: sociedadId,
+        rol: payload.rol,
+        activo: true,
+        accesosCentroC: payload.accesosCentroC,
+        usuario: {
+          nombre: payload.nombre.trim(),
+          apellido: payload.apellido.trim(),
+          email: payload.email.trim(),
+        },
+      },
+    ]
+  },
+
+  eliminarUsuario(membresiaId: string): void {
+    membresias = membresias.filter((m) => m.id !== membresiaId)
   },
 
   cambiarRol(membresiaId: string, nuevoRol: string): void {
@@ -69,11 +119,17 @@ export const superAdminService = {
     if (m) m.activo = valor
   },
 
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
   getNombreEmpresa(sociedadId: string): string {
-    return TODAS_SOCIEDADES.find((s) => s.id === sociedadId)?.nombre ?? sociedadId
+    return sociedades.find((s) => s.id === sociedadId)?.nombre ?? sociedadId
   },
 
   getTodasEmpresas() {
-    return TODAS_SOCIEDADES
+    return sociedades
+  },
+
+  tieneUsuarios(sociedadId: string): boolean {
+    return membresias.some((m) => m.sociedad_id === sociedadId)
   },
 }
