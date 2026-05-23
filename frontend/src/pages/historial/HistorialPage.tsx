@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical } from 'lucide-react'
-import { caballoService } from '../../services/caballoService'
+import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch } from 'lucide-react'
+import { caballoService, type Caballo } from '../../services/caballoService'
 import { historialService } from '../../services/historialService'
 import { crianzaService } from '../../services/crianzaService'
 import { useAuthStore } from '../../store/authStore'
@@ -9,6 +9,7 @@ import { calcularEdad } from '../../utils/fecha'
 import Spinner from '../../components/ui/Spinner'
 import HistorialCard, { type HistorialEntry } from '../../components/domain/HistorialCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
+import ArbolGenealogico from '../../components/domain/ArbolGenealogico'
 import type { RegistroClinicoCria, Flushing, TransferenciaEmbrionaria } from '../../types/crianza'
 
 const CATEGORIA_STYLE: Record<string, string> = {
@@ -33,11 +34,12 @@ export default function HistorialPage() {
   const [showModal,   setShowModal]   = useState(false)
   const [entryToEdit, setEntryToEdit] = useState<HistorialEntry | null>(null)
 
-  const [tab, setTab] = useState<'clinico' | 'reproductivo'>('clinico')
+  const [tab, setTab] = useState<'clinico' | 'reproductivo' | 'genealogia'>('clinico')
   const [repLoading,    setRepLoading]    = useState(false)
   const [registrosCria, setRegistrosCria] = useState<RegistroClinicoCria[]>([])
   const [flushings,     setFlushings]     = useState<Flushing[]>([])
   const [transferencias,setTransferencias]= useState<TransferenciaEmbrionaria[]>([])
+  const [todosCaballos, setTodosCaballos] = useState<Caballo[]>([])
 
   function cargarHistorial() {
     if (!id) return
@@ -68,6 +70,13 @@ export default function HistorialPage() {
     setTab('reproductivo')
     if (registrosCria.length === 0 && flushings.length === 0 && transferencias.length === 0) {
       cargarReproductivo()
+    }
+  }
+
+  function handleTabGenealogia() {
+    setTab('genealogia')
+    if (todosCaballos.length === 0 && caballo?.sociedad_id) {
+      caballoService.listar(caballo.sociedad_id).then((data) => setTodosCaballos(data as Caballo[]))
     }
   }
 
@@ -165,6 +174,17 @@ export default function HistorialPage() {
           >
             <FlaskConical size={13} />
             Reproductivo
+          </button>
+          <button
+            onClick={handleTabGenealogia}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              tab === 'genealogia'
+                ? 'border-emerald-500 text-zinc-100'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <GitBranch size={13} />
+            Genealogía
           </button>
         </div>
       )}
@@ -348,6 +368,11 @@ export default function HistorialPage() {
             </>
           )}
         </div>
+      )}
+
+      {/* Tab: Genealogía */}
+      {tab === 'genealogia' && caballo && (
+        <ArbolGenealogico caballo={caballo as Caballo} caballos={todosCaballos} />
       )}
 
       {/* Modal nueva consulta o edición */}

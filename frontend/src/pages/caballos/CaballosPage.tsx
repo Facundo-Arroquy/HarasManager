@@ -475,6 +475,7 @@ export default function CaballosPage() {
       {caballoEditar && (
         <EditarCaballoModal
           caballo={caballoEditar}
+          caballos={caballos}
           onClose={() => setCaballoEditar(null)}
           onSuccess={() => { setCaballoEditar(null); cargar() }}
         />

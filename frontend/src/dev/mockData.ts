@@ -53,6 +53,7 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Zaino' },
     campo: { nombre: 'Potrero Norte' },
+    padre_id: null, padre_nombre: null, madre_id: null, madre_nombre: null,
   },
   {
     id: 'cab-002',
@@ -70,6 +71,7 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Tordillo' },
     campo: { nombre: 'Potrero de Cría' },
+    padre_id: null, padre_nombre: 'Don Quijote III', madre_id: null, madre_nombre: null,
   },
   {
     id: 'cab-003',
@@ -86,6 +88,7 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Pura Sangre de Carrera' },
     cat_pelaje: { nombre: 'Alazán' },
     campo: { nombre: 'Caballeriza Sur' },
+    padre_id: null, padre_nombre: 'Rayo del Norte', madre_id: null, madre_nombre: 'Viento Pampeano',
   },
   {
     id: 'cab-004',
@@ -102,6 +105,7 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Criollo' },
     cat_pelaje: { nombre: 'Bayo' },
     campo: { nombre: 'Potrero Norte' },
+    padre_id: null, padre_nombre: null, madre_id: null, madre_nombre: null,
   },
   {
     id: 'cab-005',
@@ -118,6 +122,7 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Zaino' },
     campo: { nombre: 'Caballeriza Sur' },
+    padre_id: null, padre_nombre: null, madre_id: null, madre_nombre: null,
   },
   {
     id: 'cab-006',
@@ -135,6 +140,7 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Tordillo' },
     campo: null,
+    padre_id: null, padre_nombre: null, madre_id: null, madre_nombre: null,
   },
   {
     id: 'cab-007',
@@ -151,6 +157,7 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Pura Sangre de Carrera' },
     cat_pelaje: { nombre: 'Zaino' },
     campo: { nombre: 'Potrero Norte' },
+    padre_id: null, padre_nombre: null, madre_id: null, madre_nombre: null,
   },
   {
     id: 'cab-008',
@@ -167,6 +174,9 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Criollo' },
     cat_pelaje: { nombre: 'Alazán' },
     campo: null,
+    // Demo genealogía: padre registrado (Relámpago) y madre registrada (Tormenta)
+    padre_id: 'cab-003', padre_nombre: null,
+    madre_id: 'cab-002', madre_nombre: null,
   },
   // ── Haras Don Pedro (soc-002) — asignados al veterinario ──────────────────
   {
@@ -185,6 +195,7 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Alazán' },
     campo: { nombre: 'Paddock Principal' },
+    padre_id: null, padre_nombre: null, madre_id: null, madre_nombre: null,
   },
   {
     id: 'cab-010',
@@ -202,6 +213,7 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Pura Sangre de Carrera' },
     cat_pelaje: { nombre: 'Zaino' },
     campo: { nombre: 'Paddock Principal' },
+    padre_id: null, padre_nombre: null, madre_id: null, madre_nombre: null,
   },
   {
     id: 'cab-011',
@@ -219,6 +231,7 @@ export const MOCK_CABALLOS: any[] = [
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Tordillo' },
     campo: { nombre: 'Potrero Chico' },
+    padre_id: null, padre_nombre: null, madre_id: null, madre_nombre: null,
   },
 ]
 

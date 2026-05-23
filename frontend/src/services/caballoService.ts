@@ -12,6 +12,28 @@ function getEmpresaNombre(sociedadId: string): string {
 
 export type Subcategoria = 'Donante' | 'Receptora'
 
+export interface Caballo {
+  id: string
+  nombre: string
+  fecha_nacimiento: string
+  categoria: string
+  subcategoria?: string | null
+  raza_id: number
+  pelaje_id: number
+  numero_chip?: string
+  numero_registro?: string
+  sociedad_id: string
+  campo_id?: string | null
+  activo: boolean
+  cat_raza?: { nombre: string } | null
+  cat_pelaje?: { nombre: string } | null
+  campo?: { nombre: string } | null
+  padre_id?: string | null
+  padre_nombre?: string | null
+  madre_id?: string | null
+  madre_nombre?: string | null
+}
+
 export interface ActualizarCaballoPayload {
   nombre: string
   fecha_nacimiento: string
@@ -22,6 +44,10 @@ export interface ActualizarCaballoPayload {
   numero_chip?: string
   numero_registro?: string
   campo_id?: string | null
+  padre_id?: string | null
+  padre_nombre?: string | null
+  madre_id?: string | null
+  madre_nombre?: string | null
 }
 
 export interface NuevoCaballoPayload {
@@ -34,6 +60,10 @@ export interface NuevoCaballoPayload {
   numero_chip?: string
   numero_registro?: string
   campo_id?: string | null
+  padre_id?: string | null
+  padre_nombre?: string | null
+  madre_id?: string | null
+  madre_nombre?: string | null
 }
 
 export const caballoService = {
@@ -84,6 +114,7 @@ export const caballoService = {
       .select(`
         id, nombre, fecha_nacimiento, categoria, campo_id,
         raza_id, pelaje_id, numero_chip, numero_registro, activo,
+        padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
         cat_pelaje(nombre),
         campo(nombre)
@@ -186,6 +217,10 @@ export const caballoService = {
         cat_raza:         raza   ? { nombre: raza.nombre }   : null,
         cat_pelaje:       pelaje ? { nombre: pelaje.nombre } : null,
         campo:            campo  ? { nombre: campo.nombre }  : null,
+        padre_id:         payload.padre_id    ?? null,
+        padre_nombre:     payload.padre_nombre ?? null,
+        madre_id:         payload.madre_id    ?? null,
+        madre_nombre:     payload.madre_nombre ?? null,
       })
       return
     }
@@ -203,6 +238,10 @@ export const caballoService = {
         numero_chip:      payload.numero_chip ?? null,
         numero_registro:  payload.numero_registro ?? null,
         campo_id:         payload.campo_id ?? null,
+        padre_id:         payload.padre_id    ?? null,
+        padre_nombre:     payload.padre_nombre ?? null,
+        madre_id:         payload.madre_id    ?? null,
+        madre_nombre:     payload.madre_nombre ?? null,
       })
       .eq('id', id)
     if (error) throw error

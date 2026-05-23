@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { X, Plus, AlertTriangle } from 'lucide-react'
+import { X, Plus, AlertTriangle, GitBranch } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { caballoService, type NuevoCaballoPayload } from '../../services/caballoService'
+import { caballoService, type NuevoCaballoPayload, type Caballo } from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
+import PedigreeCombobox from './PedigreeCombobox'
 
 interface CaballoEditProps {
   id: string
@@ -16,17 +17,22 @@ interface CaballoEditProps {
   numero_chip?: string | null
   numero_registro?: string | null
   campo_id?: string | null
+  padre_id?: string | null
+  padre_nombre?: string | null
+  madre_id?: string | null
+  madre_nombre?: string | null
 }
 
 interface Props {
   caballo: CaballoEditProps
   onClose: () => void
   onSuccess: () => void
+  caballos?: Caballo[]
 }
 
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
 
-export default function EditarCaballoModal({ caballo, onClose, onSuccess }: Props) {
+export default function EditarCaballoModal({ caballo, onClose, onSuccess, caballos = [] }: Props) {
   const { sociedadActiva, rol } = useAuth()
   const esAdmin = rol === 'admin'
 
@@ -47,6 +53,13 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess }: Prop
     numero_chip:      caballo.numero_chip ?? '',
     numero_registro:  caballo.numero_registro ?? '',
     campo_id:         caballo.campo_id ?? '',
+  })
+
+  const [genealogia, setGenealogia] = useState({
+    padre_id:     caballo.padre_id    ?? null as string | null,
+    padre_nombre: caballo.padre_nombre ?? null as string | null,
+    madre_id:     caballo.madre_id    ?? null as string | null,
+    madre_nombre: caballo.madre_nombre ?? null as string | null,
   })
 
   const [saving, setSaving] = useState(false)
@@ -92,6 +105,10 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess }: Prop
         numero_chip:      form.numero_chip.trim()      || undefined,
         numero_registro:  form.numero_registro.trim()  || undefined,
         campo_id:         form.campo_id                || null,
+        padre_id:         genealogia.padre_id,
+        padre_nombre:     genealogia.padre_nombre,
+        madre_id:         genealogia.madre_id,
+        madre_nombre:     genealogia.madre_nombre,
       })
       onSuccess()
     } catch (err: unknown) {
@@ -279,6 +296,30 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess }: Prop
                 value={form.numero_registro}
                 onChange={(e) => set('numero_registro', e.target.value)}
                 className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          {/* Genealogía */}
+          <div className="pt-2">
+            <div className="flex items-center gap-2 mb-3">
+              <GitBranch size={13} className="text-zinc-500" />
+              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Genealogía</span>
+            </div>
+            <div className="space-y-3">
+              <PedigreeCombobox
+                label="Padre"
+                placeholder="— Sin datos —"
+                value={{ id: genealogia.padre_id, nombre: genealogia.padre_nombre }}
+                onChange={(v) => setGenealogia((g) => ({ ...g, padre_id: v.id ?? null, padre_nombre: v.nombre ?? null }))}
+                caballos={caballos.filter((c) => c.id !== caballo.id)}
+              />
+              <PedigreeCombobox
+                label="Madre"
+                placeholder="— Sin datos —"
+                value={{ id: genealogia.madre_id, nombre: genealogia.madre_nombre }}
+                onChange={(v) => setGenealogia((g) => ({ ...g, madre_id: v.id ?? null, madre_nombre: v.nombre ?? null }))}
+                caballos={caballos.filter((c) => c.id !== caballo.id)}
               />
             </div>
           </div>
