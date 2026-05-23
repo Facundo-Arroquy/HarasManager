@@ -1,5 +1,10 @@
 import { useState } from 'react'
-import { UserPlus, CheckCircle2, AlertCircle } from 'lucide-react'
+import { UserPlus, CheckCircle2, AlertCircle, Lock } from 'lucide-react'
+
+// ── TEMPORALMENTE DESHABILITADO ──────────────────────────────────────────────
+// Se reactiva cuando esté lista la lógica de invitaciones en producción.
+const HABILITADO = false
+// ─────────────────────────────────────────────────────────────────────────────
 import { useAuth } from '../../hooks/useAuth'
 import { isMockMode } from '../../dev/mockMode'
 import { getSupabaseClient } from '../../lib/supabase'
@@ -108,6 +113,26 @@ export default function InvitarUsuarioTab() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!HABILITADO) {
+    return (
+      <div className="max-w-lg">
+        <div>
+          <h2 className="text-sm font-medium text-zinc-300">Invitar nuevo usuario</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            El usuario recibirá un email para activar su cuenta y establecer su contraseña.
+          </p>
+        </div>
+        <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 py-12 text-center">
+          <Lock size={24} className="text-zinc-600" />
+          <p className="text-sm font-medium text-zinc-400">Próximamente</p>
+          <p className="text-xs text-zinc-600 max-w-xs">
+            Esta función estará disponible en una próxima versión.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
