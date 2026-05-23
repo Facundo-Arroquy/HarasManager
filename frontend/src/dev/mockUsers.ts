@@ -10,6 +10,7 @@ export interface MockUser {
   email: string
   telefono: string
   rol: string
+  accesosCentroC: boolean
   sociedad: {
     id: string
     nombre: string
@@ -31,6 +32,7 @@ export const MOCK_USERS: MockUser[] = [
     email: 'admin@haras-demo.com',
     telefono: '+54 11 4500-0001',
     rol: 'admin',
+    accesosCentroC: true,
     sociedad: MOCK_SOCIEDAD,
   },
   {
@@ -40,6 +42,7 @@ export const MOCK_USERS: MockUser[] = [
     email: 'vet@haras-demo.com',
     telefono: '+54 11 4500-0002',
     rol: 'veterinario',
+    accesosCentroC: true,
     sociedad: MOCK_SOCIEDAD,
   },
   {
@@ -49,6 +52,7 @@ export const MOCK_USERS: MockUser[] = [
     email: 'martin@haras-demo.com',
     telefono: '+54 11 4500-0004',
     rol: 'jugador',
+    accesosCentroC: false,
     sociedad: MOCK_SOCIEDAD,
   },
   {
@@ -58,6 +62,7 @@ export const MOCK_USERS: MockUser[] = [
     email: 'diego@haras-demo.com',
     telefono: '+54 11 4500-0005',
     rol: 'peticero',
+    accesosCentroC: false,
     sociedad: MOCK_SOCIEDAD,
   },
 ]
@@ -65,3 +70,4 @@ export const MOCK_USERS: MockUser[] = [
 export function getMockUser(id: string): MockUser {
   return MOCK_USERS.find((u) => u.id === id) ?? MOCK_USERS[0]
 }
+

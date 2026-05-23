@@ -15,6 +15,7 @@ interface NavItem {
 interface NavGroup {
   label: string
   roles?: string[]
+  requiresAccesoCentro?: boolean
   items: NavItem[]
 }
 
@@ -32,7 +33,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'Centro de Embriones',
-    roles: ['veterinario', 'admin'],
+    requiresAccesoCentro: true,
     items: [
       { to: '/centro-cria',               label: 'Panel reproductivo', icon: <FlaskConical size={15} /> },
       { to: '/centro-cria/programa',      label: 'Programa semanal',   icon: <CalendarDays size={15} /> },
@@ -44,7 +45,7 @@ const NAV_GROUPS: NavGroup[] = [
 ]
 
 export default function Sidebar() {
-  const { rol, sociedadActiva, user, signOut } = useAuth()
+  const { rol, sociedadActiva, user, signOut, accesosCentroC } = useAuth()
   const location = useLocation()
 
   const visibleGroups = NAV_GROUPS.map((group) => ({
@@ -52,11 +53,13 @@ export default function Sidebar() {
     items: group.items.filter(
       (item) => !item.roles || (rol && item.roles.includes(rol))
     ),
-  })).filter(
-    (group) =>
-      group.items.length > 0 &&
-      (!group.roles || (rol && group.roles.includes(rol)))
-  )
+  })).filter((group) => {
+    if (group.items.length === 0) return false
+    if (group.requiresAccesoCentro) {
+      return rol === 'admin' || accesosCentroC
+    }
+    return !group.roles || (rol && group.roles.includes(rol))
+  })
 
   return (
     <aside className="hidden md:flex h-screen w-56 flex-col border-r border-zinc-800 bg-zinc-950">

@@ -2,12 +2,14 @@ import { useState } from 'react'
 import UsuariosTab from './UsuariosTab'
 import AccesosVetTab from './AccesosVetTab'
 import InvitarUsuarioTab from './InvitarUsuarioTab'
+import PermisosCentroTab from './PermisosCentroTab'
 
-type Tab = 'usuarios' | 'accesos' | 'invitar'
+type Tab = 'usuarios' | 'accesos' | 'permisos' | 'invitar'
 
 const TABS: { id: Tab; label: string; labelMobile?: string }[] = [
   { id: 'usuarios', label: 'Usuarios' },
   { id: 'accesos',  label: 'Accesos veterinario', labelMobile: 'Accesos vet' },
+  { id: 'permisos', label: 'Permisos Centro Cría', labelMobile: 'Permisos' },
   { id: 'invitar',  label: 'Invitar usuario',      labelMobile: 'Invitar' },
 ]
 
@@ -44,6 +46,7 @@ export default function AdminPage() {
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {activeTab === 'usuarios' && <UsuariosTab />}
         {activeTab === 'accesos'  && <AccesosVetTab />}
+        {activeTab === 'permisos' && <PermisosCentroTab />}
         {activeTab === 'invitar'  && <InvitarUsuarioTab />}
       </div>
     </div>

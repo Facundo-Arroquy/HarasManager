@@ -13,9 +13,11 @@ interface AuthState {
   sociedadActiva: Sociedad | null
   rol: string | null
   loading: boolean
+  accesosCentroC: boolean
   setSession: (session: Session | null) => void
   setSociedadActiva: (sociedad: Sociedad | null, rol: string | null) => void
   setLoading: (v: boolean) => void
+  setAccesosCentroC: (v: boolean) => void
   clear: () => void
 }
 
@@ -25,6 +27,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   sociedadActiva: null,
   rol: null,
   loading: true,
+  accesosCentroC: false,
 
   setSession: (session) =>
     set({ session, user: session?.user ?? null, loading: false }),
@@ -34,6 +37,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setLoading: (v) => set({ loading: v }),
 
+  setAccesosCentroC: (v) => set({ accesosCentroC: v }),
+
   clear: () =>
-    set({ user: null, session: null, sociedadActiva: null, rol: null, loading: false }),
+    set({ user: null, session: null, sociedadActiva: null, rol: null, loading: false, accesosCentroC: false }),
 }))

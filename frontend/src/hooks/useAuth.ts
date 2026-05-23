@@ -3,6 +3,7 @@ import { getSupabaseClient } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
 import { isMockMode, getMockUserId } from '../dev/mockMode'
 import { getMockUser } from '../dev/mockUsers'
+import { tieneAccesoCentroCria } from '../services/accesoCentroCriaService'
 
 export function useAuth() {
   const store = useAuthStore()
@@ -12,6 +13,7 @@ export function useAuth() {
       const mockUser = getMockUser(getMockUserId())
       store.setSession({ user: { id: mockUser.id, email: mockUser.email } } as never)
       store.setSociedadActiva(mockUser.sociedad, mockUser.rol)
+      tieneAccesoCentroCria(mockUser.id).then((v) => store.setAccesosCentroC(v))
       return
     }
 
@@ -25,10 +27,16 @@ export function useAuth() {
 
     supabase.auth.getSession().then(({ data }) => {
       store.setSession(data.session)
+      if (data.session?.user?.id) {
+        tieneAccesoCentroCria(data.session.user.id).then((v) => store.setAccesosCentroC(v))
+      }
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       store.setSession(session)
+      if (session?.user?.id) {
+        tieneAccesoCentroCria(session.user.id).then((v) => store.setAccesosCentroC(v))
+      }
       if (!session) store.clear()
     })
 
@@ -60,6 +68,7 @@ export function useAuth() {
     sociedadActiva: store.sociedadActiva,
     rol: store.rol,
     loading: store.loading,
+    accesosCentroC: store.accesosCentroC,
     isMock: isMockMode(),
     isAuthenticated: !!store.session,
     signIn,

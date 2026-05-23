@@ -16,8 +16,8 @@ interface NavItem {
   label: string
   icon: React.ReactNode
   roles?: string[]
-  // Si true, se marca activo en cualquier subruta que empiece con `to`
   matchPrefix?: boolean
+  requiresAccesoCentro?: boolean
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -25,19 +25,19 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/caballos',          label: 'Caballos', icon: <LayoutGrid size={22} /> },
   { to: '/revision-preventa', label: 'Revisión', icon: <ClipboardList size={22} />,   roles: ['veterinario'] },
   { to: '/admin',             label: 'Admin',    icon: <Settings size={22} />,         roles: ['admin'] },
-  // Config: solo para jugador y piloto (admin usa sidebar en desktop y tiene Cría abajo)
   { to: '/config',            label: 'Config',   icon: <SlidersHorizontal size={22} />, roles: ['jugador', 'piloto'] },
-  { to: '/centro-cria',       label: 'Cría',      icon: <FlaskConical size={22} />,    roles: ['veterinario', 'admin'], matchPrefix: true },
+  { to: '/centro-cria',       label: 'Cría',     icon: <FlaskConical size={22} />,    matchPrefix: true, requiresAccesoCentro: true },
   { to: '/transferencias',    label: 'Transferir', icon: <ArrowLeftRight size={22} />, roles: ['admin'] },
 ]
 
 export default function BottomNav() {
-  const { rol, signOut } = useAuth()
+  const { rol, signOut, accesosCentroC } = useAuth()
   const location = useLocation()
 
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.roles || (rol && item.roles.includes(rol))
-  )
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.requiresAccesoCentro) return rol === 'admin' || accesosCentroC
+    return !item.roles || (rol && item.roles.includes(rol))
+  })
 
   return (
     <nav
