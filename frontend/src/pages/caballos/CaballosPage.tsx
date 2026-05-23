@@ -4,6 +4,7 @@ import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
+import CaballoDetalleModal from '../../components/domain/CaballoDetalleModal'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
@@ -30,22 +31,25 @@ export default function CaballosPage() {
   const [busqueda, setBusqueda] = useState('')
   const [filtro,   setFiltro]   = useState('Todos')
 
-  const [showConsulta,  setShowConsulta]  = useState(false)
-  const [showNuevo,     setShowNuevo]     = useState(false)
-  const [caballoEditar, setCaballoEditar] = useState<Caballo | null>(null)
+  const [showConsulta,   setShowConsulta]   = useState(false)
+  const [showNuevo,      setShowNuevo]      = useState(false)
+  const [caballoDetalle, setCaballoDetalle] = useState<Caballo | null>(null)
+  const [caballoEditar,  setCaballoEditar]  = useState<Caballo | null>(null)
 
   // ── Selección masiva ────────────────────────────────────────────────────────
-  const [modoSeleccion,   setModoSeleccion]   = useState(false)
-  const [seleccionados,   setSeleccionados]   = useState<Set<string>>(new Set())
-  const [bulkCampoId,     setBulkCampoId]     = useState(SIN_CAMBIO)
-  const [bulkCategoria,   setBulkCategoria]   = useState(SIN_CAMBIO)
-  const [bulkSaving,      setBulkSaving]      = useState(false)
+  const [modoSeleccion,    setModoSeleccion]    = useState(false)
+  const [seleccionados,    setSeleccionados]    = useState<Set<string>>(new Set())
+  const [bulkCampoId,      setBulkCampoId]      = useState(SIN_CAMBIO)
+  const [bulkCategoria,    setBulkCategoria]    = useState(SIN_CAMBIO)
+  const [bulkSubcategoria, setBulkSubcategoria] = useState(SIN_CAMBIO)
+  const [bulkSaving,       setBulkSaving]       = useState(false)
 
   const salirModoSeleccion = useCallback(() => {
     setModoSeleccion(false)
     setSeleccionados(new Set())
     setBulkCampoId(SIN_CAMBIO)
     setBulkCategoria(SIN_CAMBIO)
+    setBulkSubcategoria(SIN_CAMBIO)
   }, [])
 
   const toggleSeleccion = useCallback((id: string) => {
@@ -87,17 +91,20 @@ export default function CaballosPage() {
   useEffect(() => { cargar() }, [sociedadId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Edición masiva ───────────────────────────────────────────────────────────
-  const hayBulkCambios = bulkCampoId !== SIN_CAMBIO || bulkCategoria !== SIN_CAMBIO
+  const hayBulkCambios =
+    bulkCampoId !== SIN_CAMBIO || bulkCategoria !== SIN_CAMBIO || bulkSubcategoria !== SIN_CAMBIO
 
   async function aplicarEdicionMasiva() {
     if (!hayBulkCambios || seleccionados.size === 0) return
     setBulkSaving(true)
     try {
-      const cambios: { campo_id?: string | null; categoria?: string } = {}
+      const cambios: { campo_id?: string | null; categoria?: string; subcategoria?: string | null } = {}
       if (bulkCampoId !== SIN_CAMBIO)
         cambios.campo_id = bulkCampoId === SIN_CAMPO ? null : bulkCampoId
       if (bulkCategoria !== SIN_CAMBIO)
         cambios.categoria = bulkCategoria
+      if (bulkSubcategoria !== SIN_CAMBIO)
+        cambios.subcategoria = bulkSubcategoria === '' ? null : bulkSubcategoria
       await caballoService.editarMasivo(Array.from(seleccionados), cambios)
       await cargar()
       salirModoSeleccion()
@@ -219,10 +226,9 @@ export default function CaballosPage() {
               key={campo.id}
               campo={campo}
               caballos={grupos[campo.id]}
-              todos={campos}
               rol={rol}
-              onEditar={setCaballoEditar}
               onCampoChange={cargar}
+              onDetalle={setCaballoDetalle}
               modoSeleccion={modoSeleccion}
               seleccionados={seleccionados}
               onToggle={toggleSeleccion}
@@ -233,10 +239,9 @@ export default function CaballosPage() {
             <CampoSection
               campo={null}
               caballos={sinCampo}
-              todos={campos}
               rol={rol}
-              onEditar={setCaballoEditar}
               onCampoChange={cargar}
+              onDetalle={setCaballoDetalle}
               modoSeleccion={modoSeleccion}
               seleccionados={seleccionados}
               onToggle={toggleSeleccion}
@@ -253,6 +258,14 @@ export default function CaballosPage() {
         <NuevoCaballoModal
           onClose={() => setShowNuevo(false)}
           onSuccess={() => { setShowNuevo(false); cargar() }}
+        />
+      )}
+      {caballoDetalle && (
+        <CaballoDetalleModal
+          caballo={caballoDetalle}
+          puedeEditar={canManageCampos(rol)}
+          onClose={() => setCaballoDetalle(null)}
+          onEditar={() => { setCaballoDetalle(null); setCaballoEditar(caballoDetalle) }}
         />
       )}
       {caballoEditar && (
@@ -313,13 +326,30 @@ export default function CaballosPage() {
                 </label>
                 <select
                   value={bulkCategoria}
-                  onChange={(e) => setBulkCategoria(e.target.value)}
+                  onChange={(e) => { setBulkCategoria(e.target.value); if (e.target.value !== 'Yegua') setBulkSubcategoria(SIN_CAMBIO) }}
                   className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-2 text-sm text-zinc-200 focus:border-emerald-600 focus:outline-none"
                 >
                   <option value={SIN_CAMBIO}>— Sin cambio —</option>
                   {CATEGORIAS_EDIT.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
+                </select>
+              </div>
+
+              {/* Rol reproductivo (solo si categoria es Yegua o sin cambio para permitir editar yeguas ya filtradas) */}
+              <div className="flex-1 min-w-[130px]">
+                <label className="block text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1">
+                  Rol reproductivo
+                </label>
+                <select
+                  value={bulkSubcategoria}
+                  onChange={(e) => setBulkSubcategoria(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-2 text-sm text-zinc-200 focus:border-emerald-600 focus:outline-none"
+                >
+                  <option value={SIN_CAMBIO}>— Sin cambio —</option>
+                  <option value="">Sin especificar</option>
+                  <option value="Donante">Donante</option>
+                  <option value="Receptora">Receptora</option>
                 </select>
               </div>
 
@@ -344,10 +374,9 @@ export default function CaballosPage() {
 interface CampoSectionProps {
   campo: Campo | null
   caballos: Caballo[]
-  todos: Campo[]
   rol: string | null
-  onEditar: (c: Caballo) => void
   onCampoChange: () => void
+  onDetalle: (c: Caballo) => void
   modoSeleccion: boolean
   seleccionados: Set<string>
   onToggle: (id: string) => void
@@ -355,21 +384,15 @@ interface CampoSectionProps {
 }
 
 function CampoSection({
-  campo, caballos, todos, rol, onEditar, onCampoChange,
+  campo, caballos, rol, onCampoChange, onDetalle,
   modoSeleccion, seleccionados, onToggle, onToggleTodos,
 }: CampoSectionProps) {
-  const puedeGestionar  = canManageCampos(rol)
-  const ids             = caballos.map((c) => c.id)
-  const todosEnSeccion  = ids.every((id) => seleccionados.has(id))
-
-  async function handleCampoChange(caballoId: string, nuevoId: string) {
-    await campoService.asignarCaballo(caballoId, nuevoId || null)
-    onCampoChange()
-  }
+  const ids            = caballos.map((c) => c.id)
+  const todosEnSeccion = ids.every((id) => seleccionados.has(id))
 
   return (
     <section>
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-1">
         <MapPin size={14} className={campo ? 'text-emerald-500' : 'text-zinc-600'} />
         <h2 className="text-sm font-semibold text-zinc-300">
           {campo?.nombre ?? 'Sin campo asignado'}
@@ -391,14 +414,13 @@ function CampoSection({
           )}
         </span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Lista compacta */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
         {caballos.map((caballo) => (
           <CaballoCard
             key={caballo.id}
             caballo={caballo}
-            onEditar={!modoSeleccion && puedeGestionar ? () => onEditar(caballo) : undefined}
-            campos={!modoSeleccion && puedeGestionar ? todos : []}
-            onCampoChange={!modoSeleccion && puedeGestionar ? (nuevoId) => handleCampoChange(caballo.id, nuevoId) : undefined}
+            onClick={() => onDetalle(caballo)}
             seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
             onToggle={modoSeleccion ? () => onToggle(caballo.id) : undefined}
           />
