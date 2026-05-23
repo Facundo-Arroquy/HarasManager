@@ -135,6 +135,11 @@ export async function otorgarAcceso(
   if (isMockMode()) {
     const vet = MOCK_USERS.find((u) => u.id === payload.vet_id)
     if (!vet) return
+    // Evitar duplicados: si ya existe un acceso activo para este vet+caballo, no crear otro
+    const yaExiste = MOCK_ACCESOS_VET.some(
+      (a) => a.vet_id === payload.vet_id && a.caballo_id === payload.caballo_id && a.activo
+    )
+    if (yaExiste) return
     const caballo = MOCK_CABALLOS.find((c) => c.id === payload.caballo_id) ?? null
 
     MOCK_ACCESOS_VET.push({

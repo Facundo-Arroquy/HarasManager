@@ -12,8 +12,11 @@ import { caballoService, type Caballo } from '../../services/caballoService'
 
 function calcularEdad(fechaNac: string): string {
   const hoy = new Date()
-  const nac = new Date(fechaNac)
+  // Parsear como fecha local (evita desfase UTC en Argentina)
+  const [y, mo, d] = fechaNac.split('-').map(Number)
+  const nac = new Date(y, mo - 1, d)
   const meses = (hoy.getFullYear() - nac.getFullYear()) * 12 + (hoy.getMonth() - nac.getMonth())
+  if (meses <= 0) return '< 1m'
   const a = Math.floor(meses / 12)
   const m = meses % 12
   if (a === 0) return `${m}m`
@@ -215,7 +218,8 @@ export default function AccesosVetTab() {
   const [loading,  setLoading]  = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
-  const [revocando, setRevocando] = useState(false)
+  const [revocandoIds, setRevocandoIds] = useState<Set<string>>(new Set())
+  const [revocandoBulk, setRevocandoBulk] = useState(false)
 
   async function cargar() {
     if (!sociedadActiva) return
@@ -251,14 +255,26 @@ export default function AccesosVetTab() {
 
   async function handleRevocarSeleccionados() {
     if (seleccionados.size === 0) return
-    setRevocando(true)
+    setRevocandoBulk(true)
     try {
       await revocarAccesosBulk(Array.from(seleccionados))
       await cargar()
     } finally {
-      setRevocando(false)
+      setRevocandoBulk(false)
     }
   }
+
+  async function handleRevocarIndividual(id: string) {
+    setRevocandoIds((prev) => new Set(prev).add(id))
+    try {
+      await revocarAccesosBulk([id])
+      await cargar()
+    } finally {
+      setRevocandoIds((prev) => { const s = new Set(prev); s.delete(id); return s })
+    }
+  }
+
+  const anyRevocando = revocandoBulk || revocandoIds.size > 0
 
   if (loading) return <p className="text-sm text-zinc-500">Cargando accesos…</p>
 
@@ -275,11 +291,11 @@ export default function AccesosVetTab() {
           {seleccionados.size > 0 && (
             <button
               onClick={handleRevocarSeleccionados}
-              disabled={revocando}
+              disabled={anyRevocando}
               className="flex items-center gap-1.5 rounded-md border border-rose-800/50 bg-rose-900/20 hover:bg-rose-900/40 px-3 py-1.5 text-xs font-medium text-rose-400 transition-colors disabled:opacity-50"
             >
               <ShieldOff size={13} />
-              {revocando ? 'Revocando…' : `Revocar ${seleccionados.size} seleccionado${seleccionados.size !== 1 ? 's' : ''}`}
+              {revocandoBulk ? 'Revocando…' : `Revocar ${seleccionados.size} seleccionado${seleccionados.size !== 1 ? 's' : ''}`}
             </button>
           )}
           <button
@@ -351,17 +367,15 @@ export default function AccesosVetTab() {
 
                   {/* Revocar individual */}
                   <button
-                    onClick={async () => {
-                      setRevocando(true)
-                      try { await revocarAccesosBulk([a.id]); await cargar() }
-                      finally { setRevocando(false) }
-                    }}
-                    disabled={revocando}
+                    onClick={() => handleRevocarIndividual(a.id)}
+                    disabled={revocandoIds.has(a.id) || revocandoBulk}
                     className="shrink-0 inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-rose-400 transition-colors disabled:opacity-40 py-1.5 px-2 rounded-md hover:bg-zinc-800"
                     title="Revocar acceso"
                   >
                     <ShieldOff size={14} />
-                    <span className="hidden sm:inline">Revocar</span>
+                    <span className="hidden sm:inline">
+                      {revocandoIds.has(a.id) ? 'Revocando…' : 'Revocar'}
+                    </span>
                   </button>
                 </div>
               )
