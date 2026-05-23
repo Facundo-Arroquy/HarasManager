@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch, Printer } from 'lucide-react'
+import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch, Printer, ImageIcon } from 'lucide-react'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { historialService } from '../../services/historialService'
 import { crianzaService } from '../../services/crianzaService'
@@ -36,7 +36,7 @@ export default function HistorialPage() {
   const [showModal,   setShowModal]   = useState(false)
   const [entryToEdit, setEntryToEdit] = useState<HistorialEntry | null>(null)
 
-  const [tab, setTab] = useState<'clinico' | 'reproductivo' | 'genealogia'>('clinico')
+  const [tab, setTab] = useState<'clinico' | 'reproductivo' | 'genealogia' | 'foto'>('clinico')
   const [repLoading,    setRepLoading]    = useState(false)
   const [registrosCria, setRegistrosCria] = useState<RegistroClinicoCria[]>([])
   const [flushings,     setFlushings]     = useState<Flushing[]>([])
@@ -214,6 +214,17 @@ export default function HistorialPage() {
           >
             <GitBranch size={13} />
             Genealogía
+          </button>
+          <button
+            onClick={() => setTab('foto')}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              tab === 'foto'
+                ? 'border-emerald-500 text-zinc-100'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <ImageIcon size={13} />
+            Foto
           </button>
         </div>
       )}
@@ -402,6 +413,23 @@ export default function HistorialPage() {
       {/* Tab: Genealogía */}
       {tab === 'genealogia' && caballo && (
         <ArbolGenealogico caballo={caballo as Caballo} caballos={todosCaballos} />
+      )}
+
+      {/* Tab: Foto */}
+      {tab === 'foto' && caballo && (
+        <div className="flex flex-col items-center py-8 gap-5">
+          <FotoCaballo
+            caballoId={caballo.id}
+            nombre={caballo.nombre}
+            canEdit={rol === 'admin' || rol === 'veterinario'}
+            size={260}
+          />
+          {(rol === 'admin' || rol === 'veterinario') && (
+            <p className="text-xs text-zinc-600">
+              Hacé click en el ícono de cámara para cambiar la foto
+            </p>
+          )}
+        </div>
       )}
 
       {/* Modal nueva consulta o edición */}

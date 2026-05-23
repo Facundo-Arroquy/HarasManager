@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Stethoscope, Pencil, MapPin } from 'lucide-react'
+import { X, ClipboardList, Pencil, MapPin } from 'lucide-react'
 import { calcularEdad } from '../../utils/fecha'
 
 interface Caballo {
@@ -104,7 +104,7 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
             className="w-full flex items-center justify-between rounded-lg border border-zinc-700 px-4 py-3 text-sm font-medium text-zinc-300 transition-colors hover:border-emerald-700 hover:bg-emerald-950 hover:text-emerald-300"
           >
             <span className="flex items-center gap-2">
-              <Stethoscope size={15} /> Ver historial clínico
+              <ClipboardList size={15} /> Ver Ficha
             </span>
             <span className="text-zinc-600">→</span>
           </button>

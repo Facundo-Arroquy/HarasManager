@@ -56,3 +56,21 @@ export function calcularEdad(fechaNacimiento: string | null | undefined): string
   if (diff < 0 || (diff === 0 && hoy.getDate() < nac.getDate())) años--
   return `${años} año${años !== 1 ? 's' : ''}`
 }
+
+/**
+ * Calcula la edad en años y meses. Ej: "3 años 4 m." / "8 meses" / "1 año"
+ */
+export function calcularEdadDetallada(fechaNacimiento: string | null | undefined): string {
+  if (!fechaNacimiento) return '—'
+  const [y, m, d] = fechaNacimiento.split('-').map(Number)
+  const nac = new Date(y, m - 1, d)
+  const hoy = new Date()
+  let años  = hoy.getFullYear() - nac.getFullYear()
+  let meses = hoy.getMonth()    - nac.getMonth()
+  if (hoy.getDate() < nac.getDate()) meses--
+  if (meses < 0) { años--; meses += 12 }
+  if (años <= 0 && meses <= 0) return 'Recién nacido'
+  if (años === 0) return `${meses} mes${meses !== 1 ? 'es' : ''}`
+  if (meses === 0) return `${años} año${años !== 1 ? 's' : ''}`
+  return `${años} año${años !== 1 ? 's' : ''} ${meses} m.`
+}
