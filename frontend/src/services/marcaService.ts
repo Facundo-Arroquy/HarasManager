@@ -11,7 +11,7 @@ export interface Marca {
 export const marcaService = {
   async listar(sociedadId: string): Promise<Marca[]> {
     if (isMockMode()) {
-      return MOCK_MARCAS.filter((m) => m.sociedad_id === sociedadId && m.activa)
+      return MOCK_MARCAS.filter((m: { sociedad_id: string; activa: boolean }) => m.sociedad_id === sociedadId && m.activa) as Marca[]
     }
     const supabase = getSupabaseClient()
     const { data, error } = await supabase

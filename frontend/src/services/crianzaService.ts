@@ -522,7 +522,7 @@ export const crianzaService = {
       .eq('activo', true)
       .order('nombre')
     if (error) throw error
-    return data as Array<{
+    return (data as unknown) as Array<{
       id: string
       nombre: string
       categoria: string

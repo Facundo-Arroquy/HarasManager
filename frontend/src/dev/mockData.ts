@@ -366,3 +366,5 @@ export const MOCK_SOCIEDADES = [
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const MOCK_TRANSFERENCIAS_EMPRESA: any[] = []
+
+export const MOCK_MARCAS: Array<{ id: string; nombre: string; dominio_email: string | null; sociedad_id: string; activa: boolean }> = []
