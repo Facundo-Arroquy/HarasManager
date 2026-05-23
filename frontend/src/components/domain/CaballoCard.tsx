@@ -13,9 +13,9 @@ interface CaballoCardProps {
     campo?: { nombre: string } | null
   }
   onClick?: () => void
-  // Selección masiva
   seleccionado?: boolean
   onToggle?: () => void
+  empresaNombre?: string
 }
 
 const CATEGORIA_STYLE: Record<string, string> = {
@@ -30,7 +30,7 @@ const SUBCATEGORIA_STYLE: Record<string, string> = {
   Receptora: 'bg-teal-950 text-teal-300 ring-1 ring-teal-800',
 }
 
-export default function CaballoCard({ caballo, onClick, seleccionado, onToggle }: CaballoCardProps) {
+export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, empresaNombre }: CaballoCardProps) {
   const enModoSeleccion = onToggle !== undefined
   const badgeClass      = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
   const subBadgeClass   = caballo.subcategoria ? SUBCATEGORIA_STYLE[caballo.subcategoria] : undefined
@@ -63,7 +63,10 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle }
       {/* Nombre + edad */}
       <span className="flex-1 min-w-0">
         <span className="block text-sm font-medium text-zinc-100 truncate">{caballo.nombre}</span>
-        <span className="block text-xs text-zinc-500">{edad}</span>
+        <span className="block text-xs text-zinc-500">
+          {edad}
+          {empresaNombre && <span className="ml-1.5 text-zinc-600">· {empresaNombre}</span>}
+        </span>
       </span>
 
       {/* Badges */}

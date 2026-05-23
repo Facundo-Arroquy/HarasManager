@@ -1,7 +1,14 @@
 import { getSupabaseClient } from '../lib/supabase'
 import { isMockMode, getMockUserId } from '../dev/mockMode'
 import { getMockUser } from '../dev/mockUsers'
-import { MOCK_CABALLOS, MOCK_ACCESOS_VET, MOCK_RAZAS, MOCK_PELAJES } from '../dev/mockData'
+import { MOCK_SOCIEDAD } from '../dev/mockUsers'
+import { MOCK_CABALLOS, MOCK_ACCESOS_VET, MOCK_RAZAS, MOCK_PELAJES, MOCK_SOCIEDADES } from '../dev/mockData'
+
+// Lookup de nombre de empresa por sociedad_id (mock)
+function getEmpresaNombre(sociedadId: string): string {
+  if (sociedadId === MOCK_SOCIEDAD.id) return MOCK_SOCIEDAD.nombre
+  return MOCK_SOCIEDADES.find((s) => s.id === sociedadId)?.nombre ?? 'Empresa desconocida'
+}
 
 export type Subcategoria = 'Donante' | 'Receptora'
 
@@ -30,6 +37,31 @@ export interface NuevoCaballoPayload {
 }
 
 export const caballoService = {
+  /** Todos los caballos del vet, a través de todas las empresas en que tiene acceso */
+  async listarDelVeterinario(vetId: string) {
+    if (isMockMode()) {
+      const accesos = MOCK_ACCESOS_VET.filter((a) => a.vet_id === vetId && a.activo)
+      const ids     = new Set(accesos.map((a) => a.caballo_id))
+      return MOCK_CABALLOS
+        .filter((c) => c.activo && ids.has(c.id))
+        .map((c) => ({
+          ...c,
+          empresa_id:     c.sociedad_id,
+          empresa_nombre: getEmpresaNombre(c.sociedad_id),
+        }))
+    }
+
+    // TODO: Supabase
+    // const supabase = getSupabaseClient()
+    // const { data, error } = await supabase
+    //   .from('acceso_vet')
+    //   .select(`caballo(*, sociedad(id, nombre), cat_raza(nombre), cat_pelaje(nombre), campo(nombre))`)
+    //   .eq('vet_id', vetId).eq('activo', true)
+    // if (error) throw error
+    // return (data ?? []).map(({ caballo }) => ({ ...caballo, empresa_id: caballo.sociedad.id, empresa_nombre: caballo.sociedad.nombre }))
+    return [] as any[]
+  },
+
   async listar(sociedadId: string) {
     if (isMockMode()) {
       const mockUser = getMockUser(getMockUserId())

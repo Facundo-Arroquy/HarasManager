@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Search, Plus, MapPin, CheckSquare, X } from 'lucide-react'
+import { Search, Plus, MapPin, CheckSquare, X, Building2, LayoutList } from 'lucide-react'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { useAuthStore } from '../../store/authStore'
@@ -11,7 +11,9 @@ import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import Spinner from '../../components/ui/Spinner'
 
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
+type VistaVet = 'empresa' | 'campo'
 
+const VISTA_KEY       = 'haras_vista_caballos_vet'
 const CATEGORIAS      = ['Todos', 'Caballo', 'Yegua', 'Padrillo', 'Potrillo']
 const CATEGORIAS_EDIT = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo']
 const SIN_CAMBIO      = '__sin_cambio__'
@@ -22,7 +24,14 @@ const canManageCampos = (rol: string | null) =>
 
 export default function CaballosPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
+  const userId     = useAuthStore((s) => s.user?.id)
   const rol        = useAuthStore((s) => s.rol)
+
+  const esVet = rol === 'veterinario'
+
+  const [vistaVet, setVistaVet] = useState<VistaVet>(
+    () => (localStorage.getItem(VISTA_KEY) as VistaVet) ?? 'empresa'
+  )
 
   const [caballos, setCaballos] = useState<Caballo[]>([])
   const [campos,   setCampos]   = useState<Campo[]>([])
@@ -72,15 +81,21 @@ export default function CaballosPage() {
   }, [])
 
   async function cargar() {
-    if (!sociedadId) return
     setLoading(true)
     try {
-      const [c, f] = await Promise.all([
-        caballoService.listar(sociedadId),
-        campoService.listar(sociedadId),
-      ])
-      setCaballos(c)
-      setCampos(f)
+      if (esVet && userId) {
+        const c = await caballoService.listarDelVeterinario(userId)
+        setCaballos(c)
+        setCampos([]) // vets ven agrupado por empresa o campo sin necesitar la lista de campos
+      } else {
+        if (!sociedadId) return
+        const [c, f] = await Promise.all([
+          caballoService.listar(sociedadId),
+          campoService.listar(sociedadId),
+        ])
+        setCaballos(c)
+        setCampos(f)
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error')
     } finally {
@@ -88,7 +103,12 @@ export default function CaballosPage() {
     }
   }
 
-  useEffect(() => { cargar() }, [sociedadId]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { cargar() }, [sociedadId, userId, esVet]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function cambiarVistaVet(v: VistaVet) {
+    setVistaVet(v)
+    localStorage.setItem(VISTA_KEY, v)
+  }
 
   // ── Edición masiva ───────────────────────────────────────────────────────────
   const hayBulkCambios =
@@ -133,8 +153,31 @@ export default function CaballosPage() {
     return byCampo
   }, [filtrados])
 
+  const gruposPorEmpresa = useMemo(() => {
+    const byEmpresa: Record<string, { nombre: string; caballos: Caballo[] }> = {}
+    for (const c of filtrados) {
+      const id     = (c as any).empresa_id     ?? (c as any).sociedad_id ?? 'desconocida'
+      const nombre = (c as any).empresa_nombre ?? id
+      if (!byEmpresa[id]) byEmpresa[id] = { nombre, caballos: [] }
+      byEmpresa[id].caballos.push(c)
+    }
+    return byEmpresa
+  }, [filtrados])
+
   const camposConCaballos = campos.filter((c) => grupos[c.id]?.length)
   const sinCampo          = grupos['__sin_campo__'] ?? []
+
+  // Para vista vet por campo: construimos campos únicos a partir de los caballos
+  const camposVet = useMemo(() => {
+    if (!esVet) return []
+    const mapa: Record<string, { id: string; nombre: string; descripcion?: string }> = {}
+    for (const c of filtrados) {
+      const id     = (c as any).campo_id
+      const nombre = (c as any).campo?.nombre
+      if (id && nombre && !mapa[id]) mapa[id] = { id, nombre }
+    }
+    return Object.values(mapa)
+  }, [filtrados, esVet])
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto pb-32">
@@ -143,10 +186,38 @@ export default function CaballosPage() {
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">Caballos</h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {loading ? '…' : `${caballos.length} animales · ${campos.length} campos`}
+            {loading ? '…' : esVet
+              ? `${caballos.length} animales · ${Object.keys(gruposPorEmpresa).length} empresa${Object.keys(gruposPorEmpresa).length !== 1 ? 's' : ''}`
+              : `${caballos.length} animales · ${campos.length} campos`
+            }
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Toggle vista vet */}
+          {esVet && !modoSeleccion && (
+            <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs font-medium">
+              <button
+                onClick={() => cambiarVistaVet('empresa')}
+                className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${
+                  vistaVet === 'empresa'
+                    ? 'bg-zinc-700 text-zinc-100'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                }`}
+              >
+                <Building2 size={13} /> Por empresa
+              </button>
+              <button
+                onClick={() => cambiarVistaVet('campo')}
+                className={`flex items-center gap-1.5 px-3 py-2 border-l border-zinc-700 transition-colors ${
+                  vistaVet === 'campo'
+                    ? 'bg-zinc-700 text-zinc-100'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                }`}
+              >
+                <LayoutList size={13} /> Por campo
+              </button>
+            </div>
+          )}
           {rol === 'veterinario' && !modoSeleccion && (
             <button
               onClick={() => setShowConsulta(true)}
@@ -221,13 +292,12 @@ export default function CaballosPage() {
 
       {!loading && !error && filtrados.length > 0 && (
         <div className="space-y-8">
-          {camposConCaballos.map((campo) => (
-            <CampoSection
-              key={campo.id}
-              campo={campo}
-              caballos={grupos[campo.id]}
-              rol={rol}
-              onCampoChange={cargar}
+          {/* Vista veterinario por empresa */}
+          {esVet && vistaVet === 'empresa' && Object.entries(gruposPorEmpresa).map(([empresaId, { nombre, caballos: cabs }]) => (
+            <EmpresaSection
+              key={empresaId}
+              empresaNombre={nombre}
+              caballos={cabs}
               onDetalle={setCaballoDetalle}
               modoSeleccion={modoSeleccion}
               seleccionados={seleccionados}
@@ -235,18 +305,73 @@ export default function CaballosPage() {
               onToggleTodos={toggleTodos}
             />
           ))}
-          {sinCampo.length > 0 && (
-            <CampoSection
-              campo={null}
-              caballos={sinCampo}
-              rol={rol}
-              onCampoChange={cargar}
-              onDetalle={setCaballoDetalle}
-              modoSeleccion={modoSeleccion}
-              seleccionados={seleccionados}
-              onToggle={toggleSeleccion}
-              onToggleTodos={toggleTodos}
-            />
+
+          {/* Vista veterinario por campo */}
+          {esVet && vistaVet === 'campo' && (
+            <>
+              {camposVet.map((campo) => (
+                <CampoSection
+                  key={campo.id}
+                  campo={campo as Campo}
+                  caballos={grupos[campo.id] ?? []}
+                  rol={rol}
+                  onCampoChange={cargar}
+                  onDetalle={setCaballoDetalle}
+                  modoSeleccion={modoSeleccion}
+                  seleccionados={seleccionados}
+                  onToggle={toggleSeleccion}
+                  onToggleTodos={toggleTodos}
+                  mostrarEmpresa
+                />
+              ))}
+              {sinCampo.length > 0 && (
+                <CampoSection
+                  campo={null}
+                  caballos={sinCampo}
+                  rol={rol}
+                  onCampoChange={cargar}
+                  onDetalle={setCaballoDetalle}
+                  modoSeleccion={modoSeleccion}
+                  seleccionados={seleccionados}
+                  onToggle={toggleSeleccion}
+                  onToggleTodos={toggleTodos}
+                  mostrarEmpresa
+                />
+              )}
+            </>
+          )}
+
+          {/* Vista admin/jugador/piloto: por campo de la sociedad */}
+          {!esVet && (
+            <>
+              {camposConCaballos.map((campo) => (
+                <CampoSection
+                  key={campo.id}
+                  campo={campo}
+                  caballos={grupos[campo.id]}
+                  rol={rol}
+                  onCampoChange={cargar}
+                  onDetalle={setCaballoDetalle}
+                  modoSeleccion={modoSeleccion}
+                  seleccionados={seleccionados}
+                  onToggle={toggleSeleccion}
+                  onToggleTodos={toggleTodos}
+                />
+              ))}
+              {sinCampo.length > 0 && (
+                <CampoSection
+                  campo={null}
+                  caballos={sinCampo}
+                  rol={rol}
+                  onCampoChange={cargar}
+                  onDetalle={setCaballoDetalle}
+                  modoSeleccion={modoSeleccion}
+                  seleccionados={seleccionados}
+                  onToggle={toggleSeleccion}
+                  onToggleTodos={toggleTodos}
+                />
+              )}
+            </>
           )}
         </div>
       )}
@@ -381,11 +506,13 @@ interface CampoSectionProps {
   seleccionados: Set<string>
   onToggle: (id: string) => void
   onToggleTodos: (ids: string[]) => void
+  mostrarEmpresa?: boolean
 }
 
 function CampoSection({
-  campo, caballos, rol, onCampoChange, onDetalle,
+  campo, caballos, onDetalle,
   modoSeleccion, seleccionados, onToggle, onToggleTodos,
+  mostrarEmpresa,
 }: CampoSectionProps) {
   const ids            = caballos.map((c) => c.id)
   const todosEnSeccion = ids.every((id) => seleccionados.has(id))
@@ -415,6 +542,60 @@ function CampoSection({
         </span>
       </div>
       {/* Lista compacta */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
+        {caballos.map((caballo) => (
+          <CaballoCard
+            key={caballo.id}
+            caballo={caballo}
+            onClick={() => onDetalle(caballo)}
+            seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
+            onToggle={modoSeleccion ? () => onToggle(caballo.id) : undefined}
+            empresaNombre={mostrarEmpresa ? (caballo as any).empresa_nombre : undefined}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ── Sección de empresa (vista vet) ────────────────────────────────────────────
+
+interface EmpresaSectionProps {
+  empresaNombre: string
+  caballos: Caballo[]
+  onDetalle: (c: Caballo) => void
+  modoSeleccion: boolean
+  seleccionados: Set<string>
+  onToggle: (id: string) => void
+  onToggleTodos: (ids: string[]) => void
+}
+
+function EmpresaSection({
+  empresaNombre, caballos, onDetalle,
+  modoSeleccion, seleccionados, onToggle, onToggleTodos,
+}: EmpresaSectionProps) {
+  const ids            = caballos.map((c) => c.id)
+  const todosEnSeccion = ids.every((id) => seleccionados.has(id))
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-1">
+        <Building2 size={14} className="text-sky-500" />
+        <h2 className="text-sm font-semibold text-zinc-300">{empresaNombre}</h2>
+        <span className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-zinc-600">
+            {caballos.length} animal{caballos.length !== 1 ? 'es' : ''}
+          </span>
+          {modoSeleccion && (
+            <button
+              onClick={() => onToggleTodos(ids)}
+              className="text-xs text-emerald-500 hover:text-emerald-300 transition-colors"
+            >
+              {todosEnSeccion ? 'Deseleccionar todos' : 'Seleccionar todos'}
+            </button>
+          )}
+        </span>
+      </div>
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
         {caballos.map((caballo) => (
           <CaballoCard
