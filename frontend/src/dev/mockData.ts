@@ -230,6 +230,7 @@ export const MOCK_HISTORIAL: Record<string, object[]> = {
       ],
     },
   ],
+  // cab-002
   'cab-002': [
     {
       id: 'hc-003',
@@ -249,3 +250,13 @@ export const MOCK_HISTORIAL: Record<string, object[]> = {
     },
   ],
 }
+
+// ── Sociedades (para transferencias entre empresas) ───────────────────────────
+
+export const MOCK_SOCIEDADES = [
+  { id: 'soc-002', nombre: 'Haras Don Pedro' },
+  { id: 'soc-003', nombre: 'Estancia La Palma' },
+]
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MOCK_TRANSFERENCIAS_EMPRESA: any[] = []

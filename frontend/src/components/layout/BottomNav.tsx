@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
   LogOut,
   FlaskConical,
+  ArrowLeftRight,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -26,7 +27,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/admin',             label: 'Admin',    icon: <Settings size={22} />,         roles: ['admin'] },
   // Config: solo para jugador y piloto (admin usa sidebar en desktop y tiene Cría abajo)
   { to: '/config',            label: 'Config',   icon: <SlidersHorizontal size={22} />, roles: ['jugador', 'piloto'] },
-  { to: '/centro-cria',       label: 'Cría',     icon: <FlaskConical size={22} />,     roles: ['veterinario', 'admin'], matchPrefix: true },
+  { to: '/centro-cria',       label: 'Cría',      icon: <FlaskConical size={22} />,    roles: ['veterinario', 'admin'], matchPrefix: true },
+  { to: '/transferencias',    label: 'Transferir', icon: <ArrowLeftRight size={22} />, roles: ['admin'] },
 ]
 
 export default function BottomNav() {
