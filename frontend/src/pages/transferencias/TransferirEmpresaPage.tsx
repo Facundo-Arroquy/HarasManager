@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ArrowLeftRight, CheckSquare, Square, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { ArrowLeftRight, CheckSquare, Square, AlertTriangle, CheckCircle2, FileText, Trash2, ExternalLink } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { caballoService } from '../../services/caballoService'
 import {
@@ -7,33 +7,45 @@ import {
   type SociedadItem,
   type TransferenciaEmpresa,
 } from '../../services/transferEmpresaService'
+import { historialService } from '../../services/historialService'
+import { crianzaService } from '../../services/crianzaService'
+import { generarFichaHtml } from '../../utils/exportarFichaCaballo'
+import { fichaHistoricaService, type FichaHistorica } from '../../services/fichaHistoricaService'
+import { useAuthStore } from '../../store/authStore'
+import { formatFecha } from '../../utils/fecha'
 
 export default function TransferirEmpresaPage() {
   const { sociedadActiva } = useAuth()
+  const rol = useAuthStore((s) => s.rol)
   const sociedadId = sociedadActiva?.id ?? ''
 
   const [caballos, setCaballos] = useState<any[]>([])
   const [sociedades, setSociedades] = useState<SociedadItem[]>([])
   const [historial, setHistorial] = useState<TransferenciaEmpresa[]>([])
+  const [fichasHistoricas, setFichasHistoricas] = useState<FichaHistorica[]>([])
 
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [tipo, setTipo] = useState<'registrada' | 'no_registrada'>('registrada')
   const [sociedadDestinoId, setSociedadDestinoId] = useState('')
   const [entidadNombre, setEntidadNombre] = useState('')
   const [saving, setSaving] = useState(false)
+  const [savingStep, setSavingStep] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [exito, setExito] = useState<string | null>(null)
+  const [eliminando, setEliminando] = useState<string | null>(null)
 
   const cargarDatos = useCallback(async () => {
     if (!sociedadId) return
-    const [listaCaballos, listaSociedades, listaHistorial] = await Promise.all([
+    const [listaCaballos, listaSociedades, listaHistorial, listaFichas] = await Promise.all([
       caballoService.listar(sociedadId),
       transferEmpresaService.listarSociedades(sociedadId),
       transferEmpresaService.listarHistorial(sociedadId),
+      fichaHistoricaService.listar(sociedadId),
     ])
     setCaballos(listaCaballos)
     setSociedades(listaSociedades)
     setHistorial(listaHistorial)
+    setFichasHistoricas(listaFichas)
   }, [sociedadId])
 
   useEffect(() => {
@@ -66,7 +78,47 @@ export default function TransferirEmpresaPage() {
     setSaving(true)
     setError(null)
     setExito(null)
+
     try {
+      // 1. Generar y guardar ficha histórica de cada caballo ANTES de la transferencia
+      const caballosSeleccionados = caballos.filter((c) => seleccionados.has(c.id))
+      setSavingStep(`Generando fichas históricas (0/${caballosSeleccionados.length})…`)
+
+      await Promise.allSettled(
+        caballosSeleccionados.map(async (caballo, idx) => {
+          try {
+            const [hist, regs, flush, transf] = await Promise.all([
+              historialService.listarPorCaballo(caballo.id),
+              crianzaService.listarRegistrosPorCaballo(caballo.id),
+              crianzaService.listarFlushingsPorCaballo(caballo.id),
+              crianzaService.listarTransferenciasPorCaballo(caballo.id),
+            ])
+
+            const html = await generarFichaHtml({
+              caballo,
+              historial: hist as any[],
+              caballos,   // todos los caballos para resolver genealogía
+              registrosCria: regs,
+              flushings: flush,
+              transferencias: transf,
+            })
+
+            await fichaHistoricaService.guardar({
+              caballoId: caballo.id,
+              nombre: caballo.nombre,
+              sociedadId,
+              html,
+            })
+
+            setSavingStep(`Generando fichas históricas (${idx + 1}/${caballosSeleccionados.length})…`)
+          } catch (e) {
+            console.error(`Error guardando ficha de ${caballo.nombre}:`, e)
+          }
+        })
+      )
+
+      // 2. Ejecutar la transferencia
+      setSavingStep('Transfiriendo caballos…')
       const sociedadDest = sociedades.find((s) => s.id === sociedadDestinoId)
       await transferEmpresaService.transferir(
         {
@@ -78,8 +130,9 @@ export default function TransferirEmpresaPage() {
         },
         sociedadId
       )
+
       setExito(
-        `${seleccionados.size} caballo${seleccionados.size > 1 ? 's' : ''} transferido${seleccionados.size > 1 ? 's' : ''} correctamente.`
+        `${seleccionados.size} caballo${seleccionados.size > 1 ? 's' : ''} transferido${seleccionados.size > 1 ? 's' : ''} correctamente. Se guardó la ficha histórica de cada animal.`
       )
       setSeleccionados(new Set())
       setSociedadDestinoId('')
@@ -89,7 +142,25 @@ export default function TransferirEmpresaPage() {
       setError(e?.message ?? 'Error al transferir')
     } finally {
       setSaving(false)
+      setSavingStep(null)
     }
+  }
+
+  async function handleEliminarFicha(ficha: FichaHistorica) {
+    if (!confirm(`¿Eliminar la ficha histórica de ${ficha.caballo_nombre}? Esta acción no se puede deshacer.`)) return
+    setEliminando(ficha.id)
+    try {
+      await fichaHistoricaService.eliminar(ficha)
+      setFichasHistoricas((prev) => prev.filter((f) => f.id !== ficha.id))
+    } catch (e: any) {
+      alert(`Error al eliminar: ${e?.message}`)
+    } finally {
+      setEliminando(null)
+    }
+  }
+
+  function resolverNombreCaballo(caballoId: string, nombreGuardado: string): string {
+    return caballos.find((c) => c.id === caballoId)?.nombre ?? nombreGuardado ?? caballoId
   }
 
   const todosSeleccionados = caballos.length > 0 && seleccionados.size === caballos.length
@@ -245,15 +316,15 @@ export default function TransferirEmpresaPage() {
               disabled={!puedeConfirmar || saving}
               className="w-full rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {saving ? 'Transfiriendo…' : 'Confirmar transferencia'}
+              {saving ? (savingStep ?? 'Procesando…') : 'Confirmar transferencia'}
             </button>
           </div>
         )}
 
-        {/* Historial */}
+        {/* Historial de transferencias */}
         <div>
           <p className="text-xs font-medium uppercase tracking-widest text-zinc-600 mb-3">
-            Historial
+            Historial de transferencias
           </p>
           {historial.length === 0 ? (
             <p className="text-sm text-zinc-600">Sin transferencias registradas.</p>
@@ -294,6 +365,53 @@ export default function TransferirEmpresaPage() {
             </ul>
           )}
         </div>
+
+        {/* Fichas históricas guardadas */}
+        {fichasHistoricas.length > 0 && (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-zinc-600 mb-3">
+              Fichas históricas guardadas
+            </p>
+            <ul className="space-y-2">
+              {fichasHistoricas.map((ficha) => {
+                const nombre = resolverNombreCaballo(ficha.caballo_id, ficha.caballo_nombre)
+                const fecha = formatFecha(ficha.fecha.slice(0, 10))
+                return (
+                  <li
+                    key={ficha.id}
+                    className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3"
+                  >
+                    <FileText size={14} className="shrink-0 text-zinc-600" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-200 truncate">{nombre}</p>
+                      <p className="text-xs text-zinc-600">Generada el {fecha}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => fichaHistoricaService.abrir(ficha)}
+                        title="Ver ficha"
+                        className="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 transition-colors"
+                      >
+                        <ExternalLink size={12} /> Ver
+                      </button>
+                      {rol === 'admin' && (
+                        <button
+                          onClick={() => handleEliminarFicha(ficha)}
+                          disabled={eliminando === ficha.id}
+                          title="Eliminar ficha"
+                          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-red-500 hover:text-red-400 hover:bg-red-950 transition-colors disabled:opacity-40"
+                        >
+                          <Trash2 size={12} />
+                          {eliminando === ficha.id ? '…' : 'Eliminar'}
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )

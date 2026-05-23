@@ -1,4 +1,5 @@
 import type { Caballo } from '../services/caballoService'
+import { caballoService } from '../services/caballoService'
 import type { HistorialEntry } from '../components/domain/HistorialCard'
 import type { RegistroClinicoCria, Flushing, TransferenciaEmbrionaria } from '../types/crianza'
 import { formatFecha, calcularEdad } from './fecha'
@@ -50,18 +51,24 @@ async function urlToBase64(url: string): Promise<string> {
   }
 }
 
-export async function exportarFichaCaballo(data: FichaCaballoData) {
-  const { caballo, historial, caballos = [], registrosCria = [], flushings = [], transferencias = [] } = data
+/**
+ * Genera el HTML completo de la ficha sin abrir ninguna ventana.
+ * @param autoPrint Si es true, incluye el script que dispara window.print() al cargar (default false).
+ */
+export async function generarFichaHtml(data: FichaCaballoData, { autoPrint = false } = {}): Promise<string> {
+  const { caballo, historial, registrosCria = [], flushings = [], transferencias = [] } = data
+  let { caballos = [] } = data
+
+  // Auto-cargar caballos de la sociedad si no se pasaron (necesario para genealogía)
+  if (caballos.length === 0 && (caballo as any).sociedad_id) {
+    try {
+      caballos = await caballoService.listar((caballo as any).sociedad_id)
+    } catch { /* sin genealogía */ }
+  }
+
   const hoy = new Date().toISOString().slice(0, 10)
 
-  // Convertir foto a base64 antes de abrir la ventana
   const fotoBase64 = await urlToBase64(fotoService.getUrl(caballo.id))
-
-  const win = window.open('', '_blank', 'width=900,height=1200')
-  if (!win) {
-    alert('No se pudo abrir la ventana de impresión. Habilitá las ventanas emergentes en tu navegador.')
-    return
-  }
 
   // ── Genealogía ───────────────────────────────────────────────────────────────
   const padre = resolveNombre(caballo.padre_id, caballo.padre_nombre, caballos)
@@ -360,9 +367,11 @@ export async function exportarFichaCaballo(data: FichaCaballoData) {
     .rep-section{margin-bottom:10px}
     .rep-title{font-size:8pt;font-weight:700;color:#374151;margin:8px 0 4px}
 
-    /* ── Foto caballo ── */
-    .hdr-foto{width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid #d1d5db;flex-shrink:0}
-    .hdr-foto-placeholder{width:52px;height:52px;border-radius:50%;background:#f3f4f6;border:2px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-size:18pt;font-weight:700;color:#9ca3af;flex-shrink:0}
+    /* ── Foto caballo lateral (grande) ── */
+    .id-section{display:flex;gap:18px;align-items:flex-start}
+    .id-section .igrid{flex:1}
+    .foto-lateral{width:160px;height:160px;border-radius:8px;object-fit:cover;border:1.5px solid #d1d5db;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+    .foto-lateral-placeholder{width:160px;height:160px;border-radius:8px;background:#f3f4f6;border:1.5px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-size:52pt;font-weight:700;color:#d1d5db;flex-shrink:0}
 
     /* ── Footer ── */
     .footer{margin-top:28px;padding-top:6px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:7.5pt;color:#9ca3af}
@@ -380,10 +389,6 @@ export async function exportarFichaCaballo(data: FichaCaballoData) {
   <div class="hdr">
     <div class="hdr-logo">
       <div class="hdr-circle">H</div>
-      ${fotoBase64
-        ? `<img src="${fotoBase64}" class="hdr-foto" alt="${caballo.nombre}" />`
-        : `<div class="hdr-foto-placeholder">${caballo.nombre.charAt(0).toUpperCase()}</div>`
-      }
       <div>
         <div class="hdr-title">Ficha del Caballo</div>
         <div class="hdr-sub">HarasManager — Registro individual del animal</div>
@@ -393,15 +398,21 @@ export async function exportarFichaCaballo(data: FichaCaballoData) {
   </div>
 
   <div class="stitle">Datos identificatorios</div>
-  <div class="igrid">
-    <div class="irow"><span class="ilbl">Nombre:</span><span class="ival">${caballo.nombre}</span></div>
-    <div class="irow"><span class="ilbl">Categoría:</span><span class="ival">${caballo.categoria ?? '—'}${caballo.subcategoria ? ` · ${caballo.subcategoria}` : ''}</span></div>
-    <div class="irow"><span class="ilbl">Raza:</span><span class="ival">${caballo.cat_raza?.nombre ?? '—'}</span></div>
-    <div class="irow"><span class="ilbl">Pelaje:</span><span class="ival">${caballo.cat_pelaje?.nombre ?? '—'}</span></div>
-    ${caballo.fecha_nacimiento ? `<div class="irow"><span class="ilbl">Nacimiento:</span><span class="ival">${fmtFecha(caballo.fecha_nacimiento)}${edad ? ` (${edad})` : ''}</span></div>` : ''}
-    ${caballo.campo?.nombre ? `<div class="irow"><span class="ilbl">Campo:</span><span class="ival">${caballo.campo.nombre}</span></div>` : ''}
-    ${caballo.numero_chip ? `<div class="irow"><span class="ilbl">Chip:</span><span class="ival" style="font-family:monospace">${caballo.numero_chip}</span></div>` : ''}
-    ${caballo.numero_registro ? `<div class="irow"><span class="ilbl">Registro:</span><span class="ival">${caballo.numero_registro}</span></div>` : ''}
+  <div class="id-section">
+    <div class="igrid">
+      <div class="irow"><span class="ilbl">Nombre:</span><span class="ival">${caballo.nombre}</span></div>
+      <div class="irow"><span class="ilbl">Categoría:</span><span class="ival">${caballo.categoria ?? '—'}${caballo.subcategoria ? ` · ${caballo.subcategoria}` : ''}</span></div>
+      <div class="irow"><span class="ilbl">Raza:</span><span class="ival">${caballo.cat_raza?.nombre ?? '—'}</span></div>
+      <div class="irow"><span class="ilbl">Pelaje:</span><span class="ival">${caballo.cat_pelaje?.nombre ?? '—'}</span></div>
+      ${caballo.fecha_nacimiento ? `<div class="irow"><span class="ilbl">Nacimiento:</span><span class="ival">${fmtFecha(caballo.fecha_nacimiento)}${edad ? ` (${edad})` : ''}</span></div>` : ''}
+      ${caballo.campo?.nombre ? `<div class="irow"><span class="ilbl">Campo:</span><span class="ival">${caballo.campo.nombre}</span></div>` : ''}
+      ${caballo.numero_chip ? `<div class="irow"><span class="ilbl">Chip:</span><span class="ival" style="font-family:monospace">${caballo.numero_chip}</span></div>` : ''}
+      ${caballo.numero_registro ? `<div class="irow"><span class="ilbl">Registro:</span><span class="ival">${caballo.numero_registro}</span></div>` : ''}
+    </div>
+    ${fotoBase64
+      ? `<img src="${fotoBase64}" class="foto-lateral" alt="${caballo.nombre}" />`
+      : `<div class="foto-lateral-placeholder">${caballo.nombre.charAt(0).toUpperCase()}</div>`
+    }
   </div>
 
   ${genealogiaHtml}
@@ -417,11 +428,21 @@ export async function exportarFichaCaballo(data: FichaCaballoData) {
   </div>
 
 </div>
-<script>
-  setTimeout(function(){ window.print() }, 400)
-</script>
+${autoPrint ? '<script>setTimeout(function(){ window.print() }, 400)</script>' : ''}
 </body>
 </html>`
+
+  return html
+}
+
+export async function exportarFichaCaballo(data: FichaCaballoData) {
+  const html = await generarFichaHtml(data, { autoPrint: true })
+
+  const win = window.open('', '_blank', 'width=900,height=1200')
+  if (!win) {
+    alert('No se pudo abrir la ventana de impresión. Habilitá las ventanas emergentes en tu navegador.')
+    return
+  }
 
   win.document.write(html)
   win.document.close()
