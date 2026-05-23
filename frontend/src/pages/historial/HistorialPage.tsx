@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/authStore'
 import { calcularEdad } from '../../utils/fecha'
 import { exportarFichaCaballo } from '../../utils/exportarFichaCaballo'
 import Spinner from '../../components/ui/Spinner'
+import FotoCaballo from '../../components/domain/FotoCaballo'
 import HistorialCard, { type HistorialEntry } from '../../components/domain/HistorialCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import ArbolGenealogico from '../../components/domain/ArbolGenealogico'
@@ -123,20 +124,28 @@ export default function HistorialPage() {
       {/* Cabecera del caballo */}
       {caballo && (
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-2xl font-bold text-zinc-100">{caballo.nombre}</h1>
-              {caballo.categoria && (
-                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badgeClass}`}>
-                  {caballo.categoria}
-                </span>
-              )}
+          <div className="flex items-center gap-4">
+            <FotoCaballo
+              caballoId={caballo.id}
+              nombre={caballo.nombre}
+              canEdit={rol === 'admin' || rol === 'veterinario'}
+              size={72}
+            />
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="text-2xl font-bold text-zinc-100">{caballo.nombre}</h1>
+                {caballo.categoria && (
+                  <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badgeClass}`}>
+                    {caballo.categoria}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-zinc-500">
+                {caballo.cat_raza?.nombre ?? '—'}
+                {caballo.cat_pelaje?.nombre ? ` · ${caballo.cat_pelaje.nombre}` : ''}
+                {caballo.fecha_nacimiento  ? ` · ${calcularEdad(caballo.fecha_nacimiento)}` : ''}
+              </p>
             </div>
-            <p className="text-sm text-zinc-500">
-              {caballo.cat_raza?.nombre ?? '—'}
-              {caballo.cat_pelaje?.nombre ? ` · ${caballo.cat_pelaje.nombre}` : ''}
-              {caballo.fecha_nacimiento  ? ` · ${calcularEdad(caballo.fecha_nacimiento)}` : ''}
-            </p>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -150,7 +159,7 @@ export default function HistorialPage() {
                   registrosCria,
                   flushings,
                   transferencias,
-                })}
+                }).catch(console.error)}
                 className="flex items-center gap-1.5 rounded-lg border border-zinc-700 hover:border-zinc-500 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-300 transition-colors"
                 title="Exportar ficha a PDF"
               >
