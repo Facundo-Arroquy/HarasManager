@@ -1,5 +1,5 @@
 // =============================================================================
-// Tipos del módulo Centro de Cría
+// Tipos del módulo Centro de Embriones
 // Las entidades animales (donante/receptora/padrillo) referencian
 // la tabla `caballo` existente mediante caballo_id (UUID).
 // =============================================================================

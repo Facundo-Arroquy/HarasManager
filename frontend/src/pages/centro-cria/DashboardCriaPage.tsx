@@ -54,7 +54,7 @@ export default function DashboardCriaPage() {
     <div className="space-y-6 p-1">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-100">Centro de Cría</h1>
+          <h1 className="text-xl font-semibold text-zinc-100">Centro de Embriones</h1>
           <p className="text-sm text-zinc-400 mt-0.5">Gestión reproductiva del establecimiento</p>
         </div>
         <button
