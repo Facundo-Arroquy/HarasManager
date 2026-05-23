@@ -37,8 +37,9 @@ export default function CaballosPage() {
   const [campos,   setCampos]   = useState<Campo[]>([])
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState<string | null>(null)
-  const [busqueda, setBusqueda] = useState('')
-  const [filtro,   setFiltro]   = useState('Todos')
+  const [busqueda,    setBusqueda]    = useState('')
+  const [filtro,      setFiltro]      = useState('Todos')
+  const [ordenSubcat, setOrdenSubcat] = useState<'ninguno' | 'receptoras' | 'donantes'>('ninguno')
 
   const [showConsulta,   setShowConsulta]   = useState(false)
   const [showNuevo,      setShowNuevo]      = useState(false)
@@ -133,15 +134,25 @@ export default function CaballosPage() {
     }
   }
 
-  const filtrados = useMemo(
-    () =>
-      caballos.filter((c) => {
-        const okNombre = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
-        const okCat    = filtro === 'Todos' || c.categoria === filtro
-        return okNombre && okCat
-      }),
-    [caballos, busqueda, filtro]
-  )
+  const ORDEN_SUBCAT: Record<string, Record<string, number>> = {
+    receptoras: { Receptora: 0, Donante: 1 },
+    donantes:   { Donante: 0, Receptora: 1 },
+  }
+
+  const filtrados = useMemo(() => {
+    const base = caballos.filter((c) => {
+      const okNombre = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
+      const okCat    = filtro === 'Todos' || c.categoria === filtro
+      return okNombre && okCat
+    })
+    if (ordenSubcat === 'ninguno') return base
+    const orden = ORDEN_SUBCAT[ordenSubcat]
+    return [...base].sort((a, b) => {
+      const pa = orden[(a as any).subcategoria ?? ''] ?? 2
+      const pb = orden[(b as any).subcategoria ?? ''] ?? 2
+      return pa - pb
+    })
+  }, [caballos, busqueda, filtro, ordenSubcat]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const grupos = useMemo(() => {
     const byCampo: Record<string, Caballo[]> = {}
@@ -254,30 +265,51 @@ export default function CaballosPage() {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre…"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 py-2 pl-9 pr-3 text-sm text-zinc-200 placeholder-zinc-500 focus:border-zinc-600 focus:outline-none"
-          />
+      <div className="flex flex-col gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre…"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 py-2 pl-9 pr-3 text-sm text-zinc-200 placeholder-zinc-500 focus:border-zinc-600 focus:outline-none"
+            />
+          </div>
+          {!modoSeleccion && (
+            <div className="flex gap-1.5 flex-wrap">
+              {CATEGORIAS.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setFiltro(cat)}
+                  className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                    filtro === cat
+                      ? 'bg-zinc-700 text-zinc-100'
+                      : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+        {/* Orden por rol reproductivo */}
         {!modoSeleccion && (
-          <div className="flex gap-1.5 flex-wrap">
-            {CATEGORIAS.map((cat) => (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Orden:</span>
+            {(['ninguno', 'receptoras', 'donantes'] as const).map((op) => (
               <button
-                key={cat}
-                onClick={() => setFiltro(cat)}
-                className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-                  filtro === cat
+                key={op}
+                onClick={() => setOrdenSubcat(op)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                  ordenSubcat === op
                     ? 'bg-zinc-700 text-zinc-100'
-                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                    : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
                 }`}
               >
-                {cat}
+                {op === 'ninguno' ? 'Por defecto' : op === 'receptoras' ? 'Receptoras primero' : 'Donantes primero'}
               </button>
             ))}
           </div>
