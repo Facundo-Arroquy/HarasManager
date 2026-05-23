@@ -2,6 +2,7 @@ import type { Caballo } from '../services/caballoService'
 import type { HistorialEntry } from '../components/domain/HistorialCard'
 import type { RegistroClinicoCria, Flushing, TransferenciaEmbrionaria } from '../types/crianza'
 import { formatFecha, calcularEdad } from './fecha'
+import { fotoService } from '../services/fotoService'
 
 export interface FichaCaballoData {
   caballo: Caballo
@@ -30,15 +31,37 @@ function fmtFecha(f: string): string {
   return `${d}/${m}/${y}`
 }
 
-export function exportarFichaCaballo(data: FichaCaballoData) {
+async function urlToBase64(url: string): Promise<string> {
+  if (!url) return ''
+  // En mock mode la URL ya es un data URL
+  if (url.startsWith('data:')) return url
+  try {
+    const resp = await fetch(url)
+    if (!resp.ok) return ''
+    const blob = await resp.blob()
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => resolve((e.target?.result as string) ?? '')
+      reader.onerror = () => resolve('')
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return ''
+  }
+}
+
+export async function exportarFichaCaballo(data: FichaCaballoData) {
+  const { caballo, historial, caballos = [], registrosCria = [], flushings = [], transferencias = [] } = data
+  const hoy = new Date().toISOString().slice(0, 10)
+
+  // Convertir foto a base64 antes de abrir la ventana
+  const fotoBase64 = await urlToBase64(fotoService.getUrl(caballo.id))
+
   const win = window.open('', '_blank', 'width=900,height=1200')
   if (!win) {
     alert('No se pudo abrir la ventana de impresión. Habilitá las ventanas emergentes en tu navegador.')
     return
   }
-
-  const { caballo, historial, caballos = [], registrosCria = [], flushings = [], transferencias = [] } = data
-  const hoy = new Date().toISOString().slice(0, 10)
 
   // ── Genealogía ───────────────────────────────────────────────────────────────
   const padre = resolveNombre(caballo.padre_id, caballo.padre_nombre, caballos)
@@ -337,6 +360,10 @@ export function exportarFichaCaballo(data: FichaCaballoData) {
     .rep-section{margin-bottom:10px}
     .rep-title{font-size:8pt;font-weight:700;color:#374151;margin:8px 0 4px}
 
+    /* ── Foto caballo ── */
+    .hdr-foto{width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid #d1d5db;flex-shrink:0}
+    .hdr-foto-placeholder{width:52px;height:52px;border-radius:50%;background:#f3f4f6;border:2px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-size:18pt;font-weight:700;color:#9ca3af;flex-shrink:0}
+
     /* ── Footer ── */
     .footer{margin-top:28px;padding-top:6px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:7.5pt;color:#9ca3af}
 
@@ -353,6 +380,10 @@ export function exportarFichaCaballo(data: FichaCaballoData) {
   <div class="hdr">
     <div class="hdr-logo">
       <div class="hdr-circle">H</div>
+      ${fotoBase64
+        ? `<img src="${fotoBase64}" class="hdr-foto" alt="${caballo.nombre}" />`
+        : `<div class="hdr-foto-placeholder">${caballo.nombre.charAt(0).toUpperCase()}</div>`
+      }
       <div>
         <div class="hdr-title">Ficha del Caballo</div>
         <div class="hdr-sub">HarasManager — Registro individual del animal</div>

@@ -1,5 +1,6 @@
 import { ChevronRight, CheckSquare, Square } from 'lucide-react'
-import { calcularEdad } from '../../utils/fecha'
+import { calcularEdadDetallada } from '../../utils/fecha'
+import FotoCaballo from './FotoCaballo'
 
 interface CaballoCardProps {
   caballo: {
@@ -8,6 +9,7 @@ interface CaballoCardProps {
     fecha_nacimiento?: string | null
     categoria?: string | null
     subcategoria?: string | null
+    numero_registro?: string | null
     cat_raza?: { nombre: string } | null
     cat_pelaje?: { nombre: string } | null
     campo?: { nombre: string } | null
@@ -34,7 +36,7 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
   const enModoSeleccion = onToggle !== undefined
   const badgeClass      = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
   const subBadgeClass   = caballo.subcategoria ? SUBCATEGORIA_STYLE[caballo.subcategoria] : undefined
-  const edad            = calcularEdad(caballo.fecha_nacimiento)
+  const edad            = calcularEdadDetallada(caballo.fecha_nacimiento)
 
   function handleClick() {
     if (enModoSeleccion) onToggle()
@@ -60,6 +62,16 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
         </span>
       )}
 
+      {/* Foto */}
+      <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+        <FotoCaballo
+          caballoId={caballo.id}
+          nombre={caballo.nombre}
+          canEdit={false}
+          size={36}
+        />
+      </span>
+
       {/* Nombre + edad */}
       <span className="flex-1 min-w-0">
         <span className="block text-sm font-medium text-zinc-100 truncate">{caballo.nombre}</span>
@@ -68,6 +80,13 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
           {empresaNombre && <span className="ml-1.5 text-zinc-600">· {empresaNombre}</span>}
         </span>
       </span>
+
+      {/* Nro. Registro */}
+      {caballo.numero_registro && (
+        <span className="hidden sm:block text-xs text-zinc-600 font-mono shrink-0">
+          {caballo.numero_registro}
+        </span>
+      )}
 
       {/* Badges */}
       <span className="flex items-center gap-1.5 shrink-0">
