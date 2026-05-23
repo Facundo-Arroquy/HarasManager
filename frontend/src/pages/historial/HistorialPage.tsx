@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch } from 'lucide-react'
+import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch, Printer } from 'lucide-react'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { historialService } from '../../services/historialService'
 import { crianzaService } from '../../services/crianzaService'
 import { useAuthStore } from '../../store/authStore'
 import { calcularEdad } from '../../utils/fecha'
+import { exportarFichaCaballo } from '../../utils/exportarFichaCaballo'
 import Spinner from '../../components/ui/Spinner'
 import HistorialCard, { type HistorialEntry } from '../../components/domain/HistorialCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
@@ -138,15 +139,34 @@ export default function HistorialPage() {
             </p>
           </div>
 
-          {/* Solo veterinario — caballo ya pre-seleccionado */}
-          {rol === 'veterinario' && (
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors shrink-0"
-            >
-              <Plus size={15} /> Nueva consulta
-            </button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Exportar ficha — admin y veterinario */}
+            {(rol === 'admin' || rol === 'veterinario') && (
+              <button
+                onClick={() => exportarFichaCaballo({
+                  caballo,
+                  historial,
+                  caballos: todosCaballos,
+                  registrosCria,
+                  flushings,
+                  transferencias,
+                })}
+                className="flex items-center gap-1.5 rounded-lg border border-zinc-700 hover:border-zinc-500 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-300 transition-colors"
+                title="Exportar ficha a PDF"
+              >
+                <Printer size={15} /> Exportar PDF
+              </button>
+            )}
+            {/* Solo veterinario — caballo ya pre-seleccionado */}
+            {rol === 'veterinario' && (
+              <button
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors"
+              >
+                <Plus size={15} /> Nueva consulta
+              </button>
+            )}
+          </div>
         </div>
       )}
 
