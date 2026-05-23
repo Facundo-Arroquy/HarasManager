@@ -10,6 +10,7 @@ interface CaballoEditProps {
   nombre: string
   fecha_nacimiento?: string | null
   categoria?: string | null
+  subcategoria?: string | null
   raza_id?: number | null
   pelaje_id?: number | null
   numero_chip?: string | null
@@ -40,6 +41,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess }: Prop
     nombre:           caballo.nombre,
     fecha_nacimiento: caballo.fecha_nacimiento ?? '',
     categoria:        (caballo.categoria ?? 'Caballo') as NuevoCaballoPayload['categoria'],
+    subcategoria:     (caballo.subcategoria ?? '') as string,
     raza_id:          caballo.raza_id ?? 0,
     pelaje_id:        caballo.pelaje_id ?? 0,
     numero_chip:      caballo.numero_chip ?? '',
@@ -82,6 +84,9 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess }: Prop
         nombre:           form.nombre.trim(),
         fecha_nacimiento: form.fecha_nacimiento,
         categoria:        form.categoria,
+        subcategoria:     form.categoria === 'Yegua' && form.subcategoria
+                            ? form.subcategoria as 'Donante' | 'Receptora'
+                            : null,
         raza_id:          Number(form.raza_id),
         pelaje_id:        Number(form.pelaje_id),
         numero_chip:      form.numero_chip.trim()      || undefined,
@@ -165,6 +170,22 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess }: Prop
               </select>
             </div>
           </div>
+
+          {/* Subcategoría (solo Yegua) */}
+          {form.categoria === 'Yegua' && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-400">Rol reproductivo</label>
+              <select
+                value={form.subcategoria}
+                onChange={(e) => set('subcategoria', e.target.value)}
+                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                <option value="">— Sin especificar —</option>
+                <option value="Donante">Donante</option>
+                <option value="Receptora">Receptora</option>
+              </select>
+            </div>
+          )}
 
           {/* Raza + Pelaje */}
           <div className="grid grid-cols-2 gap-3">

@@ -24,43 +24,20 @@ export const MOCK_TIPOS_CONSULTA = [
   { id: 5, nombre: 'Desparasitación' },
 ]
 
-// ── Marcas (reemplazan a propietarios) ───────────────────────────────────────
-//
-// Las marcas se identifican por dominio de email.
-// Usuarios con @losalamos.com → Estancia Los Álamos
-// Usuarios con @pcba.com.ar   → Polo Club Buenos Aires
-
-export const MOCK_MARCAS = [
-  {
-    id: 'mock-marca-001',
-    nombre: 'Estancia Los Álamos',
-    dominio_email: 'losalamos.com',
-    sociedad_id: 'mock-sociedad-001',
-    activa: true,
-  },
-  {
-    id: 'mock-marca-002',
-    nombre: 'Polo Club Buenos Aires',
-    dominio_email: 'pcba.com.ar',
-    sociedad_id: 'mock-sociedad-001',
-    activa: true,
-  },
-]
-
 // ── Campos / Caballerizas ────────────────────────────────────────────────────
-// Ubicaciones físicas del haras, visibles para todos los miembros.
 
 export const MOCK_CAMPOS = [
   { id: 'camp-001', sociedad_id: 'mock-sociedad-001', nombre: 'Potrero Norte',    descripcion: 'Potrero principal de entrenamiento' },
   { id: 'camp-002', sociedad_id: 'mock-sociedad-001', nombre: 'Caballeriza Sur',  descripcion: 'Boxes cubiertos, 12 animales' },
   { id: 'camp-003', sociedad_id: 'mock-sociedad-001', nombre: 'Potrero de Cría',  descripcion: 'Yeguas y potrancas en gestación' },
+  // Haras Don Pedro (soc-002)
+  { id: 'camp-004', sociedad_id: 'soc-002', nombre: 'Paddock Principal', descripcion: 'Campo principal de Haras Don Pedro' },
+  { id: 'camp-005', sociedad_id: 'soc-002', nombre: 'Potrero Chico',     descripcion: 'Potrancas y potrillos' },
 ]
 
 // ── Caballos ─────────────────────────────────────────────────────────────────
-// cab-001 a cab-006 → Estancia Los Álamos (mock-marca-001)
-// cab-007 a cab-008 → Polo Club BA (mock-marca-002)
 
-export const MOCK_CABALLOS = [
+export const MOCK_CABALLOS: any[] = [
   {
     id: 'cab-001',
     nombre: 'Compadre',
@@ -71,12 +48,10 @@ export const MOCK_CABALLOS = [
     numero_chip: '941000024850001',
     numero_registro: 'SA-0001',
     sociedad_id: 'mock-sociedad-001',
-    marca_id: 'mock-marca-001',
     campo_id: 'camp-001',
     activo: true,
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Zaino' },
-    marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
     campo: { nombre: 'Potrero Norte' },
   },
   {
@@ -84,17 +59,16 @@ export const MOCK_CABALLOS = [
     nombre: 'Tormenta',
     fecha_nacimiento: '2018-03-05',
     categoria: 'Yegua',
+    subcategoria: 'Donante',
     raza_id: 1,
     pelaje_id: 2,
     numero_chip: '941000024850002',
     numero_registro: 'SA-0002',
     sociedad_id: 'mock-sociedad-001',
-    marca_id: 'mock-marca-001',
     campo_id: 'camp-003',
     activo: true,
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Tordillo' },
-    marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
     campo: { nombre: 'Potrero de Cría' },
   },
   {
@@ -107,12 +81,10 @@ export const MOCK_CABALLOS = [
     numero_chip: '941000024850003',
     numero_registro: 'SA-0003',
     sociedad_id: 'mock-sociedad-001',
-    marca_id: 'mock-marca-001',
     campo_id: 'camp-002',
     activo: true,
     cat_raza: { nombre: 'Pura Sangre de Carrera' },
     cat_pelaje: { nombre: 'Alazán' },
-    marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
     campo: { nombre: 'Caballeriza Sur' },
   },
   {
@@ -125,12 +97,10 @@ export const MOCK_CABALLOS = [
     numero_chip: '941000024850004',
     numero_registro: 'SA-0004',
     sociedad_id: 'mock-sociedad-001',
-    marca_id: 'mock-marca-001',
     campo_id: 'camp-001',
     activo: true,
     cat_raza: { nombre: 'Criollo' },
     cat_pelaje: { nombre: 'Bayo' },
-    marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
     campo: { nombre: 'Potrero Norte' },
   },
   {
@@ -143,12 +113,10 @@ export const MOCK_CABALLOS = [
     numero_chip: '941000024850005',
     numero_registro: 'SA-0005',
     sociedad_id: 'mock-sociedad-001',
-    marca_id: 'mock-marca-001',
     campo_id: 'camp-002',
     activo: true,
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Zaino' },
-    marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
     campo: { nombre: 'Caballeriza Sur' },
   },
   {
@@ -156,17 +124,16 @@ export const MOCK_CABALLOS = [
     nombre: 'Brisa',
     fecha_nacimiento: '2020-01-22',
     categoria: 'Yegua',
+    subcategoria: 'Receptora',
     raza_id: 1,
     pelaje_id: 2,
     numero_chip: '941000024850006',
     numero_registro: 'SA-0006',
     sociedad_id: 'mock-sociedad-001',
-    marca_id: 'mock-marca-001',
-    campo_id: null,   // sin campo asignado
+    campo_id: null,
     activo: true,
     cat_raza: { nombre: 'Polo Argentino' },
     cat_pelaje: { nombre: 'Tordillo' },
-    marca: { nombre: 'Estancia Los Álamos', dominio_email: 'losalamos.com' },
     campo: null,
   },
   {
@@ -179,12 +146,10 @@ export const MOCK_CABALLOS = [
     numero_chip: '941000024850007',
     numero_registro: 'SA-0007',
     sociedad_id: 'mock-sociedad-001',
-    marca_id: 'mock-marca-002',
     campo_id: 'camp-001',
     activo: true,
     cat_raza: { nombre: 'Pura Sangre de Carrera' },
     cat_pelaje: { nombre: 'Zaino' },
-    marca: { nombre: 'Polo Club Buenos Aires', dominio_email: 'pcba.com.ar' },
     campo: { nombre: 'Potrero Norte' },
   },
   {
@@ -197,30 +162,113 @@ export const MOCK_CABALLOS = [
     numero_chip: '',
     numero_registro: '',
     sociedad_id: 'mock-sociedad-001',
-    marca_id: 'mock-marca-002',
-    campo_id: null,   // sin campo asignado
+    campo_id: null,
     activo: true,
     cat_raza: { nombre: 'Criollo' },
     cat_pelaje: { nombre: 'Alazán' },
-    marca: { nombre: 'Polo Club Buenos Aires', dominio_email: 'pcba.com.ar' },
     campo: null,
+  },
+  // ── Haras Don Pedro (soc-002) — asignados al veterinario ──────────────────
+  {
+    id: 'cab-009',
+    nombre: 'Estrella del Sur',
+    fecha_nacimiento: '2019-07-20',
+    categoria: 'Yegua',
+    subcategoria: 'Donante',
+    raza_id: 1,
+    pelaje_id: 3,
+    numero_chip: '941000024850009',
+    numero_registro: 'DP-0001',
+    sociedad_id: 'soc-002',
+    campo_id: 'camp-004',
+    activo: true,
+    cat_raza: { nombre: 'Polo Argentino' },
+    cat_pelaje: { nombre: 'Alazán' },
+    campo: { nombre: 'Paddock Principal' },
+  },
+  {
+    id: 'cab-010',
+    nombre: 'Vendaval Negro',
+    fecha_nacimiento: '2016-02-11',
+    categoria: 'Padrillo',
+    subcategoria: null,
+    raza_id: 2,
+    pelaje_id: 1,
+    numero_chip: '941000024850010',
+    numero_registro: 'DP-0002',
+    sociedad_id: 'soc-002',
+    campo_id: 'camp-004',
+    activo: true,
+    cat_raza: { nombre: 'Pura Sangre de Carrera' },
+    cat_pelaje: { nombre: 'Zaino' },
+    campo: { nombre: 'Paddock Principal' },
+  },
+  {
+    id: 'cab-011',
+    nombre: 'Flor de Lis',
+    fecha_nacimiento: '2022-09-03',
+    categoria: 'Potrillo',
+    subcategoria: null,
+    raza_id: 1,
+    pelaje_id: 2,
+    numero_chip: '',
+    numero_registro: 'DP-0003',
+    sociedad_id: 'soc-002',
+    campo_id: 'camp-005',
+    activo: true,
+    cat_raza: { nombre: 'Polo Argentino' },
+    cat_pelaje: { nombre: 'Tordillo' },
+    campo: { nombre: 'Potrero Chico' },
   },
 ]
 
 // ── Accesos veterinario ──────────────────────────────────────────────────────
-// El vet mock-veterinario tiene acceso masivo a mock-marca-001
 
-export const MOCK_ACCESOS_VET = [
+export const MOCK_ACCESOS_VET: any[] = [
   {
     id: 'av-001',
     vet_id: 'mock-veterinario',
     vet: { nombre: 'Dra. Valentina', apellido: 'Ríos', email: 'vet@haras-demo.com' },
-    marca_id: 'mock-marca-001',
-    marca: { nombre: 'Estancia Los Álamos' },
-    caballo_id: null,
-    caballo: null,
+    caballo_id: 'cab-001',
+    caballo: { nombre: 'Compadre' },
     activo: true,
-    otorgado_por: 'mock-admin-haras',
+    otorgado_por: 'mock-admin',
+  },
+  {
+    id: 'av-002',
+    vet_id: 'mock-veterinario',
+    vet: { nombre: 'Dra. Valentina', apellido: 'Ríos', email: 'vet@haras-demo.com' },
+    caballo_id: 'cab-002',
+    caballo: { nombre: 'Tormenta' },
+    activo: true,
+    otorgado_por: 'mock-admin',
+  },
+  {
+    id: 'av-003',
+    vet_id: 'mock-veterinario',
+    vet: { nombre: 'Dra. Valentina', apellido: 'Ríos', email: 'vet@haras-demo.com' },
+    caballo_id: 'cab-009',
+    caballo: { nombre: 'Estrella del Sur' },
+    activo: true,
+    otorgado_por: 'mock-admin',
+  },
+  {
+    id: 'av-004',
+    vet_id: 'mock-veterinario',
+    vet: { nombre: 'Dra. Valentina', apellido: 'Ríos', email: 'vet@haras-demo.com' },
+    caballo_id: 'cab-010',
+    caballo: { nombre: 'Vendaval Negro' },
+    activo: true,
+    otorgado_por: 'mock-admin',
+  },
+  {
+    id: 'av-005',
+    vet_id: 'mock-veterinario',
+    vet: { nombre: 'Dra. Valentina', apellido: 'Ríos', email: 'vet@haras-demo.com' },
+    caballo_id: 'cab-011',
+    caballo: { nombre: 'Flor de Lis' },
+    activo: true,
+    otorgado_por: 'mock-admin',
   },
 ]
 
@@ -275,6 +323,7 @@ export const MOCK_HISTORIAL: Record<string, object[]> = {
       ],
     },
   ],
+  // cab-002
   'cab-002': [
     {
       id: 'hc-003',
@@ -294,3 +343,13 @@ export const MOCK_HISTORIAL: Record<string, object[]> = {
     },
   ],
 }
+
+// ── Sociedades (para transferencias entre empresas) ───────────────────────────
+
+export const MOCK_SOCIEDADES = [
+  { id: 'soc-002', nombre: 'Haras Don Pedro' },
+  { id: 'soc-003', nombre: 'Estancia La Palma' },
+]
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const MOCK_TRANSFERENCIAS_EMPRESA: any[] = []

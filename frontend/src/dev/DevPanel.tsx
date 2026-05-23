@@ -13,11 +13,10 @@ const ROL_COLOR: Record<string, string> = {
 
 // Etiqueta descriptiva para el DevPanel
 const USER_LABEL: Record<string, string> = {
-  'mock-admin-haras':  'Admin haras (ve todo)',
+  'mock-admin-haras':  'Admin (ve todo)',
   'mock-veterinario':  'Vet (acceso concedido)',
-  'mock-admin-marca':  'Admin @losalamos.com',
-  'mock-jugador':      'Jugador @losalamos.com',
-  'mock-peticero':     'Peticero @pcba.com.ar',
+  'mock-jugador':      'Jugador',
+  'mock-peticero':     'Peticero',
 }
 
 // Solo se renderiza en desarrollo
@@ -51,7 +50,7 @@ export default function DevPanel() {
 
     // Simular sesión y sociedad activa en el store
     setSession({ user: { id: user.id, email: user.email } } as never)
-    setSociedadActiva(user.sociedad, user.rol, user.marcaId)
+    setSociedadActiva(user.sociedad, user.rol)
   }
 
   const activeUser = MOCK_USERS.find((u) => u.id === activeId) ?? MOCK_USERS[0]

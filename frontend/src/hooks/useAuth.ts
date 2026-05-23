@@ -3,37 +3,40 @@ import { getSupabaseClient } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
 import { isMockMode, getMockUserId } from '../dev/mockMode'
 import { getMockUser } from '../dev/mockUsers'
+import { tieneAccesoCentroCria } from '../services/accesoCentroCriaService'
 
 export function useAuth() {
   const store = useAuthStore()
 
   useEffect(() => {
     if (isMockMode()) {
-      // En mock mode seteamos la sesión del usuario simulado
-      // pero NO lo hacemos aquí — el LoginPage decide cuándo redirigir.
-      // Solo pre-cargamos si ya hay sesión activa (carga inicial desde otras páginas).
       const mockUser = getMockUser(getMockUserId())
       store.setSession({ user: { id: mockUser.id, email: mockUser.email } } as never)
-      store.setSociedadActiva(mockUser.sociedad, mockUser.rol, mockUser.marcaId)
+      store.setSociedadActiva(mockUser.sociedad, mockUser.rol)
+      tieneAccesoCentroCria(mockUser.id).then((v) => store.setAccesosCentroC(v))
       return
     }
 
-    // Modo producción: intentar conectar con Supabase
     let supabase: ReturnType<typeof getSupabaseClient>
     try {
       supabase = getSupabaseClient()
     } catch {
-      // Env vars no configuradas — marcar loading como false sin crashear
       store.setLoading(false)
       return
     }
 
     supabase.auth.getSession().then(({ data }) => {
       store.setSession(data.session)
+      if (data.session?.user?.id) {
+        tieneAccesoCentroCria(data.session.user.id).then((v) => store.setAccesosCentroC(v))
+      }
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       store.setSession(session)
+      if (session?.user?.id) {
+        tieneAccesoCentroCria(session.user.id).then((v) => store.setAccesosCentroC(v))
+      }
       if (!session) store.clear()
     })
 
@@ -42,10 +45,9 @@ export function useAuth() {
 
   const signIn = async (email: string, password: string) => {
     if (isMockMode()) {
-      // En mock mode, cualquier credencial inicia sesión con el mock user activo
       const mockUser = getMockUser(getMockUserId())
       store.setSession({ user: { id: mockUser.id, email: mockUser.email } } as never)
-      store.setSociedadActiva(mockUser.sociedad, mockUser.rol, mockUser.marcaId)
+      store.setSociedadActiva(mockUser.sociedad, mockUser.rol)
       return
     }
     const supabase = getSupabaseClient()
@@ -65,8 +67,8 @@ export function useAuth() {
     session: store.session,
     sociedadActiva: store.sociedadActiva,
     rol: store.rol,
-    marcaId: store.marcaId,
     loading: store.loading,
+    accesosCentroC: store.accesosCentroC,
     isMock: isMockMode(),
     isAuthenticated: !!store.session,
     signIn,

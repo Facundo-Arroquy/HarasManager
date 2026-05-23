@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical } from 'lucide-react'
 import { caballoService } from '../../services/caballoService'
 import { historialService } from '../../services/historialService'
+import { crianzaService } from '../../services/crianzaService'
 import { useAuthStore } from '../../store/authStore'
 import { calcularEdad } from '../../utils/fecha'
 import Spinner from '../../components/ui/Spinner'
 import HistorialCard, { type HistorialEntry } from '../../components/domain/HistorialCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
+import type { RegistroClinicoCria, Flushing, TransferenciaEmbrionaria } from '../../types/crianza'
 
 const CATEGORIA_STYLE: Record<string, string> = {
   Yegua:    'bg-pink-950 text-pink-300 ring-1 ring-pink-800',
@@ -31,12 +33,42 @@ export default function HistorialPage() {
   const [showModal,   setShowModal]   = useState(false)
   const [entryToEdit, setEntryToEdit] = useState<HistorialEntry | null>(null)
 
+  const [tab, setTab] = useState<'clinico' | 'reproductivo'>('clinico')
+  const [repLoading,    setRepLoading]    = useState(false)
+  const [registrosCria, setRegistrosCria] = useState<RegistroClinicoCria[]>([])
+  const [flushings,     setFlushings]     = useState<Flushing[]>([])
+  const [transferencias,setTransferencias]= useState<TransferenciaEmbrionaria[]>([])
+
   function cargarHistorial() {
     if (!id) return
     historialService
       .listarPorCaballo(id)
       .then((h) => setHistorial(h as object[]))
       .catch((e: Error) => setError(e.message))
+  }
+
+  async function cargarReproductivo() {
+    if (!id || repLoading) return
+    setRepLoading(true)
+    try {
+      const [regs, flush, transf] = await Promise.all([
+        crianzaService.listarRegistrosPorCaballo(id),
+        crianzaService.listarFlushingsPorCaballo(id),
+        crianzaService.listarTransferenciasPorCaballo(id),
+      ])
+      setRegistrosCria(regs)
+      setFlushings(flush)
+      setTransferencias(transf)
+    } finally {
+      setRepLoading(false)
+    }
+  }
+
+  function handleTabReproductivo() {
+    setTab('reproductivo')
+    if (registrosCria.length === 0 && flushings.length === 0 && transferencias.length === 0) {
+      cargarReproductivo()
+    }
   }
 
   useEffect(() => {
@@ -109,30 +141,212 @@ export default function HistorialPage() {
         </div>
       )}
 
-      {/* Lista de registros */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-          Historial clínico
-        </h2>
-        <span className="text-xs text-zinc-600">{historial.length} registros</span>
-      </div>
-
-      {historial.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 p-10 text-center text-zinc-600 text-sm">
-          Sin registros clínicos para este animal.
+      {/* Tabs */}
+      {(rol === 'veterinario' || rol === 'admin') && (
+        <div className="flex gap-1 border-b border-zinc-800 mb-5">
+          <button
+            onClick={() => setTab('clinico')}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              tab === 'clinico'
+                ? 'border-emerald-500 text-zinc-100'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <Stethoscope size={13} />
+            Clínico
+          </button>
+          <button
+            onClick={handleTabReproductivo}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              tab === 'reproductivo'
+                ? 'border-blue-500 text-zinc-100'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <FlaskConical size={13} />
+            Reproductivo
+          </button>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {historial.map((entry) => {
-            const e = entry as HistorialEntry
-            return (
-              <HistorialCard
-                key={e.id}
-                entry={e}
-                onEditar={e.creado_por === user?.id ? () => setEntryToEdit(e) : undefined}
-              />
-            )
-          })}
+      )}
+
+      {/* Tab: Clínico */}
+      {tab === 'clinico' && (
+        <>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+              Historial clínico
+            </h2>
+            <span className="text-xs text-zinc-600">{historial.length} registros</span>
+          </div>
+
+          {historial.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-zinc-800 p-10 text-center text-zinc-600 text-sm">
+              Sin registros clínicos para este animal.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {historial.map((entry) => {
+                const e = entry as HistorialEntry
+                return (
+                  <HistorialCard
+                    key={e.id}
+                    entry={e}
+                    onEditar={e.creado_por === user?.id ? () => setEntryToEdit(e) : undefined}
+                  />
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Tab: Reproductivo */}
+      {tab === 'reproductivo' && (
+        <div className="space-y-6">
+          {repLoading ? (
+            <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+          ) : (
+            <>
+              {/* Registros clínicos cría */}
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <FlaskConical size={13} className="text-zinc-500" />
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                    Registros reproductivos
+                  </h3>
+                  <span className="text-xs text-zinc-700">{registrosCria.length}</span>
+                </div>
+                {registrosCria.length === 0 ? (
+                  <p className="text-sm text-zinc-600 text-center py-4">Sin registros reproductivos.</p>
+                ) : (
+                  <div className="rounded-lg border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800">
+                    {registrosCria.map((r) => (
+                      <div key={r.id} className="px-4 py-3 text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex flex-wrap gap-1">
+                              {[...r.ovario_izq.map((c) => `OI:${c}`), ...r.ovario_der.map((c) => `OD:${c}`)].map((c) => (
+                                <span key={c} className="text-[11px] bg-zinc-800 text-zinc-300 rounded px-1.5 py-0.5">{c}</span>
+                              ))}
+                              {r.utero.map((c) => (
+                                <span key={c} className="text-[11px] bg-zinc-800 text-zinc-400 rounded px-1.5 py-0.5">{c}</span>
+                              ))}
+                              {r.obs_chips.map((c) => (
+                                <span key={c} className="text-[11px] bg-blue-900/50 text-blue-300 rounded px-1.5 py-0.5">{c}</span>
+                              ))}
+                            </div>
+                            {r.padrillo && (
+                              <p className="text-xs text-zinc-500">× {r.padrillo.nombre}</p>
+                            )}
+                            {r.observaciones && (
+                              <p className="text-xs text-zinc-500 italic">{r.observaciones}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-zinc-400">{formatFecha(r.fecha)}</p>
+                            {r.veterinario && (
+                              <p className="text-[11px] text-zinc-600">Dr/a. {r.veterinario.apellido}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Flushings */}
+              {flushings.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Droplets size={13} className="text-emerald-500" />
+                    <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                      Flushings
+                    </h3>
+                    <span className="text-xs text-zinc-700">{flushings.length}</span>
+                  </div>
+                  <div className="rounded-lg border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800">
+                    {flushings.map((f) => (
+                      <div key={f.id} className={`px-4 py-3 text-sm ${f.cancelado ? 'opacity-50' : ''}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            {f.es_negativo ? (
+                              <span className="text-zinc-500">Negativo</span>
+                            ) : (
+                              <span className="text-emerald-400 font-medium">
+                                {f.cantidad} {f.cantidad === 1 ? 'embrión' : 'embriones'}
+                                {f.estadio ? ` · ${f.estadio}` : ''}
+                                {f.grado != null ? ` · G${f.grado}` : ''}
+                              </span>
+                            )}
+                            {f.padrillo && (
+                              <p className="text-xs text-zinc-500 mt-0.5">× {f.padrillo.nombre}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-zinc-400">{formatFecha(f.fecha)}</p>
+                            {f.veterinario && (
+                              <p className="text-[11px] text-zinc-600">Dr/a. {f.veterinario.apellido}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Transferencias */}
+              {transferencias.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-2 mb-3">
+                    <ArrowLeftRight size={13} className="text-blue-400" />
+                    <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                      Transferencias
+                    </h3>
+                    <span className="text-xs text-zinc-700">{transferencias.length}</span>
+                  </div>
+                  <div className="rounded-lg border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800">
+                    {transferencias.map((t) => (
+                      <div key={t.id} className="px-4 py-3 text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5 text-zinc-300">
+                              <span>{t.receptora?.nombre ?? '—'}</span>
+                              <ArrowLeftRight size={10} className="text-zinc-600" />
+                              <span className="text-zinc-400">{t.donante?.nombre ?? '—'}</span>
+                              {t.padrillo && (
+                                <>
+                                  <span className="text-zinc-600">×</span>
+                                  <span className="text-zinc-500">{t.padrillo.nombre}</span>
+                                </>
+                              )}
+                            </div>
+                            <div className="flex gap-2 mt-1 text-xs text-zinc-500">
+                              {t.clasificacion && <span>{t.clasificacion}</span>}
+                              {t.cl_calidad && <span>CL {t.cl_calidad}</span>}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-zinc-400">{formatFecha(t.fecha)}</p>
+                            {t.veterinario && (
+                              <p className="text-[11px] text-zinc-600">Dr/a. {t.veterinario.apellido}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {registrosCria.length === 0 && flushings.length === 0 && transferencias.length === 0 && (
+                <div className="rounded-xl border border-dashed border-zinc-800 p-10 text-center text-zinc-600 text-sm">
+                  Sin registros reproductivos para este animal.
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -147,4 +361,9 @@ export default function HistorialPage() {
       )}
     </div>
   )
+}
+
+function formatFecha(fecha: string): string {
+  const [y, m, d] = fecha.split('-')
+  return `${d}/${m}/${y.slice(2)}`
 }
