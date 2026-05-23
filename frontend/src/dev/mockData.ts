@@ -364,6 +364,21 @@ export const MOCK_SOCIEDADES = [
   { id: 'soc-003', nombre: 'Estancia La Palma' },
 ]
 
+// ── Membresías (para Panel SuperAdmin) ───────────────────────────────────────
+
+export const MOCK_MEMBRESIAS = [
+  // mock-sociedad-001 (Haras San Antonio): 4 usuarios
+  { id: 'm-001', usuario_id: 'mock-admin',       sociedad_id: 'mock-sociedad-001', rol: 'admin',       activo: true,  accesosCentroC: true,  usuario: { nombre: 'Carlos',    apellido: 'Mendoza', email: 'c.mendoza@haras.com' } },
+  { id: 'm-002', usuario_id: 'mock-veterinario', sociedad_id: 'mock-sociedad-001', rol: 'veterinario', activo: true,  accesosCentroC: true,  usuario: { nombre: 'Valentina', apellido: 'Ríos',    email: 'v.rios@haras.com' } },
+  { id: 'm-003', usuario_id: 'mock-jugador',     sociedad_id: 'mock-sociedad-001', rol: 'jugador',     activo: true,  accesosCentroC: false, usuario: { nombre: 'Martín',   apellido: 'Urquiza', email: 'm.urquiza@haras.com' } },
+  { id: 'm-004', usuario_id: 'mock-peticero',    sociedad_id: 'mock-sociedad-001', rol: 'peticero',    activo: true,  accesosCentroC: false, usuario: { nombre: 'Diego',    apellido: 'Suárez',  email: 'd.suarez@haras.com' } },
+  // soc-002 (Haras Don Pedro): 2 usuarios
+  { id: 'm-005', usuario_id: 'user-haras-admin', sociedad_id: 'soc-002', rol: 'admin',       activo: true,  accesosCentroC: true,  usuario: { nombre: 'Roberto', apellido: 'Gómez', email: 'r.gomez@harasdonpedro.com' } },
+  { id: 'm-006', usuario_id: 'user-haras-vet',   sociedad_id: 'soc-002', rol: 'veterinario', activo: false, accesosCentroC: false, usuario: { nombre: 'Ana',     apellido: 'Ríos',  email: 'a.rios@harasdonpedro.com' } },
+  // soc-003 (Estancia La Palma): 1 usuario
+  { id: 'm-007', usuario_id: 'user-estancia-admin', sociedad_id: 'soc-003', rol: 'admin', activo: true, accesosCentroC: true, usuario: { nombre: 'Miguel', apellido: 'Torres', email: 'm.torres@lapalma.com' } },
+]
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const MOCK_TRANSFERENCIAS_EMPRESA: any[] = []
 

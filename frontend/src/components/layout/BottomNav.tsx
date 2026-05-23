@@ -34,6 +34,8 @@ export default function BottomNav() {
   const { rol, signOut, accesosCentroC } = useAuth()
   const location = useLocation()
 
+  if (rol === 'superadmin') return null
+
   const visibleItems = NAV_ITEMS.filter((item) => {
     if (item.requiresAccesoCentro) return rol === 'admin' || accesosCentroC
     return !item.roles || (rol && item.roles.includes(rol))

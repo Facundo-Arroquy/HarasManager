@@ -48,6 +48,8 @@ export default function Sidebar() {
   const { rol, sociedadActiva, user, signOut, accesosCentroC } = useAuth()
   const location = useLocation()
 
+  if (rol === 'superadmin') return null
+
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter(

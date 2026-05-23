@@ -15,7 +15,7 @@ export interface MockUser {
     id: string
     nombre: string
     activa: boolean
-  }
+  } | null
 }
 
 export const MOCK_SOCIEDAD = {
@@ -64,6 +64,16 @@ export const MOCK_USERS: MockUser[] = [
     rol: 'peticero',
     accesosCentroC: false,
     sociedad: MOCK_SOCIEDAD,
+  },
+  {
+    id: 'mock-superadmin',
+    nombre: 'Super',
+    apellido: 'Admin',
+    email: 'super@haras.com',
+    telefono: '',
+    rol: 'superadmin',
+    accesosCentroC: false,
+    sociedad: null,
   },
 ]
 

@@ -16,6 +16,7 @@ interface AuthState {
   accesosCentroC: boolean
   setSession: (session: Session | null) => void
   setSociedadActiva: (sociedad: Sociedad | null, rol: string | null) => void
+  setRolSuperAdmin: () => void
   setLoading: (v: boolean) => void
   setAccesosCentroC: (v: boolean) => void
   clear: () => void
@@ -34,6 +35,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setSociedadActiva: (sociedad, rol) =>
     set({ sociedadActiva: sociedad, rol }),
+
+  setRolSuperAdmin: () =>
+    set({ rol: 'superadmin', sociedadActiva: null, loading: false }),
 
   setLoading: (v) => set({ loading: v }),
 

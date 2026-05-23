@@ -12,6 +12,10 @@ export function useAuth() {
     if (isMockMode()) {
       const mockUser = getMockUser(getMockUserId())
       store.setSession({ user: { id: mockUser.id, email: mockUser.email } } as never)
+      if (mockUser.rol === 'superadmin') {
+        store.setRolSuperAdmin()
+        return
+      }
       store.setSociedadActiva(mockUser.sociedad, mockUser.rol)
       tieneAccesoCentroCria(mockUser.id).then((v) => store.setAccesosCentroC(v))
       return
@@ -47,6 +51,10 @@ export function useAuth() {
     if (isMockMode()) {
       const mockUser = getMockUser(getMockUserId())
       store.setSession({ user: { id: mockUser.id, email: mockUser.email } } as never)
+      if (mockUser.rol === 'superadmin') {
+        store.setRolSuperAdmin()
+        return
+      }
       store.setSociedadActiva(mockUser.sociedad, mockUser.rol)
       return
     }
