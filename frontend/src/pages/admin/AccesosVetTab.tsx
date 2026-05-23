@@ -41,10 +41,10 @@ function OtorgarModal({ vets, caballos, otorgadoPor, onClose, onSuccess }: Otorg
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+      <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
         <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
           <h2 className="text-sm font-semibold text-zinc-100">Otorgar acceso a veterinario</h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200"><X size={16} /></button>
@@ -159,49 +159,40 @@ export default function AccesosVetTab() {
         </button>
       </div>
 
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-zinc-800 bg-zinc-900">
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Veterinario</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wider">Caballo</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800">
-            {accesos.map((a) => (
-              <tr key={a.id} className="hover:bg-zinc-900/50 transition-colors">
-                <td className="px-4 py-3">
-                  <p className="font-medium text-zinc-200">{a.vet.nombre} {a.vet.apellido}</p>
-                  <p className="text-[11px] text-zinc-500 font-mono">{a.vet.email}</p>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-sky-900/30 text-sky-400">
-                    <ShieldCheck size={11} /> {a.caballo?.nombre ?? '—'}
+      {accesos.length === 0 ? (
+        <p className="py-8 text-center text-sm text-zinc-600">
+          No hay accesos activos. Usá el botón para otorgar uno.
+        </p>
+      ) : (
+        <div className="rounded-xl border border-zinc-800 overflow-hidden divide-y divide-zinc-800">
+          {accesos.map((a) => (
+            <div key={a.id} className="flex items-center gap-3 px-4 py-3 bg-zinc-900">
+              {/* Vet info */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-zinc-200 truncate">
+                  {a.vet.nombre} {a.vet.apellido}
+                </p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <p className="text-[11px] text-zinc-500 font-mono truncate">{a.vet.email}</p>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-sky-900/30 text-sky-400 shrink-0">
+                    <ShieldCheck size={10} /> {a.caballo?.nombre ?? '—'}
                   </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => handleRevocar(a.id)}
-                    disabled={revocando === a.id}
-                    className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-rose-400 transition-colors disabled:opacity-40"
-                    title="Revocar acceso"
-                  >
-                    <ShieldOff size={13} />
-                    {revocando === a.id ? 'Revocando…' : 'Revocar'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {accesos.length === 0 && (
-          <p className="px-4 py-8 text-center text-sm text-zinc-600">
-            No hay accesos activos. Usá el botón para otorgar uno.
-          </p>
-        )}
-      </div>
+                </div>
+              </div>
+              {/* Revocar */}
+              <button
+                onClick={() => handleRevocar(a.id)}
+                disabled={revocando === a.id}
+                className="shrink-0 inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-rose-400 transition-colors disabled:opacity-40 py-1.5 px-2 rounded-md hover:bg-zinc-800"
+                title="Revocar acceso"
+              >
+                <ShieldOff size={14} />
+                <span className="hidden sm:inline">{revocando === a.id ? 'Revocando…' : 'Revocar'}</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {showModal && (
         <OtorgarModal

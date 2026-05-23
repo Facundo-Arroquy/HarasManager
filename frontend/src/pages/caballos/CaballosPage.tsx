@@ -193,64 +193,46 @@ export default function CaballosPage() {
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto pb-32">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+      <div className="flex items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Caballos</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">
+          <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">Caballos</h1>
+          <p className="text-xs sm:text-sm text-zinc-500 mt-0.5">
             {loading ? '…' : esVet
               ? `${caballos.length} animales · ${Object.keys(gruposPorEmpresa).length} empresa${Object.keys(gruposPorEmpresa).length !== 1 ? 's' : ''}`
               : `${caballos.length} animales · ${campos.length} campos`
             }
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Toggle vista vet */}
-          {esVet && !modoSeleccion && (
-            <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs font-medium">
-              <button
-                onClick={() => cambiarVistaVet('empresa')}
-                className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${
-                  vistaVet === 'empresa'
-                    ? 'bg-zinc-700 text-zinc-100'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-                }`}
-              >
-                <Building2 size={13} /> Por empresa
-              </button>
-              <button
-                onClick={() => cambiarVistaVet('campo')}
-                className={`flex items-center gap-1.5 px-3 py-2 border-l border-zinc-700 transition-colors ${
-                  vistaVet === 'campo'
-                    ? 'bg-zinc-700 text-zinc-100'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-                }`}
-              >
-                <LayoutList size={13} /> Por campo
-              </button>
-            </div>
-          )}
+
+        {/* Acciones */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {rol === 'veterinario' && !modoSeleccion && (
             <button
               onClick={() => setShowConsulta(true)}
               className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors"
             >
-              <Plus size={15} /> Nueva consulta
+              <Plus size={15} />
+              <span className="hidden sm:inline">Nueva consulta</span>
             </button>
           )}
           {canManageCampos(rol) && !modoSeleccion && (
             <button
               onClick={() => setShowNuevo(true)}
               className="flex items-center gap-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 px-3 py-2 text-sm font-medium text-zinc-100 transition-colors"
+              title="Nuevo caballo"
             >
-              <Plus size={15} /> Nuevo caballo
+              <Plus size={15} />
+              <span className="hidden sm:inline">Nuevo caballo</span>
             </button>
           )}
           {canManageCampos(rol) && !modoSeleccion && (
             <button
               onClick={() => setModoSeleccion(true)}
               className="flex items-center gap-1.5 rounded-lg border border-zinc-700 hover:border-zinc-600 px-3 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+              title="Editar en masa"
             >
-              <CheckSquare size={15} /> Editar en masa
+              <CheckSquare size={15} />
+              <span className="hidden sm:inline">Editar en masa</span>
             </button>
           )}
           {modoSeleccion && (
@@ -258,32 +240,63 @@ export default function CaballosPage() {
               onClick={salirModoSeleccion}
               className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
             >
-              <X size={15} /> Cancelar selección
+              <X size={15} />
+              <span className="hidden sm:inline">Cancelar</span>
             </button>
           )}
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col gap-3 mb-6">
-        <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col gap-2 mb-5">
+        {/* Búsqueda + categoría en la misma fila */}
+        <div className="flex gap-2">
           <div className="relative flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
             <input
               type="text"
-              placeholder="Buscar por nombre…"
+              placeholder="Buscar…"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-900 py-2 pl-9 pr-3 text-sm text-zinc-200 placeholder-zinc-500 focus:border-zinc-600 focus:outline-none"
             />
           </div>
+          {/* Categoría: select en mobile, botones en sm+ */}
           {!modoSeleccion && (
+            <>
+              <select
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                className="sm:hidden rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-200 focus:border-zinc-600 focus:outline-none"
+              >
+                {CATEGORIAS.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              {/* Vista vet toggle — móvil: select; desktop: botones */}
+              {esVet && (
+                <select
+                  value={vistaVet}
+                  onChange={(e) => cambiarVistaVet(e.target.value as VistaVet)}
+                  className="sm:hidden rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-200 focus:border-zinc-600 focus:outline-none"
+                >
+                  <option value="empresa">Por empresa</option>
+                  <option value="campo">Por campo</option>
+                </select>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Fila extra en sm+: botones de categoría + vista vet + orden */}
+        {!modoSeleccion && (
+          <div className="hidden sm:flex items-center gap-3 flex-wrap">
             <div className="flex gap-1.5 flex-wrap">
               {CATEGORIAS.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setFiltro(cat)}
-                  className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                     filtro === cat
                       ? 'bg-zinc-700 text-zinc-100'
                       : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
@@ -293,25 +306,59 @@ export default function CaballosPage() {
                 </button>
               ))}
             </div>
-          )}
-        </div>
-        {/* Orden por rol reproductivo */}
+
+            {/* Toggle vista vet (desktop) */}
+            {esVet && (
+              <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs font-medium ml-auto">
+                <button
+                  onClick={() => cambiarVistaVet('empresa')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
+                    vistaVet === 'empresa' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Building2 size={13} /> Por empresa
+                </button>
+                <button
+                  onClick={() => cambiarVistaVet('campo')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-zinc-700 transition-colors ${
+                    vistaVet === 'campo' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                  }`}
+                >
+                  <LayoutList size={13} /> Por campo
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Orden por rol reproductivo: select en mobile, botones en sm+ */}
         {!modoSeleccion && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Orden:</span>
-            {(['ninguno', 'receptoras', 'donantes'] as const).map((op) => (
-              <button
-                key={op}
-                onClick={() => setOrdenSubcat(op)}
-                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                  ordenSubcat === op
-                    ? 'bg-zinc-700 text-zinc-100'
-                    : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
-                }`}
-              >
-                {op === 'ninguno' ? 'Por defecto' : op === 'receptoras' ? 'Receptoras primero' : 'Donantes primero'}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            {/* Mobile: select */}
+            <select
+              value={ordenSubcat}
+              onChange={(e) => setOrdenSubcat(e.target.value as typeof ordenSubcat)}
+              className="sm:hidden flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 focus:border-zinc-600 focus:outline-none"
+            >
+              <option value="ninguno">Orden: por defecto</option>
+              <option value="receptoras">Receptoras primero</option>
+              <option value="donantes">Donantes primero</option>
+            </select>
+            {/* Desktop: botones */}
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Orden:</span>
+              {(['ninguno', 'receptoras', 'donantes'] as const).map((op) => (
+                <button
+                  key={op}
+                  onClick={() => setOrdenSubcat(op)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                    ordenSubcat === op ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+                  }`}
+                >
+                  {op === 'ninguno' ? 'Por defecto' : op === 'receptoras' ? 'Receptoras primero' : 'Donantes primero'}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -456,12 +503,12 @@ export default function CaballosPage() {
               )}
             </div>
 
-            {/* Controles */}
-            <div className="flex flex-wrap gap-2 items-end">
+            {/* Controles — grid 2 cols en mobile, fila en desktop */}
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-end">
               {/* Campo */}
-              <div className="flex-1 min-w-[140px]">
+              <div className="sm:flex-1 sm:min-w-[140px]">
                 <label className="block text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1">
-                  Campo / Potrero
+                  Campo
                 </label>
                 <select
                   value={bulkCampoId}
@@ -477,7 +524,7 @@ export default function CaballosPage() {
               </div>
 
               {/* Categoría */}
-              <div className="flex-1 min-w-[130px]">
+              <div className="sm:flex-1 sm:min-w-[130px]">
                 <label className="block text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1">
                   Categoría
                 </label>
@@ -493,10 +540,10 @@ export default function CaballosPage() {
                 </select>
               </div>
 
-              {/* Rol reproductivo (solo si categoria es Yegua o sin cambio para permitir editar yeguas ya filtradas) */}
-              <div className="flex-1 min-w-[130px]">
+              {/* Rol reproductivo */}
+              <div className="sm:flex-1 sm:min-w-[130px]">
                 <label className="block text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1">
-                  Rol reproductivo
+                  Rol reprod.
                 </label>
                 <select
                   value={bulkSubcategoria}
@@ -510,11 +557,11 @@ export default function CaballosPage() {
                 </select>
               </div>
 
-              {/* Botón aplicar */}
+              {/* Botón aplicar — full width en mobile (ocupa las 2 cols) */}
               <button
                 onClick={aplicarEdicionMasiva}
                 disabled={!hayBulkCambios || seleccionados.size === 0 || bulkSaving}
-                className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                className="col-span-2 sm:col-span-1 rounded-lg bg-emerald-700 px-4 py-2.5 sm:py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 {bulkSaving ? 'Aplicando…' : 'Aplicar cambios'}
               </button>

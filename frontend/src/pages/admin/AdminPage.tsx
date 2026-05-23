@@ -5,10 +5,10 @@ import InvitarUsuarioTab from './InvitarUsuarioTab'
 
 type Tab = 'usuarios' | 'accesos' | 'invitar'
 
-const TABS: { id: Tab; label: string }[] = [
+const TABS: { id: Tab; label: string; labelMobile?: string }[] = [
   { id: 'usuarios', label: 'Usuarios' },
-  { id: 'accesos',  label: 'Accesos veterinario' },
-  { id: 'invitar',  label: 'Invitar usuario' },
+  { id: 'accesos',  label: 'Accesos veterinario', labelMobile: 'Accesos vet' },
+  { id: 'invitar',  label: 'Invitar usuario',      labelMobile: 'Invitar' },
 ]
 
 export default function AdminPage() {
@@ -28,13 +28,14 @@ export default function AdminPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium rounded-t-md transition-colors -mb-px border-b-2 whitespace-nowrap ${
+            className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-t-md transition-colors -mb-px border-b-2 whitespace-nowrap ${
               activeTab === tab.id
                 ? 'border-emerald-500 text-zinc-100'
                 : 'border-transparent text-zinc-500 hover:text-zinc-300'
             }`}
           >
-            {tab.label}
+            <span className="sm:hidden">{tab.labelMobile ?? tab.label}</span>
+            <span className="hidden sm:inline">{tab.label}</span>
           </button>
         ))}
       </div>
