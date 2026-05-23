@@ -18,7 +18,7 @@ export interface AccesoVet {
   vet_id: string
   vet: { nombre: string; apellido: string; email: string }
   caballo_id: string | null
-  caballo: { nombre: string } | null
+  caballo: { nombre: string; numero_registro?: string; fecha_nacimiento?: string } | null
   activo: boolean
 }
 
@@ -69,7 +69,15 @@ export async function getUsuarios(_sociedadId: string): Promise<UsuarioAdmin[]> 
 
 export async function getAccesosVet(_sociedadId: string): Promise<AccesoVet[]> {
   if (isMockMode()) {
-    return MOCK_ACCESOS_VET.filter((a) => a.activo)
+    return MOCK_ACCESOS_VET.filter((a) => a.activo).map((a) => {
+      const cab = MOCK_CABALLOS.find((c) => c.id === a.caballo_id)
+      return {
+        ...a,
+        caballo: cab
+          ? { nombre: cab.nombre, numero_registro: cab.numero_registro, fecha_nacimiento: cab.fecha_nacimiento }
+          : a.caballo,
+      }
+    })
   }
 
   const supabase = getSupabaseClient()
@@ -78,7 +86,7 @@ export async function getAccesosVet(_sociedadId: string): Promise<AccesoVet[]> {
     .select(`
       id, vet_id, caballo_id, activo,
       usuario:vet_id(nombre, apellido, email),
-      caballo(nombre)
+      caballo(nombre, numero_registro, fecha_nacimiento)
     `)
     .eq('activo', true)
   if (error) throw error
@@ -106,6 +114,18 @@ export async function revocarAcceso(accesoId: string): Promise<void> {
     .update({ activo: false })
     .eq('id', accesoId)
   if (error) throw error
+}
+
+export async function revocarAccesosBulk(ids: string[]): Promise<void> {
+  await Promise.all(ids.map((id) => revocarAcceso(id)))
+}
+
+export async function otorgarAccesosBulk(
+  vetId: string,
+  caballoIds: string[],
+  otorgadoPor: string
+): Promise<void> {
+  await Promise.all(caballoIds.map((id) => otorgarAcceso({ vet_id: vetId, caballo_id: id }, otorgadoPor)))
 }
 
 export async function otorgarAcceso(
