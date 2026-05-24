@@ -14,10 +14,10 @@ type HistResumen = Awaited<ReturnType<typeof historialService.listarRecientesTod
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
 
 const CAT_STYLE: Record<string, string> = {
-  Caballo:  'bg-zinc-800 text-zinc-300',
-  Yegua:    'bg-pink-950/70 text-pink-300',
-  Padrillo: 'bg-blue-950/70 text-blue-300',
-  Potrillo: 'bg-amber-950/70 text-amber-300',
+  Caballo:  'bg-slate-100 text-slate-600',
+  Yegua:    'bg-pink-100 text-pink-700',
+  Padrillo: 'bg-blue-100 text-blue-700',
+  Potrillo: 'bg-amber-100 text-amber-700',
 }
 
 export default function DashboardPage() {
@@ -74,8 +74,8 @@ export default function DashboardPage() {
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Panel</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">Resumen del establecimiento</p>
+        <h1 className="text-2xl font-bold text-slate-900">Panel</h1>
+        <p className="text-sm text-slate-400 mt-0.5">Resumen del establecimiento</p>
       </div>
 
       {/* KPI Cards */}
@@ -111,23 +111,23 @@ export default function DashboardPage() {
       {/* Distribución por campo + categoría */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Por campo */}
-        <div className="lg:col-span-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-          <h2 className="text-sm font-semibold text-zinc-300 mb-4">Distribución por campo</h2>
+        <div className="lg:col-span-3 rounded-xl border border-slate-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-slate-600 mb-4">Distribución por campo</h2>
           {campos.length === 0 ? (
-            <p className="text-xs text-zinc-600">No hay campos registrados.</p>
+            <p className="text-xs text-slate-400">No hay campos registrados.</p>
           ) : (
             <div className="space-y-3.5">
               {campos.map((campo) => (
                 <div key={campo.id} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-300 truncate">{campo.nombre}</span>
-                    <span className="text-zinc-500 shrink-0 ml-2">
+                    <span className="text-slate-600 truncate">{campo.nombre}</span>
+                    <span className="text-slate-400 shrink-0 ml-2">
                       {campo.caballos_count} animal{campo.caballos_count !== 1 ? 'es' : ''}
                     </span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-emerald-600 transition-all duration-500"
+                      className="h-full rounded-full bg-amber-500 transition-all duration-500"
                       style={{ width: `${(campo.caballos_count / maxAnimales) * 100}%` }}
                     />
                   </div>
@@ -136,12 +136,12 @@ export default function DashboardPage() {
               {sinCampo > 0 && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-600 italic">Sin campo asignado</span>
-                    <span className="text-zinc-600">{sinCampo} animal{sinCampo !== 1 ? 'es' : ''}</span>
+                    <span className="text-slate-400 italic">Sin campo asignado</span>
+                    <span className="text-slate-400">{sinCampo} animal{sinCampo !== 1 ? 'es' : ''}</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-zinc-600"
+                      className="h-full rounded-full bg-amber-400"
                       style={{ width: `${(sinCampo / maxAnimales) * 100}%` }}
                     />
                   </div>
@@ -152,8 +152,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Por categoría */}
-        <div className="lg:col-span-2 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-          <h2 className="text-sm font-semibold text-zinc-300 mb-4">Por categoría</h2>
+        <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-slate-600 mb-4">Por categoría</h2>
           <div className="grid grid-cols-2 gap-3 h-[calc(100%-2rem)]">
             {porCategoria.map(({ nombre, count }) => (
               <div key={nombre} className={`rounded-lg p-3 flex flex-col justify-between ${CAT_STYLE[nombre]}`}>
@@ -168,24 +168,24 @@ export default function DashboardPage() {
       {/* Últimas + Próximas consultas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Últimas consultas */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-          <h2 className="text-sm font-semibold text-zinc-300 mb-4">Últimas consultas clínicas</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-slate-600 mb-4">Últimas consultas clínicas</h2>
           {ultimasConsultas.length === 0 ? (
-            <p className="text-xs text-zinc-600">Sin consultas registradas.</p>
+            <p className="text-xs text-slate-400">Sin consultas registradas.</p>
           ) : (
             <div className="space-y-1">
               {ultimasConsultas.map((h) => (
                 <button
                   key={h.id}
                   onClick={() => navigate(`/caballos/${h.caballo_id}/historial`)}
-                  className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-zinc-800/80 transition-colors"
+                  className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-slate-100/80 transition-colors"
                 >
-                  <Stethoscope size={13} className="text-emerald-600 shrink-0" />
+                  <Stethoscope size={13} className="text-amber-600 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-zinc-200 truncate">{h.caballo_nombre}</p>
-                    <p className="text-[11px] text-zinc-500 truncate">{h.tipo}</p>
+                    <p className="text-xs font-medium text-slate-700 truncate">{h.caballo_nombre}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{h.tipo}</p>
                   </div>
-                  <span className="text-[11px] text-zinc-600 shrink-0">{formatFechaCorta(h.fecha_consulta)}</span>
+                  <span className="text-[11px] text-slate-400 shrink-0">{formatFechaCorta(h.fecha_consulta)}</span>
                 </button>
               ))}
             </div>
@@ -193,22 +193,22 @@ export default function DashboardPage() {
         </div>
 
         {/* Próximas consultas */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-          <h2 className="text-sm font-semibold text-zinc-300 mb-4">Próximas revisiones agendadas</h2>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <h2 className="text-sm font-semibold text-slate-600 mb-4">Próximas revisiones agendadas</h2>
           {proximasConsultas.length === 0 ? (
-            <p className="text-xs text-zinc-600">No hay revisiones próximas agendadas.</p>
+            <p className="text-xs text-slate-400">No hay revisiones próximas agendadas.</p>
           ) : (
             <div className="space-y-1">
               {proximasConsultas.map((h) => (
                 <button
                   key={h.id}
                   onClick={() => navigate(`/caballos/${h.caballo_id}/historial`)}
-                  className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-zinc-800/80 transition-colors"
+                  className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-slate-100/80 transition-colors"
                 >
                   <Calendar size={13} className="text-amber-500 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-zinc-200 truncate">{h.caballo_nombre}</p>
-                    <p className="text-[11px] text-zinc-500 truncate">{h.tipo}</p>
+                    <p className="text-xs font-medium text-slate-700 truncate">{h.caballo_nombre}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{h.tipo}</p>
                   </div>
                   <span className="text-[11px] text-amber-600 shrink-0">{formatFechaCorta(h.proxima_consulta)}</span>
                 </button>
@@ -232,10 +232,10 @@ interface KpiCardProps {
 }
 
 const ACCENT_CLASS: Record<string, string> = {
-  emerald: 'text-emerald-400',
-  amber:   'text-amber-400',
-  rose:    'text-rose-400',
-  zinc:    'text-zinc-400',
+  emerald: 'text-amber-600',
+  amber:   'text-amber-600',
+  rose:    'text-rose-600',
+  zinc:    'text-slate-500',
 }
 
 function KpiCard({ label, value, icon, accent, onClick }: KpiCardProps) {
@@ -243,13 +243,13 @@ function KpiCard({ label, value, icon, accent, onClick }: KpiCardProps) {
   return (
     <div
       onClick={onClick}
-      className={`rounded-xl border border-zinc-800 bg-zinc-900 p-5 ${
-        onClick ? 'cursor-pointer hover:border-zinc-700 transition-colors' : ''
+      className={`rounded-xl border border-slate-200 bg-white p-5 ${
+        onClick ? 'cursor-pointer hover:border-slate-300 transition-colors' : ''
       }`}
     >
       <div className={`flex items-center gap-2 mb-3 ${color}`}>
         {icon}
-        <span className="text-xs text-zinc-500">{label}</span>
+        <span className="text-xs text-slate-400">{label}</span>
       </div>
       <p className={`text-3xl font-bold ${color}`}>{value}</p>
     </div>

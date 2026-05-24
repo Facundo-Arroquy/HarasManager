@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore'
 
 const ROL_COLOR: Record<string, string> = {
   admin:       'bg-violet-600',
-  veterinario: 'bg-emerald-600',
+  veterinario: 'bg-amber-500',
   piloto:      'bg-sky-600',
   jugador:     'bg-amber-600',
   peticero:    'bg-rose-600',
@@ -61,21 +61,21 @@ export default function DevPanel() {
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
       {/* Panel expandido */}
       {open && (
-        <div className="w-64 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl text-sm">
+        <div className="w-64 rounded-xl border border-slate-300 bg-white shadow-2xl text-sm">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-zinc-700 px-3 py-2">
-            <span className="font-semibold text-zinc-200">Dev — Cambiar usuario</span>
+          <div className="flex items-center justify-between border-b border-slate-300 px-3 py-2">
+            <span className="font-semibold text-slate-700">Dev — Cambiar usuario</span>
             <button
               onClick={() => setOpen(false)}
-              className="text-zinc-500 hover:text-zinc-200 text-xs"
+              className="text-slate-400 hover:text-slate-700 text-xs"
             >
               ✕
             </button>
           </div>
 
           {/* Toggle mock */}
-          <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
-            <span className="text-zinc-400 text-xs">Mock activo</span>
+          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200">
+            <span className="text-slate-500 text-xs">Mock activo</span>
             <button
               onClick={toggleMock}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
@@ -100,8 +100,8 @@ export default function DevPanel() {
                   onClick={() => { enableMock(); setMockOn(true); applyUser(user.id) }}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${
                     isActive
-                      ? 'bg-zinc-800 text-zinc-100'
-                      : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                      ? 'bg-slate-100 text-slate-900'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                   }`}
                 >
                   <span
@@ -111,7 +111,7 @@ export default function DevPanel() {
                     <span className="block truncate">
                       {user.nombre} {user.apellido}
                     </span>
-                    <span className="block truncate text-[10px] text-zinc-500">
+                    <span className="block truncate text-[10px] text-slate-400">
                       {USER_LABEL[user.id] ?? user.rol}
                     </span>
                   </span>
@@ -120,7 +120,7 @@ export default function DevPanel() {
             })}
           </div>
 
-          <div className="border-t border-zinc-800 px-3 py-2 text-xs text-zinc-600">
+          <div className="border-t border-slate-200 px-3 py-2 text-xs text-slate-400">
             Haras San Antonio (demo)
           </div>
         </div>
@@ -130,7 +130,7 @@ export default function DevPanel() {
       <button
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-lg transition-opacity ${
-          mockOn ? rolColor : 'bg-zinc-700'
+          mockOn ? rolColor : 'bg-slate-200'
         } opacity-80 hover:opacity-100`}
         title="Dev: cambiar usuario de prueba"
       >

@@ -33,7 +33,7 @@ export default function DashboardCriaPage() {
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 p-4 rounded-md bg-red-950 text-red-400 text-sm">
+      <div className="flex items-center gap-2 p-4 rounded-md bg-red-950 text-red-600 text-sm">
         <AlertCircle size={16} />
         {error}
       </div>
@@ -54,12 +54,12 @@ export default function DashboardCriaPage() {
     <div className="space-y-6 p-1">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-100">Centro de Embriones</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">Gestión reproductiva del establecimiento</p>
+          <h1 className="text-xl font-semibold text-slate-900">Centro de Embriones</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Gestión reproductiva del establecimiento</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-sm font-medium text-white transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-amber-500 hover:bg-amber-400 text-sm font-medium text-white transition-colors shrink-0"
         >
           <Plus size={15} />
           Nuevo registro
@@ -111,22 +111,22 @@ export default function DashboardCriaPage() {
 
       {/* Alertas de vencidos */}
       {vencidos.length > 0 && (
-        <div className="rounded-md border border-red-800 bg-red-950/40 p-4 space-y-2">
-          <p className="text-sm font-medium text-red-400 flex items-center gap-2">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 space-y-2">
+          <p className="text-sm font-medium text-red-600 flex items-center gap-2">
             <AlertCircle size={15} />
             {vencidos.length} {vencidos.length === 1 ? 'recordatorio vencido' : 'recordatorios vencidos'}
           </p>
           <ul className="space-y-1">
             {vencidos.slice(0, 4).map((r) => (
-              <li key={r.id} className="text-xs text-zinc-400 flex items-center gap-2">
+              <li key={r.id} className="text-xs text-slate-500 flex items-center gap-2">
                 <span className="text-red-500">•</span>
-                <span className="font-medium text-zinc-300">{r.caballo?.nombre ?? '—'}</span>
+                <span className="font-medium text-slate-600">{r.caballo?.nombre ?? '—'}</span>
                 <span>{r.tipo}</span>
-                <span className="text-zinc-500">{formatFecha(r.fecha_vto)}</span>
+                <span className="text-slate-400">{formatFecha(r.fecha_vto)}</span>
               </li>
             ))}
             {vencidos.length > 4 && (
-              <li className="text-xs text-zinc-500">+{vencidos.length - 4} más</li>
+              <li className="text-xs text-slate-400">+{vencidos.length - 4} más</li>
             )}
           </ul>
         </div>
@@ -135,7 +135,7 @@ export default function DashboardCriaPage() {
       {/* Próximos 7 días */}
       {pendientesProx7.length > 0 && (
         <Section title="Próximos 7 días" icon={<CalendarDays size={15} />}>
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-slate-200">
             {pendientesProx7.slice(0, 6).map((r) => (
               <RecordatorioRow key={r.id} recordatorio={r} />
             ))}
@@ -143,7 +143,7 @@ export default function DashboardCriaPage() {
           {pendientesProx7.length > 6 && (
             <Link
               to="/centro-cria/recordatorios"
-              className="block text-xs text-zinc-500 hover:text-zinc-300 px-4 py-2"
+              className="block text-xs text-slate-400 hover:text-slate-600 px-4 py-2"
             >
               Ver todos ({pendientesProx7.length}) →
             </Link>
@@ -154,18 +154,18 @@ export default function DashboardCriaPage() {
       {/* Flushings recientes */}
       {flushingsRecientes.length > 0 && (
         <Section title="Últimos flushings" icon={<Droplets size={15} />}>
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-slate-200">
             {flushingsRecientes.map((f) => (
               <li key={f.id} className="px-4 py-2.5 flex items-center gap-3 text-sm">
-                <span className="font-medium text-zinc-200">{f.caballo?.nombre ?? '—'}</span>
-                <span className="text-zinc-500">{formatFecha(f.fecha)}</span>
+                <span className="font-medium text-slate-700">{f.caballo?.nombre ?? '—'}</span>
+                <span className="text-slate-400">{formatFecha(f.fecha)}</span>
                 {f.es_negativo ? (
-                  <span className="text-xs text-zinc-500">Negativo</span>
+                  <span className="text-xs text-slate-400">Negativo</span>
                 ) : (
-                  <span className="text-xs text-emerald-400">{f.cantidad} embrión{f.cantidad !== 1 ? 'es' : ''}</span>
+                  <span className="text-xs text-amber-600">{f.cantidad} embrión{f.cantidad !== 1 ? 'es' : ''}</span>
                 )}
                 {f.cancelado && (
-                  <span className="text-xs text-zinc-600">Cancelado</span>
+                  <span className="text-xs text-slate-400">Cancelado</span>
                 )}
               </li>
             ))}
@@ -176,20 +176,20 @@ export default function DashboardCriaPage() {
       {/* Transferencias recientes */}
       {transferenciasRecientes.length > 0 && (
         <Section title="Últimas transferencias" icon={<ArrowLeftRight size={15} />}>
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-slate-200">
             {transferenciasRecientes.map((t) => (
               <li key={t.id} className="px-4 py-2.5 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-zinc-200">{t.receptora?.nombre ?? '—'}</span>
-                  <span className="text-zinc-600">←</span>
-                  <span className="text-zinc-400">{t.donante?.nombre ?? '—'}</span>
+                  <span className="font-medium text-slate-700">{t.receptora?.nombre ?? '—'}</span>
+                  <span className="text-slate-400">←</span>
+                  <span className="text-slate-500">{t.donante?.nombre ?? '—'}</span>
                   {t.padrillo && (
                     <>
-                      <span className="text-zinc-600">×</span>
-                      <span className="text-zinc-400">{t.padrillo.nombre}</span>
+                      <span className="text-slate-400">×</span>
+                      <span className="text-slate-500">{t.padrillo.nombre}</span>
                     </>
                   )}
-                  <span className="ml-auto text-zinc-500 text-xs">{formatFecha(t.fecha)}</span>
+                  <span className="ml-auto text-slate-400 text-xs">{formatFecha(t.fecha)}</span>
                 </div>
               </li>
             ))}
@@ -199,7 +199,7 @@ export default function DashboardCriaPage() {
 
       {/* Estado vacío */}
       {registros.length === 0 && recordatorios.length === 0 && (
-        <div className="text-center py-16 text-zinc-500 text-sm">
+        <div className="text-center py-16 text-slate-400 text-sm">
           <Droplets size={32} className="mx-auto mb-3 opacity-30" />
           <p>Sin registros reproductivos aún.</p>
           <p className="text-xs mt-1">Comenzá registrando una revisión en Programa Semanal.</p>
@@ -222,22 +222,22 @@ function StatCard({
   to: string
 }) {
   const colorMap = {
-    zinc:    'text-zinc-400',
-    amber:   'text-amber-400',
-    red:     'text-red-400',
-    emerald: 'text-emerald-400',
+    zinc:    'text-slate-500',
+    amber:   'text-amber-600',
+    red:     'text-red-600',
+    emerald: 'text-amber-600',
   }
   return (
     <Link
       to={to}
-      className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 hover:border-zinc-700 transition-colors"
+      className="rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-300 transition-colors"
     >
       <div className={`flex items-center gap-1.5 text-xs mb-2 ${colorMap[accent]}`}>
         {icon}
         {label}
       </div>
       <p className={`text-2xl font-semibold ${colorMap[accent]}`}>{value}</p>
-      <p className="text-xs text-zinc-500 mt-0.5">{sub}</p>
+      <p className="text-xs text-slate-400 mt-0.5">{sub}</p>
     </Link>
   )
 }
@@ -250,8 +250,8 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900 overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-800 text-sm text-zinc-400">
+    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 text-sm text-slate-500">
         {icon}
         {title}
       </div>
@@ -265,13 +265,13 @@ function RecordatorioRow({ recordatorio: r }: { recordatorio: { id: string; caba
   return (
     <li className="px-4 py-2.5 flex items-center gap-3 text-sm">
       {r.estado === 'hecho' ? (
-        <CheckCircle size={14} className="text-emerald-500 shrink-0" />
+        <CheckCircle size={14} className="text-amber-500 shrink-0" />
       ) : (
-        <Clock size={14} className={`shrink-0 ${esHoy ? 'text-amber-400' : 'text-zinc-500'}`} />
+        <Clock size={14} className={`shrink-0 ${esHoy ? 'text-amber-600' : 'text-slate-400'}`} />
       )}
-      <span className="font-medium text-zinc-200 truncate">{r.caballo?.nombre ?? '—'}</span>
-      <span className={`text-zinc-400 ${esHoy ? 'font-medium text-amber-300' : ''}`}>{r.tipo}</span>
-      <span className="ml-auto text-xs text-zinc-500 shrink-0">{formatFecha(r.fecha_vto)}</span>
+      <span className="font-medium text-slate-700 truncate">{r.caballo?.nombre ?? '—'}</span>
+      <span className={`text-slate-500 ${esHoy ? 'font-medium text-amber-700' : ''}`}>{r.tipo}</span>
+      <span className="ml-auto text-xs text-slate-400 shrink-0">{formatFecha(r.fecha_vto)}</span>
     </li>
   )
 }

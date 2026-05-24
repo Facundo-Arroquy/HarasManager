@@ -3,6 +3,31 @@ import { MOCK_USERS } from '../dev/mockUsers'
 import { MOCK_CABALLOS, MOCK_ACCESOS_VET } from '../dev/mockData'
 import { getSupabaseClient } from '../lib/supabase'
 
+export interface VeterinarioPlataforma {
+  id: string
+  nombre: string
+  apellido: string
+  email: string
+}
+
+export async function getVeterinariosPlataforma(): Promise<VeterinarioPlataforma[]> {
+  if (isMockMode()) {
+    return MOCK_USERS
+      .filter((u) => u.rol === 'veterinario')
+      .map((u) => ({ id: u.id, nombre: u.nombre, apellido: u.apellido, email: u.email }))
+  }
+
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from('usuario')
+    .select('id, nombre, apellido, email')
+    .eq('rol', 'veterinario')
+    .eq('activo', true)
+    .order('apellido')
+  if (error) throw error
+  return data ?? []
+}
+
 export interface UsuarioAdmin {
   id: string
   nombre: string
@@ -47,22 +72,26 @@ export async function getUsuarios(_sociedadId: string): Promise<UsuarioAdmin[]> 
     .from('membresia')
     .select(`
       activa,
-      cat_rol(nombre),
+      cat_rol!rol_id(nombre),
       usuario!inner(id, nombre, apellido, email, telefono, activo)
     `)
     .eq('sociedad_id', _sociedadId)
     .eq('activa', true)
   if (error) throw error
 
-  return (data ?? []).map((m: any) => ({
-    id: m.usuario.id,
-    nombre: m.usuario.nombre,
-    apellido: m.usuario.apellido,
-    email: m.usuario.email,
-    telefono: m.usuario.telefono,
-    rol: m.cat_rol.nombre,
-    activo: m.usuario.activo,
-  }))
+  return (data ?? []).map((m: any) => {
+    // cat_rol puede venir como objeto o array según la versión de PostgREST
+    const catRol = Array.isArray(m.cat_rol) ? m.cat_rol[0] : m.cat_rol
+    return {
+      id: m.usuario.id,
+      nombre: m.usuario.nombre,
+      apellido: m.usuario.apellido,
+      email: m.usuario.email,
+      telefono: m.usuario.telefono,
+      rol: catRol?.nombre ?? '',
+      activo: m.usuario.activo,
+    }
+  }).filter((u) => u.rol !== '')
 }
 
 // ── Accesos veterinario ───────────────────────────────────────────────────────

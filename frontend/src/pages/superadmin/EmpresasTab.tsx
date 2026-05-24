@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, Footprints, Users, MapPin, ChevronRight, Plus, Trash2, X } from 'lucide-react'
+import { Building2, Footprints, Users, MapPin, ChevronRight, Plus, Trash2, X, FlaskConical } from 'lucide-react'
 import { superAdminService, type EmpresaStats } from '../../services/superAdminService'
 import Spinner from '../../components/ui/Spinner'
 
@@ -90,9 +90,11 @@ interface CardProps {
   onConfirmarEliminar: () => void
   onCancelarEliminar: () => void
   eliminando: boolean
+  onToggloCentroC: (valor: boolean) => void
+  toglandoCentroC: boolean
 }
 
-function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, onConfirmarEliminar, onCancelarEliminar, eliminando }: CardProps) {
+function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, onConfirmarEliminar, onCancelarEliminar, eliminando, onToggloCentroC, toglandoCentroC }: CardProps) {
   return (
     <div className={`rounded-xl border bg-zinc-900 p-5 flex flex-col gap-4 transition-colors ${confirmandoEliminar ? 'border-rose-800/60' : 'border-zinc-800'}`}>
       <div className="flex items-start gap-3">
@@ -144,6 +146,28 @@ function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, on
         <Stat icon={<MapPin size={14} />}     value={empresa.cantidadCampos}   label="Campos" />
       </div>
 
+      {/* Toggle Centro de Cría */}
+      <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
+        <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+          <FlaskConical size={13} className={empresa.accesosCentroC ? 'text-amber-400' : 'text-zinc-600'} />
+          Centro de Embriones
+        </div>
+        <button
+          onClick={() => onToggloCentroC(!empresa.accesosCentroC)}
+          disabled={toglandoCentroC}
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 ${
+            empresa.accesosCentroC ? 'bg-amber-500' : 'bg-zinc-700'
+          }`}
+          title={empresa.accesosCentroC ? 'Desactivar módulo' : 'Activar módulo'}
+        >
+          <span
+            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+              empresa.accesosCentroC ? 'translate-x-[18px]' : 'translate-x-[3px]'
+            }`}
+          />
+        </button>
+      </div>
+
       <button
         onClick={onGestionar}
         className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-700 hover:text-white transition-colors"
@@ -163,6 +187,7 @@ export default function EmpresasTab({ onGestionarUsuarios }: Props) {
   const [showModal, setShowModal] = useState(false)
   const [confirmando, setConfirmando] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
+  const [toglandoCentroC, setToglandoCentroC] = useState<string | null>(null)
 
   async function recargar() {
     setLoading(true)
@@ -174,6 +199,16 @@ export default function EmpresasTab({ onGestionarUsuarios }: Props) {
   }
 
   useEffect(() => { recargar() }, [])
+
+  async function handleToggloCentroC(sociedadId: string, valor: boolean) {
+    setToglandoCentroC(sociedadId)
+    try {
+      await superAdminService.toggleAccesoCentroCOrg(sociedadId, valor)
+      await recargar()
+    } finally {
+      setToglandoCentroC(null)
+    }
+  }
 
   async function handleEliminar(sociedadId: string) {
     setEliminando(true)
@@ -217,6 +252,8 @@ export default function EmpresasTab({ onGestionarUsuarios }: Props) {
               onConfirmarEliminar={() => handleEliminar(emp.id)}
               onCancelarEliminar={() => setConfirmando(null)}
               eliminando={eliminando}
+              onToggloCentroC={(valor) => handleToggloCentroC(emp.id, valor)}
+              toglandoCentroC={toglandoCentroC === emp.id}
             />
           ))}
         </div>

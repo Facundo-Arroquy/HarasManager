@@ -360,8 +360,8 @@ export const MOCK_HISTORIAL: Record<string, object[]> = {
 // ── Sociedades (para transferencias entre empresas) ───────────────────────────
 
 export const MOCK_SOCIEDADES = [
-  { id: 'soc-002', nombre: 'Haras Don Pedro' },
-  { id: 'soc-003', nombre: 'Estancia La Palma' },
+  { id: 'soc-002', nombre: 'Haras Don Pedro',   acceso_centro_cria: true  },
+  { id: 'soc-003', nombre: 'Estancia La Palma', acceso_centro_cria: false },
 ]
 
 // ── Membresías (para Panel SuperAdmin) ───────────────────────────────────────

@@ -12,7 +12,7 @@ export default function ChipSelector({
   options,
   selected,
   onChange,
-  colorSelected = 'bg-emerald-800 text-emerald-200 border-emerald-700',
+  colorSelected = 'bg-amber-200 text-emerald-200 border-emerald-700',
 }: Props) {
   function toggle(opt: string) {
     if (selected.includes(opt)) {
@@ -24,7 +24,7 @@ export default function ChipSelector({
 
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-zinc-400">{label}</label>
+      <label className="text-xs font-medium text-slate-500">{label}</label>
       <div className="flex flex-wrap gap-1.5">
         {options.map((opt) => {
           const active = selected.includes(opt)
@@ -36,7 +36,7 @@ export default function ChipSelector({
               className={`px-2.5 py-1 rounded-full text-xs border transition-colors select-none ${
                 active
                   ? colorSelected
-                  : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-500 hover:text-zinc-200'
+                  : 'bg-slate-100 text-slate-500 border-slate-300 hover:border-slate-400 hover:text-slate-700'
               }`}
             >
               {opt}
@@ -45,7 +45,7 @@ export default function ChipSelector({
         })}
       </div>
       {selected.length > 0 && (
-        <p className="text-[10px] text-zinc-600">
+        <p className="text-[10px] text-slate-400">
           {selected.join(' · ')}
         </p>
       )}

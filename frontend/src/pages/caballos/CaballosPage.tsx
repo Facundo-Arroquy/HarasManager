@@ -195,8 +195,8 @@ export default function CaballosPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">Caballos</h1>
-          <p className="text-xs sm:text-sm text-zinc-500 mt-0.5">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Caballos</h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
             {loading ? '…' : esVet
               ? `${caballos.length} animales · ${Object.keys(gruposPorEmpresa).length} empresa${Object.keys(gruposPorEmpresa).length !== 1 ? 's' : ''}`
               : `${caballos.length} animales · ${campos.length} campos`
@@ -209,7 +209,7 @@ export default function CaballosPage() {
           {rol === 'veterinario' && !modoSeleccion && (
             <button
               onClick={() => setShowConsulta(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors"
+              className="flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors"
             >
               <Plus size={15} />
               <span className="hidden sm:inline">Nueva consulta</span>
@@ -218,7 +218,7 @@ export default function CaballosPage() {
           {canManageCampos(rol) && !modoSeleccion && (
             <button
               onClick={() => setShowNuevo(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 px-3 py-2 text-sm font-medium text-zinc-100 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 px-3 py-2 text-sm font-medium text-slate-900 transition-colors"
               title="Nuevo caballo"
             >
               <Plus size={15} />
@@ -228,7 +228,7 @@ export default function CaballosPage() {
           {canManageCampos(rol) && !modoSeleccion && (
             <button
               onClick={() => setModoSeleccion(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-zinc-700 hover:border-zinc-600 px-3 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
               title="Editar en masa"
             >
               <CheckSquare size={15} />
@@ -238,7 +238,7 @@ export default function CaballosPage() {
           {modoSeleccion && (
             <button
               onClick={salirModoSeleccion}
-              className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
             >
               <X size={15} />
               <span className="hidden sm:inline">Cancelar</span>
@@ -252,13 +252,13 @@ export default function CaballosPage() {
         {/* Búsqueda + categoría en la misma fila */}
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Buscar…"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 py-2 pl-9 pr-3 text-sm text-zinc-200 placeholder-zinc-500 focus:border-zinc-600 focus:outline-none"
+              className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
             />
           </div>
           {/* Categoría: select en mobile, botones en sm+ */}
@@ -267,7 +267,7 @@ export default function CaballosPage() {
               <select
                 value={filtro}
                 onChange={(e) => setFiltro(e.target.value)}
-                className="sm:hidden rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-200 focus:border-zinc-600 focus:outline-none"
+                className="sm:hidden rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
               >
                 {CATEGORIAS.map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -278,7 +278,7 @@ export default function CaballosPage() {
                 <select
                   value={vistaVet}
                   onChange={(e) => cambiarVistaVet(e.target.value as VistaVet)}
-                  className="sm:hidden rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-200 focus:border-zinc-600 focus:outline-none"
+                  className="sm:hidden rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
                 >
                   <option value="empresa">Por empresa</option>
                   <option value="campo">Por campo</option>
@@ -298,8 +298,8 @@ export default function CaballosPage() {
                   onClick={() => setFiltro(cat)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                     filtro === cat
-                      ? 'bg-zinc-700 text-zinc-100'
-                      : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                      ? 'bg-slate-200 text-slate-900'
+                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                   }`}
                 >
                   {cat}
@@ -309,19 +309,19 @@ export default function CaballosPage() {
 
             {/* Toggle vista vet (desktop) */}
             {esVet && (
-              <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs font-medium ml-auto">
+              <div className="flex rounded-lg border border-slate-300 overflow-hidden text-xs font-medium ml-auto">
                 <button
                   onClick={() => cambiarVistaVet('empresa')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
-                    vistaVet === 'empresa' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                    vistaVet === 'empresa' ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   <Building2 size={13} /> Por empresa
                 </button>
                 <button
                   onClick={() => cambiarVistaVet('campo')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-zinc-700 transition-colors ${
-                    vistaVet === 'campo' ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-slate-300 transition-colors ${
+                    vistaVet === 'campo' ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   <LayoutList size={13} /> Por campo
@@ -338,7 +338,7 @@ export default function CaballosPage() {
             <select
               value={ordenSubcat}
               onChange={(e) => setOrdenSubcat(e.target.value as typeof ordenSubcat)}
-              className="sm:hidden flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 focus:border-zinc-600 focus:outline-none"
+              className="sm:hidden flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
             >
               <option value="ninguno">Orden: por defecto</option>
               <option value="receptoras">Receptoras primero</option>
@@ -346,13 +346,13 @@ export default function CaballosPage() {
             </select>
             {/* Desktop: botones */}
             <div className="hidden sm:flex items-center gap-2">
-              <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">Orden:</span>
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Orden:</span>
               {(['ninguno', 'receptoras', 'donantes'] as const).map((op) => (
                 <button
                   key={op}
                   onClick={() => setOrdenSubcat(op)}
                   className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                    ordenSubcat === op ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+                    ordenSubcat === op ? 'bg-slate-200 text-slate-900' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
                   }`}
                 >
                   {op === 'ninguno' ? 'Por defecto' : op === 'receptoras' ? 'Receptoras primero' : 'Donantes primero'}
@@ -364,9 +364,9 @@ export default function CaballosPage() {
       </div>
 
       {loading && <div className="flex justify-center py-20"><Spinner size="lg" /></div>}
-      {error   && <div className="rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-300">Error: {error}</div>}
+      {error   && <div className="rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-700">Error: {error}</div>}
       {!loading && !error && filtrados.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-zinc-500 text-sm">Sin resultados</div>
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-sm">Sin resultados</div>
       )}
 
       {!loading && !error && filtrados.length > 0 && (
@@ -483,13 +483,13 @@ export default function CaballosPage() {
 
       {/* Panel flotante de edición masiva */}
       {modoSeleccion && (
-        <div className="fixed bottom-0 inset-x-0 z-40 border-t border-zinc-700 bg-zinc-950/95 backdrop-blur-sm px-4 py-3 md:py-4"
+        <div className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-300 bg-white/95 backdrop-blur-sm px-4 py-3 md:py-4"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
         >
           <div className="max-w-3xl mx-auto space-y-3">
             {/* Contador */}
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-zinc-300">
+              <span className="text-sm font-medium text-slate-600">
                 {seleccionados.size === 0
                   ? 'Seleccioná caballos arriba'
                   : `${seleccionados.size} caballo${seleccionados.size > 1 ? 's' : ''} seleccionado${seleccionados.size > 1 ? 's' : ''}`}
@@ -497,7 +497,7 @@ export default function CaballosPage() {
               {seleccionados.size > 0 && (
                 <button
                   onClick={() => setSeleccionados(new Set())}
-                  className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   Limpiar
                 </button>
@@ -508,13 +508,13 @@ export default function CaballosPage() {
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-end">
               {/* Campo */}
               <div className="sm:flex-1 sm:min-w-[140px]">
-                <label className="block text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1">
+                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
                   Campo
                 </label>
                 <select
                   value={bulkCampoId}
                   onChange={(e) => setBulkCampoId(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-2 text-sm text-zinc-200 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-amber-500 focus:outline-none"
                 >
                   <option value={SIN_CAMBIO}>— Sin cambio —</option>
                   <option value={SIN_CAMPO}>Sin campo</option>
@@ -526,13 +526,13 @@ export default function CaballosPage() {
 
               {/* Categoría */}
               <div className="sm:flex-1 sm:min-w-[130px]">
-                <label className="block text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1">
+                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
                   Categoría
                 </label>
                 <select
                   value={bulkCategoria}
                   onChange={(e) => { setBulkCategoria(e.target.value); if (e.target.value !== 'Yegua') setBulkSubcategoria(SIN_CAMBIO) }}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-2 text-sm text-zinc-200 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-amber-500 focus:outline-none"
                 >
                   <option value={SIN_CAMBIO}>— Sin cambio —</option>
                   {CATEGORIAS_EDIT.map((cat) => (
@@ -543,13 +543,13 @@ export default function CaballosPage() {
 
               {/* Rol reproductivo */}
               <div className="sm:flex-1 sm:min-w-[130px]">
-                <label className="block text-[10px] font-medium text-zinc-500 uppercase tracking-wider mb-1">
+                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
                   Rol reprod.
                 </label>
                 <select
                   value={bulkSubcategoria}
                   onChange={(e) => setBulkSubcategoria(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-2 text-sm text-zinc-200 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-amber-500 focus:outline-none"
                 >
                   <option value={SIN_CAMBIO}>— Sin cambio —</option>
                   <option value="">Sin especificar</option>
@@ -562,7 +562,7 @@ export default function CaballosPage() {
               <button
                 onClick={aplicarEdicionMasiva}
                 disabled={!hayBulkCambios || seleccionados.size === 0 || bulkSaving}
-                className="col-span-2 sm:col-span-1 rounded-lg bg-emerald-700 px-4 py-2.5 sm:py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                className="col-span-2 sm:col-span-1 rounded-lg bg-amber-500 px-4 py-2.5 sm:py-2 text-sm font-medium text-white transition-colors hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 {bulkSaving ? 'Aplicando…' : 'Aplicar cambios'}
               </button>
@@ -600,21 +600,21 @@ function CampoSection({
   return (
     <section>
       <div className="flex items-center gap-2 mb-1">
-        <MapPin size={14} className={campo ? 'text-emerald-500' : 'text-zinc-600'} />
-        <h2 className="text-sm font-semibold text-zinc-300">
+        <MapPin size={14} className={campo ? 'text-amber-500' : 'text-slate-400'} />
+        <h2 className="text-sm font-semibold text-slate-600">
           {campo?.nombre ?? 'Sin campo asignado'}
         </h2>
         {campo?.descripcion && (
-          <span className="text-xs text-zinc-600">· {campo.descripcion}</span>
+          <span className="text-xs text-slate-400">· {campo.descripcion}</span>
         )}
         <span className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-zinc-600">
+          <span className="text-xs text-slate-400">
             {caballos.length} animal{caballos.length !== 1 ? 'es' : ''}
           </span>
           {modoSeleccion && (
             <button
               onClick={() => onToggleTodos(ids)}
-              className="text-xs text-emerald-500 hover:text-emerald-300 transition-colors"
+              className="text-xs text-amber-500 hover:text-amber-500 transition-colors"
             >
               {todosEnSeccion ? 'Deseleccionar todos' : 'Seleccionar todos'}
             </button>
@@ -622,7 +622,7 @@ function CampoSection({
         </span>
       </div>
       {/* Lista compacta */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
         {caballos.map((caballo) => (
           <CaballoCard
             key={caballo.id}
@@ -661,22 +661,22 @@ function EmpresaSection({
     <section>
       <div className="flex items-center gap-2 mb-1">
         <Building2 size={14} className="text-sky-500" />
-        <h2 className="text-sm font-semibold text-zinc-300">{empresaNombre}</h2>
+        <h2 className="text-sm font-semibold text-slate-600">{empresaNombre}</h2>
         <span className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-zinc-600">
+          <span className="text-xs text-slate-400">
             {caballos.length} animal{caballos.length !== 1 ? 'es' : ''}
           </span>
           {modoSeleccion && (
             <button
               onClick={() => onToggleTodos(ids)}
-              className="text-xs text-emerald-500 hover:text-emerald-300 transition-colors"
+              className="text-xs text-amber-500 hover:text-amber-500 transition-colors"
             >
               {todosEnSeccion ? 'Deseleccionar todos' : 'Seleccionar todos'}
             </button>
           )}
         </span>
       </div>
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
         {caballos.map((caballo) => (
           <CaballoCard
             key={caballo.id}

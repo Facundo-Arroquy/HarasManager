@@ -191,13 +191,13 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
       onClick={(e) => { if (e.target === overlayRef.current) onClose() }}
     >
-      <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+      <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-300 bg-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4 shrink-0">
-          <h2 className="text-base font-semibold text-zinc-100">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 shrink-0">
+          <h2 className="text-base font-semibold text-slate-900">
             {entryToEdit ? 'Editar consulta clínica' : 'Nueva consulta clínica'}
           </h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -302,7 +302,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
               {/* ── Partes afectadas ── */}
               <section>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                     Partes afectadas
                   </h3>
                   <button type="button" onClick={addParte} className={addRowBtn}>
@@ -311,7 +311,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
                 </div>
 
                 {partes.length === 0 && (
-                  <p className="text-xs text-zinc-600 italic">Sin partes afectadas registradas.</p>
+                  <p className="text-xs text-slate-400 italic">Sin partes afectadas registradas.</p>
                 )}
 
                 <div className="space-y-2">
@@ -344,7 +344,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
                       <button
                         type="button"
                         onClick={() => remParte(row.tempId)}
-                        className="mt-0.5 text-zinc-600 hover:text-red-400 transition-colors"
+                        className="mt-0.5 text-slate-400 hover:text-red-600 transition-colors"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -356,7 +356,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
               {/* ── Medicamentos ── */}
               <section>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                     Medicamentos
                   </h3>
                   <button type="button" onClick={addMed} className={addRowBtn}>
@@ -365,7 +365,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
                 </div>
 
                 {meds.length === 0 && (
-                  <p className="text-xs text-zinc-600 italic">Sin medicamentos registrados.</p>
+                  <p className="text-xs text-slate-400 italic">Sin medicamentos registrados.</p>
                 )}
 
                 <div className="space-y-2">
@@ -403,7 +403,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
                       <button
                         type="button"
                         onClick={() => remMed(row.tempId)}
-                        className="mt-0.5 text-zinc-600 hover:text-red-400 transition-colors"
+                        className="mt-0.5 text-slate-400 hover:text-red-600 transition-colors"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -413,7 +413,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
               </section>
 
               {error && (
-                <p className="rounded-lg bg-red-950 border border-red-900 px-3 py-2 text-xs text-red-300">
+                <p className="rounded-lg bg-red-950 border border-red-900 px-3 py-2 text-xs text-red-700">
                   {error}
                 </p>
               )}
@@ -422,11 +422,11 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
         </form>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 border-t border-zinc-800 px-5 py-3 shrink-0">
+        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             Cancelar
           </button>
@@ -434,7 +434,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
             type="submit"
             form="nueva-consulta-form"
             disabled={submitting}
-            className="flex items-center gap-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-amber-500 hover:bg-amber-500 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors"
           >
             {submitting && <Spinner size="sm" />}
             {entryToEdit ? 'Guardar cambios' : 'Guardar consulta'}
@@ -450,14 +450,14 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-zinc-400">{label}</label>
+      <label className="text-xs font-medium text-slate-500">{label}</label>
       {children}
     </div>
   )
 }
 
-const base = 'rounded-lg border border-zinc-700 bg-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none px-3 py-2 w-full'
+const base = 'rounded-lg border border-slate-300 bg-slate-100 text-sm text-slate-700 placeholder-slate-400 focus:border-amber-400 focus:outline-none px-3 py-2 w-full'
 const inputClass    = base
 const selectClass   = base
 const textareaClass = `${base} resize-none`
-const addRowBtn     = 'flex items-center gap-1 text-xs text-zinc-500 hover:text-emerald-400 transition-colors'
+const addRowBtn     = 'flex items-center gap-1 text-xs text-slate-400 hover:text-amber-600 transition-colors'

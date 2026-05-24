@@ -42,7 +42,7 @@ export default function FotoCaballo({ caballoId, nombre, canEdit = false, size =
       {/* ── Avatar ── */}
       <div
         className={`w-full h-full rounded-full overflow-hidden border-2 flex items-center justify-center select-none ${
-          showImg ? 'border-zinc-700' : 'border-zinc-800 bg-zinc-900'
+          showImg ? 'border-slate-300' : 'border-slate-200 bg-white'
         }`}
       >
         {showImg ? (
@@ -54,7 +54,7 @@ export default function FotoCaballo({ caballoId, nombre, canEdit = false, size =
           />
         ) : (
           <span
-            className="font-bold text-zinc-600"
+            className="font-bold text-slate-400"
             style={{ fontSize: Math.round(size * 0.38) }}
           >
             {nombre.charAt(0).toUpperCase()}
@@ -70,7 +70,7 @@ export default function FotoCaballo({ caballoId, nombre, canEdit = false, size =
             onClick={() => !uploading && inputRef.current?.click()}
             disabled={uploading}
             title="Cambiar foto"
-            className="absolute bottom-0 right-0 flex items-center justify-center rounded-full bg-zinc-700 border-2 border-zinc-900 hover:bg-emerald-700 transition-colors cursor-pointer"
+            className="absolute bottom-0 right-0 flex items-center justify-center rounded-full bg-slate-200 border-2 border-white hover:bg-amber-500 transition-colors cursor-pointer"
             style={{ width: badgeSize, height: badgeSize }}
           >
             {uploading ? (

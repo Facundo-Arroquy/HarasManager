@@ -9,6 +9,7 @@ export interface EmpresaStats {
   cantidadCaballos: number
   cantidadUsuarios: number
   cantidadCampos: number
+  accesosCentroC: boolean
 }
 
 export interface UsuarioEmpresa {
@@ -35,9 +36,9 @@ export interface NuevoUsuarioPayload {
 
 let membresias = MOCK_MEMBRESIAS.map((m) => ({ ...m }))
 
-let sociedades: Array<{ id: string; nombre: string }> = [
-  { id: MOCK_SOCIEDAD.id, nombre: MOCK_SOCIEDAD.nombre },
-  ...MOCK_SOCIEDADES,
+let sociedades: Array<{ id: string; nombre: string; accesosCentroC: boolean }> = [
+  { id: MOCK_SOCIEDAD.id, nombre: MOCK_SOCIEDAD.nombre, accesosCentroC: MOCK_SOCIEDAD.acceso_centro_cria },
+  ...MOCK_SOCIEDADES.map((s) => ({ id: s.id, nombre: s.nombre, accesosCentroC: s.acceso_centro_cria })),
 ]
 
 // ── Servicio ──────────────────────────────────────────────────────────────────
@@ -53,13 +54,14 @@ export const superAdminService = {
         cantidadCaballos: MOCK_CABALLOS.filter((c) => c.sociedad_id === soc.id && c.activo).length,
         cantidadUsuarios: membresias.filter((m) => m.sociedad_id === soc.id).length,
         cantidadCampos: MOCK_CAMPOS.filter((c) => c.sociedad_id === soc.id).length,
+        accesosCentroC: soc.accesosCentroC,
       }))
     }
 
     const supabase = getSupabaseClient()
     const { data: socs, error } = await supabase
       .from('sociedad')
-      .select('id, nombre')
+      .select('id, nombre, acceso_centro_cria')
       .eq('activa', true)
       .order('nombre')
     if (error) throw error
@@ -76,6 +78,7 @@ export const superAdminService = {
         cantidadCaballos: caballos.count ?? 0,
         cantidadUsuarios: usuarios.count ?? 0,
         cantidadCampos: campos.count ?? 0,
+        accesosCentroC: soc.acceso_centro_cria ?? false,
       }
     }))
 
@@ -84,7 +87,7 @@ export const superAdminService = {
 
   async crearEmpresa(nombre: string): Promise<EmpresaStats> {
     if (isMockMode()) {
-      const nueva = { id: `soc-${Date.now()}`, nombre: nombre.trim() }
+      const nueva = { id: `soc-${Date.now()}`, nombre: nombre.trim(), accesosCentroC: false }
       sociedades = [...sociedades, nueva]
       return { ...nueva, cantidadCaballos: 0, cantidadUsuarios: 0, cantidadCampos: 0 }
     }
@@ -96,7 +99,7 @@ export const superAdminService = {
       .select('id, nombre')
       .single()
     if (error) throw error
-    return { id: data.id, nombre: data.nombre, cantidadCaballos: 0, cantidadUsuarios: 0, cantidadCampos: 0 }
+    return { id: data.id, nombre: data.nombre, cantidadCaballos: 0, cantidadUsuarios: 0, cantidadCampos: 0, accesosCentroC: false }
   },
 
   async eliminarEmpresa(sociedadId: string): Promise<void> {
@@ -254,6 +257,21 @@ export const superAdminService = {
       .from('membresia')
       .update({ activa: valor })
       .eq('id', membresiaId)
+    if (error) throw error
+  },
+
+  async toggleAccesoCentroCOrg(sociedadId: string, valor: boolean): Promise<void> {
+    if (isMockMode()) {
+      const s = sociedades.find((x) => x.id === sociedadId)
+      if (s) s.accesosCentroC = valor
+      return
+    }
+
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('sociedad')
+      .update({ acceso_centro_cria: valor })
+      .eq('id', sociedadId)
     if (error) throw error
   },
 

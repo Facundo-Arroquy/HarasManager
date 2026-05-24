@@ -26,9 +26,9 @@ const RESULTADO_OPTS: { value: Resultado; label: string }[] = [
 ]
 
 const RES_CLASS: Record<Resultado, string> = {
-  normal:     'text-emerald-400',
-  a_observar: 'text-amber-400',
-  anormal:    'text-rose-400',
+  normal:     'text-amber-600',
+  a_observar: 'text-amber-600',
+  anormal:    'text-rose-600',
 }
 
 const CATEGORIAS_DEFAULT = [
@@ -131,14 +131,14 @@ export default function RevisionPreVentaPage() {
     <div className="p-4 md:p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-zinc-100">Revisión pre-venta</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">
+        <h1 className="text-2xl font-bold text-slate-900">Revisión pre-venta</h1>
+        <p className="text-sm text-slate-400 mt-0.5">
           Certificado de revisión clínica para compraventa de equino
         </p>
       </div>
 
       {/* ── Datos generales ── */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 mb-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 mb-4">
         <h2 className={sectionTitle}>Datos generales</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className={fieldWrapper}>
@@ -173,13 +173,13 @@ export default function RevisionPreVentaPage() {
 
         {/* Info del caballo */}
         {caballo && (
-          <div className="mt-3 flex items-center gap-3 rounded-lg bg-zinc-800/60 px-3 py-2 text-xs text-zinc-400 flex-wrap">
-            <span className="font-medium text-zinc-300">{caballo.nombre}</span>
+          <div className="mt-3 flex items-center gap-3 rounded-lg bg-slate-100/60 px-3 py-2 text-xs text-slate-500 flex-wrap">
+            <span className="font-medium text-slate-600">{caballo.nombre}</span>
             {caballo.categoria && <span>· {caballo.categoria}</span>}
             {(caballo as any).cat_raza && <span>· {(caballo as any).cat_raza.nombre}</span>}
             {(caballo as any).cat_pelaje && <span>· {(caballo as any).cat_pelaje.nombre}</span>}
             {(caballo as any).numero_chip && (
-              <span className="font-mono text-zinc-500">
+              <span className="font-mono text-slate-400">
                 Chip: {(caballo as any).numero_chip}
               </span>
             )}
@@ -200,10 +200,10 @@ export default function RevisionPreVentaPage() {
       </div>
 
       {/* ── Hallazgos clínicos ── */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 mb-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className={sectionTitle} style={{ margin: 0 }}>Hallazgos clínicos</h2>
-          <button onClick={addItem} className="flex items-center gap-1 text-xs text-zinc-500 hover:text-emerald-400 transition-colors">
+          <button onClick={addItem} className="flex items-center gap-1 text-xs text-slate-400 hover:text-amber-600 transition-colors">
             <Plus size={13} /> Agregar ítem
           </button>
         </div>
@@ -217,7 +217,7 @@ export default function RevisionPreVentaPage() {
         </div>
 
         {items.length === 0 && (
-          <p className="text-xs text-zinc-600 italic text-center py-6">
+          <p className="text-xs text-slate-400 italic text-center py-6">
             Sin ítems. Usá "Agregar ítem" para añadir hallazgos.
           </p>
         )}
@@ -227,7 +227,7 @@ export default function RevisionPreVentaPage() {
             /* Mobile: card apilada · Desktop: grid de 4 columnas */
             <div
               key={item.tempId}
-              className="rounded-lg border border-zinc-800 p-3 space-y-2 sm:border-0 sm:p-0 sm:space-y-0 sm:grid sm:grid-cols-[2fr_3fr_1fr_auto] sm:gap-2 sm:items-start"
+              className="rounded-lg border border-slate-200 p-3 space-y-2 sm:border-0 sm:p-0 sm:space-y-0 sm:grid sm:grid-cols-[2fr_3fr_1fr_auto] sm:gap-2 sm:items-start"
             >
               <input
                 type="text"
@@ -256,7 +256,7 @@ export default function RevisionPreVentaPage() {
                 </select>
                 <button
                   onClick={() => remItem(item.tempId)}
-                  className="p-1.5 text-zinc-600 hover:text-rose-400 transition-colors rounded shrink-0 sm:mt-0.5"
+                  className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors rounded shrink-0 sm:mt-0.5"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -267,7 +267,7 @@ export default function RevisionPreVentaPage() {
       </div>
 
       {/* ── Conclusión y dictamen ── */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 mb-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 mb-6">
         <h2 className={sectionTitle}>Conclusión y dictamen</h2>
 
         <div className={fieldWrapper}>
@@ -304,14 +304,14 @@ export default function RevisionPreVentaPage() {
       <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-center gap-3">
         <button
           onClick={handleReset}
-          className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-600 transition-colors"
         >
           <RotateCcw size={14} /> Limpiar formulario
         </button>
         <button
           onClick={handleExportar}
           disabled={!caballoId || !firmante.trim()}
-          className="flex items-center gap-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 px-5 py-2.5 text-sm font-medium text-white transition-colors"
+          className="flex items-center gap-2 rounded-lg bg-amber-500 hover:bg-amber-500 disabled:opacity-50 px-5 py-2.5 text-sm font-medium text-white transition-colors"
         >
           <Printer size={15} /> Exportar PDF
         </button>
@@ -322,12 +322,12 @@ export default function RevisionPreVentaPage() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const sectionTitle = 'text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-4'
+const sectionTitle = 'text-xs font-semibold uppercase tracking-widest text-slate-400 mb-4'
 const fieldWrapper = 'flex flex-col gap-1'
-const labelClass   = 'text-xs font-medium text-zinc-400'
-const colHeader    = 'text-[10px] uppercase tracking-widest text-zinc-600'
+const labelClass   = 'text-xs font-medium text-slate-500'
+const colHeader    = 'text-[10px] uppercase tracking-widest text-slate-400'
 
-const base = 'rounded-lg border border-zinc-700 bg-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none px-3 py-2 w-full'
+const base = 'rounded-lg border border-slate-300 bg-slate-100 text-sm text-slate-700 placeholder-slate-400 focus:border-amber-400 focus:outline-none px-3 py-2 w-full'
 const inputClass    = base
 const selectClass   = base
 const textareaClass = `${base} resize-none`
@@ -338,19 +338,19 @@ const DICTAMEN_OPTS = [
   {
     value: 'apto',
     label: 'Apto para la venta',
-    active:   'border-emerald-600 bg-emerald-900/30 text-emerald-300',
-    inactive: 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600',
+    active:   'border-amber-500 bg-amber-100/30 text-amber-500',
+    inactive: 'border-slate-300 bg-slate-100 text-slate-500 hover:border-slate-400',
   },
   {
     value: 'condicionado',
     label: 'Apto con observaciones',
-    active:   'border-amber-600 bg-amber-900/30 text-amber-300',
-    inactive: 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600',
+    active:   'border-amber-600 bg-amber-50 text-amber-700',
+    inactive: 'border-slate-300 bg-slate-100 text-slate-500 hover:border-slate-400',
   },
   {
     value: 'no_apto',
     label: 'No apto',
-    active:   'border-rose-600 bg-rose-900/30 text-rose-300',
-    inactive: 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600',
+    active:   'border-rose-600 bg-rose-50 text-rose-700',
+    inactive: 'border-slate-300 bg-slate-100 text-slate-500 hover:border-slate-400',
   },
 ]

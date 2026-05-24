@@ -45,9 +45,9 @@ export default function HistorialCard({ entry, onEditar }: Props) {
     !!entry.proxima_consulta
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       {/* Header: área clickeable para expandir + acciones separadas */}
-      <div className="flex items-start gap-4 p-4 hover:bg-zinc-800/50 transition-colors">
+      <div className="flex items-start gap-4 p-4 hover:bg-slate-50 transition-colors">
         {/* Zona de click para expandir */}
         <div
           className="flex-1 flex items-start gap-4 cursor-pointer min-w-0"
@@ -55,16 +55,16 @@ export default function HistorialCard({ entry, onEditar }: Props) {
         >
           {/* Fecha */}
           <div className="shrink-0 text-center min-w-[3rem]">
-            <p className="text-xl font-bold text-zinc-100 leading-none">
+            <p className="text-xl font-bold text-slate-900 leading-none">
               {new Date(entry.fecha_consulta).getDate()}
             </p>
-            <p className="text-[10px] uppercase text-zinc-500 tracking-wide">
+            <p className="text-[10px] uppercase text-slate-400 tracking-wide">
               {new Date(entry.fecha_consulta).toLocaleDateString('es-AR', {
                 month: 'short',
                 timeZone: 'America/Argentina/Buenos_Aires',
               })}
             </p>
-            <p className="text-[10px] text-zinc-600">
+            <p className="text-[10px] text-slate-400">
               {new Date(entry.fecha_consulta).toLocaleDateString('es-AR', {
                 year: 'numeric',
                 timeZone: 'America/Argentina/Buenos_Aires',
@@ -75,18 +75,18 @@ export default function HistorialCard({ entry, onEditar }: Props) {
           {/* Contenido */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-[11px] font-medium text-zinc-300 ring-1 ring-zinc-700">
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200">
                 {entry.cat_tipo_consulta.nombre}
               </span>
-              <span className="text-[11px] text-zinc-500">
+              <span className="text-[11px] text-slate-400">
                 Dr/a. {entry.usuario.nombre} {entry.usuario.apellido}
               </span>
             </div>
             {entry.diagnostico && (
-              <p className="text-sm text-zinc-300 line-clamp-2">{entry.diagnostico}</p>
+              <p className="text-sm text-slate-600 line-clamp-2">{entry.diagnostico}</p>
             )}
             {entry.tratamiento && (
-              <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1">{entry.tratamiento}</p>
+              <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{entry.tratamiento}</p>
             )}
           </div>
         </div>
@@ -94,13 +94,13 @@ export default function HistorialCard({ entry, onEditar }: Props) {
         {/* Acciones: indicadores + editar + toggle */}
         <div className="shrink-0 flex items-center gap-2 mt-0.5">
           {entry.historial_parte_afectada.length > 0 && (
-            <span className="flex items-center gap-1 text-[11px] text-zinc-500">
+            <span className="flex items-center gap-1 text-[11px] text-slate-400">
               <MapPin size={11} />
               {entry.historial_parte_afectada.length}
             </span>
           )}
           {entry.historial_medicamento.length > 0 && (
-            <span className="flex items-center gap-1 text-[11px] text-zinc-500">
+            <span className="flex items-center gap-1 text-[11px] text-slate-400">
               <Pill size={11} />
               {entry.historial_medicamento.length}
             </span>
@@ -108,7 +108,7 @@ export default function HistorialCard({ entry, onEditar }: Props) {
           {onEditar && (
             <button
               onClick={onEditar}
-              className="p-1.5 rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-700 transition-colors"
+              className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
               title="Editar consulta"
             >
               <Pencil size={13} />
@@ -117,7 +117,7 @@ export default function HistorialCard({ entry, onEditar }: Props) {
           {tieneDetalle && (
             <button
               onClick={() => setOpen((v) => !v)}
-              className="text-zinc-600 hover:text-zinc-400 transition-colors"
+              className="text-slate-400 hover:text-slate-500 transition-colors"
               aria-expanded={open}
             >
               {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -128,21 +128,21 @@ export default function HistorialCard({ entry, onEditar }: Props) {
 
       {/* Detalle expandible */}
       {open && (
-        <div className="border-t border-zinc-800 px-4 pb-4 pt-3 space-y-4">
+        <div className="border-t border-slate-200 px-4 pb-4 pt-3 space-y-4">
           {entry.historial_parte_afectada.length > 0 && (
             <section>
-              <h4 className="text-[11px] uppercase tracking-widest text-zinc-500 mb-2 flex items-center gap-1.5">
+              <h4 className="text-[11px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
                 <MapPin size={11} /> Partes afectadas
               </h4>
               <ul className="space-y-1">
                 {entry.historial_parte_afectada.map((p) => (
-                  <li key={p.id} className="text-xs text-zinc-300">
+                  <li key={p.id} className="text-xs text-slate-600">
                     <span className="font-medium">{p.cat_parte_cuerpo.nombre}</span>
                     {p.lado && p.lado !== 'no aplica' && (
-                      <span className="text-zinc-500"> · {p.lado}</span>
+                      <span className="text-slate-400"> · {p.lado}</span>
                     )}
                     {p.descripcion && (
-                      <span className="text-zinc-500"> — {p.descripcion}</span>
+                      <span className="text-slate-400"> — {p.descripcion}</span>
                     )}
                   </li>
                 ))}
@@ -152,14 +152,14 @@ export default function HistorialCard({ entry, onEditar }: Props) {
 
           {entry.historial_medicamento.length > 0 && (
             <section>
-              <h4 className="text-[11px] uppercase tracking-widest text-zinc-500 mb-2 flex items-center gap-1.5">
+              <h4 className="text-[11px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
                 <Pill size={11} /> Medicamentos
               </h4>
               <ul className="space-y-1.5">
                 {entry.historial_medicamento.map((m) => (
                   <li key={m.id} className="text-xs">
-                    <span className="font-medium text-zinc-300">{m.medicamento}</span>
-                    <span className="text-zinc-500">
+                    <span className="font-medium text-slate-600">{m.medicamento}</span>
+                    <span className="text-slate-400">
                       {m.dosis && ` · ${m.dosis}`}
                       {m.via_administracion && ` · ${m.via_administracion}`}
                       {m.duracion_dias && ` · ${m.duracion_dias} días`}
@@ -172,15 +172,15 @@ export default function HistorialCard({ entry, onEditar }: Props) {
 
           {entry.observaciones && (
             <section>
-              <h4 className="text-[11px] uppercase tracking-widest text-zinc-500 mb-1">
+              <h4 className="text-[11px] uppercase tracking-widest text-slate-400 mb-1">
                 Observaciones
               </h4>
-              <p className="text-xs text-zinc-400">{entry.observaciones}</p>
+              <p className="text-xs text-slate-500">{entry.observaciones}</p>
             </section>
           )}
 
           {entry.proxima_consulta && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400">
+            <div className="flex items-center gap-1.5 text-xs text-amber-600">
               <Calendar size={12} />
               Próxima consulta: {formatFecha(entry.proxima_consulta)}
             </div>

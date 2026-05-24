@@ -43,7 +43,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-30 md:hidden border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-sm"
+      className="fixed bottom-0 inset-x-0 z-30 md:hidden border-t border-slate-200 bg-white/95 backdrop-blur-sm"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="flex items-center h-16 px-1">
@@ -56,7 +56,7 @@ export default function BottomNav() {
               key={item.to}
               to={item.to}
               className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl transition-colors ${
-                isActive ? 'text-emerald-400' : 'text-zinc-500 active:text-zinc-300'
+                isActive ? 'text-amber-600' : 'text-slate-400 active:text-slate-600'
               }`}
             >
               {item.icon}
@@ -68,7 +68,7 @@ export default function BottomNav() {
         {/* Logout */}
         <button
           onClick={signOut}
-          className="flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl text-zinc-600 active:text-zinc-400 transition-colors"
+          className="flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl text-slate-400 active:text-slate-500 transition-colors"
         >
           <LogOut size={22} />
           <span className="text-[10px] font-medium leading-none">Salir</span>

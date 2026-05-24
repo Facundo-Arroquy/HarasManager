@@ -145,20 +145,20 @@ export default function TransferenciaModal({
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-md sm:mx-4 rounded-t-2xl sm:rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl max-h-[92vh] flex flex-col">
+      <div className="w-full max-w-md sm:mx-4 rounded-t-2xl sm:rounded-xl border border-slate-300 bg-white shadow-2xl max-h-[92vh] flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4 shrink-0">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 shrink-0">
           <div className="flex items-center gap-2">
-            <ArrowLeftRight size={15} className="text-blue-400" />
+            <ArrowLeftRight size={15} className="text-blue-600" />
             <div>
-              <h2 className="text-sm font-semibold text-zinc-100">Transferencia embrionaria</h2>
+              <h2 className="text-sm font-semibold text-slate-900">Transferencia embrionaria</h2>
               {receptoraSelec && (
-                <p className="text-xs text-zinc-400 mt-0.5">{receptoraSelec.nombre}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{receptoraSelec.nombre}</p>
               )}
             </div>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
             <X size={16} />
           </button>
         </div>
@@ -172,12 +172,12 @@ export default function TransferenciaModal({
           {/* Receptora + Fecha */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-xs font-medium text-zinc-400">Receptora *</label>
+              <label className="text-xs font-medium text-slate-500">Receptora *</label>
               <select
                 value={receptoraId}
                 onChange={(e) => setReceptoraId(e.target.value)}
                 disabled={cargando}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-50"
               >
                 <option value="">— Seleccioná —</option>
                 {receptoras.map((r) => (
@@ -186,12 +186,12 @@ export default function TransferenciaModal({
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Fecha *</label>
+              <label className="text-xs font-medium text-slate-500">Fecha *</label>
               <input
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
           </div>
@@ -199,12 +199,12 @@ export default function TransferenciaModal({
           {/* Donante + Padrillo */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Donante *</label>
+              <label className="text-xs font-medium text-slate-500">Donante *</label>
               <select
                 value={donanteId}
                 onChange={(e) => setDonanteId(e.target.value)}
                 disabled={!!donantePredId_}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-60"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-60"
               >
                 <option value="">— Seleccioná —</option>
                 {donantes.map((d) => (
@@ -213,12 +213,12 @@ export default function TransferenciaModal({
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Padrillo</label>
+              <label className="text-xs font-medium text-slate-500">Padrillo</label>
               <select
                 value={padrilloId}
                 onChange={(e) => setPadrilloId(e.target.value)}
                 disabled={!!padrilloPreId_}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-60"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-60"
               >
                 <option value="">— Sin especificar —</option>
                 {padrillos.map((p) => (
@@ -230,77 +230,77 @@ export default function TransferenciaModal({
 
           {/* Ovarios de la receptora (estado al momento de la transferencia) */}
           <div className="space-y-2">
-            <p className="text-xs font-medium text-zinc-400">Estado ovárico de la receptora</p>
+            <p className="text-xs font-medium text-slate-500">Estado ovárico de la receptora</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500">Ovario izquierdo</label>
+                <label className="text-[10px] text-slate-400">Ovario izquierdo</label>
                 <input
                   type="text"
                   value={ovIzq}
                   onChange={(e) => setOvIzq(e.target.value)}
                   placeholder="CLV"
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] text-zinc-500">Ovario derecho</label>
+                <label className="text-[10px] text-slate-400">Ovario derecho</label>
                 <input
                   type="text"
                   value={ovDer}
                   onChange={(e) => setOvDer(e.target.value)}
                   placeholder="Chico"
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
               </div>
             </div>
           </div>
 
           {/* Separador */}
-          <div className="border-t border-zinc-800" />
+          <div className="border-t border-slate-200" />
 
           {/* Condición reproductiva */}
-          <p className="text-xs font-medium text-zinc-400">Condición reproductiva</p>
+          <p className="text-xs font-medium text-slate-500">Condición reproductiva</p>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-[10px] text-zinc-500">Calidad CL</label>
+              <label className="text-[10px] text-slate-400">Calidad CL</label>
               <select
                 value={clCalidad}
                 onChange={(e) => setClCalidad(e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
                 <option value="">—</option>
                 {CL_CALIDADES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] text-zinc-500">Tono uterino</label>
+              <label className="text-[10px] text-slate-400">Tono uterino</label>
               <select
                 value={tonoUterino}
                 onChange={(e) => setTonoUterino(e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
                 <option value="">—</option>
                 {TONOS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] text-zinc-500">Tono cervical</label>
+              <label className="text-[10px] text-slate-400">Tono cervical</label>
               <select
                 value={tonoCervical}
                 onChange={(e) => setTonoCervical(e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
                 <option value="">—</option>
                 {TONOS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] text-zinc-500">Clasificación embrión</label>
+              <label className="text-[10px] text-slate-400">Clasificación embrión</label>
               <select
                 value={clasificacion}
                 onChange={(e) => setClasificacion(e.target.value as 'Fresco' | 'Congelado' | '')}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
                 <option value="">—</option>
                 <option value="Fresco">Fresco</option>
@@ -311,29 +311,29 @@ export default function TransferenciaModal({
 
           {/* Notas */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Notas</label>
+            <label className="text-xs font-medium text-slate-500">Notas</label>
             <textarea
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
               rows={2}
               placeholder="Observaciones adicionales…"
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
             />
           </div>
 
           {/* Info: qué se va a crear */}
-          <div className="rounded-md border border-zinc-700 bg-zinc-800/50 p-3 space-y-1">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Se va a crear</p>
-            <p className="text-xs text-zinc-400">
-              • Registro clínico de la receptora con chip <span className="text-violet-300">Transferida</span>
+          <div className="rounded-md border border-slate-300 bg-slate-50 p-3 space-y-1">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">Se va a crear</p>
+            <p className="text-xs text-slate-500">
+              • Registro clínico de la receptora con chip <span className="text-violet-700">Transferida</span>
             </p>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-slate-500">
               • Registro de transferencia embrionaria
             </p>
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 text-xs text-red-400">
+            <div className="flex items-center gap-2 text-xs text-red-600">
               <AlertCircle size={13} />
               {error}
             </div>
@@ -341,11 +341,11 @@ export default function TransferenciaModal({
         </form>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 border-t border-zinc-800 px-5 py-3 shrink-0">
+        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3 shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
           >
             Cancelar
           </button>

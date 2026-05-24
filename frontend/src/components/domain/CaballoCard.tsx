@@ -21,15 +21,15 @@ interface CaballoCardProps {
 }
 
 const CATEGORIA_STYLE: Record<string, string> = {
-  Yegua:    'bg-pink-950 text-pink-300 ring-1 ring-pink-800',
-  Padrillo: 'bg-blue-950 text-blue-300 ring-1 ring-blue-800',
-  Caballo:  'bg-zinc-800 text-zinc-300 ring-1 ring-zinc-700',
-  Potrillo: 'bg-amber-950 text-amber-300 ring-1 ring-amber-800',
+  Yegua:    'bg-pink-100 text-pink-700 ring-1 ring-pink-200',
+  Padrillo: 'bg-blue-100 text-blue-700 ring-1 ring-blue-200',
+  Caballo:  'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
+  Potrillo: 'bg-amber-100 text-amber-700 ring-1 ring-amber-200',
 }
 
 const SUBCATEGORIA_STYLE: Record<string, string> = {
-  Donante:   'bg-purple-950 text-purple-300 ring-1 ring-purple-800',
-  Receptora: 'bg-teal-950 text-teal-300 ring-1 ring-teal-800',
+  Donante:   'bg-purple-100 text-purple-700 ring-1 ring-purple-200',
+  Receptora: 'bg-teal-100 text-teal-700 ring-1 ring-teal-200',
 }
 
 export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, empresaNombre }: CaballoCardProps) {
@@ -48,16 +48,16 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
       onClick={handleClick}
       className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
         seleccionado
-          ? 'bg-emerald-950/30 border-l-2 border-emerald-600'
-          : 'hover:bg-zinc-800/60 border-l-2 border-transparent'
+          ? 'bg-amber-50/30 border-l-2 border-amber-500'
+          : 'hover:bg-slate-100/60 border-l-2 border-transparent'
       }`}
     >
       {/* Checkbox en modo selección */}
       {enModoSeleccion && (
         <span className="shrink-0">
           {seleccionado
-            ? <CheckSquare size={16} className="text-emerald-400" />
-            : <Square size={16} className="text-zinc-600" />
+            ? <CheckSquare size={16} className="text-amber-600" />
+            : <Square size={16} className="text-slate-400" />
           }
         </span>
       )}
@@ -74,16 +74,16 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
 
       {/* Nombre + edad */}
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-medium text-zinc-100 truncate">{caballo.nombre}</span>
-        <span className="block text-xs text-zinc-500">
+        <span className="block text-sm font-medium text-slate-900 truncate">{caballo.nombre}</span>
+        <span className="block text-xs text-slate-400">
           {edad}
-          {empresaNombre && <span className="ml-1.5 text-zinc-600">· {empresaNombre}</span>}
+          {empresaNombre && <span className="ml-1.5 text-slate-400">· {empresaNombre}</span>}
         </span>
       </span>
 
       {/* Nro. Registro */}
       {caballo.numero_registro && (
-        <span className="hidden sm:block text-xs text-zinc-600 font-mono shrink-0">
+        <span className="hidden sm:block text-xs text-slate-400 font-mono shrink-0">
           {caballo.numero_registro}
         </span>
       )}
@@ -103,7 +103,7 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
       </span>
 
       {/* Chevron */}
-      {!enModoSeleccion && <ChevronRight size={14} className="shrink-0 text-zinc-600" />}
+      {!enModoSeleccion && <ChevronRight size={14} className="shrink-0 text-slate-400" />}
     </button>
   )
 }

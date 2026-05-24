@@ -141,11 +141,11 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-lg mx-4 sm:mx-0 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl max-h-[90vh] flex flex-col">
+      <div className="w-full max-w-lg mx-4 sm:mx-0 rounded-xl border border-slate-300 bg-white shadow-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
-          <h2 className="text-sm font-semibold text-zinc-100">Editar caballo</h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200"><X size={16} /></button>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <h2 className="text-sm font-semibold text-slate-900">Editar caballo</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={16} /></button>
         </div>
 
         {/* Form */}
@@ -156,32 +156,32 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
         >
           {/* Nombre */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Nombre *</label>
+            <label className="text-xs font-medium text-slate-500">Nombre *</label>
             <input
               type="text"
               value={form.nombre}
               onChange={(e) => set('nombre', e.target.value)}
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
             />
           </div>
 
           {/* Fecha + Categoría */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Fecha nacimiento *</label>
+              <label className="text-xs font-medium text-slate-500">Fecha nacimiento *</label>
               <input
                 type="date"
                 value={form.fecha_nacimiento}
                 onChange={(e) => set('fecha_nacimiento', e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Categoría</label>
+              <label className="text-xs font-medium text-slate-500">Categoría</label>
               <select
                 value={form.categoria}
                 onChange={(e) => set('categoria', e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
                 {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -191,11 +191,11 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
           {/* Subcategoría (solo Yegua) */}
           {form.categoria === 'Yegua' && (
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Rol reproductivo</label>
+              <label className="text-xs font-medium text-slate-500">Rol reproductivo</label>
               <select
                 value={form.subcategoria}
                 onChange={(e) => set('subcategoria', e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
                 <option value="">— Sin especificar —</option>
                 <option value="Donante">Donante</option>
@@ -207,21 +207,21 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
           {/* Raza + Pelaje */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Raza</label>
+              <label className="text-xs font-medium text-slate-500">Raza</label>
               <select
                 value={form.raza_id}
                 onChange={(e) => set('raza_id', Number(e.target.value))}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
                 {razas.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Pelaje</label>
+              <label className="text-xs font-medium text-slate-500">Pelaje</label>
               <select
                 value={form.pelaje_id}
                 onChange={(e) => set('pelaje_id', Number(e.target.value))}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
                 {pelajes.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
@@ -230,12 +230,12 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
 
           {/* Campo / Caballeriza */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Campo / Caballeriza</label>
+            <label className="text-xs font-medium text-slate-500">Campo / Caballeriza</label>
             <div className="flex gap-2">
               <select
                 value={form.campo_id}
                 onChange={(e) => set('campo_id', e.target.value)}
-                className="flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="flex-1 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
               >
                 <option value="">— Sin asignar —</option>
                 {campos.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -243,7 +243,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
               <button
                 type="button"
                 onClick={() => setCreandoCampo((v) => !v)}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-md border border-zinc-700 text-xs text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition-colors"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-md border border-slate-300 text-xs text-slate-500 hover:text-slate-700 hover:border-slate-400 transition-colors"
                 title="Crear nuevo campo"
               >
                 <Plus size={13} /> Nuevo
@@ -257,7 +257,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
                   onChange={(e) => setNuevoCampo(e.target.value)}
                   placeholder="Nombre del campo"
                   autoFocus
-                  className="flex-1 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="flex-1 rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
                 <button
                   type="button"
@@ -270,7 +270,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
                     setNuevoCampo('')
                     setCreandoCampo(false)
                   }}
-                  className="px-3 py-1.5 rounded-md bg-emerald-700 hover:bg-emerald-600 text-xs font-medium text-white disabled:opacity-40 transition-colors"
+                  className="px-3 py-1.5 rounded-md bg-amber-500 hover:bg-amber-500 text-xs font-medium text-white disabled:opacity-40 transition-colors"
                 >
                   Crear
                 </button>
@@ -281,21 +281,21 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
           {/* Chip + Registro */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">N° chip</label>
+              <label className="text-xs font-medium text-slate-500">N° chip</label>
               <input
                 type="text"
                 value={form.numero_chip}
                 onChange={(e) => set('numero_chip', e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 font-mono focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">N° registro</label>
+              <label className="text-xs font-medium text-slate-500">N° registro</label>
               <input
                 type="text"
                 value={form.numero_registro}
                 onChange={(e) => set('numero_registro', e.target.value)}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 font-mono focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
           </div>
@@ -303,8 +303,8 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
           {/* Genealogía */}
           <div className="pt-2">
             <div className="flex items-center gap-2 mb-3">
-              <GitBranch size={13} className="text-zinc-500" />
-              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Genealogía</span>
+              <GitBranch size={13} className="text-slate-400" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Genealogía</span>
             </div>
             <div className="space-y-3">
               <PedigreeCombobox
@@ -326,21 +326,21 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
 
           {/* Confirmación de baja */}
           {confirmBaja && (
-            <div className="rounded-lg border border-rose-800 bg-rose-950/50 p-3 space-y-2">
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 space-y-2">
               <div className="flex items-center gap-2">
-                <AlertTriangle size={14} className="text-rose-400 shrink-0" />
-                <p className="text-xs font-medium text-rose-300">
+                <AlertTriangle size={14} className="text-rose-600 shrink-0" />
+                <p className="text-xs font-medium text-rose-700">
                   ¿Dar de baja a <span className="font-semibold">{caballo.nombre}</span>?
                 </p>
               </div>
-              <p className="text-xs text-rose-400/80">
+              <p className="text-xs text-rose-600/80">
                 El animal ya no aparecerá en el listado activo. Se puede reactivar luego.
               </p>
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
                   onClick={() => setConfirmBaja(false)}
-                  className="px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                  className="px-3 py-1 text-xs text-slate-500 hover:text-slate-700 transition-colors"
                 >
                   Cancelar
                 </button>
@@ -356,17 +356,17 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
             </div>
           )}
 
-          {error && <p className="text-xs text-rose-400">{error}</p>}
+          {error && <p className="text-xs text-rose-600">{error}</p>}
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-5 py-3">
+        <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-5 py-3">
           <div>
             {esAdmin && !confirmBaja && (
               <button
                 type="button"
                 onClick={() => setConfirmBaja(true)}
-                className="px-3 py-1.5 text-xs text-rose-500 hover:text-rose-300 transition-colors"
+                className="px-3 py-1.5 text-xs text-rose-500 hover:text-rose-700 transition-colors"
               >
                 Dar de baja
               </button>
@@ -376,7 +376,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
             >
               Cancelar
             </button>
@@ -384,7 +384,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
               type="submit"
               form="editar-caballo-form"
               disabled={saving || confirmBaja}
-              className="px-4 py-2 text-sm font-medium rounded-md bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium rounded-md bg-amber-500 hover:bg-amber-400 text-white transition-colors disabled:opacity-50"
             >
               {saving ? 'Guardando…' : 'Guardar cambios'}
             </button>

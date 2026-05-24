@@ -3,8 +3,8 @@ import { ShieldCheck, ShieldOff, Plus, X, CheckSquare } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getAccesosVet, revocarAccesosBulk, otorgarAccesosBulk,
-  getUsuarios,
-  type AccesoVet, type UsuarioAdmin,
+  getVeterinariosPlataforma,
+  type AccesoVet, type VeterinarioPlataforma,
 } from '../../services/adminService'
 import { caballoService, type Caballo } from '../../services/caballoService'
 
@@ -27,7 +27,7 @@ function calcularEdad(fechaNac: string): string {
 // ── Modal otorgar acceso masivo ───────────────────────────────────────────────
 
 interface OtorgarModalProps {
-  vets: UsuarioAdmin[]
+  vets: VeterinarioPlataforma[]
   caballos: Caballo[]
   accesoActivos: AccesoVet[]
   otorgadoPor: string
@@ -92,21 +92,37 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, onClose, onS
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl border border-slate-300 bg-white shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4 shrink-0">
-          <h2 className="text-sm font-semibold text-zinc-100">Otorgar acceso a veterinario</h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200"><X size={16} /></button>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 shrink-0">
+          <h2 className="text-sm font-semibold text-slate-900">Otorgar acceso a veterinario</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={16} /></button>
         </div>
 
+        {vets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+            <ShieldCheck size={28} className="text-slate-300" />
+            <p className="text-sm font-medium text-slate-600">No hay veterinarios en esta organización</p>
+            <p className="text-xs text-slate-400 max-w-xs">
+              Para otorgar accesos primero necesitás agregar un usuario con rol <span className="font-medium text-amber-600">Veterinario</span> desde "Invitar usuario".
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-1 px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 p-5 gap-4">
           {/* Selector vet */}
           <div className="space-y-1.5 shrink-0">
-            <label className="text-xs font-medium text-zinc-400">Veterinario</label>
+            <label className="text-xs font-medium text-slate-500">Veterinario</label>
             <select
               value={vetId}
               onChange={(e) => handleVetChange(e.target.value)}
-              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
             >
               {vets.map((v) => (
                 <option key={v.id} value={v.id}>{v.nombre} {v.apellido} — {v.email}</option>
@@ -117,17 +133,17 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, onClose, onS
           {/* Lista caballos con checkboxes */}
           <div className="flex flex-col flex-1 min-h-0 space-y-2">
             <div className="flex items-center justify-between shrink-0">
-              <label className="text-xs font-medium text-zinc-400">
+              <label className="text-xs font-medium text-slate-500">
                 Caballos disponibles
                 {disponibles.length > 0 && (
-                  <span className="ml-1.5 text-zinc-600">({disponibles.length})</span>
+                  <span className="ml-1.5 text-slate-400">({disponibles.length})</span>
                 )}
               </label>
               {disponibles.length > 1 && (
                 <button
                   type="button"
                   onClick={toggleTodos}
-                  className="text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors"
+                  className="text-[11px] text-amber-600 hover:text-amber-500 transition-colors"
                 >
                   {todosSeleccionados ? 'Deseleccionar todos' : 'Seleccionar todos'}
                 </button>
@@ -135,39 +151,39 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, onClose, onS
             </div>
 
             {disponibles.length === 0 ? (
-              <p className="text-xs text-zinc-500 py-4 text-center">
+              <p className="text-xs text-slate-400 py-4 text-center">
                 Este veterinario ya tiene acceso a todos los caballos activos.
               </p>
             ) : (
-              <div className="overflow-y-auto flex-1 rounded-md border border-zinc-800 divide-y divide-zinc-800">
+              <div className="overflow-y-auto flex-1 rounded-md border border-slate-200 divide-y divide-slate-200">
                 {disponibles.map((c) => {
                   const checked = seleccionados.has(c.id)
                   return (
                     <label
                       key={c.id}
                       className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${
-                        checked ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'
+                        checked ? 'bg-slate-100' : 'hover:bg-slate-50'
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggleCaballo(c.id)}
-                        className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-emerald-500 accent-emerald-500"
+                        className="h-4 w-4 rounded border-slate-400 bg-slate-100 text-amber-500 accent-emerald-500"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-zinc-200 truncate">{c.nombre}</p>
+                        <p className="text-sm font-medium text-slate-700 truncate">{c.nombre}</p>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           {c.numero_registro && (
-                            <span className="text-[11px] text-zinc-500 font-mono">{c.numero_registro}</span>
+                            <span className="text-[11px] text-slate-400 font-mono">{c.numero_registro}</span>
                           )}
                           {c.fecha_nacimiento && (
-                            <span className="text-[11px] text-zinc-500">
+                            <span className="text-[11px] text-slate-400">
                               {calcularEdad(c.fecha_nacimiento)}
                             </span>
                           )}
                           {c.categoria && (
-                            <span className="text-[10px] text-zinc-600 border border-zinc-700 rounded px-1.5 py-0.5">
+                            <span className="text-[10px] text-slate-400 border border-slate-300 rounded px-1.5 py-0.5">
                               {c.categoria}
                             </span>
                           )}
@@ -180,20 +196,20 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, onClose, onS
             )}
           </div>
 
-          {error && <p className="text-xs text-rose-400 shrink-0">{error}</p>}
+          {error && <p className="text-xs text-rose-600 shrink-0">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-1 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={saving || seleccionados.size === 0}
-              className="px-4 py-2 text-sm font-medium rounded-md bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium rounded-md bg-amber-500 hover:bg-amber-400 text-white transition-colors disabled:opacity-50"
             >
               {saving
                 ? 'Guardando…'
@@ -203,6 +219,7 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, onClose, onS
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   )
@@ -213,7 +230,7 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, onClose, onS
 export default function AccesosVetTab() {
   const { sociedadActiva, user } = useAuth()
   const [accesos,  setAccesos]  = useState<AccesoVet[]>([])
-  const [vets,     setVets]     = useState<UsuarioAdmin[]>([])
+  const [vets,     setVets]     = useState<VeterinarioPlataforma[]>([])
   const [caballos, setCaballos] = useState<Caballo[]>([])
   const [loading,  setLoading]  = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -223,16 +240,21 @@ export default function AccesosVetTab() {
 
   async function cargar() {
     if (!sociedadActiva) return
-    const [a, u, c] = await Promise.all([
-      getAccesosVet(sociedadActiva.id),
-      getUsuarios(sociedadActiva.id),
-      caballoService.listar(sociedadActiva.id),
-    ])
-    setAccesos(a)
-    setVets(u.filter((x) => x.rol === 'veterinario'))
-    setCaballos(c)
-    setLoading(false)
-    setSeleccionados(new Set())
+    try {
+      const [a, vetsPlat, c] = await Promise.all([
+        getAccesosVet(sociedadActiva.id),
+        getVeterinariosPlataforma(),
+        caballoService.listar(sociedadActiva.id),
+      ])
+      setAccesos(a)
+      setVets(vetsPlat)
+      setCaballos(c)
+      setSeleccionados(new Set())
+    } catch (err) {
+      console.error('[AccesosVetTab] Error al cargar:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { cargar() }, [sociedadActiva]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -276,14 +298,14 @@ export default function AccesosVetTab() {
 
   const anyRevocando = revocandoBulk || revocandoIds.size > 0
 
-  if (loading) return <p className="text-sm text-zinc-500">Cargando accesos…</p>
+  if (loading) return <p className="text-sm text-slate-400">Cargando accesos…</p>
 
   const todosSeleccionados = accesos.length > 0 && seleccionados.size === accesos.length
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-sm font-medium text-zinc-300">
+        <h2 className="text-sm font-medium text-slate-600">
           {accesos.length} acceso{accesos.length !== 1 ? 's' : ''} activo{accesos.length !== 1 ? 's' : ''}
         </h2>
 
@@ -292,7 +314,7 @@ export default function AccesosVetTab() {
             <button
               onClick={handleRevocarSeleccionados}
               disabled={anyRevocando}
-              className="flex items-center gap-1.5 rounded-md border border-rose-800/50 bg-rose-900/20 hover:bg-rose-900/40 px-3 py-1.5 text-xs font-medium text-rose-400 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 text-xs font-medium text-rose-600 transition-colors disabled:opacity-50"
             >
               <ShieldOff size={13} />
               {revocandoBulk ? 'Revocando…' : `Revocar ${seleccionados.size} seleccionado${seleccionados.size !== 1 ? 's' : ''}`}
@@ -300,7 +322,7 @@ export default function AccesosVetTab() {
           )}
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-xs font-medium text-white transition-colors"
+            className="flex items-center gap-1.5 rounded-md bg-amber-500 hover:bg-amber-400 px-3 py-1.5 text-xs font-medium text-white transition-colors"
           >
             <Plus size={14} />
             Otorgar acceso
@@ -309,7 +331,7 @@ export default function AccesosVetTab() {
       </div>
 
       {accesos.length === 0 ? (
-        <p className="py-8 text-center text-sm text-zinc-600">
+        <p className="py-8 text-center text-sm text-slate-400">
           No hay accesos activos. Usá el botón para otorgar uno.
         </p>
       ) : (
@@ -320,38 +342,38 @@ export default function AccesosVetTab() {
               type="checkbox"
               checked={todosSeleccionados}
               onChange={toggleTodos}
-              className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 accent-emerald-500"
+              className="h-4 w-4 rounded border-slate-400 bg-slate-100 accent-emerald-500"
             />
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-slate-400">
               {todosSeleccionados ? 'Deseleccionar todos' : 'Seleccionar todos'}
             </span>
           </label>
 
-          <div className="rounded-xl border border-zinc-800 overflow-hidden divide-y divide-zinc-800">
+          <div className="rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-200">
             {accesos.map((a) => {
               const checked = seleccionados.has(a.id)
               return (
                 <div
                   key={a.id}
-                  className={`flex items-center gap-3 px-4 py-3 transition-colors ${checked ? 'bg-zinc-800/70' : 'bg-zinc-900'}`}
+                  className={`flex items-center gap-3 px-4 py-3 transition-colors ${checked ? 'bg-slate-100/70' : 'bg-white'}`}
                 >
                   {/* Checkbox */}
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => toggleSeleccion(a.id)}
-                    className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 accent-emerald-500 shrink-0"
+                    className="h-4 w-4 rounded border-slate-400 bg-slate-100 accent-emerald-500 shrink-0"
                   />
 
                   {/* Vet info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-200 truncate">
+                    <p className="text-sm font-medium text-slate-700 truncate">
                       {a.vet.nombre} {a.vet.apellido}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <p className="text-[11px] text-zinc-500 font-mono truncate">{a.vet.email}</p>
+                      <p className="text-[11px] text-slate-400 font-mono truncate">{a.vet.email}</p>
                       {a.caballo && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-sky-900/30 text-sky-400 shrink-0">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 shrink-0">
                           <ShieldCheck size={10} />
                           {a.caballo.nombre}
                           {a.caballo.numero_registro && (
@@ -369,7 +391,7 @@ export default function AccesosVetTab() {
                   <button
                     onClick={() => handleRevocarIndividual(a.id)}
                     disabled={revocandoIds.has(a.id) || revocandoBulk}
-                    className="shrink-0 inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-rose-400 transition-colors disabled:opacity-40 py-1.5 px-2 rounded-md hover:bg-zinc-800"
+                    className="shrink-0 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-rose-600 transition-colors disabled:opacity-40 py-1.5 px-2 rounded-md hover:bg-slate-100"
                     title="Revocar acceso"
                   >
                     <ShieldOff size={14} />
@@ -385,8 +407,8 @@ export default function AccesosVetTab() {
       )}
 
       {accesos.length > 0 && seleccionados.size > 0 && (
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
-          <CheckSquare size={13} className="text-emerald-500" />
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <CheckSquare size={13} className="text-amber-500" />
           {seleccionados.size} de {accesos.length} seleccionado{seleccionados.size !== 1 ? 's' : ''}
         </div>
       )}

@@ -44,26 +44,26 @@ function NodeBox({ data, label, small, onEdit }: NodeBoxProps) {
 
   if (!data) {
     return (
-      <div className={`${baseClass} rounded-lg border border-dashed border-zinc-800 bg-zinc-950`}>
-        {label && <p className="text-[10px] text-zinc-700 mb-0.5 uppercase tracking-wide">{label}</p>}
-        <p className="text-xs text-zinc-700">—</p>
+      <div className={`${baseClass} rounded-lg border border-dashed border-slate-200 bg-slate-50`}>
+        {label && <p className="text-[10px] text-slate-600 mb-0.5 uppercase tracking-wide">{label}</p>}
+        <p className="text-xs text-slate-600">—</p>
       </div>
     )
   }
 
   if (data.registered) {
     return (
-      <div className={`${baseClass} rounded-lg border border-emerald-800 bg-emerald-950/30 relative group`}>
+      <div className={`${baseClass} rounded-lg border border-emerald-800 bg-amber-50/30 relative group`}>
         {label && <p className="text-[10px] text-emerald-700 mb-0.5 uppercase tracking-wide">{label}</p>}
-        <p className={`font-medium text-zinc-100 leading-snug ${small ? 'text-xs' : 'text-sm'}`}>{data.nombre}</p>
+        <p className={`font-medium text-slate-900 leading-snug ${small ? 'text-xs' : 'text-sm'}`}>{data.nombre}</p>
         {data.categoria && (
-          <p className="text-[10px] text-zinc-500 mt-0.5">{data.categoria}</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">{data.categoria}</p>
         )}
         {onEdit && data.raw && (
           <button
             type="button"
             onClick={onEdit}
-            className="absolute top-1.5 right-1.5 text-zinc-600 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute top-1.5 right-1.5 text-slate-400 hover:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity"
             title="Editar"
           >
             <Pencil size={11} />
@@ -75,13 +75,13 @@ function NodeBox({ data, label, small, onEdit }: NodeBoxProps) {
 
   // Free text node
   return (
-    <div className={`${baseClass} rounded-lg border border-zinc-700 bg-zinc-900/50`}>
-      {label && <p className="text-[10px] text-zinc-600 mb-0.5 uppercase tracking-wide">{label}</p>}
+    <div className={`${baseClass} rounded-lg border border-slate-300 bg-slate-50`}>
+      {label && <p className="text-[10px] text-slate-400 mb-0.5 uppercase tracking-wide">{label}</p>}
       <div className="flex items-center gap-1.5">
-        <Link2Off size={11} className="text-zinc-600 shrink-0" />
-        <p className={`text-zinc-400 leading-snug ${small ? 'text-xs' : 'text-sm'}`}>{data.nombre}</p>
+        <Link2Off size={11} className="text-slate-400 shrink-0" />
+        <p className={`text-slate-500 leading-snug ${small ? 'text-xs' : 'text-sm'}`}>{data.nombre}</p>
       </div>
-      <p className="text-[10px] text-zinc-700 mt-0.5">Sin registro</p>
+      <p className="text-[10px] text-slate-600 mt-0.5">Sin registro</p>
     </div>
   )
 }
@@ -91,8 +91,8 @@ function NodeBox({ data, label, small, onEdit }: NodeBoxProps) {
 function Fork() {
   return (
     <div className="flex flex-col w-7 shrink-0 self-stretch">
-      <div className="flex-1 border-r border-b border-zinc-700" />
-      <div className="flex-1 border-r border-t border-zinc-700" />
+      <div className="flex-1 border-r border-b border-slate-300" />
+      <div className="flex-1 border-r border-t border-slate-300" />
     </div>
   )
 }
@@ -114,9 +114,9 @@ export default function ArbolGenealogico({ caballo, caballos }: Props) {
 
   if (!hasAnyData) {
     return (
-      <div className="rounded-xl border border-dashed border-zinc-800 p-8 text-center">
-        <p className="text-sm text-zinc-600">Sin datos genealógicos registrados.</p>
-        <p className="text-xs text-zinc-700 mt-1">Usá "Editar caballo" para agregar padre y madre.</p>
+      <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center">
+        <p className="text-sm text-slate-400">Sin datos genealógicos registrados.</p>
+        <p className="text-xs text-slate-600 mt-1">Usá "Editar caballo" para agregar padre y madre.</p>
       </div>
     )
   }

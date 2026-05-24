@@ -19,21 +19,21 @@ export default function AdminPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="border-b border-zinc-800 px-4 md:px-6 py-4">
-        <h1 className="text-lg font-semibold text-zinc-100">Administración</h1>
-        <p className="text-xs text-zinc-500 mt-0.5">Gestión del establecimiento</p>
+      <div className="border-b border-slate-200 px-4 md:px-6 py-4">
+        <h1 className="text-lg font-semibold text-slate-900">Administración</h1>
+        <p className="text-xs text-slate-400 mt-0.5">Gestión del establecimiento</p>
       </div>
 
       {/* Tab nav */}
-      <div className="flex gap-1 px-4 md:px-6 pt-4 border-b border-zinc-800 overflow-x-auto">
+      <div className="flex gap-1 px-4 md:px-6 pt-4 border-b border-slate-200 overflow-x-auto">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-t-md transition-colors -mb-px border-b-2 whitespace-nowrap ${
               activeTab === tab.id
-                ? 'border-emerald-500 text-zinc-100'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                ? 'border-amber-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
             <span className="sm:hidden">{tab.labelMobile ?? tab.label}</span>

@@ -24,35 +24,35 @@ export default function FlushingsPage() {
   return (
     <div className="space-y-5 p-1">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-100">Flushings</h1>
-        <p className="text-sm text-zinc-400 mt-0.5">Registros de recuperación embrionaria</p>
+        <h1 className="text-xl font-semibold text-slate-900">Flushings</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Registros de recuperación embrionaria</p>
       </div>
 
       {/* Resumen */}
       {activos.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-center">
-            <p className="text-xl font-semibold text-zinc-100">{activos.length}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">Procedimientos</p>
+          <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
+            <p className="text-xl font-semibold text-slate-900">{activos.length}</p>
+            <p className="text-xs text-slate-400 mt-0.5">Procedimientos</p>
           </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-center">
-            <p className="text-xl font-semibold text-emerald-400">{totalEmbriones}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">Embriones totales</p>
+          <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
+            <p className="text-xl font-semibold text-amber-600">{totalEmbriones}</p>
+            <p className="text-xs text-slate-400 mt-0.5">Embriones totales</p>
           </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-center">
-            <p className="text-xl font-semibold text-zinc-400">{negativos}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">Negativos</p>
+          <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
+            <p className="text-xl font-semibold text-slate-500">{negativos}</p>
+            <p className="text-xs text-slate-400 mt-0.5">Negativos</p>
           </div>
         </div>
       )}
 
       {flushings.length === 0 ? (
-        <div className="text-center py-16 text-zinc-500 text-sm">
+        <div className="text-center py-16 text-slate-400 text-sm">
           <Droplets size={28} className="mx-auto mb-2 opacity-30" />
           Sin flushings registrados.
         </div>
       ) : (
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
+        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
           {flushings.map((f) => (
             <div
               key={f.id}
@@ -61,25 +61,25 @@ export default function FlushingsPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-zinc-100">{f.caballo?.nombre ?? '—'}</span>
+                    <span className="font-medium text-slate-900">{f.caballo?.nombre ?? '—'}</span>
                     {f.padrillo && (
                       <>
-                        <span className="text-zinc-600">×</span>
-                        <span className="text-zinc-400">{f.padrillo.nombre}</span>
+                        <span className="text-slate-400">×</span>
+                        <span className="text-slate-500">{f.padrillo.nombre}</span>
                       </>
                     )}
                     {f.cancelado && (
-                      <span className="text-xs border border-zinc-700 rounded px-1.5 text-zinc-500">Cancelado</span>
+                      <span className="text-xs border border-slate-300 rounded px-1.5 text-slate-400">Cancelado</span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs text-zinc-500">
+                  <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs text-slate-400">
                     {f.es_negativo ? (
-                      <span className="text-zinc-500">Negativo</span>
+                      <span className="text-slate-400">Negativo</span>
                     ) : (
                       <>
                         {f.cantidad != null && (
-                          <span className="text-emerald-400 font-medium">
+                          <span className="text-amber-600 font-medium">
                             {f.cantidad} {f.cantidad === 1 ? 'embrión' : 'embriones'}
                           </span>
                         )}
@@ -91,14 +91,14 @@ export default function FlushingsPage() {
                     {f.veterinario && <span>Dr/a. {f.veterinario.apellido}</span>}
                   </div>
 
-                  {f.notas && <p className="text-xs text-zinc-500 mt-1">{f.notas}</p>}
+                  {f.notas && <p className="text-xs text-slate-400 mt-1">{f.notas}</p>}
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
-                  <span className="text-xs text-zinc-500">{formatFecha(f.fecha)}</span>
+                  <span className="text-xs text-slate-400">{formatFecha(f.fecha)}</span>
                   {!f.cancelado && !f.es_negativo && (
                     <button
                       onClick={() => setFlushingParaTransf(f)}
-                      className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-blue-900/40 text-blue-400 hover:bg-blue-900/70 transition-colors"
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
                     >
                       <ArrowLeftRight size={11} />
                       Transferir

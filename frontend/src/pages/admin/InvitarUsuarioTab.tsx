@@ -119,15 +119,15 @@ export default function InvitarUsuarioTab() {
     return (
       <div className="max-w-lg">
         <div>
-          <h2 className="text-sm font-medium text-zinc-300">Invitar nuevo usuario</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
+          <h2 className="text-sm font-medium text-slate-600">Invitar nuevo usuario</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
             El usuario recibirá un email para activar su cuenta y establecer su contraseña.
           </p>
         </div>
-        <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 py-12 text-center">
-          <Lock size={24} className="text-zinc-600" />
-          <p className="text-sm font-medium text-zinc-400">Próximamente</p>
-          <p className="text-xs text-zinc-600 max-w-xs">
+        <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50 py-12 text-center">
+          <Lock size={24} className="text-slate-400" />
+          <p className="text-sm font-medium text-slate-500">Próximamente</p>
+          <p className="text-xs text-slate-400 max-w-xs">
             Esta función estará disponible en una próxima versión.
           </p>
         </div>
@@ -139,21 +139,21 @@ export default function InvitarUsuarioTab() {
     <div className="max-w-lg space-y-6">
 
       <div>
-        <h2 className="text-sm font-medium text-zinc-300">Invitar nuevo usuario</h2>
-        <p className="text-xs text-zinc-500 mt-0.5">
+        <h2 className="text-sm font-medium text-slate-600">Invitar nuevo usuario</h2>
+        <p className="text-xs text-slate-400 mt-0.5">
           El usuario recibirá un email para activar su cuenta y establecer su contraseña.
         </p>
       </div>
 
       {/* Feedback */}
       {success && (
-        <div className="flex items-start gap-3 rounded-lg border border-emerald-800 bg-emerald-950/50 px-4 py-3 text-sm text-emerald-300">
+        <div className="flex items-start gap-3 rounded-lg border border-emerald-800 bg-amber-50/50 px-4 py-3 text-sm text-amber-500">
           <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
           <span>{success}</span>
         </div>
       )}
       {error && (
-        <div className="flex items-start gap-3 rounded-lg border border-rose-800 bg-rose-950/50 px-4 py-3 text-sm text-rose-300">
+        <div className="flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           <AlertCircle size={16} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
@@ -216,7 +216,7 @@ export default function InvitarUsuarioTab() {
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 px-5 py-2.5 text-sm font-medium text-white transition-colors"
+          className="flex items-center gap-2 rounded-lg bg-amber-500 hover:bg-amber-500 disabled:opacity-50 px-5 py-2.5 text-sm font-medium text-white transition-colors"
         >
           <UserPlus size={15} />
           {loading ? 'Enviando…' : 'Enviar invitación'}
@@ -228,7 +228,7 @@ export default function InvitarUsuarioTab() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const field  = 'flex flex-col gap-1'
-const label  = 'text-xs font-medium text-zinc-400'
-const base   = 'rounded-lg border border-zinc-700 bg-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none px-3 py-2 w-full'
+const label  = 'text-xs font-medium text-slate-500'
+const base   = 'rounded-lg border border-slate-300 bg-slate-100 text-sm text-slate-700 placeholder-slate-400 focus:border-amber-400 focus:outline-none px-3 py-2 w-full'
 const input  = base
 const select = base

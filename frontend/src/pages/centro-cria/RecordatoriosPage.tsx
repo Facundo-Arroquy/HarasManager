@@ -51,8 +51,8 @@ export default function RecordatoriosPage() {
   return (
     <div className="space-y-5 p-1">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-100">Recordatorios</h1>
-        <p className="text-sm text-zinc-400 mt-0.5">Seguimiento del ciclo reproductivo</p>
+        <h1 className="text-xl font-semibold text-slate-900">Recordatorios</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Seguimiento del ciclo reproductivo</p>
       </div>
 
       {/* Filtros */}
@@ -67,13 +67,13 @@ export default function RecordatoriosPage() {
               onClick={() => setFiltro(f.value)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
                 filtro === f.value
-                  ? 'bg-zinc-700 text-zinc-100'
-                  : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                  ? 'bg-slate-200 text-slate-900'
+                  : 'bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-700'
               }`}
             >
               {f.label}
               <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                filtro === f.value ? 'bg-zinc-600' : 'bg-zinc-800'
+                filtro === f.value ? 'bg-slate-400' : 'bg-slate-100'
               }`}>
                 {count}
               </span>
@@ -84,12 +84,12 @@ export default function RecordatoriosPage() {
 
       {/* Lista */}
       {listaOrdenada.length === 0 ? (
-        <div className="text-center py-12 text-zinc-500 text-sm">
+        <div className="text-center py-12 text-slate-400 text-sm">
           <Bell size={28} className="mx-auto mb-2 opacity-30" />
           No hay recordatorios en esta categoría.
         </div>
       ) : (
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900 overflow-hidden divide-y divide-zinc-800">
+        <div className="rounded-lg border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
           {listaOrdenada.map((r) => (
             <RecordatorioItem
               key={r.id}
@@ -150,37 +150,37 @@ function RecordatorioItem({
     <div className="px-4 py-3 flex items-start gap-3">
       {/* Ícono estado */}
       <div className="mt-0.5 shrink-0">
-        {r.estado === 'hecho' && <CheckCircle size={16} className="text-emerald-500" />}
-        {r.estado === 'cancelado' && <XCircle size={16} className="text-zinc-600" />}
-        {r.estado === 'vencido' && <AlertCircle size={16} className="text-red-400" />}
+        {r.estado === 'hecho' && <CheckCircle size={16} className="text-amber-500" />}
+        {r.estado === 'cancelado' && <XCircle size={16} className="text-slate-400" />}
+        {r.estado === 'vencido' && <AlertCircle size={16} className="text-red-600" />}
         {r.estado === 'pendiente' && (
-          <Clock size={16} className={esHoy ? 'text-amber-400' : 'text-zinc-500'} />
+          <Clock size={16} className={esHoy ? 'text-amber-600' : 'text-slate-400'} />
         )}
       </div>
 
       {/* Contenido */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-zinc-200 text-sm">{r.caballo?.nombre ?? '—'}</span>
-          <span className={`text-sm ${esHoy && activo ? 'text-amber-300 font-medium' : 'text-zinc-400'}`}>
+          <span className="font-medium text-slate-700 text-sm">{r.caballo?.nombre ?? '—'}</span>
+          <span className={`text-sm ${esHoy && activo ? 'text-amber-700 font-medium' : 'text-slate-500'}`}>
             {r.tipo}
           </span>
           {r.auto_generado && (
-            <span className="text-[10px] text-zinc-600 border border-zinc-700 rounded px-1">auto</span>
+            <span className="text-[10px] text-slate-400 border border-slate-300 rounded px-1">auto</span>
           )}
         </div>
         <p className={`text-xs mt-0.5 ${
-          r.estado === 'vencido' ? 'text-red-400' :
-          esHoy && activo       ? 'text-amber-400' :
-          esPasado && activo    ? 'text-red-400' :
-          'text-zinc-500'
+          r.estado === 'vencido' ? 'text-red-600' :
+          esHoy && activo       ? 'text-amber-600' :
+          esPasado && activo    ? 'text-red-600' :
+          'text-slate-400'
         }`}>
           {formatFecha(r.fecha_vto)}
           {esHoy && activo && ' — Hoy'}
         </p>
-        {r.notas && <p className="text-xs text-zinc-500 mt-1">{r.notas}</p>}
+        {r.notas && <p className="text-xs text-slate-400 mt-1">{r.notas}</p>}
         {r.cancel_motivo && (
-          <p className="text-xs text-zinc-600 mt-1">Cancelado: {r.cancel_motivo}</p>
+          <p className="text-xs text-slate-400 mt-1">Cancelado: {r.cancel_motivo}</p>
         )}
       </div>
 
@@ -189,7 +189,7 @@ function RecordatorioItem({
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={onHecho}
-            className="text-xs px-2.5 py-1 rounded bg-emerald-900/50 text-emerald-400 hover:bg-emerald-900 transition-colors"
+            className="text-xs px-2.5 py-1 rounded bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
           >
             Hecho
           </button>
@@ -197,13 +197,13 @@ function RecordatorioItem({
             <div className="flex items-center gap-1">
               <button
                 onClick={onCancelar}
-                className="text-xs px-2 py-1 rounded bg-red-900/50 text-red-400 hover:bg-red-900 transition-colors"
+                className="text-xs px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
               >
                 Confirmar
               </button>
               <button
                 onClick={setCancelando}
-                className="text-xs px-2 py-1 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-xs px-2 py-1 rounded text-slate-400 hover:text-slate-600 transition-colors"
               >
                 No
               </button>
@@ -211,7 +211,7 @@ function RecordatorioItem({
           ) : (
             <button
               onClick={setCancelando}
-              className="text-xs px-2.5 py-1 rounded bg-zinc-800 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300 transition-colors"
+              className="text-xs px-2.5 py-1 rounded bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
             >
               Cancelar
             </button>

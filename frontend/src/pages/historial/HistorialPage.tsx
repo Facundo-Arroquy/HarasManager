@@ -15,10 +15,10 @@ import ArbolGenealogico from '../../components/domain/ArbolGenealogico'
 import type { RegistroClinicoCria, Flushing, TransferenciaEmbrionaria } from '../../types/crianza'
 
 const CATEGORIA_STYLE: Record<string, string> = {
-  Yegua:    'bg-pink-950 text-pink-300 ring-1 ring-pink-800',
-  Padrillo: 'bg-blue-950 text-blue-300 ring-1 ring-blue-800',
-  Caballo:  'bg-zinc-800 text-zinc-300 ring-1 ring-zinc-700',
-  Potrillo: 'bg-amber-950 text-amber-300 ring-1 ring-amber-800',
+  Yegua:    'bg-pink-950 text-pink-700 ring-1 ring-pink-800',
+  Padrillo: 'bg-blue-950 text-blue-700 ring-1 ring-blue-800',
+  Caballo:  'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
+  Potrillo: 'bg-amber-950 text-amber-700 ring-1 ring-amber-800',
 }
 
 export default function HistorialPage() {
@@ -106,7 +106,7 @@ export default function HistorialPage() {
   if (error) {
     return (
       <div className="p-6">
-        <div className="rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-300">{error}</div>
+        <div className="rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-700">{error}</div>
       </div>
     )
   }
@@ -118,7 +118,7 @@ export default function HistorialPage() {
       {/* Volver */}
       <button
         onClick={() => navigate('/caballos')}
-        className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-200 transition-colors mb-5"
+        className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-700 transition-colors mb-5"
       >
         <ArrowLeft size={15} /> Volver a caballos
       </button>
@@ -135,14 +135,14 @@ export default function HistorialPage() {
             />
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-2xl font-bold text-zinc-100">{caballo.nombre}</h1>
+                <h1 className="text-2xl font-bold text-slate-900">{caballo.nombre}</h1>
                 {caballo.categoria && (
                   <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badgeClass}`}>
                     {caballo.categoria}
                   </span>
                 )}
               </div>
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-slate-400">
                 {caballo.cat_raza?.nombre ?? '—'}
                 {caballo.cat_pelaje?.nombre ? ` · ${caballo.cat_pelaje.nombre}` : ''}
                 {caballo.fecha_nacimiento  ? ` · ${calcularEdad(caballo.fecha_nacimiento)}` : ''}
@@ -162,7 +162,7 @@ export default function HistorialPage() {
                   flushings,
                   transferencias,
                 }).catch(console.error)}
-                className="flex items-center gap-1.5 rounded-lg border border-zinc-700 hover:border-zinc-500 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 text-sm font-medium text-zinc-300 transition-colors"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-slate-100 hover:bg-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors"
                 title="Exportar ficha a PDF"
               >
                 <Printer size={15} /> Exportar PDF
@@ -172,7 +172,7 @@ export default function HistorialPage() {
             {rol === 'veterinario' && (
               <button
                 onClick={() => setShowModal(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors"
+                className="flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors"
               >
                 <Plus size={15} /> Nueva consulta
               </button>
@@ -183,13 +183,13 @@ export default function HistorialPage() {
 
       {/* Tabs */}
       {(rol === 'veterinario' || rol === 'admin') && (
-        <div className="flex gap-1 border-b border-zinc-800 mb-5">
+        <div className="flex gap-1 border-b border-slate-200 mb-5">
           <button
             onClick={() => setTab('clinico')}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === 'clinico'
-                ? 'border-emerald-500 text-zinc-100'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                ? 'border-amber-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
             <Stethoscope size={13} />
@@ -199,8 +199,8 @@ export default function HistorialPage() {
             onClick={handleTabReproductivo}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === 'reproductivo'
-                ? 'border-blue-500 text-zinc-100'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                ? 'border-blue-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
             <FlaskConical size={13} />
@@ -210,8 +210,8 @@ export default function HistorialPage() {
             onClick={handleTabGenealogia}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === 'genealogia'
-                ? 'border-emerald-500 text-zinc-100'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                ? 'border-amber-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
             <GitBranch size={13} />
@@ -221,8 +221,8 @@ export default function HistorialPage() {
             onClick={() => setTab('foto')}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === 'foto'
-                ? 'border-emerald-500 text-zinc-100'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                ? 'border-amber-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
             <ImageIcon size={13} />
@@ -235,14 +235,14 @@ export default function HistorialPage() {
       {tab === 'clinico' && (
         <>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
               Historial clínico
             </h2>
-            <span className="text-xs text-zinc-600">{historial.length} registros</span>
+            <span className="text-xs text-slate-400">{historial.length} registros</span>
           </div>
 
           {historial.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-800 p-10 text-center text-zinc-600 text-sm">
+            <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center text-slate-400 text-sm">
               Sin registros clínicos para este animal.
             </div>
           ) : (
@@ -272,42 +272,42 @@ export default function HistorialPage() {
               {/* Registros clínicos cría */}
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <FlaskConical size={13} className="text-zinc-500" />
-                  <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                  <FlaskConical size={13} className="text-slate-400" />
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                     Registros reproductivos
                   </h3>
-                  <span className="text-xs text-zinc-700">{registrosCria.length}</span>
+                  <span className="text-xs text-slate-600">{registrosCria.length}</span>
                 </div>
                 {registrosCria.length === 0 ? (
-                  <p className="text-sm text-zinc-600 text-center py-4">Sin registros reproductivos.</p>
+                  <p className="text-sm text-slate-400 text-center py-4">Sin registros reproductivos.</p>
                 ) : (
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800">
+                  <div className="rounded-lg border border-slate-200 bg-white divide-y divide-slate-200">
                     {registrosCria.map((r) => (
                       <div key={r.id} className="px-4 py-3 text-sm">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0 space-y-1.5">
                             <div className="flex flex-wrap gap-1">
                               {[...r.ovario_izq.map((c) => `OI:${c}`), ...r.ovario_der.map((c) => `OD:${c}`)].map((c) => (
-                                <span key={c} className="text-[11px] bg-zinc-800 text-zinc-300 rounded px-1.5 py-0.5">{c}</span>
+                                <span key={c} className="text-[11px] bg-slate-100 text-slate-600 rounded px-1.5 py-0.5">{c}</span>
                               ))}
                               {r.utero.map((c) => (
-                                <span key={c} className="text-[11px] bg-zinc-800 text-zinc-400 rounded px-1.5 py-0.5">{c}</span>
+                                <span key={c} className="text-[11px] bg-slate-100 text-slate-500 rounded px-1.5 py-0.5">{c}</span>
                               ))}
                               {r.obs_chips.map((c) => (
-                                <span key={c} className="text-[11px] bg-blue-900/50 text-blue-300 rounded px-1.5 py-0.5">{c}</span>
+                                <span key={c} className="text-[11px] bg-blue-50 text-blue-700 rounded px-1.5 py-0.5">{c}</span>
                               ))}
                             </div>
                             {r.padrillo && (
-                              <p className="text-xs text-zinc-500">× {r.padrillo.nombre}</p>
+                              <p className="text-xs text-slate-400">× {r.padrillo.nombre}</p>
                             )}
                             {r.observaciones && (
-                              <p className="text-xs text-zinc-500 italic">{r.observaciones}</p>
+                              <p className="text-xs text-slate-400 italic">{r.observaciones}</p>
                             )}
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-xs text-zinc-400">{formatFecha(r.fecha)}</p>
+                            <p className="text-xs text-slate-500">{formatFecha(r.fecha)}</p>
                             {r.veterinario && (
-                              <p className="text-[11px] text-zinc-600">Dr/a. {r.veterinario.apellido}</p>
+                              <p className="text-[11px] text-slate-400">Dr/a. {r.veterinario.apellido}</p>
                             )}
                           </div>
                         </div>
@@ -321,34 +321,34 @@ export default function HistorialPage() {
               {flushings.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
-                    <Droplets size={13} className="text-emerald-500" />
-                    <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                    <Droplets size={13} className="text-amber-500" />
+                    <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                       Flushings
                     </h3>
-                    <span className="text-xs text-zinc-700">{flushings.length}</span>
+                    <span className="text-xs text-slate-600">{flushings.length}</span>
                   </div>
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800">
+                  <div className="rounded-lg border border-slate-200 bg-white divide-y divide-slate-200">
                     {flushings.map((f) => (
                       <div key={f.id} className={`px-4 py-3 text-sm ${f.cancelado ? 'opacity-50' : ''}`}>
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             {f.es_negativo ? (
-                              <span className="text-zinc-500">Negativo</span>
+                              <span className="text-slate-400">Negativo</span>
                             ) : (
-                              <span className="text-emerald-400 font-medium">
+                              <span className="text-amber-600 font-medium">
                                 {f.cantidad} {f.cantidad === 1 ? 'embrión' : 'embriones'}
                                 {f.estadio ? ` · ${f.estadio}` : ''}
                                 {f.grado != null ? ` · G${f.grado}` : ''}
                               </span>
                             )}
                             {f.padrillo && (
-                              <p className="text-xs text-zinc-500 mt-0.5">× {f.padrillo.nombre}</p>
+                              <p className="text-xs text-slate-400 mt-0.5">× {f.padrillo.nombre}</p>
                             )}
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-xs text-zinc-400">{formatFecha(f.fecha)}</p>
+                            <p className="text-xs text-slate-500">{formatFecha(f.fecha)}</p>
                             {f.veterinario && (
-                              <p className="text-[11px] text-zinc-600">Dr/a. {f.veterinario.apellido}</p>
+                              <p className="text-[11px] text-slate-400">Dr/a. {f.veterinario.apellido}</p>
                             )}
                           </div>
                         </div>
@@ -362,37 +362,37 @@ export default function HistorialPage() {
               {transferencias.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
-                    <ArrowLeftRight size={13} className="text-blue-400" />
-                    <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                    <ArrowLeftRight size={13} className="text-blue-600" />
+                    <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                       Transferencias
                     </h3>
-                    <span className="text-xs text-zinc-700">{transferencias.length}</span>
+                    <span className="text-xs text-slate-600">{transferencias.length}</span>
                   </div>
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800">
+                  <div className="rounded-lg border border-slate-200 bg-white divide-y divide-slate-200">
                     {transferencias.map((t) => (
                       <div key={t.id} className="px-4 py-3 text-sm">
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-1.5 text-zinc-300">
+                            <div className="flex items-center gap-1.5 text-slate-600">
                               <span>{t.receptora?.nombre ?? '—'}</span>
-                              <ArrowLeftRight size={10} className="text-zinc-600" />
-                              <span className="text-zinc-400">{t.donante?.nombre ?? '—'}</span>
+                              <ArrowLeftRight size={10} className="text-slate-400" />
+                              <span className="text-slate-500">{t.donante?.nombre ?? '—'}</span>
                               {t.padrillo && (
                                 <>
-                                  <span className="text-zinc-600">×</span>
-                                  <span className="text-zinc-500">{t.padrillo.nombre}</span>
+                                  <span className="text-slate-400">×</span>
+                                  <span className="text-slate-400">{t.padrillo.nombre}</span>
                                 </>
                               )}
                             </div>
-                            <div className="flex gap-2 mt-1 text-xs text-zinc-500">
+                            <div className="flex gap-2 mt-1 text-xs text-slate-400">
                               {t.clasificacion && <span>{t.clasificacion}</span>}
                               {t.cl_calidad && <span>CL {t.cl_calidad}</span>}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-xs text-zinc-400">{formatFecha(t.fecha)}</p>
+                            <p className="text-xs text-slate-500">{formatFecha(t.fecha)}</p>
                             {t.veterinario && (
-                              <p className="text-[11px] text-zinc-600">Dr/a. {t.veterinario.apellido}</p>
+                              <p className="text-[11px] text-slate-400">Dr/a. {t.veterinario.apellido}</p>
                             )}
                           </div>
                         </div>
@@ -403,7 +403,7 @@ export default function HistorialPage() {
               )}
 
               {registrosCria.length === 0 && flushings.length === 0 && transferencias.length === 0 && (
-                <div className="rounded-xl border border-dashed border-zinc-800 p-10 text-center text-zinc-600 text-sm">
+                <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center text-slate-400 text-sm">
                   Sin registros reproductivos para este animal.
                 </div>
               )}
@@ -427,7 +427,7 @@ export default function HistorialPage() {
             size={260}
           />
           {(rol === 'admin' || rol === 'veterinario') && (
-            <p className="text-xs text-zinc-600">
+            <p className="text-xs text-slate-400">
               Hacé click en el ícono de cámara para cambiar la foto
             </p>
           )}

@@ -25,15 +25,15 @@ interface Props {
 }
 
 const CATEGORIA_STYLE: Record<string, string> = {
-  Yegua:    'bg-pink-950 text-pink-300 ring-1 ring-pink-800',
-  Padrillo: 'bg-blue-950 text-blue-300 ring-1 ring-blue-800',
-  Caballo:  'bg-zinc-800 text-zinc-300 ring-1 ring-zinc-700',
-  Potrillo: 'bg-amber-950 text-amber-300 ring-1 ring-amber-800',
+  Yegua:    'bg-pink-950 text-pink-700 ring-1 ring-pink-800',
+  Padrillo: 'bg-blue-950 text-blue-700 ring-1 ring-blue-800',
+  Caballo:  'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
+  Potrillo: 'bg-amber-950 text-amber-700 ring-1 ring-amber-800',
 }
 
 const SUBCATEGORIA_STYLE: Record<string, string> = {
-  Donante:   'bg-purple-950 text-purple-300 ring-1 ring-purple-800',
-  Receptora: 'bg-teal-950 text-teal-300 ring-1 ring-teal-800',
+  Donante:   'bg-purple-950 text-purple-700 ring-1 ring-purple-800',
+  Receptora: 'bg-teal-950 text-teal-700 ring-1 ring-teal-800',
 }
 
 export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onEditar }: Props) {
@@ -52,11 +52,11 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full sm:max-w-md mx-0 sm:mx-4 rounded-t-2xl sm:rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+      <div className="w-full sm:max-w-md mx-0 sm:mx-4 rounded-t-2xl sm:rounded-xl border border-slate-300 bg-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-zinc-800">
+        <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-slate-200">
           <div className="min-w-0 pr-3">
-            <h2 className="text-base font-semibold text-zinc-100 truncate">{caballo.nombre}</h2>
+            <h2 className="text-base font-semibold text-slate-900 truncate">{caballo.nombre}</h2>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               {caballo.categoria && (
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>
@@ -70,7 +70,7 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
               )}
             </div>
           </div>
-          <button onClick={onClose} className="shrink-0 text-zinc-500 hover:text-zinc-200 transition-colors">
+          <button onClick={onClose} className="shrink-0 text-slate-400 hover:text-slate-700 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -81,11 +81,11 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
           {caballo.cat_raza   && <Row label="Raza"   value={caballo.cat_raza.nombre} />}
           {caballo.cat_pelaje && <Row label="Pelaje" value={caballo.cat_pelaje.nombre} />}
           <div className="flex justify-between gap-2">
-            <dt className="text-zinc-500">Campo</dt>
-            <dd className="text-zinc-300 flex items-center gap-1">
+            <dt className="text-slate-400">Campo</dt>
+            <dd className="text-slate-600 flex items-center gap-1">
               {caballo.campo
-                ? <><MapPin size={12} className="text-emerald-500" />{caballo.campo.nombre}</>
-                : <span className="text-zinc-600">Sin asignar</span>
+                ? <><MapPin size={12} className="text-amber-500" />{caballo.campo.nombre}</>
+                : <span className="text-slate-400">Sin asignar</span>
               }
             </dd>
           </div>
@@ -101,23 +101,23 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
         <div className="px-5 pb-5 space-y-2">
           <button
             onClick={() => { onClose(); navigate(`/caballos/${caballo.id}/historial`) }}
-            className="w-full flex items-center justify-between rounded-lg border border-zinc-700 px-4 py-3 text-sm font-medium text-zinc-300 transition-colors hover:border-emerald-700 hover:bg-emerald-950 hover:text-emerald-300"
+            className="w-full flex items-center justify-between rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:border-emerald-700 hover:bg-amber-50 hover:text-amber-500"
           >
             <span className="flex items-center gap-2">
               <ClipboardList size={15} /> Ver Ficha
             </span>
-            <span className="text-zinc-600">→</span>
+            <span className="text-slate-400">→</span>
           </button>
 
           {puedeEditar && (
             <button
               onClick={() => { onClose(); onEditar() }}
-              className="w-full flex items-center justify-between rounded-lg border border-zinc-700 px-4 py-3 text-sm font-medium text-zinc-400 transition-colors hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
+              className="w-full flex items-center justify-between rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-500 transition-colors hover:border-slate-400 hover:bg-slate-100 hover:text-slate-700"
             >
               <span className="flex items-center gap-2">
                 <Pencil size={15} /> Editar
               </span>
-              <span className="text-zinc-600">→</span>
+              <span className="text-slate-400">→</span>
             </button>
           )}
         </div>
@@ -129,8 +129,8 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex justify-between gap-2">
-      <dt className="text-zinc-500">{label}</dt>
-      <dd className={`text-zinc-300 ${mono ? 'font-mono text-xs' : ''}`}>{value}</dd>
+      <dt className="text-slate-400">{label}</dt>
+      <dd className={`text-slate-600 ${mono ? 'font-mono text-xs' : ''}`}>{value}</dd>
     </div>
   )
 }

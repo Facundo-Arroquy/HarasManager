@@ -22,6 +22,7 @@ export const MOCK_SOCIEDAD = {
   id: 'mock-sociedad-001',
   nombre: 'Haras San Antonio',
   activa: true,
+  acceso_centro_cria: true,
 }
 
 export const MOCK_USERS: MockUser[] = [

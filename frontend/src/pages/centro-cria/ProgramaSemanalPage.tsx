@@ -115,12 +115,12 @@ export default function ProgramaSemanalPage() {
       {/* Encabezado */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-100">Programa semanal</h1>
-          <p className="text-sm text-zinc-400 mt-0.5 capitalize">{formatMes(inicioRef)}</p>
+          <h1 className="text-xl font-semibold text-slate-900">Programa semanal</h1>
+          <p className="text-sm text-slate-500 mt-0.5 capitalize">{formatMes(inicioRef)}</p>
         </div>
         <button
           onClick={() => abrirModal()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-sm font-medium text-white transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-amber-500 hover:bg-amber-400 text-sm font-medium text-white transition-colors shrink-0"
         >
           <Plus size={15} />
           Nuevo registro
@@ -128,31 +128,31 @@ export default function ProgramaSemanalPage() {
       </div>
 
       {/* Navegación semanal + grilla */}
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900 overflow-hidden">
+      <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
         {/* Controles */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200">
           <button
             onClick={semanaAnterior}
-            className="p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <ChevronLeft size={16} />
           </button>
           <button
             onClick={() => { setInicioRef(inicioSemana(new Date())); setDiaSelec(hoy) }}
-            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
           >
             Hoy
           </button>
           <button
             onClick={semanaSiguiente}
-            className="p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+            className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <ChevronRight size={16} />
           </button>
         </div>
 
         {/* Días */}
-        <div className="grid grid-cols-7 divide-x divide-zinc-800">
+        <div className="grid grid-cols-7 divide-x divide-slate-200">
           {dias.map((dia) => {
             const iso       = toISO(dia)
             const esHoy     = iso === hoy
@@ -168,19 +168,19 @@ export default function ProgramaSemanalPage() {
                 onClick={() => setDiaSelec(iso)}
                 className={`flex flex-col items-center py-2.5 px-1 text-xs transition-colors ${
                   esSelec
-                    ? 'bg-zinc-800'
-                    : 'hover:bg-zinc-800/50'
+                    ? 'bg-slate-100'
+                    : 'hover:bg-slate-50'
                 }`}
               >
                 <span className={`font-medium ${
-                  esHoy ? 'text-emerald-400' : esSelec ? 'text-zinc-100' : 'text-zinc-400'
+                  esHoy ? 'text-amber-600' : esSelec ? 'text-slate-900' : 'text-slate-500'
                 }`}>
                   {formatDia(dia)}
                 </span>
                 {/* Puntos indicadores */}
                 <div className="flex gap-0.5 mt-1.5 h-1.5">
                   {regCount > 0 && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title={`${regCount} registro${regCount > 1 ? 's' : ''}`} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title={`${regCount} registro${regCount > 1 ? 's' : ''}`} />
                   )}
                   {recCount > 0 && (
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title={`${recCount} recordatorio${recCount > 1 ? 's' : ''}`} />
@@ -194,30 +194,30 @@ export default function ProgramaSemanalPage() {
 
       {/* Panel del día seleccionado */}
       <div className="space-y-4">
-        <h2 className="text-sm font-medium text-zinc-300">
+        <h2 className="text-sm font-medium text-slate-600">
           {diaSelec === hoy ? 'Hoy' : formatDiaLargo(new Date(diaSelec + 'T12:00:00Z'))}
         </h2>
 
         {/* Recordatorios del día */}
         {recordatoriosDia.length > 0 && (
           <div className="space-y-1.5">
-            <p className="text-xs text-zinc-500 flex items-center gap-1.5">
+            <p className="text-xs text-slate-400 flex items-center gap-1.5">
               <Bell size={12} />
               Recordatorios
             </p>
-            <div className="rounded-lg border border-amber-800/50 bg-amber-950/20 divide-y divide-amber-900/30">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 divide-y divide-amber-100">
               {recordatoriosDia.map((r) => (
                 <div key={r.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-sm">
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                       r.estado === 'vencido' ? 'bg-red-400' : 'bg-amber-400'
                     }`} />
-                    <span className="font-medium text-zinc-200">{r.caballo?.nombre ?? '—'}</span>
-                    <span className="text-zinc-400">{r.tipo}</span>
+                    <span className="font-medium text-slate-700">{r.caballo?.nombre ?? '—'}</span>
+                    <span className="text-slate-500">{r.tipo}</span>
                   </div>
                   <button
                     onClick={() => abrirModal(r.caballo_id)}
-                    className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors shrink-0"
+                    className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors shrink-0"
                   >
                     Registrar
                   </button>
@@ -230,29 +230,29 @@ export default function ProgramaSemanalPage() {
         {/* Registros del día */}
         {registrosDia.length > 0 && (
           <div className="space-y-1.5">
-            <p className="text-xs text-zinc-500 flex items-center gap-1.5">
+            <p className="text-xs text-slate-400 flex items-center gap-1.5">
               <Droplets size={12} />
               Registros del día
             </p>
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800">
+            <div className="rounded-lg border border-slate-200 bg-white divide-y divide-slate-200">
               {registrosDia.map((r) => (
                 <div key={r.id} className="px-4 py-3 text-sm">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-zinc-200">{r.caballo?.nombre ?? '—'}</span>
+                        <span className="font-medium text-slate-700">{r.caballo?.nombre ?? '—'}</span>
                         <RolBadge rol={r.caballo?.rol_reproductivo ?? null} />
                       </div>
                       {/* Ovarios */}
-                      <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-zinc-500">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-slate-400">
                         {r.ovario_izq.length > 0 && (
-                          <span>OI: <span className="text-zinc-300">{r.ovario_izq.join(', ')}</span></span>
+                          <span>OI: <span className="text-slate-600">{r.ovario_izq.join(', ')}</span></span>
                         )}
                         {r.ovario_der.length > 0 && (
-                          <span>OD: <span className="text-zinc-300">{r.ovario_der.join(', ')}</span></span>
+                          <span>OD: <span className="text-slate-600">{r.ovario_der.join(', ')}</span></span>
                         )}
                         {r.utero.length > 0 && (
-                          <span>Út: <span className="text-zinc-300">{r.utero.join(', ')}</span></span>
+                          <span>Út: <span className="text-slate-600">{r.utero.join(', ')}</span></span>
                         )}
                       </div>
                       {/* Chips de acciones */}
@@ -261,7 +261,7 @@ export default function ProgramaSemanalPage() {
                           {r.obs_chips.map((c) => (
                             <span
                               key={c}
-                              className="text-[10px] border border-violet-700 bg-violet-900/30 text-violet-300 rounded px-1.5 py-0.5"
+                              className="text-[10px] border border-violet-300 bg-violet-50 text-violet-700 rounded px-1.5 py-0.5"
                             >
                               {c}
                             </span>
@@ -269,7 +269,7 @@ export default function ProgramaSemanalPage() {
                         </div>
                       )}
                     </div>
-                    <span className="text-xs text-zinc-600 shrink-0">
+                    <span className="text-xs text-slate-400 shrink-0">
                       {r.veterinario ? `Dr/a. ${r.veterinario.apellido}` : ''}
                     </span>
                   </div>
@@ -281,7 +281,7 @@ export default function ProgramaSemanalPage() {
 
         {/* Estado vacío del día */}
         {registrosDia.length === 0 && recordatoriosDia.length === 0 && (
-          <div className="text-center py-8 text-zinc-600 text-sm">
+          <div className="text-center py-8 text-slate-400 text-sm">
             Sin actividad registrada.
           </div>
         )}
@@ -307,25 +307,25 @@ export default function ProgramaSemanalPage() {
             recordatorios={recordatorios}
           />
           {padrillos.length > 0 && (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-              <p className="text-xs font-medium text-zinc-500 mb-2">Padrillos</p>
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <p className="text-xs font-medium text-slate-400 mb-2">Padrillos</p>
               <div className="space-y-1">
                 {padrillos.map((p) => (
-                  <p key={p.id} className="text-sm text-zinc-300">{p.nombre}</p>
+                  <p key={p.id} className="text-sm text-slate-600">{p.nombre}</p>
                 ))}
               </div>
             </div>
           )}
           {sinRol.length > 0 && (
-            <div className="rounded-lg border border-zinc-700 border-dashed bg-zinc-900/50 p-3">
-              <p className="text-xs font-medium text-zinc-600 mb-2">Sin rol asignado</p>
+            <div className="rounded-lg border border-slate-300 border-dashed bg-slate-50 p-3">
+              <p className="text-xs font-medium text-slate-400 mb-2">Sin rol asignado</p>
               <div className="space-y-1">
                 {sinRol.map((y) => (
                   <div key={y.id} className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-400">{y.nombre}</span>
+                    <span className="text-slate-500">{y.nombre}</span>
                     <button
                       onClick={() => abrirModal(y.id)}
-                      className="text-xs text-zinc-600 hover:text-zinc-300 transition-colors"
+                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
                     >
                       + Registro
                     </button>
@@ -356,8 +356,8 @@ function RolBadge({ rol }: { rol: RolReproductivo }) {
   return (
     <span className={`text-[10px] border rounded px-1.5 py-0.5 ${
       rol === 'Donante'
-        ? 'border-amber-700 text-amber-400'
-        : 'border-blue-700 text-blue-400'
+        ? 'border-amber-300 text-amber-600'
+        : 'border-blue-300 text-blue-600'
     }`}>
       {rol}
     </span>
@@ -375,13 +375,13 @@ function GrupoAnimales({
   recordatorios: ReturnType<typeof useCrianzaStore.getState>['recordatorios']
 }) {
   const hoy = toISO(new Date())
-  const borderColor = color === 'amber' ? 'border-amber-800/40' : 'border-blue-800/40'
-  const titleColor  = color === 'amber' ? 'text-amber-400' : 'text-blue-400'
+  const borderColor = color === 'amber' ? 'border-amber-200' : 'border-blue-200'
+  const titleColor  = color === 'amber' ? 'text-amber-600' : 'text-blue-600'
 
   if (animales.length === 0) return null
 
   return (
-    <div className={`rounded-lg border bg-zinc-900 p-3 ${borderColor}`}>
+    <div className={`rounded-lg border bg-white p-3 ${borderColor}`}>
       <p className={`text-xs font-medium mb-2 ${titleColor}`}>{titulo}</p>
       <div className="space-y-2">
         {animales.map((a) => {
@@ -397,14 +397,14 @@ function GrupoAnimales({
           return (
             <div key={a.id} className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-sm text-zinc-200 font-medium truncate">{a.nombre}</p>
-                <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
+                <p className="text-sm text-slate-700 font-medium truncate">{a.nombre}</p>
+                <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
                   {a.campo && <span>{a.campo.nombre}</span>}
                   {ultReg && (
                     <span>Últ. {formatFechaCorta(ultReg.fecha)}</span>
                   )}
                   {recHoy.length > 0 && (
-                    <span className="text-amber-400">
+                    <span className="text-amber-600">
                       {recHoy[0].tipo}
                     </span>
                   )}
@@ -412,7 +412,7 @@ function GrupoAnimales({
               </div>
               <button
                 onClick={() => onRegistrar(a.id)}
-                className="shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
+                className="shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
               >
                 <Plus size={11} />
                 Reg.

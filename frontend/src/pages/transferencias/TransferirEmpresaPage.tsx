@@ -166,16 +166,16 @@ export default function TransferirEmpresaPage() {
   const todosSeleccionados = caballos.length > 0 && seleccionados.size === caballos.length
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-24 md:pb-8">
+    <div className="min-h-screen bg-slate-50 pb-24 md:pb-8">
       {/* Header */}
-      <div className="border-b border-zinc-800 px-4 py-4 md:px-8">
+      <div className="border-b border-slate-200 px-4 py-4 md:px-8">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-800">
-            <ArrowLeftRight size={18} className="text-zinc-300" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100">
+            <ArrowLeftRight size={18} className="text-slate-600" />
           </div>
           <div>
-            <h1 className="text-base font-semibold text-zinc-100">Transferir caballos</h1>
-            <p className="text-xs text-zinc-500">Movimiento entre empresas o entidades externas</p>
+            <h1 className="text-base font-semibold text-slate-900">Transferir caballos</h1>
+            <p className="text-xs text-slate-400">Movimiento entre empresas o entidades externas</p>
           </div>
         </div>
       </div>
@@ -183,34 +183,34 @@ export default function TransferirEmpresaPage() {
       <div className="px-4 py-6 md:px-8 space-y-6 max-w-3xl">
         {/* Mensajes */}
         {exito && (
-          <div className="flex items-center gap-2 rounded-lg bg-emerald-950 border border-emerald-800 px-4 py-3 text-sm text-emerald-300">
+          <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-emerald-800 px-4 py-3 text-sm text-amber-500">
             <CheckCircle2 size={16} className="shrink-0" />
             {exito}
           </div>
         )}
         {error && (
-          <div className="rounded-lg bg-red-950 border border-red-800 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-lg bg-red-950 border border-red-200 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
         {/* Lista de caballos */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
           {/* Cabecera */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 bg-zinc-800/40">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 bg-slate-100/40">
             <button
               onClick={toggleTodos}
-              className="flex items-center gap-2 text-sm text-zinc-300 hover:text-zinc-100 transition-colors"
+              className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
             >
               {todosSeleccionados ? (
-                <CheckSquare size={16} className="text-emerald-400" />
+                <CheckSquare size={16} className="text-amber-600" />
               ) : (
-                <Square size={16} className="text-zinc-500" />
+                <Square size={16} className="text-slate-400" />
               )}
               Seleccionar todos
             </button>
             {seleccionados.size > 0 && (
-              <span className="ml-auto text-xs font-medium text-emerald-400">
+              <span className="ml-auto text-xs font-medium text-amber-600">
                 {seleccionados.size} seleccionado{seleccionados.size > 1 ? 's' : ''}
               </span>
             )}
@@ -218,11 +218,11 @@ export default function TransferirEmpresaPage() {
 
           {/* Filas */}
           {caballos.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-zinc-500 text-center">
+            <p className="px-4 py-6 text-sm text-slate-400 text-center">
               No hay caballos disponibles para transferir.
             </p>
           ) : (
-            <ul className="divide-y divide-zinc-800">
+            <ul className="divide-y divide-slate-200">
               {caballos.map((caballo) => {
                 const activo = seleccionados.has(caballo.id)
                 return (
@@ -230,19 +230,19 @@ export default function TransferirEmpresaPage() {
                     <button
                       onClick={() => toggleSeleccion(caballo.id)}
                       className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                        activo ? 'bg-zinc-800' : 'hover:bg-zinc-800/50'
+                        activo ? 'bg-slate-100' : 'hover:bg-slate-50'
                       }`}
                     >
                       {activo ? (
-                        <CheckSquare size={16} className="shrink-0 text-emerald-400" />
+                        <CheckSquare size={16} className="shrink-0 text-amber-600" />
                       ) : (
-                        <Square size={16} className="shrink-0 text-zinc-600" />
+                        <Square size={16} className="shrink-0 text-slate-400" />
                       )}
                       <span className="flex-1 min-w-0">
-                        <span className="block text-sm font-medium text-zinc-100 truncate">
+                        <span className="block text-sm font-medium text-slate-900 truncate">
                           {caballo.nombre}
                         </span>
-                        <span className="block text-xs text-zinc-500">
+                        <span className="block text-xs text-slate-400">
                           {caballo.categoria}
                           {caballo.campo?.nombre ? ` · ${caballo.campo.nombre}` : ' · Sin campo'}
                         </span>
@@ -257,8 +257,8 @@ export default function TransferirEmpresaPage() {
 
         {/* Panel destino — visible solo si hay seleccionados */}
         {seleccionados.size > 0 && (
-          <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 space-y-4">
-            <p className="text-sm font-medium text-zinc-200">Destino</p>
+          <div className="rounded-xl border border-slate-300 bg-white p-4 space-y-4">
+            <p className="text-sm font-medium text-slate-700">Destino</p>
 
             {/* Selector de tipo */}
             <div className="flex gap-4">
@@ -272,7 +272,7 @@ export default function TransferirEmpresaPage() {
                     onChange={() => setTipo(t)}
                     className="accent-emerald-500"
                   />
-                  <span className="text-sm text-zinc-300">
+                  <span className="text-sm text-slate-600">
                     {t === 'registrada' ? 'Empresa registrada' : 'Entidad no registrada'}
                   </span>
                 </label>
@@ -284,7 +284,7 @@ export default function TransferirEmpresaPage() {
               <select
                 value={sociedadDestinoId}
                 onChange={(e) => setSociedadDestinoId(e.target.value)}
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-600 focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:outline-none"
               >
                 <option value="">— Seleccionar empresa —</option>
                 {sociedades.map((s) => (
@@ -300,11 +300,11 @@ export default function TransferirEmpresaPage() {
                   placeholder="Nombre de la entidad"
                   value={entidadNombre}
                   onChange={(e) => setEntidadNombre(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-emerald-600 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none"
                 />
-                <div className="flex items-start gap-2 rounded-lg bg-amber-950/50 border border-amber-800/60 px-3 py-2">
-                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-400" />
-                  <p className="text-xs text-amber-300">
+                <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+                  <p className="text-xs text-amber-700">
                     Los caballos quedarán inactivos pero se guardará un registro histórico.
                   </p>
                 </div>
@@ -314,7 +314,7 @@ export default function TransferirEmpresaPage() {
             <button
               onClick={confirmar}
               disabled={!puedeConfirmar || saving}
-              className="w-full rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {saving ? (savingStep ?? 'Procesando…') : 'Confirmar transferencia'}
             </button>
@@ -323,11 +323,11 @@ export default function TransferirEmpresaPage() {
 
         {/* Historial de transferencias */}
         <div>
-          <p className="text-xs font-medium uppercase tracking-widest text-zinc-600 mb-3">
+          <p className="text-xs font-medium uppercase tracking-widest text-slate-400 mb-3">
             Historial de transferencias
           </p>
           {historial.length === 0 ? (
-            <p className="text-sm text-zinc-600">Sin transferencias registradas.</p>
+            <p className="text-sm text-slate-400">Sin transferencias registradas.</p>
           ) : (
             <ul className="space-y-2">
               {historial.map((t) => {
@@ -342,20 +342,20 @@ export default function TransferirEmpresaPage() {
                 return (
                   <li
                     key={t.id}
-                    className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3"
+                    className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3"
                   >
-                    <ArrowLeftRight size={14} className="mt-0.5 shrink-0 text-zinc-600" />
+                    <ArrowLeftRight size={14} className="mt-0.5 shrink-0 text-slate-400" />
                     <div className="min-w-0">
-                      <p className="text-sm text-zinc-200">
+                      <p className="text-sm text-slate-700">
                         <span className="font-medium">{fecha}</span>
                         {' · '}
                         {t.caballoNombres.length === 1
                           ? t.caballoNombres[0]
                           : `${t.caballoNombres.length} caballos`}
                         {' → '}
-                        <span className="text-zinc-300">{destino}</span>
+                        <span className="text-slate-600">{destino}</span>
                       </p>
-                      <p className="text-xs text-zinc-600">
+                      <p className="text-xs text-slate-400">
                         {t.tipo === 'registrada' ? 'Empresa registrada' : 'Entidad no registrada'}
                       </p>
                     </div>
@@ -369,7 +369,7 @@ export default function TransferirEmpresaPage() {
         {/* Fichas históricas guardadas */}
         {fichasHistoricas.length > 0 && (
           <div>
-            <p className="text-xs font-medium uppercase tracking-widest text-zinc-600 mb-3">
+            <p className="text-xs font-medium uppercase tracking-widest text-slate-400 mb-3">
               Fichas históricas guardadas
             </p>
             <ul className="space-y-2">
@@ -379,18 +379,18 @@ export default function TransferirEmpresaPage() {
                 return (
                   <li
                     key={ficha.id}
-                    className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3"
+                    className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3"
                   >
-                    <FileText size={14} className="shrink-0 text-zinc-600" />
+                    <FileText size={14} className="shrink-0 text-slate-400" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-200 truncate">{nombre}</p>
-                      <p className="text-xs text-zinc-600">Generada el {fecha}</p>
+                      <p className="text-sm font-medium text-slate-700 truncate">{nombre}</p>
+                      <p className="text-xs text-slate-400">Generada el {fecha}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => fichaHistoricaService.abrir(ficha)}
                         title="Ver ficha"
-                        className="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 transition-colors"
+                        className="flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors"
                       >
                         <ExternalLink size={12} /> Ver
                       </button>
@@ -399,7 +399,7 @@ export default function TransferirEmpresaPage() {
                           onClick={() => handleEliminarFicha(ficha)}
                           disabled={eliminando === ficha.id}
                           title="Eliminar ficha"
-                          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-red-500 hover:text-red-400 hover:bg-red-950 transition-colors disabled:opacity-40"
+                          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-red-500 hover:text-red-600 hover:bg-red-950 transition-colors disabled:opacity-40"
                         >
                           <Trash2 size={12} />
                           {eliminando === ficha.id ? '…' : 'Eliminar'}

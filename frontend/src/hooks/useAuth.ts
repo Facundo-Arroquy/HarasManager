@@ -26,10 +26,15 @@ async function cargarPerfilProd(
       return
     }
 
+    if (perfil?.rol === 'veterinario') {
+      store.setRolVeterinario()
+      return
+    }
+
     // Usuario normal: cargar sociedad activa via membresia
     const { data: memb } = await supabase
       .from('membresia')
-      .select('activa, cat_rol(nombre), sociedad(id, nombre, activa)')
+      .select('activa, cat_rol(nombre), sociedad(id, nombre, activa, acceso_centro_cria)')
       .eq('usuario_id', userId)
       .eq('activa', true)
       .single()
@@ -56,6 +61,10 @@ export function useAuth() {
       store.setSession({ user: { id: mockUser.id, email: mockUser.email } } as never)
       if (mockUser.rol === 'superadmin') {
         store.setRolSuperAdmin()
+        return
+      }
+      if (mockUser.rol === 'veterinario') {
+        store.setRolVeterinario()
         return
       }
       store.setSociedadActiva(mockUser.sociedad, mockUser.rol)
@@ -103,7 +112,7 @@ export function useAuth() {
     const supabase = getSupabaseClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
-    // el perfil se carga via onAuthStateChange
+    // el perfil se carga via onAuthStateChange — también aplica setRolVeterinario si corresponde
   }
 
   const signOut = async () => {
@@ -120,6 +129,7 @@ export function useAuth() {
     rol: store.rol,
     loading: store.loading,
     accesosCentroC: store.accesosCentroC,
+    accesosCentroCOrg: store.accesosCentroCOrg,
     isMock: isMockMode(),
     isAuthenticated: !!store.session,
     signIn,
