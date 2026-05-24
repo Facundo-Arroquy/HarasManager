@@ -478,7 +478,7 @@ export default function CaballosPage() {
       {caballoDetalle && (
         <CaballoDetalleModal
           caballo={caballoDetalle}
-          puedeEditar={canManageCampos(rol)}
+          puedeEditar={canManageCampos(rol) || esVet}
           onClose={() => setCaballoDetalle(null)}
           onEditar={() => { setCaballoDetalle(null); setCaballoEditar(caballoDetalle) }}
         />
@@ -487,6 +487,7 @@ export default function CaballosPage() {
         <EditarCaballoModal
           caballo={caballoEditar}
           caballos={caballos}
+          vetMode={esVet}
           onClose={() => setCaballoEditar(null)}
           onSuccess={() => { setCaballoEditar(null); cargar() }}
         />

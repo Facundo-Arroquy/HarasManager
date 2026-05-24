@@ -310,6 +310,26 @@ export const caballoService = {
     if (error) throw error
   },
 
+  async actualizarComoVet(id: string, payload: ActualizarCaballoPayload): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.rpc('actualizar_caballo_veterinario', {
+      p_caballo_id:       id,
+      p_nombre:           payload.nombre,
+      p_fecha_nacimiento: payload.fecha_nacimiento,
+      p_categoria:        payload.categoria,
+      p_subcategoria:     payload.subcategoria    ?? null,
+      p_raza_id:          payload.raza_id,
+      p_pelaje_id:        payload.pelaje_id,
+      p_numero_chip:      payload.numero_chip     ?? null,
+      p_numero_registro:  payload.numero_registro ?? null,
+      p_padre_id:         payload.padre_id        ?? null,
+      p_padre_nombre:     payload.padre_nombre    ?? null,
+      p_madre_id:         payload.madre_id        ?? null,
+      p_madre_nombre:     payload.madre_nombre    ?? null,
+    })
+    if (error) throw error
+  },
+
   async darDeBaja(id: string): Promise<void> {
     if (isMockMode()) {
       const caballo = MOCK_CABALLOS.find((c) => c.id === id)

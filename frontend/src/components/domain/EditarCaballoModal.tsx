@@ -28,11 +28,12 @@ interface Props {
   onClose: () => void
   onSuccess: () => void
   caballos?: Caballo[]
+  vetMode?: boolean
 }
 
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
 
-export default function EditarCaballoModal({ caballo, onClose, onSuccess, caballos = [] }: Props) {
+export default function EditarCaballoModal({ caballo, onClose, onSuccess, caballos = [], vetMode = false }: Props) {
   const { sociedadActiva, rol } = useAuth()
   const esAdmin = rol === 'admin'
 
@@ -93,7 +94,8 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
     setSaving(true)
     setError('')
     try {
-      await caballoService.actualizar(caballo.id, {
+      const actualizarFn = vetMode ? caballoService.actualizarComoVet : caballoService.actualizar
+      await actualizarFn(caballo.id, {
         nombre:           form.nombre.trim(),
         fecha_nacimiento: form.fecha_nacimiento,
         categoria:        form.categoria,
@@ -228,8 +230,8 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
             </div>
           </div>
 
-          {/* Campo / Caballeriza */}
-          <div className="space-y-1.5">
+          {/* Campo / Caballeriza — solo en modo org */}
+          {!vetMode && <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500">Campo / Caballeriza</label>
             <div className="flex gap-2">
               <select
@@ -276,7 +278,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
                 </button>
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Chip + Registro */}
           <div className="grid grid-cols-2 gap-3">
