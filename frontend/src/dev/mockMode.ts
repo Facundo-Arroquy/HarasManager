@@ -1,24 +1,10 @@
-// Utilidad central del modo mock.
-// Solo activo en desarrollo (import.meta.env.DEV).
-// El estado se persiste en localStorage para sobrevivir recargas.
+// Mock mode desactivado — la app siempre usa Supabase.
+// Las funciones se mantienen para no romper imports existentes en servicios.
 
-const KEY_MOCK_ON    = 'hm_dev_mock_on'
-const KEY_MOCK_USER  = 'hm_dev_mock_user'
+export function isMockMode(): boolean { return false }
 
-export function isMockMode(): boolean {
-  // Activo en desarrollo O si se setea VITE_DEMO_MODE=true en Vercel
-  if (import.meta.env.VITE_DEMO_MODE === 'true') return true
-  if (!import.meta.env.DEV) return false
-  return localStorage.getItem(KEY_MOCK_ON) !== 'false'
-}
+export function enableMock()  { /* no-op */ }
+export function disableMock() { /* no-op */ }
 
-export function enableMock()  { localStorage.setItem(KEY_MOCK_ON, 'true') }
-export function disableMock() { localStorage.setItem(KEY_MOCK_ON, 'false') }
-
-export function getMockUserId(): string {
-  return localStorage.getItem(KEY_MOCK_USER) ?? 'mock-admin'
-}
-
-export function setMockUserId(id: string) {
-  localStorage.setItem(KEY_MOCK_USER, id)
-}
+export function getMockUserId(): string { return '' }
+export function setMockUserId(_id: string) { /* no-op */ }

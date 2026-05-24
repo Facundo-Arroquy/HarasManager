@@ -28,12 +28,13 @@ export default function DevPanel() {
   const [activeId, setActiveId] = useState(getMockUserId)
   const setSociedadActiva = useAuthStore((s) => s.setSociedadActiva)
   const setSession = useAuthStore((s) => s.setSession)
+  const clear = useAuthStore((s) => s.clear)
 
   function toggleMock() {
     if (mockOn) {
       disableMock()
       setMockOn(false)
-      setSession(null)
+      clear() // limpia session + rol + sociedadActiva
     } else {
       enableMock()
       setMockOn(true)
