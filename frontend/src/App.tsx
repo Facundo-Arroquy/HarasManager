@@ -1,9 +1,17 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useAuthStore } from './store/authStore'
 import Spinner from './components/ui/Spinner'
+import TerminosModal from './components/ui/TerminosModal'
 import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/auth/LoginPage'
+import {
+  getTerminosVigentes,
+  usuarioAceptoTerminos,
+  aceptarTerminos,
+  type TerminosVigentes,
+} from './services/terminosService'
 import SuperAdminPage from './pages/superadmin/SuperAdminPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import CaballosPage from './pages/caballos/CaballosPage'
@@ -27,10 +35,36 @@ function RootRedirect() {
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading, rol, session } = useAuth()
+  const { isAuthenticated, loading, rol, session, user } = useAuth()
+
+  const [terminosPendientes, setTerminosPendientes] = useState<TerminosVigentes | null>(null)
+  const [checkandoTerminos, setCheckandoTerminos] = useState(false)
+  const [terminosVerificados, setTerminosVerificados] = useState(false)
+
+  useEffect(() => {
+    if (!user?.id || !isAuthenticated) return
+    if (terminosVerificados) return
+
+    setCheckandoTerminos(true)
+    getTerminosVigentes()
+      .then(async (terminos) => {
+        if (!terminos) { setTerminosVerificados(true); return }
+        const acepto = await usuarioAceptoTerminos(user.id, terminos.id)
+        if (!acepto) setTerminosPendientes(terminos)
+        setTerminosVerificados(true)
+      })
+      .catch(() => setTerminosVerificados(true))
+      .finally(() => setCheckandoTerminos(false))
+  }, [user?.id, isAuthenticated, terminosVerificados])
+
+  async function handleAceptar() {
+    if (!user?.id || !terminosPendientes) return
+    await aceptarTerminos(user.id, terminosPendientes.id)
+    setTerminosPendientes(null)
+  }
 
   // Esperar mientras carga la sesión O mientras la sesión existe pero el rol aún no fue cargado
-  if (loading || (session && rol === null)) {
+  if (loading || (session && rol === null) || checkandoTerminos) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spinner size="lg" />
@@ -40,7 +74,15 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (rol === 'superadmin') return <Navigate to="/superadmin" replace />
-  return <>{children}</>
+
+  return (
+    <>
+      {terminosPendientes && (
+        <TerminosModal terminos={terminosPendientes} onAceptar={handleAceptar} />
+      )}
+      {children}
+    </>
+  )
 }
 
 function RequireSuperAdmin() {
