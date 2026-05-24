@@ -8,6 +8,7 @@ import {
   LogOut,
   FlaskConical,
   ArrowLeftRight,
+  BellRing,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -28,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/config',            label: 'Config',   icon: <SlidersHorizontal size={22} />, roles: ['jugador', 'piloto'] },
   { to: '/centro-cria',       label: 'Cría',     icon: <FlaskConical size={22} />,    matchPrefix: true, requiresAccesoCentro: true },
   { to: '/transferencias',    label: 'Transferir', icon: <ArrowLeftRight size={22} />, roles: ['admin'] },
+  { to: '/alertas',           label: 'Alertas',    icon: <BellRing size={22} />,       roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
 ]
 
 export default function BottomNav() {
