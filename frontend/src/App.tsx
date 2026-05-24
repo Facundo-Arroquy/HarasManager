@@ -18,6 +18,7 @@ import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
 import FlushingsPage from './pages/centro-cria/FlushingsPage'
 import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
+import TransferirVetPage from './pages/vet/TransferirVetPage'
 
 function RootRedirect() {
   const rol = useAuthStore((s) => s.rol)
@@ -88,6 +89,7 @@ export default function App() {
           <Route path="/centro-cria/transferencias" element={<TransferenciasPage />} />
           <Route path="/centro-cria/flushings" element={<FlushingsPage />} />
           <Route path="/transferencias" element={<TransferirEmpresaPage />} />
+          <Route path="/transferir-vet" element={<TransferirVetPage />} />
         </Route>
 
         <Route element={<RequireSuperAdmin />}>
