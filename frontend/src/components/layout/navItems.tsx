@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, LayoutGrid, Settings, SlidersHorizontal,
   ClipboardList, Droplets, Bell, ArrowLeftRight, FlaskConical,
-  CalendarDays,
+  CalendarDays, BellRing,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -30,6 +30,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/transferir-vet',    label: 'Transferencias',     icon: <ArrowLeftRight size={18} />, roles: ['veterinario'] },
       { to: '/transferencias',    label: 'Transferencias',     icon: <ArrowLeftRight size={18} />, roles: ['admin'] },
       { to: '/admin',             label: 'Administración',     icon: <Settings size={18} />,       roles: ['admin'] },
+      { to: '/alertas',           label: 'Alertas',            icon: <BellRing size={18} />,          roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
       { to: '/config',            label: 'Configuración',      icon: <SlidersHorizontal size={18} />, roles: ['admin', 'jugador', 'piloto'] },
     ],
   },
