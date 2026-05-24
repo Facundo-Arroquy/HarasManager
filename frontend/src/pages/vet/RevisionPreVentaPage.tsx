@@ -82,11 +82,12 @@ export default function RevisionPreVentaPage() {
   const [dictamen,   setDictamen]   = useState<'apto' | 'no_apto' | 'condicionado'>('apto')
 
   useEffect(() => {
-    if (!sociedad?.id) return
-    caballoService.listar(sociedad.id)
-      .then(setCaballos)
-      .finally(() => setLoading(false))
-  }, [sociedad?.id])
+    if (!user?.id) { setLoading(false); return }
+    const fn = sociedad?.id
+      ? () => caballoService.listar(sociedad.id)
+      : () => caballoService.listarDelVeterinario(user.id)
+    fn().then(setCaballos).finally(() => setLoading(false))
+  }, [sociedad?.id, user?.id])
 
   const addItem = () =>
     setItems((p) => [...p, { tempId: uid(), categoria: '', hallazgo: '', resultado: 'normal' }])

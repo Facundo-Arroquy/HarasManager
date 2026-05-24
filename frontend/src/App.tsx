@@ -17,6 +17,12 @@ import FlushingsPage from './pages/centro-cria/FlushingsPage'
 import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 
+function RootRedirect() {
+  const rol = useAuthStore((s) => s.rol)
+  if (rol === 'veterinario') return <Navigate to="/revision-preventa" replace />
+  return <Navigate to="/dashboard" replace />
+}
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading, rol, session } = useAuth()
 
@@ -65,7 +71,7 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<RootRedirect />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />

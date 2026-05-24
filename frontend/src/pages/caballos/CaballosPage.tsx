@@ -98,7 +98,8 @@ export default function CaballosPage() {
         setCampos(f)
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error')
+      const msg = (e as any)?.message ?? (e instanceof Error ? e.message : String(e))
+      setError(msg)
     } finally {
       setLoading(false)
     }

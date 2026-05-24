@@ -81,15 +81,15 @@ export const caballoService = {
         }))
     }
 
-    // TODO: Supabase
-    // const supabase = getSupabaseClient()
-    // const { data, error } = await supabase
-    //   .from('acceso_vet')
-    //   .select(`caballo(*, sociedad(id, nombre), cat_raza(nombre), cat_pelaje(nombre), campo(nombre))`)
-    //   .eq('vet_id', vetId).eq('activo', true)
-    // if (error) throw error
-    // return (data ?? []).map(({ caballo }) => ({ ...caballo, empresa_id: caballo.sociedad.id, empresa_nombre: caballo.sociedad.nombre }))
-    return [] as any[]
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('get_caballos_veterinario')
+    if (error) throw error
+    return (data ?? []).map((c: any) => ({
+      ...c,
+      cat_raza:  c.raza_nombre   ? { nombre: c.raza_nombre }   : null,
+      cat_pelaje: c.pelaje_nombre ? { nombre: c.pelaje_nombre } : null,
+      campo:      c.campo_nombre  ? { nombre: c.campo_nombre }  : null,
+    }))
   },
 
   async listar(sociedadId: string) {

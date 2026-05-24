@@ -30,7 +30,7 @@ export default function DashboardPage() {
   const [loading,   setLoading]   = useState(true)
 
   useEffect(() => {
-    if (!sociedadId) return
+    if (!sociedadId) { setLoading(false); return }
     setLoading(true)
     Promise.all([
       caballoService.listar(sociedadId),

@@ -31,11 +31,12 @@ interface OtorgarModalProps {
   caballos: Caballo[]
   accesoActivos: AccesoVet[]
   otorgadoPor: string
+  vetError: string | null
   onClose: () => void
   onSuccess: () => void
 }
 
-function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, onClose, onSuccess }: OtorgarModalProps) {
+function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, vetError, onClose, onSuccess }: OtorgarModalProps) {
   const [vetId, setVetId] = useState(vets[0]?.id ?? '')
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
@@ -78,8 +79,9 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, onClose, onS
     try {
       await otorgarAccesosBulk(vetId, Array.from(seleccionados), otorgadoPor)
       onSuccess()
-    } catch {
-      setError('No se pudo guardar el acceso.')
+    } catch (err: any) {
+      const msg = err?.message ?? err?.error_description ?? JSON.stringify(err)
+      setError(`Error: ${msg}`)
     } finally {
       setSaving(false)
     }
@@ -102,10 +104,19 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, onClose, onS
         {vets.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
             <ShieldCheck size={28} className="text-slate-300" />
-            <p className="text-sm font-medium text-slate-600">No hay veterinarios en esta organización</p>
-            <p className="text-xs text-slate-400 max-w-xs">
-              Para otorgar accesos primero necesitás agregar un usuario con rol <span className="font-medium text-amber-600">Veterinario</span> desde "Invitar usuario".
-            </p>
+            {vetError ? (
+              <>
+                <p className="text-sm font-medium text-rose-600">Error al cargar veterinarios</p>
+                <p className="text-xs text-slate-400 font-mono bg-slate-50 rounded p-2 max-w-xs break-all">{vetError}</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-medium text-slate-600">No hay veterinarios registrados en la plataforma</p>
+                <p className="text-xs text-slate-400 max-w-xs">
+                  Los veterinarios se registran a nivel plataforma con el rol <span className="font-medium text-amber-600">Veterinario</span>.
+                </p>
+              </>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -233,6 +244,7 @@ export default function AccesosVetTab() {
   const [vets,     setVets]     = useState<VeterinarioPlataforma[]>([])
   const [caballos, setCaballos] = useState<Caballo[]>([])
   const [loading,  setLoading]  = useState(true)
+  const [vetError, setVetError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [revocandoIds, setRevocandoIds] = useState<Set<string>>(new Set())
@@ -240,21 +252,28 @@ export default function AccesosVetTab() {
 
   async function cargar() {
     if (!sociedadActiva) return
+    setVetError(null)
+
+    // Cargar accesos y caballos — no dependen de los vets de plataforma
+    const [accesoResult, caballoResult] = await Promise.allSettled([
+      getAccesosVet(sociedadActiva.id),
+      caballoService.listar(sociedadActiva.id),
+    ])
+    if (accesoResult.status === 'fulfilled') setAccesos(accesoResult.value)
+    if (caballoResult.status === 'fulfilled') setCaballos(caballoResult.value)
+
+    // Cargar vets de plataforma por separado para capturar el error real
     try {
-      const [a, vetsPlat, c] = await Promise.all([
-        getAccesosVet(sociedadActiva.id),
-        getVeterinariosPlataforma(),
-        caballoService.listar(sociedadActiva.id),
-      ])
-      setAccesos(a)
+      const vetsPlat = await getVeterinariosPlataforma()
       setVets(vetsPlat)
-      setCaballos(c)
-      setSeleccionados(new Set())
-    } catch (err) {
-      console.error('[AccesosVetTab] Error al cargar:', err)
-    } finally {
-      setLoading(false)
+    } catch (err: any) {
+      const msg = err?.message ?? JSON.stringify(err)
+      console.error('[AccesosVetTab] Error al cargar vets:', msg)
+      setVetError(msg)
     }
+
+    setSeleccionados(new Set())
+    setLoading(false)
   }
 
   useEffect(() => { cargar() }, [sociedadActiva]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -419,6 +438,7 @@ export default function AccesosVetTab() {
           caballos={caballos}
           accesoActivos={accesos}
           otorgadoPor={user?.id ?? ''}
+          vetError={vetError}
           onClose={() => setShowModal(false)}
           onSuccess={() => { setShowModal(false); cargar() }}
         />

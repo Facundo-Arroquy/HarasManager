@@ -18,14 +18,11 @@ export async function getVeterinariosPlataforma(): Promise<VeterinarioPlataforma
   }
 
   const supabase = getSupabaseClient()
-  const { data, error } = await supabase
-    .from('usuario')
-    .select('id, nombre, apellido, email')
-    .eq('rol', 'veterinario')
-    .eq('activo', true)
-    .order('apellido')
+  // Usamos RPC con SECURITY DEFINER para bypasear RLS — los vets no tienen
+  // membresía en la org del admin, por lo que una query directa devolvería vacío
+  const { data, error } = await supabase.rpc('get_veterinarios_plataforma')
   if (error) throw error
-  return data ?? []
+  return (data ?? []) as VeterinarioPlataforma[]
 }
 
 export interface UsuarioAdmin {
@@ -111,7 +108,7 @@ export async function getAccesosVet(_sociedadId: string): Promise<AccesoVet[]> {
 
   const supabase = getSupabaseClient()
   const { data, error } = await supabase
-    .from('acceso_veterinario')
+    .from('acceso_vet')
     .select(`
       id, vet_id, caballo_id, activo,
       usuario:vet_id(nombre, apellido, email),
@@ -139,7 +136,7 @@ export async function revocarAcceso(accesoId: string): Promise<void> {
 
   const supabase = getSupabaseClient()
   const { error } = await supabase
-    .from('acceso_veterinario')
+    .from('acceso_vet')
     .update({ activo: false })
     .eq('id', accesoId)
   if (error) throw error
@@ -184,11 +181,11 @@ export async function otorgarAcceso(
   }
 
   const supabase = getSupabaseClient()
-  const { error } = await supabase.from('acceso_veterinario').insert({
+  const { error } = await supabase.from('acceso_vet').upsert({
     vet_id: payload.vet_id,
     caballo_id: payload.caballo_id,
     otorgado_por: otorgadoPor,
     activo: true,
-  })
+  }, { onConflict: 'vet_id,caballo_id' })
   if (error) throw error
 }
