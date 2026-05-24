@@ -60,6 +60,7 @@ function parseInline(texto: string): React.ReactNode {
 export default function TerminosModal({ terminos, onAceptar }: Props) {
   const [vista, setVista] = useState<'resumen' | 'leyendo'>('resumen')
   const scrollRef = useRef<HTMLDivElement>(null)
+  const cleanupRef = useRef<(() => void) | null>(null)
   const [scrollado, setScrollado] = useState(false)
   const [aceptando, setAceptando] = useState(false)
   const [error, setError] = useState('')
@@ -84,17 +85,13 @@ export default function TerminosModal({ terminos, onAceptar }: Props) {
         }
       }
       el.addEventListener('scroll', onScroll)
-      // Cleanup capturado por el closure del timer
-      ;(el as HTMLDivElement & { _terminosCleanup?: () => void })._terminosCleanup = () =>
-        el.removeEventListener('scroll', onScroll)
+      cleanupRef.current = () => el.removeEventListener('scroll', onScroll)
     }, 50)
 
     return () => {
       clearTimeout(timer)
-      const el = scrollRef.current
-      if (el && (el as HTMLDivElement & { _terminosCleanup?: () => void })._terminosCleanup) {
-        ;(el as HTMLDivElement & { _terminosCleanup?: () => void })._terminosCleanup!()
-      }
+      cleanupRef.current?.()
+      cleanupRef.current = null
     }
   }, [vista])
 
