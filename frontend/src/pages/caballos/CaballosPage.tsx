@@ -208,13 +208,22 @@ export default function CaballosPage() {
         {/* Acciones */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {rol === 'veterinario' && !modoSeleccion && (
-            <button
-              onClick={() => setShowConsulta(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors"
-            >
-              <Plus size={15} />
-              <span className="hidden sm:inline">Nueva consulta</span>
-            </button>
+            <>
+              <button
+                onClick={() => setShowConsulta(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors"
+              >
+                <Plus size={15} />
+                <span className="hidden sm:inline">Nueva consulta</span>
+              </button>
+              <button
+                onClick={() => setShowNuevo(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 px-3 py-2 text-sm font-medium text-slate-700 transition-colors"
+              >
+                <Plus size={15} />
+                <span className="hidden sm:inline">Nuevo caballo</span>
+              </button>
+            </>
           )}
           {canManageCampos(rol) && !modoSeleccion && (
             <button
@@ -463,6 +472,7 @@ export default function CaballosPage() {
         <NuevoCaballoModal
           onClose={() => setShowNuevo(false)}
           onSuccess={() => { setShowNuevo(false); cargar() }}
+          vetMode={esVet}
         />
       )}
       {caballoDetalle && (

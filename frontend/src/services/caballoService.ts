@@ -148,6 +148,21 @@ export const caballoService = {
     return data
   },
 
+  async crearParaVet(payload: NuevoCaballoPayload, _vetId: string) {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('crear_caballo_veterinario', {
+      p_nombre:           payload.nombre,
+      p_fecha_nacimiento: payload.fecha_nacimiento,
+      p_categoria:        payload.categoria,
+      p_raza_id:          payload.raza_id,
+      p_pelaje_id:        payload.pelaje_id,
+      p_numero_chip:      payload.numero_chip ?? null,
+      p_numero_registro:  payload.numero_registro ?? null,
+    })
+    if (error) throw error
+    return { id: data as string }
+  },
+
   async crear(payload: NuevoCaballoPayload, sociedadId: string) {
     if (isMockMode()) {
       const { MOCK_CAMPOS } = await import('../dev/mockData')

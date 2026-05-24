@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X, Plus } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { useAuthStore } from '../../store/authStore'
 import { caballoService, type NuevoCaballoPayload } from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
@@ -8,12 +9,14 @@ import { campoService, type Campo } from '../../services/campoService'
 interface Props {
   onClose: () => void
   onSuccess: () => void
+  vetMode?: boolean
 }
 
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
 
-export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
+export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false }: Props) {
   const { sociedadActiva } = useAuth()
+  const userId = useAuthStore((s) => s.user?.id)
 
   const [razas,   setRazas]   = useState<{ id: number; nombre: string }[]>([])
   const [pelajes, setPelajes] = useState<{ id: number; nombre: string }[]>([])
@@ -40,7 +43,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
     Promise.all([
       catalogoService.razas(),
       catalogoService.pelajes(),
-      sociedadActiva ? campoService.listar(sociedadActiva.id) : Promise.resolve([]),
+      (!vetMode && sociedadActiva) ? campoService.listar(sociedadActiva.id) : Promise.resolve([]),
     ]).then(([r, p, c]) => {
       setRazas(r)
       setPelajes(p)
@@ -63,30 +66,34 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
     if (!form.fecha_nacimiento)    return setError('La fecha de nacimiento es requerida.')
     if (!form.raza_id)             return setError('Seleccioná una raza.')
     if (!form.pelaje_id)           return setError('Seleccioná un pelaje.')
-    if (!sociedadActiva)           return
+    if (!vetMode && !sociedadActiva) return
+    if (vetMode && !userId)        return
 
     setSaving(true)
     setError('')
+    const payload: NuevoCaballoPayload = {
+      nombre:           form.nombre.trim(),
+      fecha_nacimiento: form.fecha_nacimiento,
+      categoria:        form.categoria,
+      subcategoria:     form.categoria === 'Yegua' && form.subcategoria
+                          ? form.subcategoria as 'Donante' | 'Receptora'
+                          : null,
+      raza_id:          Number(form.raza_id),
+      pelaje_id:        Number(form.pelaje_id),
+      numero_chip:      form.numero_chip.trim() || undefined,
+      numero_registro:  form.numero_registro.trim() || undefined,
+      campo_id:         vetMode ? null : (form.campo_id || null),
+    }
     try {
-      await caballoService.crear(
-        {
-          nombre:           form.nombre.trim(),
-          fecha_nacimiento: form.fecha_nacimiento,
-          categoria:        form.categoria,
-          subcategoria:     form.categoria === 'Yegua' && form.subcategoria
-                              ? form.subcategoria as 'Donante' | 'Receptora'
-                              : null,
-          raza_id:          Number(form.raza_id),
-          pelaje_id:        Number(form.pelaje_id),
-          numero_chip:      form.numero_chip.trim() || undefined,
-          numero_registro:  form.numero_registro.trim() || undefined,
-          campo_id:         form.campo_id || null,
-        },
-        sociedadActiva.id
-      )
+      if (vetMode) {
+        await caballoService.crearParaVet(payload, userId!)
+      } else {
+        await caballoService.crear(payload, sociedadActiva!.id)
+      }
       onSuccess()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al guardar.')
+      const msg = (err as any)?.message ?? (err instanceof Error ? err.message : String(err))
+      setError(msg)
     } finally {
       setSaving(false)
     }
@@ -192,8 +199,8 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
             </div>
           </div>
 
-          {/* Campo / Caballeriza */}
-          <div className="space-y-1.5">
+          {/* Campo / Caballeriza — solo en modo org */}
+          {!vetMode && <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500">Campo / Caballeriza</label>
             <div className="flex gap-2">
               <select
@@ -240,7 +247,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess }: Props) {
                 </button>
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Chip + Registro */}
           <div className="grid grid-cols-2 gap-3">
