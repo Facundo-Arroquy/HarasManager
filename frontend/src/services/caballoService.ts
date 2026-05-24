@@ -160,7 +160,20 @@ export const caballoService = {
       p_numero_registro:  payload.numero_registro ?? null,
     })
     if (error) throw error
-    return { id: data as string }
+
+    const nuevoId = data as string
+    // El RPC no soporta padre/madre — actualizamos si hay datos genealógicos
+    const tieneGenealogia = payload.padre_id || payload.padre_nombre || payload.madre_id || payload.madre_nombre
+    if (tieneGenealogia) {
+      await supabase.from('caballo').update({
+        padre_id:     payload.padre_id    ?? null,
+        padre_nombre: payload.padre_nombre ?? null,
+        madre_id:     payload.madre_id    ?? null,
+        madre_nombre: payload.madre_nombre ?? null,
+      }).eq('id', nuevoId)
+    }
+
+    return { id: nuevoId }
   },
 
   async crear(payload: NuevoCaballoPayload, sociedadId: string) {
@@ -204,6 +217,10 @@ export const caballoService = {
         numero_registro:  payload.numero_registro,
         sociedad_id:      sociedadId,
         campo_id:         payload.campo_id ?? null,
+        padre_id:         payload.padre_id    ?? null,
+        padre_nombre:     payload.padre_nombre ?? null,
+        madre_id:         payload.madre_id    ?? null,
+        madre_nombre:     payload.madre_nombre ?? null,
       })
       .select()
       .single()

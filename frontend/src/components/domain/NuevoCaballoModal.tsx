@@ -14,6 +14,10 @@ interface Props {
 
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
 
+type ModoProgenitor = 'ninguno' | 'existente' | 'texto'
+
+interface CaballoSimple { id: string; nombre: string; categoria: string }
+
 export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false }: Props) {
   const { sociedadActiva } = useAuth()
   const userId = useAuthStore((s) => s.user?.id)
@@ -21,6 +25,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
   const [razas,   setRazas]   = useState<{ id: number; nombre: string }[]>([])
   const [pelajes, setPelajes] = useState<{ id: number; nombre: string }[]>([])
   const [campos,  setCampos]  = useState<Campo[]>([])
+  const [caballos, setCaballos] = useState<CaballoSimple[]>([])
   const [nuevoCampo, setNuevoCampo] = useState('')
   const [creandoCampo, setCreandoCampo] = useState(false)
 
@@ -36,18 +41,36 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
     campo_id: '' as string,
   })
 
+  // Estado padre
+  const [padreMode,  setPadreMode]  = useState<ModoProgenitor>('ninguno')
+  const [padreId,    setPadreId]    = useState('')
+  const [padreTexto, setPadreTexto] = useState('')
+
+  // Estado madre
+  const [madreMode,  setMadreMode]  = useState<ModoProgenitor>('ninguno')
+  const [madreId,    setMadreId]    = useState('')
+  const [madreTexto, setMadreTexto] = useState('')
+
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
 
   useEffect(() => {
+    const caballosPromise = vetMode && userId
+      ? caballoService.listarDelVeterinario(userId)
+      : sociedadActiva
+        ? caballoService.listar(sociedadActiva.id)
+        : Promise.resolve([])
+
     Promise.all([
       catalogoService.razas(),
       catalogoService.pelajes(),
       (!vetMode && sociedadActiva) ? campoService.listar(sociedadActiva.id) : Promise.resolve([]),
-    ]).then(([r, p, c]) => {
+      caballosPromise,
+    ]).then(([r, p, c, cabs]) => {
       setRazas(r)
       setPelajes(p)
       setCampos(c)
+      setCaballos((cabs as any[]).map((c: any) => ({ id: c.id, nombre: c.nombre, categoria: c.categoria ?? '' })))
       setForm((f) => ({
         ...f,
         raza_id:   r[0]?.id ?? 0,
@@ -71,6 +94,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
 
     setSaving(true)
     setError('')
+
     const payload: NuevoCaballoPayload = {
       nombre:           form.nombre.trim(),
       fecha_nacimiento: form.fecha_nacimiento,
@@ -83,7 +107,12 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       numero_chip:      form.numero_chip.trim() || undefined,
       numero_registro:  form.numero_registro.trim() || undefined,
       campo_id:         vetMode ? null : (form.campo_id || null),
+      padre_id:         padreMode === 'existente' && padreId ? padreId : null,
+      padre_nombre:     padreMode === 'texto' && padreTexto.trim() ? padreTexto.trim() : null,
+      madre_id:         madreMode === 'existente' && madreId ? madreId : null,
+      madre_nombre:     madreMode === 'texto' && madreTexto.trim() ? madreTexto.trim() : null,
     }
+
     try {
       if (vetMode) {
         await caballoService.crearParaVet(payload, userId!)
@@ -174,6 +203,35 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
               </select>
             </div>
           )}
+
+          {/* ── Árbol genealógico ─────────────────────────────────────────── */}
+          <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Árbol genealógico</p>
+
+            {/* Padre */}
+            <ProgenitorField
+              label="Padre"
+              mode={padreMode}
+              id={padreId}
+              texto={padreTexto}
+              caballos={caballos}
+              onModeChange={(m) => { setPadreMode(m); setPadreId(''); setPadreTexto('') }}
+              onIdChange={setPadreId}
+              onTextoChange={setPadreTexto}
+            />
+
+            {/* Madre */}
+            <ProgenitorField
+              label="Madre"
+              mode={madreMode}
+              id={madreId}
+              texto={madreTexto}
+              caballos={caballos}
+              onModeChange={(m) => { setMadreMode(m); setMadreId(''); setMadreTexto('') }}
+              onIdChange={setMadreId}
+              onTextoChange={setMadreTexto}
+            />
+          </div>
 
           {/* Raza + Pelaje */}
           <div className="grid grid-cols-2 gap-3">
@@ -295,6 +353,70 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Campo de progenitor (padre o madre) ────────────────────────────────────────
+
+interface ProgenitorFieldProps {
+  label: string
+  mode: ModoProgenitor
+  id: string
+  texto: string
+  caballos: CaballoSimple[]
+  onModeChange: (m: ModoProgenitor) => void
+  onIdChange: (id: string) => void
+  onTextoChange: (t: string) => void
+}
+
+function ProgenitorField({ label, mode, id, texto, caballos, onModeChange, onIdChange, onTextoChange }: ProgenitorFieldProps) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium text-slate-500 w-10">{label}</span>
+        <div className="flex gap-1">
+          {(['existente', 'texto'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onModeChange(mode === m ? 'ninguno' : m)}
+              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                mode === m
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-white border border-slate-300 text-slate-500 hover:border-slate-400'
+              }`}
+            >
+              {m === 'existente' ? 'Seleccionar' : 'Texto libre'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {mode === 'existente' && (
+        <select
+          value={id}
+          onChange={(e) => onIdChange(e.target.value)}
+          className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+        >
+          <option value="">— Sin especificar —</option>
+          {caballos.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre} {c.categoria ? `(${c.categoria})` : ''}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {mode === 'texto' && (
+        <input
+          type="text"
+          value={texto}
+          onChange={(e) => onTextoChange(e.target.value)}
+          placeholder={label === 'Padre' ? 'Nombre del padrillo…' : 'Nombre de la madre…'}
+          className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+        />
+      )}
     </div>
   )
 }
