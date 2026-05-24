@@ -36,7 +36,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 function RequireSuperAdmin() {
-  const { loading, rol, session } = useAuth()
+  const { loading, rol, session, isAuthenticated } = useAuth()
 
   // Esperar mientras carga la sesión O mientras la sesión existe pero el rol aún no fue cargado
   if (loading || (session && rol === null)) {
@@ -47,6 +47,7 @@ function RequireSuperAdmin() {
     )
   }
 
+  if (!isAuthenticated) return <Navigate to="/login" replace />
   if (rol !== 'superadmin') return <Navigate to="/dashboard" replace />
   return <Outlet />
 }
