@@ -13,6 +13,7 @@ export default function CamposConfig() {
   const [editDesc,   setEditDesc]   = useState('')
   const [confirmDel, setConfirmDel] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState('')
 
   // Nuevo campo
   const [showForm,  setShowForm]  = useState(false)
@@ -44,10 +45,13 @@ export default function CamposConfig() {
   async function saveEdit() {
     if (!editId || !editNombre.trim()) return
     setSaving(true)
+    setError('')
     try {
       await campoService.actualizar(editId, editNombre, editDesc || undefined)
       await cargar()
       cancelEdit()
+    } catch (err: unknown) {
+      setError((err as any)?.message ?? 'Error al actualizar el campo.')
     } finally {
       setSaving(false)
     }
@@ -55,10 +59,13 @@ export default function CamposConfig() {
 
   async function handleEliminar(id: string) {
     setSaving(true)
+    setError('')
     try {
       await campoService.eliminar(id)
       await cargar()
       setConfirmDel(null)
+    } catch (err: unknown) {
+      setError((err as any)?.message ?? 'Error al eliminar el campo.')
     } finally {
       setSaving(false)
     }
@@ -68,12 +75,15 @@ export default function CamposConfig() {
     e.preventDefault()
     if (!newNombre.trim() || !sociedadActiva) return
     setSaving(true)
+    setError('')
     try {
       await campoService.crear(newNombre.trim(), newDesc.trim() || undefined, sociedadActiva.id)
       await cargar()
       setNewNombre('')
       setNewDesc('')
       setShowForm(false)
+    } catch (err: unknown) {
+      setError((err as any)?.message ?? 'Error al crear el campo.')
     } finally {
       setSaving(false)
     }
@@ -83,6 +93,9 @@ export default function CamposConfig() {
 
   return (
     <div className="space-y-4 max-w-2xl">
+      {error && (
+        <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">{error}</p>
+      )}
       {/* Header + botón agregar */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">
