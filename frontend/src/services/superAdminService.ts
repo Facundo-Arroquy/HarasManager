@@ -24,6 +24,7 @@ export interface NuevoUsuarioPayload {
   nombre: string
   apellido: string
   email: string
+  password: string
   rol: string
   accesosCentroC: boolean
 }

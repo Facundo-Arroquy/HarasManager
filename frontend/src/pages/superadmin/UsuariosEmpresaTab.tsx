@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, X } from 'lucide-react'
+import { Plus, Trash2, X, Eye, EyeOff } from 'lucide-react'
 import { superAdminService, type UsuarioEmpresa, type NuevoUsuarioPayload } from '../../services/superAdminService'
 
 const ROLES = ['admin', 'veterinario', 'jugador', 'piloto', 'peticero']
@@ -41,11 +41,40 @@ interface CrearUsuarioModalProps {
   sociedadId: string
 }
 
+function PasswordInput({ value, onChange, placeholder, error }: {
+  value: string; onChange: (v: string) => void; placeholder: string; error?: string
+}) {
+  const [show, setShow] = useState(false)
+  return (
+    <div>
+      <div className="relative">
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 pr-9 text-sm text-zinc-200 placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => setShow((v) => !v)}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+          tabIndex={-1}
+        >
+          {show ? <EyeOff size={14} /> : <Eye size={14} />}
+        </button>
+      </div>
+      {error && <p className="text-[10px] text-rose-400 mt-0.5">{error}</p>}
+    </div>
+  )
+}
+
 function CrearUsuarioModal({ sociedadNombre, sociedadId, onClose, onCreado }: CrearUsuarioModalProps) {
   const [form, setForm] = useState<NuevoUsuarioPayload>({
-    nombre: '', apellido: '', email: '', rol: 'admin', accesosCentroC: false,
+    nombre: '', apellido: '', email: '', password: '', rol: 'admin', accesosCentroC: false,
   })
-  const [errors, setErrors] = useState<Partial<Record<keyof NuevoUsuarioPayload, string>>>({})
+  const [confirmar, setConfirmar] = useState('')
+  const [errors, setErrors] = useState<Partial<Record<keyof NuevoUsuarioPayload | 'confirmar', string>>>({})
 
   function set(field: keyof NuevoUsuarioPayload, value: string | boolean) {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -58,6 +87,9 @@ function CrearUsuarioModal({ sociedadNombre, sociedadId, onClose, onCreado }: Cr
     if (!form.apellido.trim()) e.apellido = 'Requerido'
     if (!form.email.trim())    e.email    = 'Requerido'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Email inválido'
+    if (!form.password)              e.password  = 'Requerido'
+    else if (form.password.length < 8) e.password = 'Mínimo 8 caracteres'
+    if (form.password && confirmar !== form.password) e.confirmar = 'Las contraseñas no coinciden'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -122,6 +154,28 @@ function CrearUsuarioModal({ sociedadNombre, sociedadId, onClose, onCreado }: Cr
               className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
             />
             {errors.email && <p className="text-[10px] text-rose-400">{errors.email}</p>}
+          </div>
+
+          {/* Contraseña */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-zinc-400">Contraseña</label>
+            <PasswordInput
+              value={form.password}
+              onChange={(v) => set('password', v)}
+              placeholder="Mínimo 8 caracteres"
+              error={errors.password}
+            />
+          </div>
+
+          {/* Confirmar contraseña */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-zinc-400">Confirmar contraseña</label>
+            <PasswordInput
+              value={confirmar}
+              onChange={(v) => { setConfirmar(v); setErrors((prev) => ({ ...prev, confirmar: undefined })) }}
+              placeholder="Repetí la contraseña"
+              error={errors.confirmar}
+            />
           </div>
 
           {/* Rol */}
