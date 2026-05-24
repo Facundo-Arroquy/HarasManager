@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, GitBranch } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useAuthStore } from '../../store/authStore'
-import { caballoService, type NuevoCaballoPayload } from '../../services/caballoService'
+import { caballoService, type NuevoCaballoPayload, type Caballo } from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
+import PedigreeCombobox, { type HorseRef } from './PedigreeCombobox'
 
 interface Props {
   onClose: () => void
@@ -14,10 +15,6 @@ interface Props {
 
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
 
-type ModoProgenitor = 'ninguno' | 'existente' | 'texto'
-
-interface CaballoSimple { id: string; nombre: string; categoria: string }
-
 export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false }: Props) {
   const { sociedadActiva } = useAuth()
   const userId = useAuthStore((s) => s.user?.id)
@@ -25,7 +22,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
   const [razas,   setRazas]   = useState<{ id: number; nombre: string }[]>([])
   const [pelajes, setPelajes] = useState<{ id: number; nombre: string }[]>([])
   const [campos,  setCampos]  = useState<Campo[]>([])
-  const [caballos, setCaballos] = useState<CaballoSimple[]>([])
+  const [caballos, setCaballos] = useState<Caballo[]>([])
   const [nuevoCampo, setNuevoCampo] = useState('')
   const [creandoCampo, setCreandoCampo] = useState(false)
 
@@ -41,15 +38,8 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
     campo_id: '' as string,
   })
 
-  // Estado padre
-  const [padreMode,  setPadreMode]  = useState<ModoProgenitor>('ninguno')
-  const [padreId,    setPadreId]    = useState('')
-  const [padreTexto, setPadreTexto] = useState('')
-
-  // Estado madre
-  const [madreMode,  setMadreMode]  = useState<ModoProgenitor>('ninguno')
-  const [madreId,    setMadreId]    = useState('')
-  const [madreTexto, setMadreTexto] = useState('')
+  const [padre, setPadre] = useState<HorseRef>({ id: null, nombre: null })
+  const [madre, setMadre] = useState<HorseRef>({ id: null, nombre: null })
 
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
@@ -70,7 +60,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       setRazas(r)
       setPelajes(p)
       setCampos(c)
-      setCaballos((cabs as any[]).map((c: any) => ({ id: c.id, nombre: c.nombre, categoria: c.categoria ?? '' })))
+      setCaballos(cabs as Caballo[])
       setForm((f) => ({
         ...f,
         raza_id:   r[0]?.id ?? 0,
@@ -107,10 +97,10 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       numero_chip:      form.numero_chip.trim() || undefined,
       numero_registro:  form.numero_registro.trim() || undefined,
       campo_id:         vetMode ? null : (form.campo_id || null),
-      padre_id:         padreMode === 'existente' && padreId ? padreId : null,
-      padre_nombre:     padreMode === 'texto' && padreTexto.trim() ? padreTexto.trim() : null,
-      madre_id:         madreMode === 'existente' && madreId ? madreId : null,
-      madre_nombre:     madreMode === 'texto' && madreTexto.trim() ? madreTexto.trim() : null,
+      padre_id:         padre.id    ?? null,
+      padre_nombre:     padre.nombre ?? null,
+      madre_id:         madre.id    ?? null,
+      madre_nombre:     madre.nombre ?? null,
     }
 
     try {
@@ -204,33 +194,28 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
             </div>
           )}
 
-          {/* ── Árbol genealógico ─────────────────────────────────────────── */}
-          <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Árbol genealógico</p>
-
-            {/* Padre */}
-            <ProgenitorField
-              label="Padre"
-              mode={padreMode}
-              id={padreId}
-              texto={padreTexto}
-              caballos={caballos}
-              onModeChange={(m) => { setPadreMode(m); setPadreId(''); setPadreTexto('') }}
-              onIdChange={setPadreId}
-              onTextoChange={setPadreTexto}
-            />
-
-            {/* Madre */}
-            <ProgenitorField
-              label="Madre"
-              mode={madreMode}
-              id={madreId}
-              texto={madreTexto}
-              caballos={caballos}
-              onModeChange={(m) => { setMadreMode(m); setMadreId(''); setMadreTexto('') }}
-              onIdChange={setMadreId}
-              onTextoChange={setMadreTexto}
-            />
+          {/* ── Genealogía ─────────────────────────────────────────────── */}
+          <div className="pt-2">
+            <div className="flex items-center gap-2 mb-3">
+              <GitBranch size={13} className="text-slate-400" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Genealogía</span>
+            </div>
+            <div className="space-y-3">
+              <PedigreeCombobox
+                label="Padre"
+                placeholder="— Sin datos —"
+                value={padre}
+                onChange={setPadre}
+                caballos={caballos}
+              />
+              <PedigreeCombobox
+                label="Madre"
+                placeholder="— Sin datos —"
+                value={madre}
+                onChange={setMadre}
+                caballos={caballos}
+              />
+            </div>
           </div>
 
           {/* Raza + Pelaje */}
@@ -357,66 +342,3 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
   )
 }
 
-// ── Campo de progenitor (padre o madre) ────────────────────────────────────────
-
-interface ProgenitorFieldProps {
-  label: string
-  mode: ModoProgenitor
-  id: string
-  texto: string
-  caballos: CaballoSimple[]
-  onModeChange: (m: ModoProgenitor) => void
-  onIdChange: (id: string) => void
-  onTextoChange: (t: string) => void
-}
-
-function ProgenitorField({ label, mode, id, texto, caballos, onModeChange, onIdChange, onTextoChange }: ProgenitorFieldProps) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-slate-500 w-10">{label}</span>
-        <div className="flex gap-1">
-          {(['existente', 'texto'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => onModeChange(mode === m ? 'ninguno' : m)}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                mode === m
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-white border border-slate-300 text-slate-500 hover:border-slate-400'
-              }`}
-            >
-              {m === 'existente' ? 'Seleccionar' : 'Texto libre'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {mode === 'existente' && (
-        <select
-          value={id}
-          onChange={(e) => onIdChange(e.target.value)}
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
-        >
-          <option value="">— Sin especificar —</option>
-          {caballos.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nombre} {c.categoria ? `(${c.categoria})` : ''}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {mode === 'texto' && (
-        <input
-          type="text"
-          value={texto}
-          onChange={(e) => onTextoChange(e.target.value)}
-          placeholder={label === 'Padre' ? 'Nombre del padrillo…' : 'Nombre de la madre…'}
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
-        />
-      )}
-    </div>
-  )
-}
