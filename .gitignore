@@ -5,3 +5,5 @@ node_modules/
 supabase/
 GUIA_ADMIN.md
 ACCESOS_DEMO.md
+seed_demo.sql
+ACTUALIZAR_TERMINOS.md
