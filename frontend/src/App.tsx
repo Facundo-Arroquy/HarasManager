@@ -37,6 +37,7 @@ function RootRedirect() {
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading, rol, session, user } = useAuth()
+  const perfilCargado = useAuthStore((s) => s.perfilCargado)
 
   const [terminosPendientes, setTerminosPendientes] = useState<TerminosVigentes | null>(null)
   const [checkandoTerminos, setCheckandoTerminos] = useState(false)
@@ -64,8 +65,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     setTerminosPendientes(null)
   }
 
-  // Esperar mientras carga la sesión O mientras la sesión existe pero el rol aún no fue cargado
-  if (loading || (session && rol === null) || checkandoTerminos) {
+  // Esperar mientras carga la sesión, el perfil del usuario, o la verificación de términos
+  if (loading || (session && !perfilCargado) || checkandoTerminos) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spinner size="lg" />
@@ -88,9 +89,10 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 function RequireSuperAdmin() {
   const { loading, rol, session, isAuthenticated } = useAuth()
+  const perfilCargado = useAuthStore((s) => s.perfilCargado)
 
-  // Esperar mientras carga la sesión O mientras la sesión existe pero el rol aún no fue cargado
-  if (loading || (session && rol === null)) {
+  // Esperar mientras carga la sesión o el perfil del usuario
+  if (loading || (session && !perfilCargado)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spinner size="lg" />

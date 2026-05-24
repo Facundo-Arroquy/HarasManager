@@ -39,15 +39,20 @@ async function cargarPerfilProd(
       .eq('activa', true)
       .single()
 
-    if (memb) {
-      store.setSociedadActiva(
-        (memb as any).sociedad,
-        (memb as any).cat_rol?.nombre ?? null
-      )
-    }
+    // PostgREST puede devolver cat_rol como objeto o array según la versión
+    const catRol = Array.isArray((memb as any)?.cat_rol)
+      ? (memb as any).cat_rol[0]
+      : (memb as any)?.cat_rol
+
+    store.setSociedadActiva(
+      (memb as any)?.sociedad ?? null,
+      catRol?.nombre ?? null
+    )
     store.setLoading(false)
     tieneAccesoCentroCria(userId).then((v) => store.setAccesosCentroC(v)).catch(() => {})
   } catch {
+    // Asegurar que el spinner se desbloquea aunque falle la carga del perfil
+    store.setPerfilCargado()
     store.setLoading(false)
   }
 }
