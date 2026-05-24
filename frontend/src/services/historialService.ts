@@ -34,7 +34,38 @@ interface HistorialResumen {
   diagnostico: string | null
 }
 
+export interface AlertaVet {
+  historial_id: string
+  proxima_consulta: string
+  caballo_id: string
+  caballo_nombre: string
+  tipo: string | null
+  dias_restantes: number
+}
+
 export const historialService = {
+  async listarRecientesVet(limit = 5): Promise<HistorialResumen[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('get_consultas_recientes_vet', { p_limit: limit })
+    if (error) throw error
+    return (data ?? []).map((h: any) => ({
+      id:               h.id,
+      fecha_consulta:   h.fecha_consulta,
+      proxima_consulta: h.proxima_consulta ?? null,
+      caballo_id:       h.caballo_id,
+      caballo_nombre:   h.caballo_nombre ?? '—',
+      tipo:             h.tipo ?? 'Consulta',
+      diagnostico:      h.diagnostico ?? null,
+    }))
+  },
+
+  async listarAlertasVet(): Promise<AlertaVet[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('get_alertas_vet')
+    if (error) throw error
+    return (data ?? []) as AlertaVet[]
+  },
+
   async listarRecientesTodos(sociedadId: string, limit = 8): Promise<HistorialResumen[]> {
     if (isMockMode()) {
       const { MOCK_CABALLOS } = await import('../dev/mockData')

@@ -10,6 +10,7 @@ import HistorialPage from './pages/historial/HistorialPage'
 import AdminPage from './pages/admin/AdminPage'
 import ConfigPage from './pages/config/ConfigPage'
 import RevisionPreVentaPage from './pages/vet/RevisionPreVentaPage'
+import PanelVetPage from './pages/vet/PanelVetPage'
 import DashboardCriaPage from './pages/centro-cria/DashboardCriaPage'
 import RecordatoriosPage from './pages/centro-cria/RecordatoriosPage'
 import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
@@ -19,7 +20,7 @@ import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 
 function RootRedirect() {
   const rol = useAuthStore((s) => s.rol)
-  if (rol === 'veterinario') return <Navigate to="/revision-preventa" replace />
+  if (rol === 'veterinario') return <Navigate to="/panel-vet" replace />
   return <Navigate to="/dashboard" replace />
 }
 
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
+          <Route path="/panel-vet" element={<PanelVetPage />} />
           <Route path="/revision-preventa" element={<RevisionPreVentaPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/config" element={<ConfigPage />} />
