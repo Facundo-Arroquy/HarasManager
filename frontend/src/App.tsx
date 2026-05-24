@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
-import { useAuthStore } from './store/authStore'
 import Spinner from './components/ui/Spinner'
 import AppLayout from './components/layout/AppLayout'
 import DevPanel from './dev/DevPanel'
@@ -20,9 +19,10 @@ import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading, rol } = useAuth()
+  const { isAuthenticated, loading, rol, session } = useAuth()
 
-  if (loading) {
+  // Esperar mientras carga la sesión O mientras la sesión existe pero el rol aún no fue cargado
+  if (loading || (session && rol === null)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spinner size="lg" />
@@ -36,10 +36,10 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 function RequireSuperAdmin() {
-  const { loading } = useAuth()
-  const rol = useAuthStore((s) => s.rol)
+  const { loading, rol, session } = useAuth()
 
-  if (loading) {
+  // Esperar mientras carga la sesión O mientras la sesión existe pero el rol aún no fue cargado
+  if (loading || (session && rol === null)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spinner size="lg" />

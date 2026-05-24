@@ -1,22 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Building2, Footprints, Users, MapPin, ChevronRight, Plus, Trash2, X } from 'lucide-react'
 import { superAdminService, type EmpresaStats } from '../../services/superAdminService'
+import Spinner from '../../components/ui/Spinner'
 
 interface Props {
   onGestionarUsuarios: (sociedadId: string) => void
 }
 
-// ── Modal crear empresa ────────────────���──────────────────────────────────────
+// ── Modal crear empresa ────────────────────────────────────────────────────────
 
 function CrearEmpresaModal({ onClose, onCreada }: { onClose: () => void; onCreada: () => void }) {
   const [nombre, setNombre] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!nombre.trim()) return setError('Ingresá el nombre de la empresa.')
-    superAdminService.crearEmpresa(nombre)
-    onCreada()
+    setLoading(true)
+    try {
+      await superAdminService.crearEmpresa(nombre)
+      onCreada()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear empresa.')
+      setLoading(false)
+    }
   }
 
   return (
@@ -48,9 +56,10 @@ function CrearEmpresaModal({ onClose, onCreada }: { onClose: () => void; onCread
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium rounded-md bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+              disabled={loading}
+              className="px-4 py-2 text-sm font-medium rounded-md bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
             >
-              Crear empresa
+              {loading ? 'Creando...' : 'Crear empresa'}
             </button>
           </div>
         </form>
@@ -80,9 +89,10 @@ interface CardProps {
   confirmandoEliminar: boolean
   onConfirmarEliminar: () => void
   onCancelarEliminar: () => void
+  eliminando: boolean
 }
 
-function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, onConfirmarEliminar, onCancelarEliminar }: CardProps) {
+function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, onConfirmarEliminar, onCancelarEliminar, eliminando }: CardProps) {
   return (
     <div className={`rounded-xl border bg-zinc-900 p-5 flex flex-col gap-4 transition-colors ${confirmandoEliminar ? 'border-rose-800/60' : 'border-zinc-800'}`}>
       <div className="flex items-start gap-3">
@@ -93,7 +103,6 @@ function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, on
           <h3 className="text-sm font-semibold text-zinc-100 truncate">{empresa.nombre}</h3>
           <p className="text-[11px] text-zinc-500 mt-0.5 font-mono">{empresa.id}</p>
         </div>
-        {/* Botón eliminar */}
         {!confirmandoEliminar ? (
           <button
             onClick={onEliminar}
@@ -112,9 +121,10 @@ function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, on
             </button>
             <button
               onClick={onConfirmarEliminar}
-              className="px-2 py-1 text-[11px] font-medium rounded bg-rose-700 hover:bg-rose-600 text-white transition-colors"
+              disabled={eliminando}
+              className="px-2 py-1 text-[11px] font-medium rounded bg-rose-700 hover:bg-rose-600 text-white transition-colors disabled:opacity-50"
             >
-              Eliminar
+              {eliminando ? '...' : 'Eliminar'}
             </button>
           </div>
         )}
@@ -145,21 +155,39 @@ function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, on
   )
 }
 
-// ── Tab principal ──────────────────────────────────────────��──────────────────
+// ── Tab principal ─────────────────────────────────────────────────────────────
 
 export default function EmpresasTab({ onGestionarUsuarios }: Props) {
-  const [empresas, setEmpresas] = useState(() => superAdminService.listarEmpresas())
+  const [empresas, setEmpresas] = useState<EmpresaStats[]>([])
+  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [confirmando, setConfirmando] = useState<string | null>(null)
+  const [eliminando, setEliminando] = useState(false)
 
-  function recargar() {
-    setEmpresas(superAdminService.listarEmpresas())
+  async function recargar() {
+    setLoading(true)
+    try {
+      setEmpresas(await superAdminService.listarEmpresas())
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function handleEliminar(sociedadId: string) {
-    superAdminService.eliminarEmpresa(sociedadId)
-    setConfirmando(null)
-    recargar()
+  useEffect(() => { recargar() }, [])
+
+  async function handleEliminar(sociedadId: string) {
+    setEliminando(true)
+    try {
+      await superAdminService.eliminarEmpresa(sociedadId)
+      setConfirmando(null)
+      await recargar()
+    } finally {
+      setEliminando(false)
+    }
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-16"><Spinner size="md" /></div>
   }
 
   return (
@@ -188,6 +216,7 @@ export default function EmpresasTab({ onGestionarUsuarios }: Props) {
               confirmandoEliminar={confirmando === emp.id}
               onConfirmarEliminar={() => handleEliminar(emp.id)}
               onCancelarEliminar={() => setConfirmando(null)}
+              eliminando={eliminando}
             />
           ))}
         </div>

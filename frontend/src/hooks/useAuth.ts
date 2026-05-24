@@ -5,6 +5,48 @@ import { isMockMode, getMockUserId } from '../dev/mockMode'
 import { getMockUser } from '../dev/mockUsers'
 import { tieneAccesoCentroCria } from '../services/accesoCentroCriaService'
 
+// Carga el perfil desde Supabase y configura el store según el rol del usuario.
+// Solo corre si rol todavía no fue cargado (evita llamadas redundantes en remounts).
+async function cargarPerfilProd(
+  userId: string,
+  supabase: ReturnType<typeof getSupabaseClient>
+) {
+  const store = useAuthStore.getState()
+  if (store.rol !== null) return // ya cargado, no repetir
+
+  try {
+    const { data: perfil } = await supabase
+      .from('usuario')
+      .select('rol')
+      .eq('id', userId)
+      .single()
+
+    if (perfil?.rol === 'superadmin') {
+      store.setRolSuperAdmin()
+      return
+    }
+
+    // Usuario normal: cargar sociedad activa via membresia
+    const { data: memb } = await supabase
+      .from('membresia')
+      .select('activa, cat_rol(nombre), sociedad(id, nombre, activa)')
+      .eq('usuario_id', userId)
+      .eq('activa', true)
+      .single()
+
+    if (memb) {
+      store.setSociedadActiva(
+        (memb as any).sociedad,
+        (memb as any).cat_rol?.nombre ?? null
+      )
+    }
+    store.setLoading(false)
+    tieneAccesoCentroCria(userId).then((v) => store.setAccesosCentroC(v))
+  } catch {
+    store.setLoading(false)
+  }
+}
+
 export function useAuth() {
   const store = useAuthStore()
 
@@ -32,14 +74,14 @@ export function useAuth() {
     supabase.auth.getSession().then(({ data }) => {
       store.setSession(data.session)
       if (data.session?.user?.id) {
-        tieneAccesoCentroCria(data.session.user.id).then((v) => store.setAccesosCentroC(v))
+        cargarPerfilProd(data.session.user.id, supabase)
       }
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       store.setSession(session)
       if (session?.user?.id) {
-        tieneAccesoCentroCria(session.user.id).then((v) => store.setAccesosCentroC(v))
+        cargarPerfilProd(session.user.id, supabase)
       }
       if (!session) store.clear()
     })
@@ -61,6 +103,7 @@ export function useAuth() {
     const supabase = getSupabaseClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+    // el perfil se carga via onAuthStateChange
   }
 
   const signOut = async () => {
