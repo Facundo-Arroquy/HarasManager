@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { useAuth } from './hooks/useAuth'
 import Spinner from './components/ui/Spinner'
 import AppLayout from './components/layout/AppLayout'
-import DevPanel from './dev/DevPanel'
 import LoginPage from './pages/auth/LoginPage'
 import SuperAdminPage from './pages/superadmin/SuperAdminPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
@@ -89,7 +88,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      <DevPanel />
     </BrowserRouter>
   )
 }
