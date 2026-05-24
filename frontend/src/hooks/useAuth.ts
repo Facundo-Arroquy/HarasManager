@@ -41,7 +41,7 @@ async function cargarPerfilProd(
       )
     }
     store.setLoading(false)
-    tieneAccesoCentroCria(userId).then((v) => store.setAccesosCentroC(v))
+    tieneAccesoCentroCria(userId).then((v) => store.setAccesosCentroC(v)).catch(() => {})
   } catch {
     store.setLoading(false)
   }

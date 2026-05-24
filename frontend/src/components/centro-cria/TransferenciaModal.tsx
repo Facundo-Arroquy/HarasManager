@@ -66,10 +66,10 @@ export default function TransferenciaModal({
 
   useEffect(() => {
     if (!sociedadActiva) return
-    crianzaService.listarAnimalesReproductivos(sociedadActiva.id).then((data) => {
-      setAnimales(data as AnimalItem[])
-      setCargando(false)
-    })
+    crianzaService.listarAnimalesReproductivos(sociedadActiva.id)
+      .then((data) => setAnimales(data as AnimalItem[]))
+      .catch(() => {})
+      .finally(() => setCargando(false))
   }, [sociedadActiva])
 
   useEffect(() => {

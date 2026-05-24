@@ -78,7 +78,9 @@ export default function HistorialPage() {
   function handleTabGenealogia() {
     setTab('genealogia')
     if (todosCaballos.length === 0 && caballo?.sociedad_id) {
-      caballoService.listar(caballo.sociedad_id).then((data) => setTodosCaballos(data as Caballo[]))
+      caballoService.listar(caballo.sociedad_id)
+        .then((data) => setTodosCaballos(data as Caballo[]))
+        .catch(() => {})
     }
   }
 

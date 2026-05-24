@@ -24,7 +24,7 @@ export default function RecordatoriosPage() {
   const [flushingIdParaTransf, setFlushingIdParaTransf] = useState<string | null>(null)
 
   useEffect(() => {
-    if (sociedadId && recordatorios.length === 0) cargar(sociedadId)
+    if (sociedadId) cargar(sociedadId)
   }, [sociedadId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lista = filtro === 'todos'
