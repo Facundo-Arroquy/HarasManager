@@ -96,10 +96,13 @@ CREATE TABLE sociedad (
 );
 
 -- Usuarios (espejo de Supabase Auth)
+-- rol es NULL para usuarios normales (su rol viene de membresia.cat_rol).
+-- 'superadmin' y 'veterinario' son roles globales sin sociedad fija, se almacenan aquí.
 CREATE TABLE usuario (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   nombre VARCHAR(100) NOT NULL, apellido VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE, telefono VARCHAR(30),
+  rol VARCHAR(20),  -- NULL | 'superadmin' | 'veterinario'
   activo BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -208,6 +211,83 @@ CREATE TABLE historial_medicamento (
   duracion_dias INTEGER CHECK (duracion_dias > 0)
 );
 ```
+
+### Centro de Embriones (crianza)
+
+```sql
+CREATE TABLE cria_registro_clinico (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  caballo_id UUID NOT NULL REFERENCES caballo(id),
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  fecha DATE NOT NULL,
+  veterinario_id UUID NOT NULL REFERENCES usuario(id),
+  ovario_izq TEXT[] NOT NULL DEFAULT '{}',
+  ovario_der TEXT[] NOT NULL DEFAULT '{}',
+  utero TEXT[] NOT NULL DEFAULT '{}',
+  obs_chips TEXT[] NOT NULL DEFAULT '{}',
+  padrillo_id UUID REFERENCES caballo(id),
+  ov_dias INTEGER,
+  review_manana BOOLEAN DEFAULT FALSE,
+  review_manana_desc TEXT,
+  motivo TEXT, diagnostico TEXT, tratamiento TEXT, observaciones TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE cria_recordatorio (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  caballo_id UUID NOT NULL REFERENCES caballo(id),
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  tipo VARCHAR(50) NOT NULL,  -- 'IN' | 'OXI' | 'Flushing' | 'Revisión Flushing' | 'Revisión PG' | 'Dar PG' | 'Revisión Strelin' | 'Revisión'
+  fecha_vto DATE NOT NULL,
+  estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',  -- 'pendiente' | 'vencido' | 'hecho' | 'cancelado'
+  veterinario_id UUID REFERENCES usuario(id),
+  notas TEXT,
+  auto_generado BOOLEAN DEFAULT TRUE,
+  origen_registro_id UUID REFERENCES cria_registro_clinico(id),
+  cancel_motivo TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE cria_flushing (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  caballo_id UUID NOT NULL REFERENCES caballo(id),  -- donante
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  fecha DATE NOT NULL,
+  veterinario_id UUID REFERENCES usuario(id),
+  es_negativo BOOLEAN DEFAULT FALSE,
+  cantidad INTEGER,
+  estadio VARCHAR(50),   -- 'Mórula' | 'Blastocisto temprano' | 'Blastocisto' | 'Blastocisto expandido'
+  grado INTEGER,
+  tamanio VARCHAR(50),
+  zona_pelucida VARCHAR(50),
+  padrillo_id UUID REFERENCES caballo(id),
+  origen_recordatorio_id UUID REFERENCES cria_recordatorio(id),
+  pg_given BOOLEAN DEFAULT FALSE,
+  cancelado BOOLEAN DEFAULT FALSE,
+  notas TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE cria_transferencia (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  fecha DATE NOT NULL,
+  veterinario_id UUID REFERENCES usuario(id),
+  registro_id UUID REFERENCES cria_registro_clinico(id),
+  caballo_receptora_id UUID NOT NULL REFERENCES caballo(id),
+  caballo_donante_id UUID REFERENCES caballo(id),
+  padrillo_id UUID REFERENCES caballo(id),
+  flushing_id UUID REFERENCES cria_flushing(id),
+  cl_calidad VARCHAR(50),
+  tono_uterino VARCHAR(50),
+  tono_cervical VARCHAR(50),
+  clasificacion VARCHAR(50),  -- 'Fresco' | 'Congelado'
+  notas TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+El campo `rol_reproductivo` ('Donante' | 'Receptora' | null) vive en la tabla `caballo`.
 
 ---
 
@@ -350,8 +430,6 @@ Marcas demo:
 
 ## Funcionalidades Futuras (no implementar aún)
 
-- Login real con Supabase Auth (actualmente usar mock system)
-- Página de administración: gestión de usuarios, membresías, marcas, accesos vet
 - Silueta interactiva del caballo para marcar lesiones (frontend SVG + MongoDB)
 - Adjuntos multimedia por registro clínico (MongoDB Atlas)
 - App móvil / PWA

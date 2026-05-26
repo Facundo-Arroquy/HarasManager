@@ -311,6 +311,9 @@ export const caballoService = {
   },
 
   async actualizarComoVet(id: string, payload: ActualizarCaballoPayload): Promise<void> {
+    if (isMockMode()) {
+      return caballoService.actualizar(id, payload)
+    }
     const supabase = getSupabaseClient()
     const { error } = await supabase.rpc('actualizar_caballo_veterinario', {
       p_caballo_id:       id,

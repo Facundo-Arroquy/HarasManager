@@ -28,6 +28,7 @@ import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 import TransferirVetPage from './pages/vet/TransferirVetPage'
 import AlertasPage from './pages/alertas/AlertasPage'
+import NotFoundPage from './pages/NotFoundPage'
 
 function RootRedirect() {
   const rol = useAuthStore((s) => s.rol)
@@ -87,6 +88,17 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   )
 }
 
+function RequireCentroCria() {
+  const accesosCentroC = useAuthStore((s) => s.accesosCentroC)
+  const accesosCentroCOrg = useAuthStore((s) => s.accesosCentroCOrg)
+  const rol = useAuthStore((s) => s.rol)
+
+  if (!accesosCentroC && !accesosCentroCOrg) {
+    return <Navigate to={rol === 'veterinario' ? '/panel-vet' : '/dashboard'} replace />
+  }
+  return <Outlet />
+}
+
 function RequireSuperAdmin() {
   const { loading, rol, session, isAuthenticated } = useAuth()
   const perfilCargado = useAuthStore((s) => s.perfilCargado)
@@ -127,12 +139,14 @@ export default function App() {
           <Route path="/revision-preventa" element={<RevisionPreVentaPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/config" element={<ConfigPage />} />
-          {/* Centro de Embriones — accesible para veterinario y admin */}
-          <Route path="/centro-cria" element={<DashboardCriaPage />} />
-          <Route path="/centro-cria/programa" element={<ProgramaSemanalPage />} />
-          <Route path="/centro-cria/recordatorios" element={<RecordatoriosPage />} />
-          <Route path="/centro-cria/transferencias" element={<TransferenciasPage />} />
-          <Route path="/centro-cria/flushings" element={<FlushingsPage />} />
+          {/* Centro de Embriones — requiere acceso explícito por usuario u organización */}
+          <Route element={<RequireCentroCria />}>
+            <Route path="/centro-cria" element={<DashboardCriaPage />} />
+            <Route path="/centro-cria/programa" element={<ProgramaSemanalPage />} />
+            <Route path="/centro-cria/recordatorios" element={<RecordatoriosPage />} />
+            <Route path="/centro-cria/transferencias" element={<TransferenciasPage />} />
+            <Route path="/centro-cria/flushings" element={<FlushingsPage />} />
+          </Route>
           <Route path="/transferencias" element={<TransferirEmpresaPage />} />
           <Route path="/transferir-vet" element={<TransferirVetPage />} />
           <Route path="/alertas" element={<AlertasPage />} />
@@ -142,7 +156,7 @@ export default function App() {
           <Route path="/superadmin" element={<SuperAdminPage />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
     </BrowserRouter>

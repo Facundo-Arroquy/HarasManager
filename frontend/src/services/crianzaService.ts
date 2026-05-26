@@ -368,6 +368,43 @@ export const crianzaService = {
     return data as RecordatorioCria
   },
 
+  async crearRecordatoriosBatch(payloads: NuevoRecordatorioPayload[]): Promise<RecordatorioCria[]> {
+    if (isMockMode()) {
+      const now = Date.now()
+      const nuevos = payloads.map((payload, i): RecordatorioCria => ({
+        ...payload,
+        id: `rem-${now}-${i}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }))
+      MOCK_RECORDATORIOS.push(...nuevos)
+      return nuevos
+    }
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_recordatorio')
+      .insert(payloads)
+      .select(`*, caballo(nombre, rol_reproductivo)`)
+    if (error) throw error
+    return data as RecordatorioCria[]
+  },
+
+  async marcarVencidos(ids: string[]): Promise<void> {
+    if (isMockMode()) {
+      ids.forEach((id) => {
+        const rec = MOCK_RECORDATORIOS.find((r) => r.id === id)
+        if (rec) rec.estado = 'vencido'
+      })
+      return
+    }
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('cria_recordatorio')
+      .update({ estado: 'vencido' })
+      .in('id', ids)
+    if (error) throw error
+  },
+
   async actualizarEstadoRecordatorio(
     id: string,
     estado: EstadoRecordatorio,

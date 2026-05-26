@@ -169,23 +169,23 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     const registro = await crianzaService.crearRegistro(payload)
     set((s) => ({ registros: [registro, ...s.registros] }))
 
-    // Auto-generar recordatorios según chips
+    // Auto-generar recordatorios según chips (insert batch para evitar N+1)
     const reglas = reglasParaRegistro(payload, rolReproductivo)
-    for (const regla of reglas) {
-      const recPayload: NuevoRecordatorioPayload = {
+    if (reglas.length > 0) {
+      const recPayloads: NuevoRecordatorioPayload[] = reglas.map((regla) => ({
         caballo_id:         payload.caballo_id,
         sociedad_id:        payload.sociedad_id,
         tipo:               regla.tipo,
         fecha_vto:          regla.calcularFecha(payload.fecha),
-        estado:             'pendiente',
+        estado:             'pendiente' as EstadoRecordatorio,
         veterinario_id:     payload.veterinario_id,
         notas:              null,
         auto_generado:      true,
         origen_registro_id: registro.id,
         cancel_motivo:      null,
-      }
-      const rec = await crianzaService.crearRecordatorio(recPayload)
-      set((s) => ({ recordatorios: [...s.recordatorios, rec] }))
+      }))
+      const recs = await crianzaService.crearRecordatoriosBatch(recPayloads)
+      set((s) => ({ recordatorios: [...s.recordatorios, ...recs] }))
     }
 
     return registro
@@ -247,6 +247,14 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
   sincronizarVencidos: () => {
     const hoy = new Date().toISOString().split('T')[0]
+    const aVencer = get().recordatorios
+      .filter((r) => r.estado === 'pendiente' && r.fecha_vto < hoy)
+      .map((r) => r.id)
+
+    if (aVencer.length > 0) {
+      crianzaService.marcarVencidos(aVencer).catch(() => {})
+    }
+
     set((s) => ({
       recordatorios: s.recordatorios.map((r) =>
         r.estado === 'pendiente' && r.fecha_vto < hoy
