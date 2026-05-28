@@ -157,7 +157,8 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
       set({ registros, recordatorios, flushings, transferencias })
       get().sincronizarVencidos()
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Error al cargar datos' })
+      const msg = err instanceof Error ? err.message : (err as any)?.message ?? 'Error al cargar datos'
+      set({ error: msg })
     } finally {
       set({ loading: false })
     }

@@ -257,7 +257,7 @@ export const crianzaService = {
       .from('cria_registro_clinico')
       .select(`
         *,
-        caballo(nombre, rol_reproductivo),
+        caballo:caballo_id(nombre, rol_reproductivo),
         veterinario:veterinario_id(nombre, apellido),
         padrillo:padrillo_id(nombre)
       `)
@@ -277,7 +277,7 @@ export const crianzaService = {
       .from('cria_registro_clinico')
       .select(`
         *,
-        caballo(nombre, rol_reproductivo),
+        caballo:caballo_id(nombre, rol_reproductivo),
         veterinario:veterinario_id(nombre, apellido),
         padrillo:padrillo_id(nombre)
       `)
@@ -304,7 +304,7 @@ export const crianzaService = {
       .insert(payload)
       .select(`
         *,
-        caballo(nombre, rol_reproductivo),
+        caballo:caballo_id(nombre, rol_reproductivo),
         veterinario:veterinario_id(nombre, apellido),
         padrillo:padrillo_id(nombre)
       `)
@@ -438,7 +438,7 @@ export const crianzaService = {
       .from('cria_flushing')
       .select(`
         *,
-        caballo(nombre),
+        caballo:caballo_id(nombre),
         padrillo:padrillo_id(nombre),
         veterinario:veterinario_id(nombre, apellido)
       `)
@@ -465,7 +465,7 @@ export const crianzaService = {
       .insert(payload)
       .select(`
         *,
-        caballo(nombre),
+        caballo:caballo_id(nombre),
         padrillo:padrillo_id(nombre),
         veterinario:veterinario_id(nombre, apellido)
       `)
@@ -581,7 +581,7 @@ export const crianzaService = {
       .from('cria_flushing')
       .select(`
         *,
-        caballo(nombre),
+        caballo:caballo_id(nombre),
         padrillo:padrillo_id(nombre),
         veterinario:veterinario_id(nombre, apellido)
       `)
