@@ -112,7 +112,7 @@ export const caballoService = {
     const { data, error } = await supabase
       .from('caballo')
       .select(`
-        id, nombre, fecha_nacimiento, categoria, campo_id,
+        id, nombre, fecha_nacimiento, categoria, subcategoria, campo_id,
         raza_id, pelaje_id, numero_chip, numero_registro, activo,
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
