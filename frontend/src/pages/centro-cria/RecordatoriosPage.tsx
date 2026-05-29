@@ -17,7 +17,8 @@ const FILTROS: { label: string; value: EstadoRecordatorio | 'todos' }[] = [
 
 export default function RecordatoriosPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
-  const { recordatorios, loading, cargar, actualizarEstadoRecordatorio } = useCrianzaStore()
+  const rol        = useAuthStore((s) => s.rol)
+  const { recordatorios, loading, cargar, cargarParaVet, actualizarEstadoRecordatorio } = useCrianzaStore()
   const [filtro, setFiltro] = useState<EstadoRecordatorio | 'todos'>('pendiente')
   const [cancelando, setCancelando] = useState<string | null>(null)
   const [flushingRec, setFlushingRec] = useState<RecordatorioCria | null>(null)
@@ -25,7 +26,8 @@ export default function RecordatoriosPage() {
 
   useEffect(() => {
     if (sociedadId) cargar(sociedadId)
-  }, [sociedadId]) // eslint-disable-line react-hooks/exhaustive-deps
+    else if (rol === 'veterinario') cargarParaVet()
+  }, [sociedadId, rol]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lista = filtro === 'todos'
     ? recordatorios

@@ -54,7 +54,8 @@ function formatMes(d: Date): string {
 
 export default function ProgramaSemanalPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
-  const { registros, recordatorios, cargar, loading } = useCrianzaStore()
+  const rol        = useAuthStore((s) => s.rol)
+  const { registros, recordatorios, cargar, cargarParaVet, loading } = useCrianzaStore()
 
   const [animales,      setAnimales]      = useState<AnimalItem[]>([])
   const [cargandoAnim,  setCargandoAnim]  = useState(true)
@@ -67,13 +68,20 @@ export default function ProgramaSemanalPage() {
 
   // Carga inicial
   useEffect(() => {
-    if (!sociedadId) return
-    if (registros.length === 0) cargar(sociedadId)
-    crianzaService.listarAnimalesReproductivos(sociedadId).then((data) => {
-      setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
-      setCargandoAnim(false)
-    })
-  }, [sociedadId]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (sociedadId) {
+      if (registros.length === 0) cargar(sociedadId)
+      crianzaService.listarAnimalesReproductivos(sociedadId).then((data) => {
+        setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+        setCargandoAnim(false)
+      })
+    } else if (rol === 'veterinario') {
+      if (registros.length === 0) cargarParaVet()
+      crianzaService.listarAnimalesReproductivosVet().then((data) => {
+        setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+        setCargandoAnim(false)
+      })
+    }
+  }, [sociedadId, rol]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function semanaAnterior() {
     const d = new Date(inicioRef)
@@ -342,7 +350,10 @@ export default function ProgramaSemanalPage() {
         <RegistroCriaModal
           caballoIdInicial={caballoModal}
           onClose={() => { setModalAbierto(false); setCaballoModal(undefined) }}
-          onSuccess={() => sociedadId && cargar(sociedadId)}
+          onSuccess={() => {
+            if (sociedadId) cargar(sociedadId)
+            else if (rol === 'veterinario') cargarParaVet()
+          }}
         />
       )}
     </div>

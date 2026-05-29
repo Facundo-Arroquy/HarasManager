@@ -107,6 +107,7 @@ interface CrianzaState {
   error:          string | null
 
   cargar: (sociedadId: string) => Promise<void>
+  cargarParaVet: () => Promise<void>
 
   // Registros clínicos
   crearRegistro: (
@@ -153,6 +154,25 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
         crianzaService.listarRecordatorios(sociedadId),
         crianzaService.listarFlushings(sociedadId),
         crianzaService.listarTransferencias(sociedadId),
+      ])
+      set({ registros, recordatorios, flushings, transferencias })
+      get().sincronizarVencidos()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : (err as any)?.message ?? 'Error al cargar datos'
+      set({ error: msg })
+    } finally {
+      set({ loading: false })
+    }
+  },
+
+  cargarParaVet: async () => {
+    set({ loading: true, error: null })
+    try {
+      const [registros, recordatorios, flushings, transferencias] = await Promise.all([
+        crianzaService.listarRegistrosVet(),
+        crianzaService.listarRecordatoriosVet(),
+        crianzaService.listarFlushingsVet(),
+        crianzaService.listarTransferenciasVet(),
       ])
       set({ registros, recordatorios, flushings, transferencias })
       get().sincronizarVencidos()

@@ -46,6 +46,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   // Si el animal no tiene rol asignado, el vet elige uno en el modal
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
 
+  // Para vets sin sociedadActiva: se deriva del caballo seleccionado
+  const [animalSociedadId, setAnimalSociedadId] = useState('')
+
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
 

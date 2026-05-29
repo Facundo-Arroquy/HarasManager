@@ -93,8 +93,11 @@ function RequireCentroCria() {
   const accesosCentroCOrg = useAuthStore((s) => s.accesosCentroCOrg)
   const rol = useAuthStore((s) => s.rol)
 
+  // Los veterinarios siempre tienen acceso al centro de cría
+  if (rol === 'veterinario') return <Outlet />
+
   if (!accesosCentroC && !accesosCentroCOrg) {
-    return <Navigate to={rol === 'veterinario' ? '/panel-vet' : '/dashboard'} replace />
+    return <Navigate to="/dashboard" replace />
   }
   return <Outlet />
 }
