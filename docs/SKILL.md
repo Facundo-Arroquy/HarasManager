@@ -6,7 +6,7 @@ description: >
   componentes React, lógica de permisos, migraciones, o cualquier decisión técnica.
   Si el usuario menciona caballos, historial clínico, sociedades, veterinarios,
   marcas, acceso_veterinario, Supabase multi-tenant, o cualquier módulo de esta app,
-  consultar este skill primero sin excepción.
+  consultar este skill primero sin excepción, si sigue habiendo dudas consultarme.
 ---
 
 # Equine Management System — Skill Maestro de Arquitectura
