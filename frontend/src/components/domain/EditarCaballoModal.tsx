@@ -114,7 +114,13 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
       })
       onSuccess()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al guardar.')
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Error inesperado al guardar.'
+      setError(msg)
     } finally {
       setSaving(false)
     }
@@ -126,7 +132,13 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
       await caballoService.darDeBaja(caballo.id)
       onSuccess()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al dar de baja.')
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Error inesperado al dar de baja.'
+      setError(msg)
     } finally {
       setSaving(false)
     }
