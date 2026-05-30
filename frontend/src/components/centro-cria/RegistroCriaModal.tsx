@@ -19,13 +19,14 @@ type AnimalItem = {
   nombre: string
   categoria: string
   rol_reproductivo: RolReproductivo
+  sociedad_id?: string
   campo: { nombre: string } | null
 }
 
 const HOY = new Date().toISOString().split('T')[0]
 
 export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial }: Props) {
-  const { user, sociedadActiva } = useAuth()
+  const { user, sociedadActiva, rol } = useAuth()
   const { crearRegistro } = useCrianzaStore()
 
   const [animales, setAnimales] = useState<AnimalItem[]>([])
@@ -46,6 +47,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   // Si el animal no tiene rol asignado, el vet elige uno en el modal
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
 
+  // Para vets sin sociedadActiva: se deriva del caballo seleccionado
+  const [animalSociedadId, setAnimalSociedadId] = useState('')
+
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
 
@@ -61,13 +65,18 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
   // ── Carga de animales ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (!sociedadActiva) return
-    crianzaService.listarAnimalesReproductivos(sociedadActiva.id).then((data) => {
-      // Mostrar yeguas y padrillos (no potrillos)
-      setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
-      setCargandoAnimales(false)
-    })
-  }, [sociedadActiva])
+    if (sociedadActiva) {
+      crianzaService.listarAnimalesReproductivos(sociedadActiva.id).then((data) => {
+        setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+        setCargandoAnimales(false)
+      })
+    } else if (rol === 'veterinario') {
+      crianzaService.listarAnimalesReproductivosVet().then((data) => {
+        setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+        setCargandoAnimales(false)
+      })
+    }
+  }, [sociedadActiva, rol])
 
   // Escape para cerrar
   useEffect(() => {
@@ -84,7 +93,8 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
     if (!caballoId)       return setError('Seleccioná un animal.')
     if (!fecha)           return setError('La fecha es requerida.')
     if (!user?.id)        return setError('Sin sesión activa.')
-    if (!sociedadActiva)  return
+    const sociedadId = sociedadActiva?.id ?? animalSociedadId
+    if (!sociedadId)      return setError('No se pudo determinar la sociedad del animal.')
     if (necesitaRol && !rolManual) return setError('Indicá si es Donante o Receptora.')
 
     setSaving(true)
@@ -92,7 +102,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       await crearRegistro(
         {
           caballo_id:         caballoId,
-          sociedad_id:        sociedadActiva.id,
+          sociedad_id:        sociedadId,
           fecha,
           veterinario_id:     user.id,
           ovario_izq:         ovarioIzq,
@@ -170,7 +180,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               <select
                 value={caballoId}
                 onChange={(e) => {
+                  const animal = animales.find((a) => a.id === e.target.value)
                   setCaballoId(e.target.value)
+                  setAnimalSociedadId(animal?.sociedad_id ?? '')
                   setRolManual(null)
                 }}
                 disabled={cargandoAnimales}

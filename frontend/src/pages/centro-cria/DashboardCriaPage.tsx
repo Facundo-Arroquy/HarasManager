@@ -8,20 +8,25 @@ import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
 
 export default function DashboardCriaPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
-  const { registros, recordatorios, flushings, transferencias, loading, error, cargar, sincronizarVencidos } =
+  const rol        = useAuthStore((s) => s.rol)
+  const { registros, recordatorios, flushings, transferencias, loading, error, cargar, cargarParaVet, sincronizarVencidos } =
     useCrianzaStore()
   const [showModal, setShowModal] = useState(false)
 
   const sincronizadorRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  function recargar() {
+    if (sociedadId) cargar(sociedadId)
+    else if (rol === 'veterinario') cargarParaVet()
+  }
+
   useEffect(() => {
-    if (!sociedadId) return
-    cargar(sociedadId)
+    recargar()
     sincronizadorRef.current = setInterval(() => sincronizarVencidos(), 60_000)
     return () => {
       if (sincronizadorRef.current) clearInterval(sincronizadorRef.current)
     }
-  }, [sociedadId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sociedadId, rol]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -69,7 +74,7 @@ export default function DashboardCriaPage() {
       {showModal && (
         <RegistroCriaModal
           onClose={() => setShowModal(false)}
-          onSuccess={() => sociedadId && cargar(sociedadId)}
+          onSuccess={recargar}
         />
       )}
 

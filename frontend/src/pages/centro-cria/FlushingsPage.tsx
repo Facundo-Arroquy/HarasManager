@@ -8,12 +8,14 @@ import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
 
 export default function FlushingsPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
-  const { flushings, loading, cargar } = useCrianzaStore()
+  const rol        = useAuthStore((s) => s.rol)
+  const { flushings, loading, cargar, cargarParaVet } = useCrianzaStore()
   const [flushingParaTransf, setFlushingParaTransf] = useState<Flushing | null>(null)
 
   useEffect(() => {
     if (sociedadId && flushings.length === 0) cargar(sociedadId)
-  }, [sociedadId]) // eslint-disable-line react-hooks/exhaustive-deps
+    else if (!sociedadId && rol === 'veterinario' && flushings.length === 0) cargarParaVet()
+  }, [sociedadId, rol]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
 

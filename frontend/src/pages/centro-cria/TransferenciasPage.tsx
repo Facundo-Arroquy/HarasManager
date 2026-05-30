@@ -6,11 +6,13 @@ import Spinner from '../../components/ui/Spinner'
 
 export default function TransferenciasPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
-  const { transferencias, loading, cargar } = useCrianzaStore()
+  const rol        = useAuthStore((s) => s.rol)
+  const { transferencias, loading, cargar, cargarParaVet } = useCrianzaStore()
 
   useEffect(() => {
     if (sociedadId && transferencias.length === 0) cargar(sociedadId)
-  }, [sociedadId]) // eslint-disable-line react-hooks/exhaustive-deps
+    else if (!sociedadId && rol === 'veterinario' && transferencias.length === 0) cargarParaVet()
+  }, [sociedadId, rol]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
 

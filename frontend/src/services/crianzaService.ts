@@ -535,6 +535,82 @@ export const crianzaService = {
     return data as TransferenciaEmbrionaria
   },
 
+  // ── Métodos sin filtro de sociedad — para veterinarios sin membresía ─────
+
+  async listarRegistrosVet(): Promise<RegistroClinicoCria[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_registro_clinico')
+      .select(`
+        *,
+        caballo:caballo_id(nombre, rol_reproductivo),
+        veterinario:veterinario_id(nombre, apellido),
+        padrillo:padrillo_id(nombre)
+      `)
+      .order('fecha', { ascending: false })
+    if (error) throw error
+    return data as RegistroClinicoCria[]
+  },
+
+  async listarRecordatoriosVet(): Promise<RecordatorioCria[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_recordatorio')
+      .select(`*, caballo(nombre, rol_reproductivo)`)
+      .order('fecha_vto')
+    if (error) throw error
+    return data as RecordatorioCria[]
+  },
+
+  async listarFlushingsVet(): Promise<Flushing[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_flushing')
+      .select(`
+        *,
+        caballo:caballo_id(nombre),
+        padrillo:padrillo_id(nombre),
+        veterinario:veterinario_id(nombre, apellido)
+      `)
+      .order('fecha', { ascending: false })
+    if (error) throw error
+    return data as Flushing[]
+  },
+
+  async listarTransferenciasVet(): Promise<TransferenciaEmbrionaria[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_transferencia')
+      .select(`
+        *,
+        receptora:caballo_receptora_id(nombre),
+        donante:caballo_donante_id(nombre),
+        padrillo:padrillo_id(nombre),
+        veterinario:veterinario_id(nombre, apellido)
+      `)
+      .order('fecha', { ascending: false })
+    if (error) throw error
+    return data as TransferenciaEmbrionaria[]
+  },
+
+  async listarAnimalesReproductivosVet() {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('caballo')
+      .select('id, nombre, categoria, rol_reproductivo, sociedad_id, campo(nombre)')
+      .eq('activo', true)
+      .order('nombre')
+    if (error) throw error
+    return (data as unknown) as Array<{
+      id: string
+      nombre: string
+      categoria: string
+      rol_reproductivo: RolReproductivo
+      sociedad_id: string
+      campo: { nombre: string } | null
+    }>
+  },
+
   // ── Animales del módulo (con rol_reproductivo) ───────────────────────────
 
   async listarAnimalesReproductivos(sociedadId: string) {
