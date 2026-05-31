@@ -18,13 +18,13 @@
 - **Asignado:** -
 - **Descripción:** Separar bien lo que es membresía (empresa con sus usuarios) de rol. Un veterinario es user de la plataforma; una persona tiene un rol pero pertenece a una empresa/membresía. No está claro si hacer un solo admin y que después agregue a varios. Revisar modelo de permisos completo en `docs/SKILL.md`.
 
-### [ ] Fix de nombre del caballo en acceso a vets
-- **Estado:** pendiente
+### [x] Fix de nombre del caballo en acceso a vets
+- **Estado:** terminado
 - **Asignado:** -
 - **Descripción:** El nombre del caballo no se muestra correctamente en la sección de accesos a veterinarios.
 
-### [ ] No se guarda si es receptora/donante/nada
-- **Estado:** pendiente
+### [x] No se guarda si es receptora/donante/nada
+- **Estado:** terminado
 - **Asignado:** -
 - **Descripción:** El campo `rol_reproductivo` (Donante / Receptora / null) en la tabla `caballo` no se está guardando correctamente.
 

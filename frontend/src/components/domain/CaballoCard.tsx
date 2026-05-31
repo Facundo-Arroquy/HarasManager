@@ -8,7 +8,7 @@ interface CaballoCardProps {
     nombre: string
     fecha_nacimiento?: string | null
     categoria?: string | null
-    subcategoria?: string | null
+    rol_reproductivo?: string | null
     numero_registro?: string | null
     cat_raza?: { nombre: string } | null
     cat_pelaje?: { nombre: string } | null
@@ -35,7 +35,7 @@ const SUBCATEGORIA_STYLE: Record<string, string> = {
 export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, empresaNombre }: CaballoCardProps) {
   const enModoSeleccion = onToggle !== undefined
   const badgeClass      = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
-  const subBadgeClass   = caballo.subcategoria ? SUBCATEGORIA_STYLE[caballo.subcategoria] : undefined
+  const subBadgeClass   = caballo.rol_reproductivo ? SUBCATEGORIA_STYLE[caballo.rol_reproductivo] : undefined
   const edad            = calcularEdadDetallada(caballo.fecha_nacimiento)
 
   function handleClick() {
@@ -95,9 +95,9 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
             {caballo.categoria}
           </span>
         )}
-        {subBadgeClass && caballo.subcategoria && (
+        {subBadgeClass && caballo.rol_reproductivo && (
           <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${subBadgeClass}`}>
-            {caballo.subcategoria}
+            {caballo.rol_reproductivo}
           </span>
         )}
       </span>

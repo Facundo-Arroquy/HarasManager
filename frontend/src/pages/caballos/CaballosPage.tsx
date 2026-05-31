@@ -120,13 +120,13 @@ export default function CaballosPage() {
     if (!hayBulkCambios || seleccionados.size === 0) return
     setBulkSaving(true)
     try {
-      const cambios: { campo_id?: string | null; categoria?: string; subcategoria?: string | null } = {}
+      const cambios: { campo_id?: string | null; categoria?: string; rol_reproductivo?: string | null } = {}
       if (bulkCampoId !== SIN_CAMBIO)
         cambios.campo_id = bulkCampoId === SIN_CAMPO ? null : bulkCampoId
       if (bulkCategoria !== SIN_CAMBIO)
         cambios.categoria = bulkCategoria
       if (bulkSubcategoria !== SIN_CAMBIO)
-        cambios.subcategoria = bulkSubcategoria === '' ? null : bulkSubcategoria
+        cambios.rol_reproductivo = bulkSubcategoria === '' ? null : bulkSubcategoria
       await caballoService.editarMasivo(Array.from(seleccionados), cambios)
       await cargar()
       salirModoSeleccion()
@@ -149,8 +149,8 @@ export default function CaballosPage() {
     if (ordenSubcat === 'ninguno') return base
     const orden = ORDEN_SUBCAT[ordenSubcat]
     return [...base].sort((a, b) => {
-      const pa = orden[(a as any).subcategoria ?? ''] ?? 2
-      const pb = orden[(b as any).subcategoria ?? ''] ?? 2
+      const pa = orden[(a as any).rol_reproductivo ?? ''] ?? 2
+      const pb = orden[(b as any).rol_reproductivo ?? ''] ?? 2
       return pa - pb
     })
   }, [caballos, busqueda, filtro, ordenSubcat]) // eslint-disable-line react-hooks/exhaustive-deps
