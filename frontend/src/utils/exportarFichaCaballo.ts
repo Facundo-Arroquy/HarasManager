@@ -401,7 +401,7 @@ export async function generarFichaHtml(data: FichaCaballoData, { autoPrint = fal
   <div class="id-section">
     <div class="igrid">
       <div class="irow"><span class="ilbl">Nombre:</span><span class="ival">${caballo.nombre}</span></div>
-      <div class="irow"><span class="ilbl">Categoría:</span><span class="ival">${caballo.categoria ?? '—'}${caballo.subcategoria ? ` · ${caballo.subcategoria}` : ''}</span></div>
+      <div class="irow"><span class="ilbl">Categoría:</span><span class="ival">${caballo.categoria ?? '—'}${(caballo as any).rol_reproductivo ? ` · ${(caballo as any).rol_reproductivo}` : ''}</span></div>
       <div class="irow"><span class="ilbl">Raza:</span><span class="ival">${caballo.cat_raza?.nombre ?? '—'}</span></div>
       <div class="irow"><span class="ilbl">Pelaje:</span><span class="ival">${caballo.cat_pelaje?.nombre ?? '—'}</span></div>
       ${caballo.fecha_nacimiento ? `<div class="irow"><span class="ilbl">Nacimiento:</span><span class="ival">${fmtFecha(caballo.fecha_nacimiento)}${edad ? ` (${edad})` : ''}</span></div>` : ''}

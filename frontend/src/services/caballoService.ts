@@ -17,7 +17,7 @@ export interface Caballo {
   nombre: string
   fecha_nacimiento: string
   categoria: string
-  subcategoria?: string | null
+  rol_reproductivo?: string | null
   raza_id: number
   pelaje_id: number
   numero_chip?: string
@@ -38,7 +38,7 @@ export interface ActualizarCaballoPayload {
   nombre: string
   fecha_nacimiento: string
   categoria: 'Caballo' | 'Yegua' | 'Padrillo' | 'Potrillo'
-  subcategoria?: Subcategoria | null
+  rol_reproductivo?: Subcategoria | null
   raza_id: number
   pelaje_id: number
   numero_chip?: string
@@ -54,7 +54,7 @@ export interface NuevoCaballoPayload {
   nombre: string
   fecha_nacimiento: string
   categoria: 'Caballo' | 'Yegua' | 'Padrillo' | 'Potrillo'
-  subcategoria?: Subcategoria | null
+  rol_reproductivo?: Subcategoria | null
   raza_id: number
   pelaje_id: number
   numero_chip?: string
@@ -112,7 +112,7 @@ export const caballoService = {
     const { data, error } = await supabase
       .from('caballo')
       .select(`
-        id, nombre, fecha_nacimiento, categoria, subcategoria, campo_id,
+        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, campo_id,
         raza_id, pelaje_id, numero_chip, numero_registro, activo,
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
@@ -137,7 +137,7 @@ export const caballoService = {
     const { data, error } = await supabase
       .from('caballo')
       .select(`
-        id, nombre, fecha_nacimiento, categoria, subcategoria,
+        id, nombre, fecha_nacimiento, categoria, rol_reproductivo,
         numero_chip, numero_registro, activo, sociedad_id, campo_id,
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(id, nombre),
@@ -189,7 +189,7 @@ export const caballoService = {
         nombre: payload.nombre,
         fecha_nacimiento: payload.fecha_nacimiento,
         categoria: payload.categoria,
-        subcategoria: payload.subcategoria ?? null,
+        rol_reproductivo: payload.rol_reproductivo ?? null,
         raza_id: payload.raza_id,
         pelaje_id: payload.pelaje_id,
         numero_chip: payload.numero_chip ?? '',
@@ -212,7 +212,7 @@ export const caballoService = {
         nombre:           payload.nombre,
         fecha_nacimiento: payload.fecha_nacimiento,
         categoria:        payload.categoria,
-        subcategoria:     payload.subcategoria ?? null,
+        rol_reproductivo: payload.rol_reproductivo ?? null,
         raza_id:          payload.raza_id,
         pelaje_id:        payload.pelaje_id,
         numero_chip:      payload.numero_chip,
@@ -242,7 +242,7 @@ export const caballoService = {
         nombre:           payload.nombre,
         fecha_nacimiento: payload.fecha_nacimiento,
         categoria:        payload.categoria,
-        subcategoria:     payload.subcategoria ?? null,
+        rol_reproductivo: payload.rol_reproductivo ?? null,
         raza_id:          payload.raza_id,
         pelaje_id:        payload.pelaje_id,
         numero_chip:      payload.numero_chip ?? '',
@@ -266,7 +266,7 @@ export const caballoService = {
         nombre:           payload.nombre,
         fecha_nacimiento: payload.fecha_nacimiento,
         categoria:        payload.categoria,
-        subcategoria:     payload.subcategoria ?? null,
+        rol_reproductivo: payload.rol_reproductivo ?? null,
         raza_id:          payload.raza_id,
         pelaje_id:        payload.pelaje_id,
         numero_chip:      payload.numero_chip ?? null,
@@ -283,7 +283,7 @@ export const caballoService = {
 
   async editarMasivo(
     ids: string[],
-    cambios: { campo_id?: string | null; categoria?: string; subcategoria?: string | null }
+    cambios: { campo_id?: string | null; categoria?: string; rol_reproductivo?: string | null }
   ): Promise<void> {
     if (isMockMode()) {
       const { MOCK_CAMPOS } = await import('../dev/mockData')
@@ -297,17 +297,17 @@ export const caballoService = {
           caballo.campo_id = cambios.campo_id ?? null
           caballo.campo = campo ? { nombre: campo.nombre } : null
         }
-        if (cambios.categoria)               caballo.categoria    = cambios.categoria
-        if ('subcategoria' in cambios)        caballo.subcategoria = cambios.subcategoria ?? null
+        if (cambios.categoria)                  caballo.categoria        = cambios.categoria
+        if ('rol_reproductivo' in cambios)       caballo.rol_reproductivo = cambios.rol_reproductivo ?? null
       }
       return
     }
 
     const supabase = getSupabaseClient()
     const update: Record<string, unknown> = {}
-    if ('campo_id' in cambios)    update.campo_id    = cambios.campo_id ?? null
-    if (cambios.categoria)        update.categoria   = cambios.categoria
-    if ('subcategoria' in cambios) update.subcategoria = cambios.subcategoria ?? null
+    if ('campo_id' in cambios)         update.campo_id         = cambios.campo_id ?? null
+    if (cambios.categoria)             update.categoria        = cambios.categoria
+    if ('rol_reproductivo' in cambios) update.rol_reproductivo = cambios.rol_reproductivo ?? null
     const { error } = await supabase.from('caballo').update(update).in('id', ids)
     if (error) throw error
   },
@@ -322,7 +322,7 @@ export const caballoService = {
       p_nombre:           payload.nombre,
       p_fecha_nacimiento: payload.fecha_nacimiento,
       p_categoria:        payload.categoria,
-      p_subcategoria:     payload.subcategoria    ?? null,
+      p_subcategoria:     payload.rol_reproductivo ?? null,
       p_raza_id:          payload.raza_id,
       p_pelaje_id:        payload.pelaje_id,
       p_numero_chip:      payload.numero_chip     ?? null,

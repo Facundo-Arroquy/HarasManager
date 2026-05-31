@@ -112,7 +112,7 @@ export async function getAccesosVet(_sociedadId: string): Promise<AccesoVet[]> {
     .select(`
       id, vet_id, caballo_id, activo,
       usuario:vet_id(nombre, apellido, email),
-      caballo(nombre, numero_registro, fecha_nacimiento)
+      caballo:caballo_id(nombre, numero_registro, fecha_nacimiento)
     `)
     .eq('activo', true)
   if (error) throw error

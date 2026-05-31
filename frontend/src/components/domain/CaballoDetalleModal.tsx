@@ -8,7 +8,7 @@ interface Caballo {
   nombre: string
   fecha_nacimiento?: string | null
   categoria?: string | null
-  subcategoria?: string | null
+  rol_reproductivo?: string | null
   campo_id?: string | null
   numero_chip?: string | null
   numero_registro?: string | null
@@ -39,7 +39,7 @@ const SUBCATEGORIA_STYLE: Record<string, string> = {
 export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onEditar }: Props) {
   const navigate    = useNavigate()
   const badgeClass  = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
-  const subClass    = caballo.subcategoria ? SUBCATEGORIA_STYLE[caballo.subcategoria] : undefined
+  const subClass    = caballo.rol_reproductivo ? SUBCATEGORIA_STYLE[caballo.rol_reproductivo] : undefined
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -63,9 +63,9 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
                   {caballo.categoria}
                 </span>
               )}
-              {subClass && caballo.subcategoria && (
+              {subClass && caballo.rol_reproductivo && (
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${subClass}`}>
-                  {caballo.subcategoria}
+                  {caballo.rol_reproductivo}
                 </span>
               )}
             </div>

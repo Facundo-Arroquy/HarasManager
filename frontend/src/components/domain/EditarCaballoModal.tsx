@@ -11,7 +11,7 @@ interface CaballoEditProps {
   nombre: string
   fecha_nacimiento?: string | null
   categoria?: string | null
-  subcategoria?: string | null
+  rol_reproductivo?: string | null
   raza_id?: number | null
   pelaje_id?: number | null
   numero_chip?: string | null
@@ -48,7 +48,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
     nombre:           caballo.nombre,
     fecha_nacimiento: caballo.fecha_nacimiento ?? '',
     categoria:        (caballo.categoria ?? 'Caballo') as NuevoCaballoPayload['categoria'],
-    subcategoria:     (caballo.subcategoria ?? '') as string,
+    subcategoria:     (caballo.rol_reproductivo ?? '') as string,
     raza_id:          caballo.raza_id ?? 0,
     pelaje_id:        caballo.pelaje_id ?? 0,
     numero_chip:      caballo.numero_chip ?? '',
@@ -99,7 +99,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
         nombre:           form.nombre.trim(),
         fecha_nacimiento: form.fecha_nacimiento,
         categoria:        form.categoria,
-        subcategoria:     form.categoria === 'Yegua' && form.subcategoria
+        rol_reproductivo: form.categoria === 'Yegua' && form.subcategoria
                             ? form.subcategoria as 'Donante' | 'Receptora'
                             : null,
         raza_id:          Number(form.raza_id),

@@ -89,7 +89,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       nombre:           form.nombre.trim(),
       fecha_nacimiento: form.fecha_nacimiento,
       categoria:        form.categoria,
-      subcategoria:     form.categoria === 'Yegua' && form.subcategoria
+      rol_reproductivo: form.categoria === 'Yegua' && form.subcategoria
                           ? form.subcategoria as 'Donante' | 'Receptora'
                           : null,
       raza_id:          Number(form.raza_id),
