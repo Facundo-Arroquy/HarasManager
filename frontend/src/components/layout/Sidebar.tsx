@@ -1,7 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { LogOut, Wheat } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { NAV_GROUPS } from './navItems'
+import logoUrl from '../../assets/logo.png'
 
 export default function Sidebar() {
   const { rol, sociedadActiva, user, signOut, accesosCentroC, accesosCentroCOrg } = useAuth()
@@ -27,9 +28,7 @@ export default function Sidebar() {
     <aside className="hidden md:flex h-screen w-60 flex-col border-r border-slate-200 bg-white">
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-slate-100">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500">
-          <Wheat size={16} className="text-white" />
-        </div>
+        <img src={logoUrl} alt="HarasManager" className="h-8 w-8 object-contain" />
         <span className="text-sm font-bold text-slate-800">HarasManager</span>
       </div>
 
@@ -63,11 +62,11 @@ export default function Sidebar() {
                     to={item.to}
                     className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
                       isActive
-                        ? 'bg-amber-50 text-amber-700 font-semibold'
+                        ? 'bg-brand-50 text-brand-700 font-semibold'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    <span className={isActive ? 'text-amber-500' : 'text-slate-400'}>
+                    <span className={isActive ? 'text-brand-500' : 'text-slate-400'}>
                       {item.icon}
                     </span>
                     {item.label}

@@ -180,7 +180,7 @@ export default function HistorialCard({ entry, onEditar }: Props) {
           )}
 
           {entry.proxima_consulta && (
-            <div className="flex items-center gap-1.5 text-xs text-amber-600">
+            <div className="flex items-center gap-1.5 text-xs text-brand-600">
               <Calendar size={12} />
               Próxima consulta: {formatFecha(entry.proxima_consulta)}
             </div>

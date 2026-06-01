@@ -18,7 +18,7 @@ const CAT_STYLE: Record<string, string> = {
   Caballo:  'bg-slate-100 text-slate-600',
   Yegua:    'bg-pink-100 text-pink-700',
   Padrillo: 'bg-blue-100 text-blue-700',
-  Potrillo: 'bg-amber-100 text-amber-700',
+  Potrillo: 'bg-brand-100 text-brand-700',
 }
 
 export default function DashboardPage() {
@@ -105,7 +105,7 @@ export default function DashboardPage() {
           label="Sin campo asignado"
           value={sinCampo}
           icon={<MapPin size={15} />}
-          accent={sinCampo > 0 ? 'amber' : 'zinc'}
+          accent={pendientesHoy.length > 0 ? 'brand' : 'zinc'}
           onClick={sinCampo > 0 ? () => navigate('/caballos') : undefined}
         />
         <KpiCard
@@ -142,7 +142,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                      className="h-full rounded-full bg-brand-500 transition-all duration-500"
                       style={{ width: `${(campo.caballos_count / maxAnimales) * 100}%` }}
                     />
                   </div>
@@ -156,7 +156,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-amber-400"
+                      className="h-full rounded-full bg-brand-400"
                       style={{ width: `${(sinCampo / maxAnimales) * 100}%` }}
                     />
                   </div>
@@ -187,7 +187,7 @@ export default function DashboardPage() {
             <h2 className="text-sm font-semibold text-slate-600">Alertas próximas</h2>
             <button
               onClick={() => navigate('/alertas')}
-              className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+              className="text-xs text-brand-600 hover:text-brand-700 font-medium"
             >
               Ver todas →
             </button>
@@ -215,7 +215,7 @@ export default function DashboardPage() {
                   onClick={() => navigate(`/caballos/${h.caballo_id}/historial`)}
                   className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-slate-100/80 transition-colors"
                 >
-                  <Stethoscope size={13} className="text-amber-600 shrink-0" />
+                  <Stethoscope size={13} className="text-brand-600 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-slate-700 truncate">{h.caballo_nombre}</p>
                     <p className="text-[11px] text-slate-400 truncate">{h.tipo}</p>
@@ -240,12 +240,12 @@ export default function DashboardPage() {
                   onClick={() => navigate(`/caballos/${h.caballo_id}/historial`)}
                   className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-slate-100/80 transition-colors"
                 >
-                  <Calendar size={13} className="text-amber-500 shrink-0" />
+                  <Calendar size={13} className="text-brand-500 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-slate-700 truncate">{h.caballo_nombre}</p>
                     <p className="text-[11px] text-slate-400 truncate">{h.tipo}</p>
                   </div>
-                  <span className="text-[11px] text-amber-600 shrink-0">{formatFechaCorta(h.proxima_consulta)}</span>
+                  <span className="text-[11px] text-brand-600 shrink-0">{formatFechaCorta(h.proxima_consulta)}</span>
                 </button>
               ))}
             </div>
@@ -262,13 +262,13 @@ interface KpiCardProps {
   label: string
   value: number
   icon: React.ReactNode
-  accent: 'emerald' | 'amber' | 'rose' | 'zinc'
+  accent: 'emerald' | 'brand' | 'rose' | 'zinc'
   onClick?: () => void
 }
 
 const ACCENT_CLASS: Record<string, string> = {
-  emerald: 'text-amber-600',
-  amber:   'text-amber-600',
+  emerald: 'text-brand-600',
+  brand:   'text-brand-600',
   rose:    'text-rose-600',
   zinc:    'text-slate-500',
 }
@@ -283,9 +283,9 @@ function AlertaWidget({ alerta, onClick }: { alerta: Alerta; onClick: () => void
   const badge =
     dias < 0  ? { label: 'Vencida',          cls: 'bg-red-100 text-red-700' } :
     dias === 0 ? { label: 'Hoy',              cls: 'bg-orange-100 text-orange-700' } :
-                 { label: `En ${dias} día${dias !== 1 ? 's' : ''}`, cls: 'bg-amber-100 text-amber-700' }
+                 { label: `En ${dias} día${dias !== 1 ? 's' : ''}`, cls: 'bg-brand-100 text-brand-700' }
 
-  const iconColor = dias < 0 ? 'text-red-500' : dias === 0 ? 'text-orange-500' : 'text-amber-500'
+  const iconColor = dias < 0 ? 'text-red-500' : dias === 0 ? 'text-orange-500' : 'text-brand-500'
 
   return (
     <button

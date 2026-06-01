@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Stethoscope, AlertTriangle } from 'lucide-react'
+import { Eye, EyeOff, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import logoUrl from '../../assets/logo.png'
 
 export default function LoginPage() {
   const { signIn, isAuthenticated, loading } = useAuth()
@@ -58,17 +59,15 @@ export default function LoginPage() {
 
       {/* Tarjeta */}
       <div
-        className={`relative z-10 w-full max-w-sm px-4 transition-all duration-700 ease-out ${
+        className={`relative z-10 w-full max-w-md px-4 transition-all duration-700 ease-out ${
           visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
         }`}
       >
-        <div className="rounded-2xl border border-white/10 bg-zinc-900/85 p-8 shadow-2xl backdrop-blur-md">
+        <div className="rounded-2xl border border-white/10 bg-zinc-900/85 p-10 shadow-2xl backdrop-blur-md">
 
           {/* Logo */}
-          <div className="mb-6 flex flex-col items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 shadow-lg">
-              <Stethoscope size={22} className="text-white" />
-            </div>
+          <div className="mb-8 flex flex-col items-center gap-4">
+            <img src={logoUrl} alt="HarasManager" className="h-24 w-24 rounded-2xl object-cover shadow-lg" />
             <div className="text-center">
               <h1 className="text-xl font-bold text-zinc-100 tracking-tight">HarasManager</h1>
               <p className="mt-0.5 text-xs text-zinc-500">Gestión de establecimientos equinos</p>
@@ -76,12 +75,12 @@ export default function LoginPage() {
           </div>
 
           {noSupabase && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-800/40 bg-amber-900/20 px-3 py-2.5">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-400" />
-              <p className="text-xs text-amber-300 leading-relaxed">
-                Configurá <code className="font-mono text-amber-200">.env.local</code> con{' '}
-                <code className="font-mono text-amber-200">VITE_SUPABASE_URL</code> y{' '}
-                <code className="font-mono text-amber-200">VITE_SUPABASE_ANON</code>.
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-brand-800/40 bg-brand-900/20 px-3 py-2.5">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0 text-brand-400" />
+              <p className="text-xs text-brand-300 leading-relaxed">
+                Configurá <code className="font-mono text-brand-200">.env.local</code> con{' '}
+                <code className="font-mono text-brand-200">VITE_SUPABASE_URL</code> y{' '}
+                <code className="font-mono text-brand-200">VITE_SUPABASE_ANON</code>.
               </p>
             </div>
           )}
@@ -99,7 +98,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nombre@ejemplo.com"
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 transition focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
 
@@ -116,7 +115,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 pr-10 text-sm text-zinc-100 placeholder-zinc-600 transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 pr-10 text-sm text-zinc-100 placeholder-zinc-600 transition focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
                 <button
                   type="button"
@@ -138,7 +137,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={submitting || noSupabase}
-              className="mt-2 w-full rounded-lg bg-emerald-700 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-50 active:scale-[0.98]"
+              className="mt-2 w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-500 disabled:opacity-50 active:scale-[0.98]"
             >
               {submitting ? 'Ingresando…' : 'Ingresar'}
             </button>

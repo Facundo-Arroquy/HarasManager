@@ -32,7 +32,7 @@ export default function AdminPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-t-md transition-colors -mb-px border-b-2 whitespace-nowrap ${
               activeTab === tab.id
-                ? 'border-amber-500 text-slate-900'
+                ? 'border-brand-500 text-slate-900'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >

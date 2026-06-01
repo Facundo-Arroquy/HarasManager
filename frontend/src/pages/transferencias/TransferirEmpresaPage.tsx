@@ -183,7 +183,7 @@ export default function TransferirEmpresaPage() {
       <div className="px-4 py-6 md:px-8 space-y-6 max-w-3xl">
         {/* Mensajes */}
         {exito && (
-          <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-emerald-800 px-4 py-3 text-sm text-amber-500">
+          <div className="flex items-center gap-2 rounded-lg bg-brand-50 border border-emerald-800 px-4 py-3 text-sm text-brand-500">
             <CheckCircle2 size={16} className="shrink-0" />
             {exito}
           </div>
@@ -203,14 +203,14 @@ export default function TransferirEmpresaPage() {
               className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors"
             >
               {todosSeleccionados ? (
-                <CheckSquare size={16} className="text-amber-600" />
+                <CheckSquare size={16} className="text-brand-600" />
               ) : (
                 <Square size={16} className="text-slate-400" />
               )}
               Seleccionar todos
             </button>
             {seleccionados.size > 0 && (
-              <span className="ml-auto text-xs font-medium text-amber-600">
+              <span className="ml-auto text-xs font-medium text-brand-600">
                 {seleccionados.size} seleccionado{seleccionados.size > 1 ? 's' : ''}
               </span>
             )}
@@ -234,7 +234,7 @@ export default function TransferirEmpresaPage() {
                       }`}
                     >
                       {activo ? (
-                        <CheckSquare size={16} className="shrink-0 text-amber-600" />
+                        <CheckSquare size={16} className="shrink-0 text-brand-600" />
                       ) : (
                         <Square size={16} className="shrink-0 text-slate-400" />
                       )}
@@ -284,7 +284,7 @@ export default function TransferirEmpresaPage() {
               <select
                 value={sociedadDestinoId}
                 onChange={(e) => setSociedadDestinoId(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 focus:border-amber-500 focus:outline-none"
+                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
               >
                 <option value="">— Seleccionar empresa —</option>
                 {sociedades.map((s) => (
@@ -300,11 +300,11 @@ export default function TransferirEmpresaPage() {
                   placeholder="Nombre de la entidad"
                   value={entidadNombre}
                   onChange={(e) => setEntidadNombre(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none"
                 />
-                <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
-                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-600" />
-                  <p className="text-xs text-amber-700">
+                <div className="flex items-start gap-2 rounded-lg bg-brand-50 border border-brand-200 px-3 py-2">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-brand-600" />
+                  <p className="text-xs text-brand-700">
                     Los caballos quedarán inactivos pero se guardará un registro histórico.
                   </p>
                 </div>
@@ -314,7 +314,7 @@ export default function TransferirEmpresaPage() {
             <button
               onClick={confirmar}
               disabled={!puedeConfirmar || saving}
-              className="w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {saving ? (savingStep ?? 'Procesando…') : 'Confirmar transferencia'}
             </button>

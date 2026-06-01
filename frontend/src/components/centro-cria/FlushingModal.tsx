@@ -122,7 +122,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 shrink-0">
           <div className="flex items-center gap-2">
-            <Droplets size={16} className="text-amber-600" />
+            <Droplets size={16} className="text-brand-600" />
             <div>
               <h2 className="text-sm font-semibold text-slate-900">Registrar flushing</h2>
               {donanteSeleccionada && (
@@ -149,7 +149,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
                 value={caballoId}
                 onChange={(e) => setCaballoId(e.target.value)}
                 disabled={cargando || !!caballoIdInicial || !!recordatorio?.caballo_id}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-60"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
               >
                 <option value="">— Seleccioná —</option>
                 {donantes.map((d) => (
@@ -163,7 +163,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
           </div>
@@ -174,7 +174,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
               type="checkbox"
               checked={esNegativo}
               onChange={(e) => setEsNegativo(e.target.checked)}
-              className="rounded border-slate-400 bg-slate-100 text-amber-500 focus:ring-amber-500"
+              className="rounded border-slate-400 bg-slate-100 text-brand-500 focus:ring-brand-500"
             />
             <span className="text-sm text-slate-600">Flushing negativo (sin embriones)</span>
           </label>
@@ -192,7 +192,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
                   value={cantidad}
                   onChange={(e) => setCantidad(e.target.value)}
                   placeholder="0"
-                  className="w-24 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-24 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
               </div>
 
@@ -203,7 +203,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
                   <select
                     value={estadio}
                     onChange={(e) => setEstadio(e.target.value)}
-                    className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
                   >
                     <option value="">—</option>
                     {ESTADIOS.map((e) => <option key={e} value={e}>{e}</option>)}
@@ -214,7 +214,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
                   <select
                     value={grado}
                     onChange={(e) => setGrado(e.target.value === '' ? '' : Number(e.target.value) as 1|2|3|4)}
-                    className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
                   >
                     <option value="">—</option>
                     {GRADOS.map((g) => <option key={g} value={g}>{g}</option>)}
@@ -225,7 +225,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
                   <select
                     value={tamanio}
                     onChange={(e) => setTamanio(e.target.value)}
-                    className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
                   >
                     <option value="">—</option>
                     {TAMANIOS.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -241,7 +241,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
             <select
               value={padrilloId}
               onChange={(e) => setPadrilloId(e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
             >
               <option value="">— Sin especificar —</option>
               {padrillos.map((p) => (
@@ -256,7 +256,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
               type="checkbox"
               checked={pgGiven}
               onChange={(e) => setPgGiven(e.target.checked)}
-              className="rounded border-slate-400 bg-slate-100 text-amber-500 focus:ring-amber-500"
+              className="rounded border-slate-400 bg-slate-100 text-brand-500 focus:ring-brand-500"
             />
             <span className="text-sm text-slate-600">PG administrada</span>
           </label>
@@ -268,7 +268,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
               onChange={(e) => setNotas(e.target.value)}
               rows={2}
               placeholder="Observaciones adicionales…"
-              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500 resize-none"
             />
           </div>
 
@@ -293,7 +293,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
             type="submit"
             form="flushing-form"
             disabled={saving}
-            className="px-4 py-2 text-sm font-medium rounded-md bg-amber-500 hover:bg-amber-400 text-white transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors disabled:opacity-50"
           >
             {saving ? 'Guardando…' : 'Guardar flushing'}
           </button>

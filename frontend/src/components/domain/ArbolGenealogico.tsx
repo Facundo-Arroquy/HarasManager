@@ -53,7 +53,7 @@ function NodeBox({ data, label, small, onEdit }: NodeBoxProps) {
 
   if (data.registered) {
     return (
-      <div className={`${baseClass} rounded-lg border border-emerald-800 bg-amber-50/30 relative group`}>
+      <div className={`${baseClass} rounded-lg border border-emerald-800 bg-brand-50/30 relative group`}>
         {label && <p className="text-[10px] text-emerald-700 mb-0.5 uppercase tracking-wide">{label}</p>}
         <p className={`font-medium text-slate-900 leading-snug ${small ? 'text-xs' : 'text-sm'}`}>{data.nombre}</p>
         {data.categoria && (

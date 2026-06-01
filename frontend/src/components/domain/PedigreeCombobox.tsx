@@ -78,7 +78,7 @@ export default function PedigreeCombobox({ label, placeholder, value, onChange, 
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm text-left transition-colors
-          ${open ? 'border-amber-500 bg-slate-100' : 'border-slate-300 bg-slate-100 hover:border-slate-400'}
+          ${open ? 'border-brand-500 bg-slate-100' : 'border-slate-300 bg-slate-100 hover:border-slate-400'}
           ${!displayLabel ? 'text-slate-400' : value.id ? 'text-slate-700' : 'text-slate-500'}`}
       >
         <span className="flex items-center gap-1.5 min-w-0">
@@ -129,7 +129,7 @@ export default function PedigreeCombobox({ label, placeholder, value, onChange, 
                     type="button"
                     onMouseDown={() => selectHorse(c)}
                     className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-slate-100 transition-colors text-left
-                      ${value.id === c.id ? 'text-amber-600' : 'text-slate-600'}`}
+                      ${value.id === c.id ? 'text-brand-600' : 'text-slate-600'}`}
                   >
                     <span>{c.nombre}</span>
                     <span className="text-xs text-slate-400">{c.categoria}</span>

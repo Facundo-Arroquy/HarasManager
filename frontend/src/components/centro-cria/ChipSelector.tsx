@@ -12,7 +12,7 @@ export default function ChipSelector({
   options,
   selected,
   onChange,
-  colorSelected = 'bg-amber-200 text-emerald-200 border-emerald-700',
+  colorSelected = 'bg-brand-200 text-emerald-200 border-emerald-700',
 }: Props) {
   function toggle(opt: string) {
     if (selected.includes(opt)) {

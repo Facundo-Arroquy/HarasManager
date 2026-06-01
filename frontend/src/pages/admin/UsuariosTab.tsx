@@ -4,7 +4,7 @@ import { getUsuarios, type UsuarioAdmin } from '../../services/adminService'
 
 const ROL_BADGE: Record<string, string> = {
   admin:       'bg-violet-100 text-violet-700',
-  veterinario: 'bg-amber-100 text-amber-700',
+  veterinario: 'bg-brand-100 text-brand-700',
   piloto:      'bg-sky-100 text-sky-700',
   jugador:     'bg-green-100 text-green-700',
   peticero:    'bg-rose-100 text-rose-700',

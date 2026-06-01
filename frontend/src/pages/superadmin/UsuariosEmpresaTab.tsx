@@ -10,7 +10,7 @@ const ROL_BADGE: Record<string, string> = {
   veterinario: 'bg-sky-900/50 text-sky-300 border-sky-700/50',
   jugador:     'bg-violet-900/50 text-violet-300 border-violet-700/50',
   piloto:      'bg-rose-900/50 text-rose-300 border-rose-700/50',
-  peticero:    'bg-amber-900/50 text-amber-300 border-amber-700/50',
+  peticero:    'bg-brand-900/50 text-brand-300 border-brand-700/50',
 }
 
 interface Props {

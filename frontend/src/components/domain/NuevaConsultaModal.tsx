@@ -434,7 +434,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
             type="submit"
             form="nueva-consulta-form"
             disabled={submitting}
-            className="flex items-center gap-2 rounded-lg bg-amber-500 hover:bg-amber-500 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-500 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors"
           >
             {submitting && <Spinner size="sm" />}
             {entryToEdit ? 'Guardar cambios' : 'Guardar consulta'}
@@ -456,8 +456,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-const base = 'rounded-lg border border-slate-300 bg-slate-100 text-sm text-slate-700 placeholder-slate-400 focus:border-amber-400 focus:outline-none px-3 py-2 w-full'
+const base = 'rounded-lg border border-slate-300 bg-slate-100 text-sm text-slate-700 placeholder-slate-400 focus:border-brand-400 focus:outline-none px-3 py-2 w-full'
 const inputClass    = base
 const selectClass   = base
 const textareaClass = `${base} resize-none`
-const addRowBtn     = 'flex items-center gap-1 text-xs text-slate-400 hover:text-amber-600 transition-colors'
+const addRowBtn     = 'flex items-center gap-1 text-xs text-slate-400 hover:text-brand-600 transition-colors'

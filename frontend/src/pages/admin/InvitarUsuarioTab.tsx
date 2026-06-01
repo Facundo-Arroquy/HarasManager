@@ -147,7 +147,7 @@ export default function InvitarUsuarioTab() {
 
       {/* Feedback */}
       {success && (
-        <div className="flex items-start gap-3 rounded-lg border border-emerald-800 bg-amber-50/50 px-4 py-3 text-sm text-amber-500">
+        <div className="flex items-start gap-3 rounded-lg border border-emerald-800 bg-brand-50/50 px-4 py-3 text-sm text-brand-500">
           <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
           <span>{success}</span>
         </div>
@@ -216,7 +216,7 @@ export default function InvitarUsuarioTab() {
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center gap-2 rounded-lg bg-amber-500 hover:bg-amber-500 disabled:opacity-50 px-5 py-2.5 text-sm font-medium text-white transition-colors"
+          className="flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-500 disabled:opacity-50 px-5 py-2.5 text-sm font-medium text-white transition-colors"
         >
           <UserPlus size={15} />
           {loading ? 'Enviando…' : 'Enviar invitación'}
@@ -229,6 +229,6 @@ export default function InvitarUsuarioTab() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const field  = 'flex flex-col gap-1'
 const label  = 'text-xs font-medium text-slate-500'
-const base   = 'rounded-lg border border-slate-300 bg-slate-100 text-sm text-slate-700 placeholder-slate-400 focus:border-amber-400 focus:outline-none px-3 py-2 w-full'
+const base   = 'rounded-lg border border-slate-300 bg-slate-100 text-sm text-slate-700 placeholder-slate-400 focus:border-brand-400 focus:outline-none px-3 py-2 w-full'
 const input  = base
 const select = base

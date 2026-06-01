@@ -105,7 +105,7 @@ export default function TransferirVetPage() {
           {caballos.length > 0 && (
             <button
               onClick={toggleTodos}
-              className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+              className="text-xs text-brand-600 hover:text-brand-700 font-medium"
             >
               {seleccionados.size === caballos.length ? 'Deseleccionar todo' : 'Seleccionar todo'}
             </button>
@@ -125,11 +125,11 @@ export default function TransferirVetPage() {
                   key={c.id}
                   onClick={() => toggleSeleccion(c.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors ${
-                    selec ? 'bg-amber-50' : 'hover:bg-slate-50'
+                    selec ? 'bg-brand-50' : 'hover:bg-slate-50'
                   }`}
                 >
                   {selec
-                    ? <CheckSquare size={18} className="text-amber-500 shrink-0" />
+                    ? <CheckSquare size={18} className="text-brand-500 shrink-0" />
                     : <Square size={18} className="text-slate-300 shrink-0" />
                   }
                   <div className="min-w-0 flex-1">
@@ -159,7 +159,7 @@ export default function TransferirVetPage() {
             <select
               value={destino}
               onChange={(e) => setDestino(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-400"
             >
               <option value="">Seleccioná una organización…</option>
               {sociedades.map((s) => (
@@ -171,7 +171,7 @@ export default function TransferirVetPage() {
           <button
             onClick={handleTransferir}
             disabled={seleccionados.size === 0 || !destino || transfiriendo}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {transfiriendo ? (
               <Spinner size="sm" />

@@ -38,7 +38,7 @@ export default function FlushingsPage() {
             <p className="text-xs text-slate-400 mt-0.5">Procedimientos</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
-            <p className="text-xl font-semibold text-amber-600">{totalEmbriones}</p>
+            <p className="text-xl font-semibold text-brand-600">{totalEmbriones}</p>
             <p className="text-xs text-slate-400 mt-0.5">Embriones totales</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
@@ -81,7 +81,7 @@ export default function FlushingsPage() {
                     ) : (
                       <>
                         {f.cantidad != null && (
-                          <span className="text-amber-600 font-medium">
+                          <span className="text-brand-600 font-medium">
                             {f.cantidad} {f.cantidad === 1 ? 'embrión' : 'embriones'}
                           </span>
                         )}

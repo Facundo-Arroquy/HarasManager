@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { Menu, Wheat } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import Sidebar from './Sidebar'
 import MobileDrawer from './MobileDrawer'
+import logoUrl from '../../assets/logo.png'
 
 export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -30,9 +31,7 @@ export default function AppLayout() {
               <Menu size={22} />
             </button>
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500">
-                <Wheat size={14} className="text-white" />
-              </div>
+              <img src={logoUrl} alt="HarasManager" className="h-7 w-7 object-contain" />
               <span className="text-sm font-bold text-slate-800">HarasManager</span>
             </div>
           </header>

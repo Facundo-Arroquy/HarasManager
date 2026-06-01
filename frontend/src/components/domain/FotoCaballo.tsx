@@ -70,7 +70,7 @@ export default function FotoCaballo({ caballoId, nombre, canEdit = false, size =
             onClick={() => !uploading && inputRef.current?.click()}
             disabled={uploading}
             title="Cambiar foto"
-            className="absolute bottom-0 right-0 flex items-center justify-center rounded-full bg-slate-200 border-2 border-white hover:bg-amber-500 transition-colors cursor-pointer"
+            className="absolute bottom-0 right-0 flex items-center justify-center rounded-full bg-slate-200 border-2 border-white hover:bg-brand-500 transition-colors cursor-pointer"
             style={{ width: badgeSize, height: badgeSize }}
           >
             {uploading ? (

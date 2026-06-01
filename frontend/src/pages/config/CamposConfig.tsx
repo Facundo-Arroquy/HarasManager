@@ -103,7 +103,7 @@ export default function CamposConfig() {
         </p>
         <button
           onClick={() => { setShowForm((v) => !v); setNewNombre(''); setNewDesc('') }}
-          className="flex items-center gap-1.5 rounded-md bg-amber-500 hover:bg-amber-500 px-3 py-1.5 text-xs font-medium text-white transition-colors"
+          className="flex items-center gap-1.5 rounded-md bg-brand-500 hover:bg-brand-500 px-3 py-1.5 text-xs font-medium text-white transition-colors"
         >
           <Plus size={13} />
           Nuevo campo
@@ -126,7 +126,7 @@ export default function CamposConfig() {
                 onChange={(e) => setNewNombre(e.target.value)}
                 placeholder="Potrero Norte"
                 autoFocus
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
             <div className="space-y-1">
@@ -136,7 +136,7 @@ export default function CamposConfig() {
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
                 placeholder="Capacidad, uso, etc."
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
           </div>
@@ -151,7 +151,7 @@ export default function CamposConfig() {
             <button
               type="submit"
               disabled={!newNombre.trim() || saving}
-              className="px-3 py-1.5 text-xs font-medium rounded-md bg-amber-500 hover:bg-amber-500 text-white disabled:opacity-40 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium rounded-md bg-brand-500 hover:bg-brand-500 text-white disabled:opacity-40 transition-colors"
             >
               {saving ? 'Creando…' : 'Crear'}
             </button>
@@ -179,14 +179,14 @@ export default function CamposConfig() {
                     onChange={(e) => setEditNombre(e.target.value)}
                     placeholder="Nombre"
                     autoFocus
-                    className="rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
                   />
                   <input
                     type="text"
                     value={editDesc}
                     onChange={(e) => setEditDesc(e.target.value)}
                     placeholder="Descripción (opcional)"
-                    className="rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
                   />
                 </div>
                 <div className="flex justify-end gap-2">
@@ -199,7 +199,7 @@ export default function CamposConfig() {
                   <button
                     onClick={saveEdit}
                     disabled={!editNombre.trim() || saving}
-                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-600 hover:text-amber-500 disabled:opacity-40 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-600 hover:text-brand-500 disabled:opacity-40 transition-colors"
                   >
                     <Check size={12} /> Guardar
                   </button>
@@ -208,7 +208,7 @@ export default function CamposConfig() {
             ) : confirmDel === campo.id ? (
               /* Confirmación de eliminación */
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs text-amber-600">
+                <p className="text-xs text-brand-600">
                   {campo.caballos_count > 0
                     ? `¿Eliminar "${campo.nombre}"? Sus ${campo.caballos_count} caballos quedarán sin campo.`
                     : `¿Eliminar "${campo.nombre}"?`}
@@ -232,7 +232,7 @@ export default function CamposConfig() {
             ) : (
               /* Fila normal */
               <div className="flex items-center gap-3">
-                <MapPin size={13} className="text-amber-600 shrink-0" />
+                <MapPin size={13} className="text-brand-600 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-700 truncate">{campo.nombre}</p>
                   {campo.descripcion && (
