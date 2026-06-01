@@ -2,10 +2,13 @@
 *.local
 .env.local
 node_modules/
-supabase/
+supabase/.branches/
+supabase/.temp/
+supabase/config.toml
 GUIA_ADMIN.md
 ACCESOS_DEMO.md
 seed_demo.sql
 ACTUALIZAR_TERMINOS.md
 PROMPT_TERMINOS.md
 info_facu.md
+Finanzas.md
