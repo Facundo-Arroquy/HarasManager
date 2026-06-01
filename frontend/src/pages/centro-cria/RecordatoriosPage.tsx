@@ -96,6 +96,7 @@ export default function RecordatoriosPage() {
             <RecordatorioItem
               key={r.id}
               recordatorio={r}
+              canEdit={rol === 'veterinario'}
               onHecho={() => marcarHecho(r)}
               onCancelar={() => cancelar(r.id)}
               cancelando={cancelando === r.id}
@@ -132,12 +133,14 @@ export default function RecordatoriosPage() {
 
 function RecordatorioItem({
   recordatorio: r,
+  canEdit = true,
   onHecho,
   onCancelar,
   cancelando,
   setCancelando,
 }: {
   recordatorio: RecordatorioCria
+  canEdit?: boolean
   onHecho: () => void
   onCancelar: () => void
   cancelando: boolean
@@ -187,7 +190,7 @@ function RecordatorioItem({
       </div>
 
       {/* Acciones */}
-      {activo && (
+      {activo && canEdit && (
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={onHecho}

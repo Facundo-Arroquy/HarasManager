@@ -97,7 +97,7 @@ export default function FlushingsPage() {
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   <span className="text-xs text-slate-400">{formatFecha(f.fecha)}</span>
-                  {!f.cancelado && !f.es_negativo && (
+                  {!f.cancelado && !f.es_negativo && rol === 'veterinario' && (
                     <button
                       onClick={() => setFlushingParaTransf(f)}
                       className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"

@@ -29,9 +29,10 @@
 - **Descripción:** El campo `rol_reproductivo` (Donante / Receptora / null) en la tabla `caballo` no se está guardando correctamente.
 
 ### [ ] Fix Centro de embriones en panel reproductivo
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Descripción:** Aparece "Error al cargar datos" desde el lado de admin. Causa probable: problema de permisos RLS o query incorrecta.
+- **Avance:** UI admin ahora es read-only (ocultos todos los botones de escritura). El error en `cargar()` ahora muestra qué query falla: `[registros] ...`, `[recordatorios] ...`, etc. Falta confirmar la causa raíz corriendo el app con admin real.
 
 ### [ ] Alertas en dashboard
 - **Estado:** pendiente
@@ -39,7 +40,7 @@
 - **Descripción:** Mostrar alertas en el dashboard de los próximos 7 o 10 días.
 
 ### [ ] Centro Embriones editable
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Descripción:** Que todas las reglas de alerta del centro sean editables por cada veterinario (por defecto como están ahora). Además renombrar la sección "Transferencias" del centro como "Transferencias de embriones".
 

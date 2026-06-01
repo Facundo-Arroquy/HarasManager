@@ -62,16 +62,18 @@ export default function DashboardCriaPage() {
           <h1 className="text-xl font-semibold text-slate-900">Centro de Embriones</h1>
           <p className="text-sm text-slate-500 mt-0.5">Gestión reproductiva del establecimiento</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-amber-500 hover:bg-amber-400 text-sm font-medium text-white transition-colors shrink-0"
-        >
-          <Plus size={15} />
-          Nuevo registro
-        </button>
+        {rol === 'veterinario' && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-amber-500 hover:bg-amber-400 text-sm font-medium text-white transition-colors shrink-0"
+          >
+            <Plus size={15} />
+            Nuevo registro
+          </button>
+        )}
       </div>
 
-      {showModal && (
+      {showModal && rol === 'veterinario' && (
         <RegistroCriaModal
           onClose={() => setShowModal(false)}
           onSuccess={recargar}
