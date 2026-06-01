@@ -46,18 +46,18 @@
 - **Descripción:** Que todas las reglas de alerta del centro sean editables por cada veterinario (por defecto como están ahora). Además renombrar la sección "Transferencias" del centro como "Transferencias de embriones".
 
 ### [ ] Filtro por camada en panel de caballos
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Descripción:** Agregar filtro en el panel de caballos para ver por camada. Incluir un selector de rango de fechas (calendario de → hasta) basado en la fecha de nacimiento para acotar los resultados por temporada o período.
 
-### [ ] Tag de yeguas preñadas
+### [ ] Tag de yeguas preñadas + Próximos partos
 - **Estado:** pendiente
 - **Asignado:** -
-- **Descripción:** Mostrar un tag visual en el listado/ficha de cada yegua que indique si está preñada. El tag debe incluir el padrillo o, en caso de inseminación artificial, el semen utilizado. Definir dónde se carga este dato (historial reproductivo, ficha del caballo, etc.) y cómo se representa en DB.
+- **Descripción:** Mostrar un tag visual en el listado/ficha de cada yegua que indique si está preñada. El tag debe incluir el padrillo o, en caso de inseminación artificial, el semen utilizado. Definir dónde se carga este dato (historial reproductivo, ficha del caballo, etc.) y cómo se representa en DB. A partir de ahí, agregar la categoría "Yegua preñada" y calcular/mostrar las fechas estimadas de parto (gestación equina ≈ 340 días) para tener un listado de próximos partos ordenado por fecha.
 
 ### [ ] Ayuda y tooltips
-- **Estado:** pendiente
-- **Asignado:** -
+- **Estado:** en proceso
+- **Asignado:** Facundo
 - **Descripción:** Agregar chatbot de ayuda básico predefinido y tooltips en la interfaz.
 
 ### [x] Inventarle nombre y logo con color característico
@@ -93,11 +93,6 @@
 - **Estado:** pendiente
 - **Asignado:** -
 - **Descripción:** Definir la mejor estrategia: si los veterinarios tienen acceso siempre y solo ven los caballos con acceso, o si el acceso depende del plan del propietario (centro activo).
-
-### [ ] Próximos partos
-- **Estado:** pendiente
-- **Asignado:** -
-- **Descripción:** Agregar categoría "Yegua preñada" y a partir de ahí calcular/mostrar fechas estimadas de parto.
 
 ### [ ] Lista de caballos para la temporada
 - **Estado:** pendiente
