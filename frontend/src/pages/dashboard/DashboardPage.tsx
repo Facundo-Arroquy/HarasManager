@@ -105,7 +105,7 @@ export default function DashboardPage() {
           label="Sin campo asignado"
           value={sinCampo}
           icon={<MapPin size={15} />}
-          accent={pendientesHoy.length > 0 ? 'brand' : 'zinc'}
+          accent={sinCampo > 0 ? 'brand' : 'zinc'}
           onClick={sinCampo > 0 ? () => navigate('/caballos') : undefined}
         />
         <KpiCard
