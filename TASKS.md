@@ -45,13 +45,23 @@
 - **Asignado:** -
 - **Descripción:** Que todas las reglas de alerta del centro sean editables por cada veterinario (por defecto como están ahora). Además renombrar la sección "Transferencias" del centro como "Transferencias de embriones".
 
+### [ ] Filtro por camada en panel de caballos
+- **Estado:** pendiente
+- **Asignado:** -
+- **Descripción:** Agregar filtro en el panel de caballos para ver por camada. Incluir un selector de rango de fechas (calendario de → hasta) basado en la fecha de nacimiento para acotar los resultados por temporada o período.
+
+### [ ] Tag de yeguas preñadas
+- **Estado:** pendiente
+- **Asignado:** -
+- **Descripción:** Mostrar un tag visual en el listado/ficha de cada yegua que indique si está preñada. El tag debe incluir el padrillo o, en caso de inseminación artificial, el semen utilizado. Definir dónde se carga este dato (historial reproductivo, ficha del caballo, etc.) y cómo se representa en DB.
+
 ### [ ] Ayuda y tooltips
 - **Estado:** pendiente
 - **Asignado:** -
 - **Descripción:** Agregar chatbot de ayuda básico predefinido y tooltips en la interfaz.
 
-### [ ] Inventarle nombre y logo con color característico
-- **Estado:** pendiente
+### [x] Inventarle nombre y logo con color característico
+- **Estado:** terminado
 - **Asignado:** -
 - **Descripción:** Definir nombre del producto, logo e identidad visual con color característico.
 
