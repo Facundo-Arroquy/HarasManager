@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { UserPlus, CheckCircle2, AlertCircle, Lock } from 'lucide-react'
+import Tooltip from '../../components/ui/Tooltip'
 
 // ── TEMPORALMENTE DESHABILITADO ──────────────────────────────────────────────
 // Se reactiva cuando esté lista la lógica de invitaciones en producción.
@@ -201,7 +202,10 @@ export default function InvitarUsuarioTab() {
 
         {/* Rol */}
         <div className={field}>
-          <label className={label}>Rol *</label>
+          <div className="flex items-center gap-1.5">
+            <label className={label}>Rol *</label>
+            <Tooltip text="Define qué puede hacer el usuario: Admin (gestión completa), Veterinario (registros clínicos), Piloto / Jugador (solo ve sus caballos), Peticero (vista limitada)." />
+          </div>
           <select
             value={rolId}
             onChange={(e) => setRolId(Number(e.target.value))}

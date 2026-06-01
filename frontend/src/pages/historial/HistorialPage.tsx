@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch, Printer, ImageIcon } from 'lucide-react'
+import Tooltip from '../../components/ui/Tooltip'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { historialService } from '../../services/historialService'
 import { crianzaService } from '../../services/crianzaService'
@@ -163,10 +164,10 @@ export default function HistorialPage() {
                   transferencias,
                 }).catch(console.error)}
                 className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-slate-100 hover:bg-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors"
-                title="Exportar ficha a PDF"
               >
                 <Printer size={15} /> Exportar PDF
               </button>
+              <Tooltip text="Descarga la ficha completa del caballo: datos generales, historial clínico y registros reproductivos." />
             )}
             {/* Solo veterinario — caballo ya pre-seleccionado */}
             {rol === 'veterinario' && (
@@ -205,6 +206,7 @@ export default function HistorialPage() {
           >
             <FlaskConical size={13} />
             Reproductivo
+            <Tooltip text="Muestra ecografías, flushings y transferencias de embriones registradas para este animal." />
           </button>
           <button
             onClick={handleTabGenealogia}
@@ -216,6 +218,7 @@ export default function HistorialPage() {
           >
             <GitBranch size={13} />
             Genealogía
+            <Tooltip text="Árbol genealógico con padre y madre. Se completa asignando los progenitores desde la ficha de edición del caballo." />
           </button>
           <button
             onClick={() => setTab('foto')}
