@@ -10,7 +10,7 @@ import {
 
 const ROL_BADGE: Record<string, string> = {
   admin:       'bg-violet-100 text-violet-700',
-  veterinario: 'bg-amber-100 text-amber-700',
+  veterinario: 'bg-brand-100 text-brand-700',
   piloto:      'bg-sky-100 text-sky-700',
   jugador:     'bg-green-100 text-green-700',
   peticero:    'bg-rose-100 text-rose-700',
@@ -58,7 +58,7 @@ export default function PermisosCentroTab() {
     <div className="space-y-4 max-w-lg">
       <div>
         <h2 className="text-sm font-medium text-slate-600 flex items-center gap-2">
-          <FlaskConical size={14} className="text-amber-600" />
+          <FlaskConical size={14} className="text-brand-600" />
           Acceso al Centro de Cría
         </h2>
         <p className="text-xs text-slate-400 mt-0.5">
@@ -105,7 +105,7 @@ export default function PermisosCentroTab() {
                   onClick={() => handleToggle(u)}
                   disabled={isToggling}
                   className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 ${
-                    u.tieneAcceso ? 'bg-amber-500' : 'bg-slate-200'
+                    u.tieneAcceso ? 'bg-brand-500' : 'bg-slate-200'
                   }`}
                   title={u.tieneAcceso ? 'Quitar acceso' : 'Dar acceso'}
                 >

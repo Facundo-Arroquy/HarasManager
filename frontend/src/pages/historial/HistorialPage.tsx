@@ -18,7 +18,7 @@ const CATEGORIA_STYLE: Record<string, string> = {
   Yegua:    'bg-pink-950 text-pink-700 ring-1 ring-pink-800',
   Padrillo: 'bg-blue-950 text-blue-700 ring-1 ring-blue-800',
   Caballo:  'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
-  Potrillo: 'bg-amber-950 text-amber-700 ring-1 ring-amber-800',
+  Potrillo: 'bg-brand-950 text-brand-700 ring-1 ring-brand-800',
 }
 
 export default function HistorialPage() {
@@ -172,7 +172,7 @@ export default function HistorialPage() {
             {rol === 'veterinario' && (
               <button
                 onClick={() => setShowModal(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors"
+                className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-500 px-3 py-2 text-sm font-medium text-white transition-colors"
               >
                 <Plus size={15} /> Nueva consulta
               </button>
@@ -188,7 +188,7 @@ export default function HistorialPage() {
             onClick={() => setTab('clinico')}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === 'clinico'
-                ? 'border-amber-500 text-slate-900'
+                ? 'border-brand-500 text-slate-900'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
@@ -210,7 +210,7 @@ export default function HistorialPage() {
             onClick={handleTabGenealogia}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === 'genealogia'
-                ? 'border-amber-500 text-slate-900'
+                ? 'border-brand-500 text-slate-900'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
@@ -221,7 +221,7 @@ export default function HistorialPage() {
             onClick={() => setTab('foto')}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === 'foto'
-                ? 'border-amber-500 text-slate-900'
+                ? 'border-brand-500 text-slate-900'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
@@ -321,7 +321,7 @@ export default function HistorialPage() {
               {flushings.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
-                    <Droplets size={13} className="text-amber-500" />
+                    <Droplets size={13} className="text-brand-500" />
                     <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                       Flushings
                     </h3>
@@ -335,7 +335,7 @@ export default function HistorialPage() {
                             {f.es_negativo ? (
                               <span className="text-slate-400">Negativo</span>
                             ) : (
-                              <span className="text-amber-600 font-medium">
+                              <span className="text-brand-600 font-medium">
                                 {f.cantidad} {f.cantidad === 1 ? 'embrión' : 'embriones'}
                                 {f.estadio ? ` · ${f.estadio}` : ''}
                                 {f.grado != null ? ` · G${f.grado}` : ''}

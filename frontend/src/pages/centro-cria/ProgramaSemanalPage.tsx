@@ -126,13 +126,15 @@ export default function ProgramaSemanalPage() {
           <h1 className="text-xl font-semibold text-slate-900">Programa semanal</h1>
           <p className="text-sm text-slate-500 mt-0.5 capitalize">{formatMes(inicioRef)}</p>
         </div>
-        <button
-          onClick={() => abrirModal()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-amber-500 hover:bg-amber-400 text-sm font-medium text-white transition-colors shrink-0"
-        >
-          <Plus size={15} />
-          Nuevo registro
-        </button>
+        {rol === 'veterinario' && (
+          <button
+            onClick={() => abrirModal()}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-brand-500 hover:bg-brand-400 text-sm font-medium text-white transition-colors shrink-0"
+          >
+            <Plus size={15} />
+            Nuevo registro
+          </button>
+        )}
       </div>
 
       {/* Navegación semanal + grilla */}
@@ -181,17 +183,17 @@ export default function ProgramaSemanalPage() {
                 }`}
               >
                 <span className={`font-medium ${
-                  esHoy ? 'text-amber-600' : esSelec ? 'text-slate-900' : 'text-slate-500'
+                  esHoy ? 'text-brand-600' : esSelec ? 'text-slate-900' : 'text-slate-500'
                 }`}>
                   {formatDia(dia)}
                 </span>
                 {/* Puntos indicadores */}
                 <div className="flex gap-0.5 mt-1.5 h-1.5">
                   {regCount > 0 && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title={`${regCount} registro${regCount > 1 ? 's' : ''}`} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-400" title={`${regCount} registro${regCount > 1 ? 's' : ''}`} />
                   )}
                   {recCount > 0 && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title={`${recCount} recordatorio${recCount > 1 ? 's' : ''}`} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-400" title={`${recCount} recordatorio${recCount > 1 ? 's' : ''}`} />
                   )}
                 </div>
               </button>
@@ -213,22 +215,24 @@ export default function ProgramaSemanalPage() {
               <Bell size={12} />
               Recordatorios
             </p>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 divide-y divide-amber-100">
+            <div className="rounded-lg border border-brand-200 bg-brand-50 divide-y divide-brand-100">
               {recordatoriosDia.map((r) => (
                 <div key={r.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-sm">
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                      r.estado === 'vencido' ? 'bg-red-400' : 'bg-amber-400'
+                      r.estado === 'vencido' ? 'bg-red-400' : 'bg-brand-400'
                     }`} />
                     <span className="font-medium text-slate-700">{r.caballo?.nombre ?? '—'}</span>
                     <span className="text-slate-500">{r.tipo}</span>
                   </div>
-                  <button
-                    onClick={() => abrirModal(r.caballo_id)}
-                    className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors shrink-0"
-                  >
-                    Registrar
-                  </button>
+                  {rol === 'veterinario' && (
+                    <button
+                      onClick={() => abrirModal(r.caballo_id)}
+                      className="text-xs px-2 py-1 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors shrink-0"
+                    >
+                      Registrar
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -301,7 +305,8 @@ export default function ProgramaSemanalPage() {
           <GrupoAnimales
             titulo="Donantes"
             animales={donantes}
-            color="amber"
+            color="brand"
+            canEdit={rol === 'veterinario'}
             onRegistrar={(id) => abrirModal(id)}
             registros={registros}
             recordatorios={recordatorios}
@@ -310,6 +315,7 @@ export default function ProgramaSemanalPage() {
             titulo="Receptoras"
             animales={receptoras}
             color="blue"
+            canEdit={rol === 'veterinario'}
             onRegistrar={(id) => abrirModal(id)}
             registros={registros}
             recordatorios={recordatorios}
@@ -331,12 +337,14 @@ export default function ProgramaSemanalPage() {
                 {sinRol.map((y) => (
                   <div key={y.id} className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">{y.nombre}</span>
-                    <button
-                      onClick={() => abrirModal(y.id)}
-                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                      + Registro
-                    </button>
+                    {rol === 'veterinario' && (
+                      <button
+                        onClick={() => abrirModal(y.id)}
+                        className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        + Registro
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -346,7 +354,7 @@ export default function ProgramaSemanalPage() {
       )}
 
       {/* Modal */}
-      {modalAbierto && (
+      {modalAbierto && rol === 'veterinario' && (
         <RegistroCriaModal
           caballoIdInicial={caballoModal}
           onClose={() => { setModalAbierto(false); setCaballoModal(undefined) }}
@@ -367,7 +375,7 @@ function RolBadge({ rol }: { rol: RolReproductivo }) {
   return (
     <span className={`text-[10px] border rounded px-1.5 py-0.5 ${
       rol === 'Donante'
-        ? 'border-amber-300 text-amber-600'
+        ? 'border-brand-300 text-brand-600'
         : 'border-blue-300 text-blue-600'
     }`}>
       {rol}
@@ -376,18 +384,19 @@ function RolBadge({ rol }: { rol: RolReproductivo }) {
 }
 
 function GrupoAnimales({
-  titulo, animales, color, onRegistrar, registros, recordatorios,
+  titulo, animales, color, canEdit = true, onRegistrar, registros, recordatorios,
 }: {
   titulo: string
   animales: AnimalItem[]
-  color: 'amber' | 'blue'
+  color: 'brand' | 'blue'
+  canEdit?: boolean
   onRegistrar: (id: string) => void
   registros: ReturnType<typeof useCrianzaStore.getState>['registros']
   recordatorios: ReturnType<typeof useCrianzaStore.getState>['recordatorios']
 }) {
   const hoy = toISO(new Date())
-  const borderColor = color === 'amber' ? 'border-amber-200' : 'border-blue-200'
-  const titleColor  = color === 'amber' ? 'text-amber-600' : 'text-blue-600'
+  const borderColor = color === 'brand' ? 'border-brand-200' : 'border-blue-200'
+  const titleColor  = color === 'brand' ? 'text-brand-600' : 'text-blue-600'
 
   if (animales.length === 0) return null
 
@@ -415,19 +424,21 @@ function GrupoAnimales({
                     <span>Últ. {formatFechaCorta(ultReg.fecha)}</span>
                   )}
                   {recHoy.length > 0 && (
-                    <span className="text-amber-600">
+                    <span className="text-brand-600">
                       {recHoy[0].tipo}
                     </span>
                   )}
                 </div>
               </div>
-              <button
-                onClick={() => onRegistrar(a.id)}
-                className="shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
-              >
-                <Plus size={11} />
-                Reg.
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => onRegistrar(a.id)}
+                  className="shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                >
+                  <Plus size={11} />
+                  Reg.
+                </button>
+              )}
             </div>
           )
         })}

@@ -58,7 +58,7 @@ export default function BottomNav() {
               key={item.to}
               to={item.to}
               className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl transition-colors ${
-                isActive ? 'text-amber-600' : 'text-slate-400 active:text-slate-600'
+                isActive ? 'text-brand-600' : 'text-slate-400 active:text-slate-600'
               }`}
             >
               {item.icon}

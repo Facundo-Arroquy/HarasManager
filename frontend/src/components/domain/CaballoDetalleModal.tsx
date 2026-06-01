@@ -28,7 +28,7 @@ const CATEGORIA_STYLE: Record<string, string> = {
   Yegua:    'bg-pink-950 text-pink-700 ring-1 ring-pink-800',
   Padrillo: 'bg-blue-950 text-blue-700 ring-1 ring-blue-800',
   Caballo:  'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
-  Potrillo: 'bg-amber-950 text-amber-700 ring-1 ring-amber-800',
+  Potrillo: 'bg-brand-950 text-brand-700 ring-1 ring-brand-800',
 }
 
 const SUBCATEGORIA_STYLE: Record<string, string> = {
@@ -84,7 +84,7 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
             <dt className="text-slate-400">Campo</dt>
             <dd className="text-slate-600 flex items-center gap-1">
               {caballo.campo
-                ? <><MapPin size={12} className="text-amber-500" />{caballo.campo.nombre}</>
+                ? <><MapPin size={12} className="text-brand-500" />{caballo.campo.nombre}</>
                 : <span className="text-slate-400">Sin asignar</span>
               }
             </dd>
@@ -101,7 +101,7 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
         <div className="px-5 pb-5 space-y-2">
           <button
             onClick={() => { onClose(); navigate(`/caballos/${caballo.id}/historial`) }}
-            className="w-full flex items-center justify-between rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:border-emerald-700 hover:bg-amber-50 hover:text-amber-500"
+            className="w-full flex items-center justify-between rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:border-emerald-700 hover:bg-brand-50 hover:text-brand-500"
           >
             <span className="flex items-center gap-2">
               <ClipboardList size={15} /> Ver Ficha

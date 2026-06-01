@@ -154,7 +154,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                 {rolEfectivo && (
                   <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] border ${
                     rolEfectivo === 'Donante'
-                      ? 'border-amber-300 text-amber-600'
+                      ? 'border-brand-300 text-brand-600'
                       : 'border-blue-300 text-blue-600'
                   }`}>
                     {rolEfectivo}
@@ -187,7 +187,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                   setRolManual(null)
                 }}
                 disabled={cargandoAnimales}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-50"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
               >
                 <option value="">— Seleccioná —</option>
                 {animales.filter((a) => a.categoria !== 'Padrillo').map((a) => (
@@ -205,7 +205,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
           </div>
@@ -213,7 +213,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           {/* Rol manual — solo si la yegua no tiene rol asignado */}
           {necesitaRol && (
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-amber-600">
+              <label className="text-xs font-medium text-brand-600">
                 Esta yegua no tiene rol reproductivo asignado. ¿Es...?
               </label>
               <div className="flex gap-2">
@@ -225,7 +225,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                     className={`flex-1 py-2 rounded-md border text-sm transition-colors ${
                       rolManual === r
                         ? r === 'Donante'
-                          ? 'border-amber-600 bg-amber-50 text-amber-700'
+                          ? 'border-brand-600 bg-brand-50 text-brand-700'
                           : 'border-blue-600 bg-blue-50 text-blue-700'
                         : 'border-slate-300 text-slate-500 hover:border-slate-400'
                     }`}
@@ -264,7 +264,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                 value={ovDias}
                 onChange={(e) => setOvDias(e.target.value)}
                 placeholder="0"
-                className="w-24 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-24 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
           )}
@@ -294,7 +294,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               <select
                 value={padrilloId}
                 onChange={(e) => setPadrilloId(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               >
                 <option value="">— Seleccioná padrillo —</option>
                 {padrillos.map((p) => (
@@ -311,7 +311,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                 type="checkbox"
                 checked={reviewManana}
                 onChange={(e) => setReviewManana(e.target.checked)}
-                className="rounded border-slate-400 bg-slate-100 text-amber-500 focus:ring-amber-500"
+                className="rounded border-slate-400 bg-slate-100 text-brand-500 focus:ring-brand-500"
               />
               <span className="text-xs text-slate-500">Revisión mañana</span>
             </label>
@@ -321,7 +321,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                 value={reviewDesc}
                 onChange={(e) => setReviewDesc(e.target.value)}
                 placeholder="Motivo (opcional)"
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             )}
           </div>
@@ -334,7 +334,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               onChange={(e) => setObservaciones(e.target.value)}
               rows={2}
               placeholder="Notas adicionales…"
-              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500 resize-none"
             />
           </div>
 
@@ -371,7 +371,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
             type="submit"
             form="registro-cria-form"
             disabled={saving}
-            className="px-4 py-2 text-sm font-medium rounded-md bg-amber-500 hover:bg-amber-400 text-white transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors disabled:opacity-50"
           >
             {saving ? 'Guardando…' : 'Guardar registro'}
           </button>

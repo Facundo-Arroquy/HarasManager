@@ -118,8 +118,8 @@ export default function NuevaAlertaModal({ caballos, onClose, onSuccess }: Props
         {/* Cabecera */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-200">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100">
-              <Bell size={16} className="text-amber-600" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-100">
+              <Bell size={16} className="text-brand-600" />
             </div>
             <h2 className="text-base font-bold text-slate-800">Crear alertas</h2>
           </div>
@@ -158,7 +158,7 @@ export default function NuevaAlertaModal({ caballos, onClose, onSuccess }: Props
                       value={fila.motivo}
                       onChange={(e) => updateFila(fila.id, 'motivo', e.target.value)}
                       placeholder="Motivo (ej: Vacuna Antirrábica)"
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
                     />
 
                     {/* Días + fecha estimada */}
@@ -171,7 +171,7 @@ export default function NuevaAlertaModal({ caballos, onClose, onSuccess }: Props
                         onChange={(e) =>
                           updateFila(fila.id, 'dias', e.target.value === '' ? '' : Number(e.target.value))
                         }
-                        className="w-20 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                        className="w-20 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
                       />
                       <span className="text-xs text-slate-500">días</span>
                       {fila.dias !== '' && Number(fila.dias) > 0 && (
@@ -197,7 +197,7 @@ export default function NuevaAlertaModal({ caballos, onClose, onSuccess }: Props
 
             <button
               onClick={agregarFila}
-              className="flex items-center gap-1.5 text-xs font-medium text-amber-600 hover:text-amber-700 transition-colors px-1"
+              className="flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors px-1"
             >
               <Plus size={14} />
               Agregar otra alerta
@@ -209,7 +209,7 @@ export default function NuevaAlertaModal({ caballos, onClose, onSuccess }: Props
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Caballos{seleccionados.size > 0 && (
-                  <span className="ml-1.5 normal-case font-normal text-amber-600">
+                  <span className="ml-1.5 normal-case font-normal text-brand-600">
                     ({seleccionados.size} seleccionado{seleccionados.size !== 1 ? 's' : ''})
                   </span>
                 )}
@@ -218,7 +218,7 @@ export default function NuevaAlertaModal({ caballos, onClose, onSuccess }: Props
                 <button
                   type="button"
                   onClick={toggleTodos}
-                  className="text-xs text-amber-600 hover:text-amber-700 transition-colors"
+                  className="text-xs text-brand-600 hover:text-brand-700 transition-colors"
                 >
                   {todosVisibleSeleccionados ? 'Deseleccionar todos' : 'Seleccionar todos'}
                 </button>
@@ -233,7 +233,7 @@ export default function NuevaAlertaModal({ caballos, onClose, onSuccess }: Props
                 placeholder="Buscar caballo…"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-sm text-slate-700 placeholder-slate-400 focus:border-amber-400 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-sm text-slate-700 placeholder-slate-400 focus:border-brand-400 focus:outline-none"
               />
             </div>
 
@@ -251,14 +251,14 @@ export default function NuevaAlertaModal({ caballos, onClose, onSuccess }: Props
                   <label
                     key={caballo.id}
                     className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors select-none ${
-                      checked ? 'bg-amber-50' : 'hover:bg-slate-50'
+                      checked ? 'bg-brand-50' : 'hover:bg-slate-50'
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleCaballo(caballo.id)}
-                      className="h-4 w-4 rounded border-slate-300 accent-amber-500 cursor-pointer"
+                      className="h-4 w-4 rounded border-slate-300 accent-brand-500 cursor-pointer"
                     />
                     <span className="flex-1 text-sm text-slate-800">{caballo.nombre}</span>
                     {caballo.categoria && (
@@ -288,7 +288,7 @@ export default function NuevaAlertaModal({ caballos, onClose, onSuccess }: Props
           <button
             onClick={handleGuardar}
             disabled={!puedeGuardar || guardando}
-            className="flex-1 rounded-lg bg-amber-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-1 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {guardando
               ? 'Guardando…'

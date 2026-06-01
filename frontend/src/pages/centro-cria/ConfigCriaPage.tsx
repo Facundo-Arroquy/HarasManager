@@ -96,7 +96,7 @@ export default function ConfigCriaPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={handleGuardar}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-amber-500 hover:bg-amber-400 text-sm font-medium text-white transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-brand-500 hover:bg-brand-400 text-sm font-medium text-white transition-colors"
         >
           {guardado ? <Check size={14} /> : null}
           {guardado ? 'Guardado' : 'Guardar cambios'}
@@ -171,7 +171,7 @@ function Regla({
       </span>
       <div className="flex items-center gap-2 shrink-0">
         {modificado && (
-          <span className="text-[10px] text-amber-600 border border-amber-300 rounded px-1.5 py-0.5">
+          <span className="text-[10px] text-brand-600 border border-brand-300 rounded px-1.5 py-0.5">
             modificado
           </span>
         )}
@@ -183,7 +183,7 @@ function Regla({
             value={raw}
             onChange={handleChange}
             onBlur={handleBlur}
-            className="w-14 rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-sm text-center text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            className="w-14 rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-sm text-center text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
           <span className="text-xs text-slate-400">días</span>
         </div>

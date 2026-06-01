@@ -26,8 +26,8 @@ const RESULTADO_OPTS: { value: Resultado; label: string }[] = [
 ]
 
 const RES_CLASS: Record<Resultado, string> = {
-  normal:     'text-amber-600',
-  a_observar: 'text-amber-600',
+  normal:     'text-brand-600',
+  a_observar: 'text-brand-600',
   anormal:    'text-rose-600',
 }
 
@@ -204,7 +204,7 @@ export default function RevisionPreVentaPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-5 mb-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className={sectionTitle} style={{ margin: 0 }}>Hallazgos clínicos</h2>
-          <button onClick={addItem} className="flex items-center gap-1 text-xs text-slate-400 hover:text-amber-600 transition-colors">
+          <button onClick={addItem} className="flex items-center gap-1 text-xs text-slate-400 hover:text-brand-600 transition-colors">
             <Plus size={13} /> Agregar ítem
           </button>
         </div>
@@ -312,7 +312,7 @@ export default function RevisionPreVentaPage() {
         <button
           onClick={handleExportar}
           disabled={!caballoId || !firmante.trim()}
-          className="flex items-center gap-2 rounded-lg bg-amber-500 hover:bg-amber-500 disabled:opacity-50 px-5 py-2.5 text-sm font-medium text-white transition-colors"
+          className="flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-500 disabled:opacity-50 px-5 py-2.5 text-sm font-medium text-white transition-colors"
         >
           <Printer size={15} /> Exportar PDF
         </button>
@@ -328,7 +328,7 @@ const fieldWrapper = 'flex flex-col gap-1'
 const labelClass   = 'text-xs font-medium text-slate-500'
 const colHeader    = 'text-[10px] uppercase tracking-widest text-slate-400'
 
-const base = 'rounded-lg border border-slate-300 bg-slate-100 text-sm text-slate-700 placeholder-slate-400 focus:border-amber-400 focus:outline-none px-3 py-2 w-full'
+const base = 'rounded-lg border border-slate-300 bg-slate-100 text-sm text-slate-700 placeholder-slate-400 focus:border-brand-400 focus:outline-none px-3 py-2 w-full'
 const inputClass    = base
 const selectClass   = base
 const textareaClass = `${base} resize-none`
@@ -339,13 +339,13 @@ const DICTAMEN_OPTS = [
   {
     value: 'apto',
     label: 'Apto para la venta',
-    active:   'border-amber-500 bg-amber-100/30 text-amber-500',
+    active:   'border-brand-500 bg-brand-100/30 text-brand-500',
     inactive: 'border-slate-300 bg-slate-100 text-slate-500 hover:border-slate-400',
   },
   {
     value: 'condicionado',
     label: 'Apto con observaciones',
-    active:   'border-amber-600 bg-amber-50 text-amber-700',
+    active:   'border-brand-600 bg-brand-50 text-brand-700',
     inactive: 'border-slate-300 bg-slate-100 text-slate-500 hover:border-slate-400',
   },
   {

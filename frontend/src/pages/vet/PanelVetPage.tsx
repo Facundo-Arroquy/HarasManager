@@ -17,7 +17,7 @@ function formatFecha(iso: string): string {
 function diasLabel(dias: number): { texto: string; clase: string } {
   if (dias < 0)  return { texto: `Vencida hace ${Math.abs(dias)}d`, clase: 'text-rose-600 bg-rose-50 border-rose-200' }
   if (dias === 0) return { texto: 'Hoy',                            clase: 'text-rose-600 bg-rose-50 border-rose-200' }
-  if (dias <= 3)  return { texto: `En ${dias}d`,                    clase: 'text-amber-600 bg-amber-50 border-amber-200' }
+  if (dias <= 3)  return { texto: `En ${dias}d`,                    clase: 'text-brand-600 bg-brand-50 border-brand-200' }
   return              { texto: `En ${dias}d`,                    clase: 'text-slate-600 bg-slate-50 border-slate-200' }
 }
 
@@ -84,7 +84,7 @@ export default function PanelVetPage() {
             <Clock size={15} />
             <span className="text-xs font-medium uppercase tracking-wide">Alertas</span>
           </div>
-          <p className={`text-3xl font-bold ${alertas.length > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+          <p className={`text-3xl font-bold ${alertas.length > 0 ? 'text-brand-600' : 'text-slate-900'}`}>
             {alertas.length}
           </p>
           <p className="text-xs text-slate-400 mt-0.5">próximas consultas</p>
@@ -93,21 +93,21 @@ export default function PanelVetPage() {
 
       {/* Alertas */}
       {alertas.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/40 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-200">
-            <AlertTriangle size={15} className="text-amber-500" />
-            <span className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+        <div className="rounded-xl border border-brand-200 bg-brand-50/40 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-brand-200">
+            <AlertTriangle size={15} className="text-brand-500" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-brand-700">
               Próximas consultas
             </span>
           </div>
-          <div className="divide-y divide-amber-100">
+          <div className="divide-y divide-brand-100">
             {alertas.map((a) => {
               const { texto, clase } = diasLabel(a.dias_restantes)
               return (
                 <button
                   key={a.historial_id}
                   onClick={() => navigate(`/caballos/${a.caballo_id}/historial`)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-50/60 transition-colors text-left"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-brand-50/60 transition-colors text-left"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-800 truncate">{a.caballo_nombre}</p>
@@ -150,7 +150,7 @@ export default function PanelVetPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-slate-400">{formatFecha(c.fecha_consulta)}</span>
-                    <span className="text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                    <span className="text-xs font-medium text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">
                       {c.tipo}
                     </span>
                   </div>

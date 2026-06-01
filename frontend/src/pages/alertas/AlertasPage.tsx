@@ -31,7 +31,7 @@ function BadgeEstado({ fecha }: { fecha: string }) {
   const cfg: Record<EstadoAlerta, { label: string; cls: string }> = {
     vencida: { label: 'Vencida',         cls: 'bg-red-100 text-red-700 border-red-200' },
     hoy:     { label: 'Hoy',             cls: 'bg-orange-100 text-orange-700 border-orange-200' },
-    proxima: { label: `En ${dias} día${dias !== 1 ? 's' : ''}`, cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+    proxima: { label: `En ${dias} día${dias !== 1 ? 's' : ''}`, cls: 'bg-brand-100 text-brand-700 border-brand-200' },
     futura:  { label: `En ${dias} días`,  cls: 'bg-slate-100 text-slate-600 border-slate-200' },
   }
 
@@ -115,7 +115,7 @@ export default function AlertasPage() {
         {puedeCrear && (
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 px-3 py-2 text-sm font-medium text-white transition-colors"
+            className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 px-3 py-2 text-sm font-medium text-white transition-colors"
           >
             <Plus size={15} />
             <span className="hidden sm:inline">Nueva alerta</span>
@@ -138,7 +138,7 @@ export default function AlertasPage() {
           {puedeCrear && (
             <button
               onClick={() => setShowModal(true)}
-              className="mt-1 text-sm text-amber-600 hover:text-amber-700 font-medium"
+              className="mt-1 text-sm text-brand-600 hover:text-brand-700 font-medium"
             >
               Crear primera alerta →
             </button>
@@ -214,8 +214,8 @@ interface AlertaRowProps {
 function AlertaRow({ alerta, onEliminar, eliminando, puedeEliminar }: AlertaRowProps) {
   return (
     <div className="flex items-start gap-3 px-4 py-3.5">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 mt-0.5">
-        <Bell size={15} className="text-amber-500" />
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 mt-0.5">
+        <Bell size={15} className="text-brand-500" />
       </div>
 
       <div className="flex-1 min-w-0 space-y-1.5">

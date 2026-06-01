@@ -38,7 +38,7 @@ export default function FlushingsPage() {
             <p className="text-xs text-slate-400 mt-0.5">Procedimientos</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
-            <p className="text-xl font-semibold text-amber-600">{totalEmbriones}</p>
+            <p className="text-xl font-semibold text-brand-600">{totalEmbriones}</p>
             <p className="text-xs text-slate-400 mt-0.5">Embriones totales</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-3 text-center">
@@ -81,7 +81,7 @@ export default function FlushingsPage() {
                     ) : (
                       <>
                         {f.cantidad != null && (
-                          <span className="text-amber-600 font-medium">
+                          <span className="text-brand-600 font-medium">
                             {f.cantidad} {f.cantidad === 1 ? 'embrión' : 'embriones'}
                           </span>
                         )}
@@ -97,7 +97,7 @@ export default function FlushingsPage() {
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   <span className="text-xs text-slate-400">{formatFecha(f.fecha)}</span>
-                  {!f.cancelado && !f.es_negativo && (
+                  {!f.cancelado && !f.es_negativo && rol === 'veterinario' && (
                     <button
                       onClick={() => setFlushingParaTransf(f)}
                       className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"

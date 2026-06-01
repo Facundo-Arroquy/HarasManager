@@ -96,6 +96,7 @@ export default function RecordatoriosPage() {
             <RecordatorioItem
               key={r.id}
               recordatorio={r}
+              canEdit={rol === 'veterinario'}
               onHecho={() => marcarHecho(r)}
               onCancelar={() => cancelar(r.id)}
               cancelando={cancelando === r.id}
@@ -132,12 +133,14 @@ export default function RecordatoriosPage() {
 
 function RecordatorioItem({
   recordatorio: r,
+  canEdit = true,
   onHecho,
   onCancelar,
   cancelando,
   setCancelando,
 }: {
   recordatorio: RecordatorioCria
+  canEdit?: boolean
   onHecho: () => void
   onCancelar: () => void
   cancelando: boolean
@@ -152,11 +155,11 @@ function RecordatorioItem({
     <div className="px-4 py-3 flex items-start gap-3">
       {/* Ícono estado */}
       <div className="mt-0.5 shrink-0">
-        {r.estado === 'hecho' && <CheckCircle size={16} className="text-amber-500" />}
+        {r.estado === 'hecho' && <CheckCircle size={16} className="text-brand-500" />}
         {r.estado === 'cancelado' && <XCircle size={16} className="text-slate-400" />}
         {r.estado === 'vencido' && <AlertCircle size={16} className="text-red-600" />}
         {r.estado === 'pendiente' && (
-          <Clock size={16} className={esHoy ? 'text-amber-600' : 'text-slate-400'} />
+          <Clock size={16} className={esHoy ? 'text-brand-600' : 'text-slate-400'} />
         )}
       </div>
 
@@ -164,7 +167,7 @@ function RecordatorioItem({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium text-slate-700 text-sm">{r.caballo?.nombre ?? '—'}</span>
-          <span className={`text-sm ${esHoy && activo ? 'text-amber-700 font-medium' : 'text-slate-500'}`}>
+          <span className={`text-sm ${esHoy && activo ? 'text-brand-700 font-medium' : 'text-slate-500'}`}>
             {r.tipo}
           </span>
           {r.auto_generado && (
@@ -173,7 +176,7 @@ function RecordatorioItem({
         </div>
         <p className={`text-xs mt-0.5 ${
           r.estado === 'vencido' ? 'text-red-600' :
-          esHoy && activo       ? 'text-amber-600' :
+          esHoy && activo       ? 'text-brand-600' :
           esPasado && activo    ? 'text-red-600' :
           'text-slate-400'
         }`}>
@@ -187,11 +190,11 @@ function RecordatorioItem({
       </div>
 
       {/* Acciones */}
-      {activo && (
+      {activo && canEdit && (
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={onHecho}
-            className="text-xs px-2.5 py-1 rounded bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors"
+            className="text-xs px-2.5 py-1 rounded bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
           >
             Hecho
           </button>

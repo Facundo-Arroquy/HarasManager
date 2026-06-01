@@ -211,7 +211,7 @@ export default function CaballosPage() {
             <>
               <button
                 onClick={() => setShowConsulta(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-500 px-3 py-2 text-sm font-medium text-white transition-colors"
+                className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-500 px-3 py-2 text-sm font-medium text-white transition-colors"
               >
                 <Plus size={15} />
                 <span className="hidden sm:inline">Nueva consulta</span>
@@ -526,7 +526,7 @@ export default function CaballosPage() {
                 <select
                   value={bulkCampoId}
                   onChange={(e) => setBulkCampoId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-amber-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none"
                 >
                   <option value={SIN_CAMBIO}>— Sin cambio —</option>
                   <option value={SIN_CAMPO}>Sin campo</option>
@@ -544,7 +544,7 @@ export default function CaballosPage() {
                 <select
                   value={bulkCategoria}
                   onChange={(e) => { setBulkCategoria(e.target.value); if (e.target.value !== 'Yegua') setBulkSubcategoria(SIN_CAMBIO) }}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-amber-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none"
                 >
                   <option value={SIN_CAMBIO}>— Sin cambio —</option>
                   {CATEGORIAS_EDIT.map((cat) => (
@@ -561,7 +561,7 @@ export default function CaballosPage() {
                 <select
                   value={bulkSubcategoria}
                   onChange={(e) => setBulkSubcategoria(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-amber-500 focus:outline-none"
+                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none"
                 >
                   <option value={SIN_CAMBIO}>— Sin cambio —</option>
                   <option value="">Sin especificar</option>
@@ -574,7 +574,7 @@ export default function CaballosPage() {
               <button
                 onClick={aplicarEdicionMasiva}
                 disabled={!hayBulkCambios || seleccionados.size === 0 || bulkSaving}
-                className="col-span-2 sm:col-span-1 rounded-lg bg-amber-500 px-4 py-2.5 sm:py-2 text-sm font-medium text-white transition-colors hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                className="col-span-2 sm:col-span-1 rounded-lg bg-brand-500 px-4 py-2.5 sm:py-2 text-sm font-medium text-white transition-colors hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 {bulkSaving ? 'Aplicando…' : 'Aplicar cambios'}
               </button>
@@ -612,7 +612,7 @@ function CampoSection({
   return (
     <section>
       <div className="flex items-center gap-2 mb-1">
-        <MapPin size={14} className={campo ? 'text-amber-500' : 'text-slate-400'} />
+        <MapPin size={14} className={campo ? 'text-brand-500' : 'text-slate-400'} />
         <h2 className="text-sm font-semibold text-slate-600">
           {campo?.nombre ?? 'Sin campo asignado'}
         </h2>
@@ -626,7 +626,7 @@ function CampoSection({
           {modoSeleccion && (
             <button
               onClick={() => onToggleTodos(ids)}
-              className="text-xs text-amber-500 hover:text-amber-500 transition-colors"
+              className="text-xs text-brand-500 hover:text-brand-500 transition-colors"
             >
               {todosEnSeccion ? 'Deseleccionar todos' : 'Seleccionar todos'}
             </button>
@@ -681,7 +681,7 @@ function EmpresaSection({
           {modoSeleccion && (
             <button
               onClick={() => onToggleTodos(ids)}
-              className="text-xs text-amber-500 hover:text-amber-500 transition-colors"
+              className="text-xs text-brand-500 hover:text-brand-500 transition-colors"
             >
               {todosEnSeccion ? 'Deseleccionar todos' : 'Seleccionar todos'}
             </button>

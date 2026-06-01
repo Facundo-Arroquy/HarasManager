@@ -149,14 +149,14 @@ function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, on
       {/* Toggle Centro de Cría */}
       <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
         <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-          <FlaskConical size={13} className={empresa.accesosCentroC ? 'text-amber-400' : 'text-zinc-600'} />
+          <FlaskConical size={13} className={empresa.accesosCentroC ? 'text-brand-400' : 'text-zinc-600'} />
           Centro de Embriones
         </div>
         <button
           onClick={() => onToggloCentroC(!empresa.accesosCentroC)}
           disabled={toglandoCentroC}
           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 ${
-            empresa.accesosCentroC ? 'bg-amber-500' : 'bg-zinc-700'
+            empresa.accesosCentroC ? 'bg-brand-500' : 'bg-zinc-700'
           }`}
           title={empresa.accesosCentroC ? 'Desactivar módulo' : 'Activar módulo'}
         >

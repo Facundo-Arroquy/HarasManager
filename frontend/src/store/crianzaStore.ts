@@ -151,11 +151,13 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   cargar: async (sociedadId) => {
     set({ loading: true, error: null })
     try {
+      const lbl = <T,>(name: string, p: Promise<T>): Promise<T> =>
+        p.catch((e: any) => { throw new Error(`[${name}] ${e?.message ?? String(e)}`) }) as Promise<T>
       const [registros, recordatorios, flushings, transferencias] = await Promise.all([
-        crianzaService.listarRegistros(sociedadId),
-        crianzaService.listarRecordatorios(sociedadId),
-        crianzaService.listarFlushings(sociedadId),
-        crianzaService.listarTransferencias(sociedadId),
+        lbl('registros',      crianzaService.listarRegistros(sociedadId)),
+        lbl('recordatorios',  crianzaService.listarRecordatorios(sociedadId)),
+        lbl('flushings',      crianzaService.listarFlushings(sociedadId)),
+        lbl('transferencias', crianzaService.listarTransferencias(sociedadId)),
       ])
       set({ registros, recordatorios, flushings, transferencias })
       get().sincronizarVencidos()

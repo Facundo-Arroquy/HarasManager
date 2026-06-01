@@ -29,17 +29,19 @@
 - **Descripción:** El campo `rol_reproductivo` (Donante / Receptora / null) en la tabla `caballo` no se está guardando correctamente.
 
 ### [ ] Fix Centro de embriones en panel reproductivo
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Descripción:** Aparece "Error al cargar datos" desde el lado de admin. Causa probable: problema de permisos RLS o query incorrecta.
+- **Avance:** UI admin ahora es read-only (ocultos todos los botones de escritura). El error en `cargar()` ahora muestra qué query falla: `[registros] ...`, `[recordatorios] ...`, etc. Falta confirmar la causa raíz corriendo el app con admin real.
 
 ### [ ] Alertas en dashboard
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Descripción:** Mostrar alertas en el dashboard de los próximos 7 o 10 días.
+- **Avance:** Widget "Alertas próximas" en DashboardPage: muestra hasta 5 alertas vencidas + hoy + próximos 7 días, con badge de estado y link a /alertas.
 
 ### [ ] Centro Embriones editable
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Descripción:** Que todas las reglas de alerta del centro sean editables por cada veterinario (por defecto como están ahora). Además renombrar la sección "Transferencias" del centro como "Transferencias de embriones".
 
@@ -61,6 +63,11 @@
 ---
 
 ## 🟡 Media prioridad
+
+### [ ] Registro persiste en centro de embriones
+- **Estado:** pendiente
+- **Asignado:** -
+- **Descripción:** Todos los registros que se le hagan a una yegua deben persistir en el animal, así si luego de un tiempo agarramos una yegua que se le hizo cosas en el centro podemos identificar qué se le hizo. CREO QUE YA ESTÁ, HAY QUE HACERLE DOBLE CHECK.
 
 ### [ ] Accesos
 - **Estado:** pendiente

@@ -177,7 +177,7 @@ export default function TransferenciaModal({
                 value={receptoraId}
                 onChange={(e) => setReceptoraId(e.target.value)}
                 disabled={cargando}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-50"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
               >
                 <option value="">— Seleccioná —</option>
                 {receptoras.map((r) => (
@@ -191,7 +191,7 @@ export default function TransferenciaModal({
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
           </div>
@@ -204,7 +204,7 @@ export default function TransferenciaModal({
                 value={donanteId}
                 onChange={(e) => setDonanteId(e.target.value)}
                 disabled={!!donantePredId_}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-60"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
               >
                 <option value="">— Seleccioná —</option>
                 {donantes.map((d) => (
@@ -218,7 +218,7 @@ export default function TransferenciaModal({
                 value={padrilloId}
                 onChange={(e) => setPadrilloId(e.target.value)}
                 disabled={!!padrilloPreId_}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500 disabled:opacity-60"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
               >
                 <option value="">— Sin especificar —</option>
                 {padrillos.map((p) => (
@@ -239,7 +239,7 @@ export default function TransferenciaModal({
                   value={ovIzq}
                   onChange={(e) => setOvIzq(e.target.value)}
                   placeholder="CLV"
-                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
               </div>
               <div className="space-y-1">
@@ -249,7 +249,7 @@ export default function TransferenciaModal({
                   value={ovDer}
                   onChange={(e) => setOvDer(e.target.value)}
                   placeholder="Chico"
-                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
               </div>
             </div>
@@ -267,7 +267,7 @@ export default function TransferenciaModal({
               <select
                 value={clCalidad}
                 onChange={(e) => setClCalidad(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               >
                 <option value="">—</option>
                 {CL_CALIDADES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -278,7 +278,7 @@ export default function TransferenciaModal({
               <select
                 value={tonoUterino}
                 onChange={(e) => setTonoUterino(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               >
                 <option value="">—</option>
                 {TONOS.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -289,7 +289,7 @@ export default function TransferenciaModal({
               <select
                 value={tonoCervical}
                 onChange={(e) => setTonoCervical(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               >
                 <option value="">—</option>
                 {TONOS.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -300,7 +300,7 @@ export default function TransferenciaModal({
               <select
                 value={clasificacion}
                 onChange={(e) => setClasificacion(e.target.value as 'Fresco' | 'Congelado' | '')}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               >
                 <option value="">—</option>
                 <option value="Fresco">Fresco</option>
@@ -317,7 +317,7 @@ export default function TransferenciaModal({
               onChange={(e) => setNotas(e.target.value)}
               rows={2}
               placeholder="Observaciones adicionales…"
-              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500 resize-none"
             />
           </div>
 

@@ -62,16 +62,18 @@ export default function DashboardCriaPage() {
           <h1 className="text-xl font-semibold text-slate-900">Centro de Embriones</h1>
           <p className="text-sm text-slate-500 mt-0.5">Gestión reproductiva del establecimiento</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-amber-500 hover:bg-amber-400 text-sm font-medium text-white transition-colors shrink-0"
-        >
-          <Plus size={15} />
-          Nuevo registro
-        </button>
+        {rol === 'veterinario' && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-brand-500 hover:bg-brand-400 text-sm font-medium text-white transition-colors shrink-0"
+          >
+            <Plus size={15} />
+            Nuevo registro
+          </button>
+        )}
       </div>
 
-      {showModal && (
+      {showModal && rol === 'veterinario' && (
         <RegistroCriaModal
           onClose={() => setShowModal(false)}
           onSuccess={recargar}
@@ -85,7 +87,7 @@ export default function DashboardCriaPage() {
           value={pendientesHoy.length}
           sub={`${pendientesHoy.length === 1 ? 'recordatorio' : 'recordatorios'}`}
           icon={<Bell size={16} />}
-          accent={pendientesHoy.length > 0 ? 'amber' : 'zinc'}
+          accent={pendientesHoy.length > 0 ? 'brand' : 'zinc'}
           to="/centro-cria/recordatorios"
         />
         <StatCard
@@ -167,7 +169,7 @@ export default function DashboardCriaPage() {
                 {f.es_negativo ? (
                   <span className="text-xs text-slate-400">Negativo</span>
                 ) : (
-                  <span className="text-xs text-amber-600">{f.cantidad} embrión{f.cantidad !== 1 ? 'es' : ''}</span>
+                  <span className="text-xs text-brand-600">{f.cantidad} embrión{f.cantidad !== 1 ? 'es' : ''}</span>
                 )}
                 {f.cancelado && (
                   <span className="text-xs text-slate-400">Cancelado</span>
@@ -223,14 +225,14 @@ function StatCard({
   value: number
   sub: string
   icon: React.ReactNode
-  accent: 'zinc' | 'amber' | 'red' | 'emerald'
+  accent: 'zinc' | 'brand' | 'red' | 'emerald'
   to: string
 }) {
   const colorMap = {
     zinc:    'text-slate-500',
-    amber:   'text-amber-600',
+    brand:   'text-brand-600',
     red:     'text-red-600',
-    emerald: 'text-amber-600',
+    emerald: 'text-brand-600',
   }
   return (
     <Link
@@ -270,12 +272,12 @@ function RecordatorioRow({ recordatorio: r }: { recordatorio: { id: string; caba
   return (
     <li className="px-4 py-2.5 flex items-center gap-3 text-sm">
       {r.estado === 'hecho' ? (
-        <CheckCircle size={14} className="text-amber-500 shrink-0" />
+        <CheckCircle size={14} className="text-brand-500 shrink-0" />
       ) : (
-        <Clock size={14} className={`shrink-0 ${esHoy ? 'text-amber-600' : 'text-slate-400'}`} />
+        <Clock size={14} className={`shrink-0 ${esHoy ? 'text-brand-600' : 'text-slate-400'}`} />
       )}
       <span className="font-medium text-slate-700 truncate">{r.caballo?.nombre ?? '—'}</span>
-      <span className={`text-slate-500 ${esHoy ? 'font-medium text-amber-700' : ''}`}>{r.tipo}</span>
+      <span className={`text-slate-500 ${esHoy ? 'font-medium text-brand-700' : ''}`}>{r.tipo}</span>
       <span className="ml-auto text-xs text-slate-400 shrink-0">{formatFecha(r.fecha_vto)}</span>
     </li>
   )

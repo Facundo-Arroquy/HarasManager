@@ -24,7 +24,7 @@ const CATEGORIA_STYLE: Record<string, string> = {
   Yegua:    'bg-pink-100 text-pink-700 ring-1 ring-pink-200',
   Padrillo: 'bg-blue-100 text-blue-700 ring-1 ring-blue-200',
   Caballo:  'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
-  Potrillo: 'bg-amber-100 text-amber-700 ring-1 ring-amber-200',
+  Potrillo: 'bg-brand-100 text-brand-700 ring-1 ring-brand-200',
 }
 
 const SUBCATEGORIA_STYLE: Record<string, string> = {
@@ -48,7 +48,7 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
       onClick={handleClick}
       className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
         seleccionado
-          ? 'bg-amber-50/30 border-l-2 border-amber-500'
+          ? 'bg-brand-50/30 border-l-2 border-brand-500'
           : 'hover:bg-slate-100/60 border-l-2 border-transparent'
       }`}
     >
@@ -56,7 +56,7 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
       {enModoSeleccion && (
         <span className="shrink-0">
           {seleccionado
-            ? <CheckSquare size={16} className="text-amber-600" />
+            ? <CheckSquare size={16} className="text-brand-600" />
             : <Square size={16} className="text-slate-400" />
           }
         </span>
