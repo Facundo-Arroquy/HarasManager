@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Search, Plus, MapPin, CheckSquare, X, Building2, LayoutList } from 'lucide-react'
+import Tooltip from '../../components/ui/Tooltip'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { useAuthStore } from '../../store/authStore'
@@ -242,14 +243,16 @@ export default function CaballosPage() {
             </button>
           )}
           {canManageCampos(rol) && !modoSeleccion && (
-            <button
-              onClick={() => setModoSeleccion(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
-              title="Editar en masa"
-            >
-              <CheckSquare size={15} />
-              <span className="hidden sm:inline">Editar en masa</span>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setModoSeleccion(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+              >
+                <CheckSquare size={15} />
+                <span className="hidden sm:inline">Editar en masa</span>
+              </button>
+              <Tooltip text="Seleccioná varios caballos y aplicá el mismo campo, categoría o rol reproductivo a todos en un solo paso." />
+            </div>
           )}
           {modoSeleccion && (
             <button
@@ -363,6 +366,7 @@ export default function CaballosPage() {
             {/* Desktop: botones */}
             <div className="hidden sm:flex items-center gap-2">
               <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Orden:</span>
+              <Tooltip text="Reordena el listado poniendo primero las yeguas con ese rol reproductivo. No filtra, solo cambia el orden." />
               {(['ninguno', 'receptoras', 'donantes'] as const).map((op) => (
                 <button
                   key={op}
@@ -382,6 +386,7 @@ export default function CaballosPage() {
         {!modoSeleccion && (
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider shrink-0">Camada:</span>
+            <Tooltip text="Filtrá animales por período de nacimiento. Dejá uno solo para ver desde/hasta un mes en particular." />
             <div className="flex items-center gap-1.5 flex-1 min-w-0">
               <input
                 type="month"

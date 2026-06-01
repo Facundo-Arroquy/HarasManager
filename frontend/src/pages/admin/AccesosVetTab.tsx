@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ShieldCheck, ShieldOff, Plus, X, CheckSquare } from 'lucide-react'
+import Tooltip from '../../components/ui/Tooltip'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getAccesosVet, revocarAccesosBulk, otorgarAccesosBulk,
@@ -324,20 +325,26 @@ export default function AccesosVetTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-sm font-medium text-slate-600">
-          {accesos.length} acceso{accesos.length !== 1 ? 's' : ''} activo{accesos.length !== 1 ? 's' : ''}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-slate-600">
+            {accesos.length} acceso{accesos.length !== 1 ? 's' : ''} activo{accesos.length !== 1 ? 's' : ''}
+          </h2>
+          <Tooltip text="Los veterinarios solo pueden ver y registrar consultas en los caballos a los que se les dio acceso explícito desde acá." />
+        </div>
 
         <div className="flex items-center gap-2">
           {seleccionados.size > 0 && (
-            <button
-              onClick={handleRevocarSeleccionados}
-              disabled={anyRevocando}
-              className="flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 text-xs font-medium text-rose-600 transition-colors disabled:opacity-50"
-            >
-              <ShieldOff size={13} />
-              {revocandoBulk ? 'Revocando…' : `Revocar ${seleccionados.size} seleccionado${seleccionados.size !== 1 ? 's' : ''}`}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleRevocarSeleccionados}
+                disabled={anyRevocando}
+                className="flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 text-xs font-medium text-rose-600 transition-colors disabled:opacity-50"
+              >
+                <ShieldOff size={13} />
+                {revocandoBulk ? 'Revocando…' : `Revocar ${seleccionados.size} seleccionado${seleccionados.size !== 1 ? 's' : ''}`}
+              </button>
+              <Tooltip text="Quita el acceso del veterinario a estos caballos. No borra el historial clínico ya registrado." />
+            </div>
           )}
           <button
             onClick={() => setShowModal(true)}

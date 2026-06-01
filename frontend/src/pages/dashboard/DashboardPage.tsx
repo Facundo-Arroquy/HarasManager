@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapPin, Stethoscope, AlertCircle, Calendar, Tag, Bell } from 'lucide-react'
+import Tooltip from '../../components/ui/Tooltip'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type CampoConConteo } from '../../services/campoService'
@@ -107,12 +108,14 @@ export default function DashboardPage() {
           icon={<MapPin size={15} />}
           accent={sinCampo > 0 ? 'brand' : 'zinc'}
           onClick={sinCampo > 0 ? () => navigate('/caballos') : undefined}
+          tooltip="Los caballos sin campo no aparecen en el desglose de distribución. Asignalos desde la sección Caballos."
         />
         <KpiCard
           label="Sin chip registrado"
           value={sinChip}
           icon={<AlertCircle size={15} />}
           accent={sinChip > 0 ? 'rose' : 'zinc'}
+          tooltip="El chip electrónico identifica unívocamente al animal. Sin chip, el caballo no puede ser trazado en controles sanitarios."
         />
         <KpiCard
           label="Campos / caballerizas"
@@ -264,6 +267,7 @@ interface KpiCardProps {
   icon: React.ReactNode
   accent: 'emerald' | 'brand' | 'rose' | 'zinc'
   onClick?: () => void
+  tooltip?: string
 }
 
 const ACCENT_CLASS: Record<string, string> = {
@@ -310,7 +314,7 @@ function AlertaWidget({ alerta, onClick }: { alerta: Alerta; onClick: () => void
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, icon, accent, onClick }: KpiCardProps) {
+function KpiCard({ label, value, icon, accent, onClick, tooltip }: KpiCardProps) {
   const color = ACCENT_CLASS[accent]
   return (
     <div
@@ -322,6 +326,7 @@ function KpiCard({ label, value, icon, accent, onClick }: KpiCardProps) {
       <div className={`flex items-center gap-2 mb-3 ${color}`}>
         {icon}
         <span className="text-xs text-slate-400">{label}</span>
+        {tooltip && <Tooltip text={tooltip} />}
       </div>
       <p className={`text-3xl font-bold ${color}`}>{value}</p>
     </div>

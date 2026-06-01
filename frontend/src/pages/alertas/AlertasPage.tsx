@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Bell, Plus, Trash2 } from 'lucide-react'
+import Tooltip from '../../components/ui/Tooltip'
 import { alertaService, type Alerta } from '../../services/alertaService'
 import { caballoService } from '../../services/caballoService'
 import { useAuthStore } from '../../store/authStore'
@@ -107,7 +108,10 @@ export default function AlertasPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Alertas</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Alertas</h1>
+            <Tooltip text="Creá recordatorios manuales para uno o más caballos: vacunas, herrados, revisiones, etc." />
+          </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
             {loading ? '…' : `${alertas.length} alerta${alertas.length !== 1 ? 's' : ''} activa${alertas.length !== 1 ? 's' : ''}`}
           </p>
