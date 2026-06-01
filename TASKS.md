@@ -35,9 +35,10 @@
 - **Avance:** UI admin ahora es read-only (ocultos todos los botones de escritura). El error en `cargar()` ahora muestra qué query falla: `[registros] ...`, `[recordatorios] ...`, etc. Falta confirmar la causa raíz corriendo el app con admin real.
 
 ### [ ] Alertas en dashboard
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Descripción:** Mostrar alertas en el dashboard de los próximos 7 o 10 días.
+- **Avance:** Widget "Alertas próximas" en DashboardPage: muestra hasta 5 alertas vencidas + hoy + próximos 7 días, con badge de estado y link a /alertas.
 
 ### [ ] Centro Embriones editable
 - **Estado:** QA

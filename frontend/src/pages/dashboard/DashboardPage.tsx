@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Stethoscope, AlertCircle, Calendar, Tag } from 'lucide-react'
+import { MapPin, Stethoscope, AlertCircle, Calendar, Tag, Bell } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type CampoConConteo } from '../../services/campoService'
 import { historialService } from '../../services/historialService'
+import { alertaService, type Alerta } from '../../services/alertaService'
 import Spinner from '../../components/ui/Spinner'
 import { hoyAR, formatFechaCorta } from '../../utils/fecha'
 
@@ -27,6 +28,7 @@ export default function DashboardPage() {
   const [caballos,  setCaballos]  = useState<Caballo[]>([])
   const [campos,    setCampos]    = useState<CampoConConteo[]>([])
   const [historial, setHistorial] = useState<HistResumen[]>([])
+  const [alertas,   setAlertas]   = useState<Alerta[]>([])
   const [loading,   setLoading]   = useState(true)
 
   useEffect(() => {
@@ -36,10 +38,12 @@ export default function DashboardPage() {
       caballoService.listar(sociedadId),
       campoService.listarConConteo(sociedadId),
       historialService.listarRecientesTodos(sociedadId, 10),
-    ]).then(([c, f, h]) => {
+      alertaService.listar({ sociedadId, esVet: false }).catch(() => [] as Alerta[]),
+    ]).then(([c, f, h, a]) => {
       setCaballos(c)
       setCampos(f)
       setHistorial(h)
+      setAlertas(a)
     }).finally(() => setLoading(false))
   }, [sociedadId])
 
@@ -52,6 +56,17 @@ export default function DashboardPage() {
       nombre: cat,
       count: caballos.filter((c) => c.categoria === cat).length,
     })), [caballos])
+
+  const alertasProximas = useMemo(() => {
+    const hoyDate = new Date(); hoyDate.setHours(0, 0, 0, 0)
+    return alertas
+      .filter((a) => {
+        const fecha = new Date(a.fecha_alerta + 'T00:00:00')
+        const dias  = Math.round((fecha.getTime() - hoyDate.getTime()) / 86400000)
+        return dias <= 7
+      })
+      .slice(0, 5)
+  }, [alertas])
 
   const hoy = hoyAR()   // fecha actual en America/Argentina/Buenos_Aires
   const ultimasConsultas  = historial.slice(0, 5)
@@ -165,6 +180,26 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Alertas próximas */}
+      {alertasProximas.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-slate-600">Alertas próximas</h2>
+            <button
+              onClick={() => navigate('/alertas')}
+              className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+            >
+              Ver todas →
+            </button>
+          </div>
+          <div className="space-y-1">
+            {alertasProximas.map((alerta) => (
+              <AlertaWidget key={alerta.id} alerta={alerta} onClick={() => navigate('/alertas')} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Últimas + Próximas consultas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Últimas consultas */}
@@ -237,6 +272,43 @@ const ACCENT_CLASS: Record<string, string> = {
   rose:    'text-rose-600',
   zinc:    'text-slate-500',
 }
+
+// ── Alerta Widget ─────────────────────────────────────────────────────────────
+
+function AlertaWidget({ alerta, onClick }: { alerta: Alerta; onClick: () => void }) {
+  const hoyDate = new Date(); hoyDate.setHours(0, 0, 0, 0)
+  const fecha   = new Date(alerta.fecha_alerta + 'T00:00:00')
+  const dias    = Math.round((fecha.getTime() - hoyDate.getTime()) / 86400000)
+
+  const badge =
+    dias < 0  ? { label: 'Vencida',          cls: 'bg-red-100 text-red-700' } :
+    dias === 0 ? { label: 'Hoy',              cls: 'bg-orange-100 text-orange-700' } :
+                 { label: `En ${dias} día${dias !== 1 ? 's' : ''}`, cls: 'bg-amber-100 text-amber-700' }
+
+  const iconColor = dias < 0 ? 'text-red-500' : dias === 0 ? 'text-orange-500' : 'text-amber-500'
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-slate-50 transition-colors"
+    >
+      <Bell size={13} className={`${iconColor} shrink-0`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-slate-700 truncate">{alerta.motivo}</p>
+        {alerta.caballos.length > 0 && (
+          <p className="text-[11px] text-slate-400 truncate">
+            {alerta.caballos.map((c) => c.nombre).join(', ')}
+          </p>
+        )}
+      </div>
+      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${badge.cls}`}>
+        {badge.label}
+      </span>
+    </button>
+  )
+}
+
+// ── KPI Card ──────────────────────────────────────────────────────────────────
 
 function KpiCard({ label, value, icon, accent, onClick }: KpiCardProps) {
   const color = ACCENT_CLASS[accent]
