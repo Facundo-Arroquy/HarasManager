@@ -154,20 +154,22 @@ export default function HistorialPage() {
           <div className="flex items-center gap-2 shrink-0">
             {/* Exportar ficha — admin y veterinario */}
             {(rol === 'admin' || rol === 'veterinario') && (
-              <button
-                onClick={() => exportarFichaCaballo({
-                  caballo,
-                  historial,
-                  caballos: todosCaballos,
-                  registrosCria,
-                  flushings,
-                  transferencias,
-                }).catch(console.error)}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-slate-100 hover:bg-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors"
-              >
-                <Printer size={15} /> Exportar PDF
-              </button>
-              <Tooltip text="Descarga la ficha completa del caballo: datos generales, historial clínico y registros reproductivos." />
+              <>
+                <button
+                  onClick={() => exportarFichaCaballo({
+                    caballo,
+                    historial,
+                    caballos: todosCaballos,
+                    registrosCria,
+                    flushings,
+                    transferencias,
+                  }).catch(console.error)}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-slate-100 hover:bg-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors"
+                >
+                  <Printer size={15} /> Exportar PDF
+                </button>
+                <Tooltip text="Descarga la ficha completa del caballo: datos generales, historial clínico y registros reproductivos." />
+              </>
             )}
             {/* Solo veterinario — caballo ya pre-seleccionado */}
             {rol === 'veterinario' && (
