@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { crianzaService } from '../services/crianzaService'
+import { getCriaConfig } from '../utils/criaConfig'
 import type {
   RegistroClinicoCria,
   RecordatorioCria,
@@ -63,29 +64,30 @@ function reglasParaRegistro(
   const chips = registro.obs_chips
   const reglas: ReglaRecordatorio[] = []
   const base = registro.fecha
+  const cfg = getCriaConfig()
 
   if (rolReproductivo === 'Donante') {
     if (chips.includes('Strelin'))
-      reglas.push({ tipo: 'IN', calcularFecha: (f) => sumarDias(f, 1) })
+      reglas.push({ tipo: 'IN', calcularFecha: (f) => sumarDias(f, cfg.donante_strelin_a_in) })
     if (chips.includes('IN'))
-      reglas.push({ tipo: 'OXI', calcularFecha: (f) => sumarDias(f, 1) })
+      reglas.push({ tipo: 'OXI', calcularFecha: (f) => sumarDias(f, cfg.donante_in_a_oxi) })
     if (chips.some((c) => c === 'OV') || registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV'))
-      reglas.push({ tipo: 'Flushing', calcularFecha: (f) => sumarDias(f, 6) })
+      reglas.push({ tipo: 'Flushing', calcularFecha: (f) => sumarDias(f, cfg.donante_ov_a_flushing) })
     if (chips.includes('PG'))
-      reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, 3) })
+      reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.donante_pg_a_revision_pg) })
     if (chips.includes('Flushing'))
-      reglas.push({ tipo: 'Revisión Flushing', calcularFecha: (f) => sumarDias(f, 4) })
+      reglas.push({ tipo: 'Revisión Flushing', calcularFecha: (f) => sumarDias(f, cfg.donante_flushing_a_revision) })
   }
 
   if (rolReproductivo === 'Receptora') {
     if (chips.includes('Strelin'))
       reglas.push({ tipo: 'Revisión Strelin', calcularFecha: (f) => proximoMWF(new Date(f)) })
     if (chips.includes('PG'))
-      reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, 4) })
+      reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.receptora_pg_a_revision_pg) })
     const tieneOV = registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV')
     const fueTransferida = chips.includes('Transferida')
     if (tieneOV && !fueTransferida)
-      reglas.push({ tipo: 'Dar PG', calcularFecha: (f) => sumarDias(f, 3) })
+      reglas.push({ tipo: 'Dar PG', calcularFecha: (f) => sumarDias(f, cfg.receptora_ov_a_dar_pg) })
   }
 
   if (registro.review_manana)

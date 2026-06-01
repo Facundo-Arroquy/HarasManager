@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, LayoutGrid, Settings, SlidersHorizontal,
   ClipboardList, Droplets, Bell, ArrowLeftRight, FlaskConical,
-  CalendarDays, BellRing,
+  CalendarDays, BellRing, Settings2,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -41,8 +41,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/centro-cria',                label: 'Panel reproductivo', icon: <FlaskConical size={18} /> },
       { to: '/centro-cria/programa',       label: 'Programa semanal',   icon: <CalendarDays size={18} /> },
       { to: '/centro-cria/recordatorios',  label: 'Recordatorios',      icon: <Bell size={18} /> },
-      { to: '/centro-cria/flushings',      label: 'Flushings',          icon: <Droplets size={18} /> },
-      { to: '/centro-cria/transferencias', label: 'Transferencias',     icon: <ArrowLeftRight size={18} /> },
+      { to: '/centro-cria/flushings',      label: 'Flushings',                    icon: <Droplets size={18} /> },
+      { to: '/centro-cria/transferencias', label: 'Transferencias de embriones', icon: <ArrowLeftRight size={18} /> },
+      { to: '/centro-cria/config',         label: 'Configuración',               icon: <Settings2 size={18} /> },
     ],
   },
 ]

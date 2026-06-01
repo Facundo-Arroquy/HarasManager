@@ -19,7 +19,7 @@ export default function TransferenciasPage() {
   return (
     <div className="space-y-5 p-1">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Transferencias</h1>
+        <h1 className="text-xl font-semibold text-slate-900">Transferencias de embriones</h1>
         <p className="text-sm text-slate-500 mt-0.5">Historial de transferencias embrionarias</p>
       </div>
 
