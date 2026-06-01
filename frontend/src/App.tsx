@@ -25,6 +25,7 @@ import RecordatoriosPage from './pages/centro-cria/RecordatoriosPage'
 import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
 import FlushingsPage from './pages/centro-cria/FlushingsPage'
 import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
+import ConfigCriaPage from './pages/centro-cria/ConfigCriaPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 import TransferirVetPage from './pages/vet/TransferirVetPage'
 import AlertasPage from './pages/alertas/AlertasPage'
@@ -149,6 +150,7 @@ export default function App() {
             <Route path="/centro-cria/recordatorios" element={<RecordatoriosPage />} />
             <Route path="/centro-cria/transferencias" element={<TransferenciasPage />} />
             <Route path="/centro-cria/flushings" element={<FlushingsPage />} />
+            <Route path="/centro-cria/config" element={<ConfigCriaPage />} />
           </Route>
           <Route path="/transferencias" element={<TransferirEmpresaPage />} />
           <Route path="/transferir-vet" element={<TransferirVetPage />} />

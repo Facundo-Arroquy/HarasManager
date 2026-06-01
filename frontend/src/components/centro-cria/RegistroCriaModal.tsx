@@ -5,6 +5,7 @@ import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
 import { CHIPS_OI_OD, CHIPS_UTERO, CHIPS_OBS } from '../../types/crianza'
 import type { RolReproductivo } from '../../types/crianza'
+import { getCriaConfig } from '../../utils/criaConfig'
 import ChipSelector from './ChipSelector'
 
 interface Props {
@@ -393,21 +394,22 @@ function RecordatoriosPreview({
   reviewManana: boolean
 }) {
   const items: { tipo: string; fecha: string }[] = []
+  const cfg = getCriaConfig()
 
   const tieneOV = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
 
   if (rol === 'Donante') {
-    if (obsChips.includes('Strelin')) items.push({ tipo: 'IN', fecha: sumarDias(fecha, 1) })
-    if (obsChips.includes('IN'))      items.push({ tipo: 'OXI', fecha: sumarDias(fecha, 1) })
-    if (tieneOV)                      items.push({ tipo: 'Flushing', fecha: sumarDias(fecha, 6) })
-    if (obsChips.includes('PG'))      items.push({ tipo: 'Revisión PG', fecha: sumarDias(fecha, 3) })
-    if (obsChips.includes('Flushing'))items.push({ tipo: 'Revisión Flushing', fecha: sumarDias(fecha, 4) })
+    if (obsChips.includes('Strelin')) items.push({ tipo: 'IN', fecha: sumarDias(fecha, cfg.donante_strelin_a_in) })
+    if (obsChips.includes('IN'))      items.push({ tipo: 'OXI', fecha: sumarDias(fecha, cfg.donante_in_a_oxi) })
+    if (tieneOV)                      items.push({ tipo: 'Flushing', fecha: sumarDias(fecha, cfg.donante_ov_a_flushing) })
+    if (obsChips.includes('PG'))      items.push({ tipo: 'Revisión PG', fecha: sumarDias(fecha, cfg.donante_pg_a_revision_pg) })
+    if (obsChips.includes('Flushing'))items.push({ tipo: 'Revisión Flushing', fecha: sumarDias(fecha, cfg.donante_flushing_a_revision) })
   }
   if (rol === 'Receptora') {
     if (obsChips.includes('Strelin')) items.push({ tipo: 'Revisión Strelin', fecha: proximoMWF(fecha) })
-    if (obsChips.includes('PG'))      items.push({ tipo: 'Revisión PG', fecha: sumarDias(fecha, 4) })
+    if (obsChips.includes('PG'))      items.push({ tipo: 'Revisión PG', fecha: sumarDias(fecha, cfg.receptora_pg_a_revision_pg) })
     if (tieneOV && !obsChips.includes('Transferida'))
-      items.push({ tipo: 'Dar PG', fecha: sumarDias(fecha, 3) })
+      items.push({ tipo: 'Dar PG', fecha: sumarDias(fecha, cfg.receptora_ov_a_dar_pg) })
   }
   if (reviewManana) items.push({ tipo: 'Revisión', fecha: proximoMWF(fecha) })
 
