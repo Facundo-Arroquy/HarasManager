@@ -64,6 +64,11 @@
 
 ## 🟡 Media prioridad
 
+### [ ] Registro persiste en centro de embriones
+- **Estado:** pendiente
+- **Asignado:** -
+- **Descripción:** Todos los registros que se le hagan a una yegua deben persistir en el animal, así si luego de un tiempo agarramos una yegua que se le hizo cosas en el centro podemos identificar qué se le hizo. CREO QUE YA ESTÁ, HAY QUE HACERLE DOBLE CHECK.
+
 ### [ ] Accesos
 - **Estado:** pendiente
 - **Asignado:** -
