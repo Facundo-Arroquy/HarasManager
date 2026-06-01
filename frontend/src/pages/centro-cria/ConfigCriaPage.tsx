@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Settings2, RotateCcw, Check } from 'lucide-react'
 import {
   getCriaConfig,
@@ -141,7 +141,28 @@ function Regla({
   default_: number
   onChange: (v: number) => void
 }) {
+  const [raw, setRaw] = useState(String(valor))
   const modificado = valor !== default_
+
+  // Sincronizar si el valor externo cambia (ej: reset)
+  useEffect(() => {
+    setRaw(String(valor))
+  }, [valor])
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setRaw(e.target.value)
+  }
+
+  function handleBlur() {
+    const v = parseInt(raw, 10)
+    if (!isNaN(v) && v >= 1 && v <= 30) {
+      onChange(v)
+      setRaw(String(v))
+    } else {
+      // Revertir al valor válido actual
+      setRaw(String(valor))
+    }
+  }
 
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-3">
@@ -159,11 +180,9 @@ function Regla({
             type="number"
             min={1}
             max={30}
-            value={valor}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10)
-              if (!isNaN(v) && v >= 1 && v <= 30) onChange(v)
-            }}
+            value={raw}
+            onChange={handleChange}
+            onBlur={handleBlur}
             className="w-14 rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-sm text-center text-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-500"
           />
           <span className="text-xs text-slate-400">días</span>
