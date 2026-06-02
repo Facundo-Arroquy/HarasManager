@@ -391,7 +391,7 @@ function ProblemaSolucion() {
             </h3>
             <div style={{ width: '40px', height: '2px', backgroundColor: C.gold, margin: '0 0 20px' }} />
             <p style={{ ...body, fontSize: '0.95rem', color: '#6B6055', lineHeight: 1.75, margin: 0 }}>
-              HarasManager centraliza la gestión completa de tu establecimiento.
+              Haras Manager centraliza la gestión completa de tu establecimiento.
               Fichas de animales, historial clínico inmutable, alertas automáticas,
               árbol genealógico y centro de embriones. Una plataforma diseñada
               específicamente para el mundo equino profesional.
@@ -577,62 +577,6 @@ function ParaQuien() {
   )
 }
 
-// ─── SOCIAL PROOF ────────────────────────────────────────────────────────────
-
-function SocialProof() {
-  const metricas = [
-    { valor: '500+', etiqueta: 'caballos gestionados' },
-    { valor: '15+', etiqueta: 'haras activos' },
-    { valor: '100%', etiqueta: 'trazabilidad sanitaria' },
-  ]
-
-  return (
-    <section style={{ backgroundColor: C.cream, padding: '80px 24px', borderTop: `1px solid ${C.goldSoft}`, borderBottom: `1px solid ${C.goldSoft}` }}>
-      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-        <div
-          data-reveal
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: '40px',
-            textAlign: 'center',
-            marginBottom: '56px',
-          }}
-        >
-          {metricas.map((m) => (
-            <div key={m.etiqueta}>
-              <p style={{ ...display, fontSize: '3.2rem', fontWeight: 700, color: C.charcoal, margin: '0 0 6px', lineHeight: 1 }}>
-                {m.valor}
-              </p>
-              <p style={{ ...body, fontSize: '0.8rem', color: '#9B8B7A', letterSpacing: '0.06em', margin: 0, textTransform: 'uppercase' }}>
-                {m.etiqueta}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <div data-reveal data-delay="200" style={{ textAlign: 'center' }}>
-          <Divider />
-          <div style={{ height: '32px' }} />
-          <blockquote
-            style={{
-              ...display,
-              fontSize: 'clamp(1.3rem, 3vw, 1.9rem)',
-              fontStyle: 'italic',
-              fontWeight: 400,
-              color: C.charcoal,
-              margin: '0 auto',
-              maxWidth: '680px',
-              lineHeight: 1.5,
-            }}
-          >
-            "La única plataforma que cubre la gestión equina de punta a punta."
-          </blockquote>
-        </div>
-      </div>
-    </section>
-  )
-}
 
 // ─── FORMULARIO DE CONTACTO ──────────────────────────────────────────────────
 
@@ -988,7 +932,6 @@ export default function LandingPage() {
       <ProblemaSolucion />
       <Features />
       <ParaQuien />
-      <SocialProof />
       <ContactForm />
       <Footer />
     </div>
