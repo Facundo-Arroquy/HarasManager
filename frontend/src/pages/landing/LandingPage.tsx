@@ -583,6 +583,7 @@ function ParaQuien() {
 interface FormState {
   nombre: string
   email: string
+  telefono: string
   nombre_establecimiento: string
   cantidad_animales: string
   modulos_interes: string[]
@@ -592,6 +593,7 @@ interface FormState {
 const FORM_INICIAL: FormState = {
   nombre: '',
   email: '',
+  telefono: '',
   nombre_establecimiento: '',
   cantidad_animales: '',
   modulos_interes: [],
@@ -706,6 +708,23 @@ function ContactForm() {
                 onFocus={(e) => (e.target.style.borderColor = C.gold)}
                 onBlur={(e) => (e.target.style.borderColor = C.goldSoft)}
                 placeholder="juan@miharas.com.ar"
+              />
+            </div>
+
+            {/* Teléfono / WhatsApp */}
+            <div>
+              <label style={labelStyle}>
+                Teléfono{' '}
+                <span style={{ color: '#9B8B7A', fontWeight: 300 }}>(WhatsApp)</span>
+              </label>
+              <input
+                type="tel"
+                value={form.telefono}
+                onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))}
+                style={inputStyle}
+                onFocus={(e) => (e.target.style.borderColor = C.gold)}
+                onBlur={(e) => (e.target.style.borderColor = C.goldSoft)}
+                placeholder="+54 9 11 1234-5678"
               />
             </div>
 
