@@ -595,20 +595,21 @@ export const crianzaService = {
 
   async listarAnimalesReproductivosVet() {
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('caballo')
-      .select('id, nombre, categoria, rol_reproductivo, sociedad_id, campo(nombre)')
-      .eq('activo', true)
-      .order('nombre')
+    const { data, error } = await supabase.rpc('get_caballos_veterinario')
     if (error) throw error
-    return (data as unknown) as Array<{
-      id: string
-      nombre: string
-      categoria: string
-      rol_reproductivo: RolReproductivo
-      sociedad_id: string
-      campo: { nombre: string } | null
-    }>
+    return (data ?? []).map((d: Record<string, unknown>) => ({
+      id:               d.id as string,
+      nombre:           d.nombre as string,
+      categoria:        d.categoria as string,
+      rol_reproductivo: d.rol_reproductivo as RolReproductivo,
+      sociedad_id:      d.sociedad_id as string,
+      campo:            d.campo_nombre ? { nombre: d.campo_nombre as string } : null,
+      marca:            d.propietario_nombre
+                          ? { nombre: d.propietario_nombre as string }
+                          : d.empresa_nombre
+                            ? { nombre: d.empresa_nombre as string }
+                            : null,
+    }))
   },
 
   // ── Animales del módulo (con rol_reproductivo) ───────────────────────────
