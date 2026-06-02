@@ -73,7 +73,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       })
     } else if (rol === 'veterinario') {
       crianzaService.listarAnimalesReproductivosVet().then((data) => {
-        setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+        setAnimales(data.filter((a: any) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
         setCargandoAnimales(false)
       })
     }

@@ -81,7 +81,7 @@ export default function ProgramaSemanalPage() {
       if (registros.length === 0) cargarParaVet()
       crianzaService.listarAnimalesReproductivosVet()
         .then((data) => {
-          setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+          setAnimales(data.filter((a: any) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
         })
         .catch((err) => console.error('[ProgramaSemanal] listarAnimalesReproductivosVet:', err))
         .finally(() => setCargandoAnim(false))
@@ -116,8 +116,6 @@ export default function ProgramaSemanalPage() {
   // Yeguas activas (Donantes + Receptoras)
   const donantes   = animales.filter((a) => a.rol_reproductivo === 'Donante')
   const receptoras = animales.filter((a) => a.rol_reproductivo === 'Receptora')
-  const padrillos  = animales.filter((a) => a.categoria === 'Padrillo')
-  const sinRol     = animales.filter((a) => a.categoria === 'Yegua' && !a.rol_reproductivo)
 
   if (loading && registros.length === 0) {
     return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
