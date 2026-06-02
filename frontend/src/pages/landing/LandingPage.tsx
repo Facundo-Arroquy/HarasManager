@@ -33,10 +33,6 @@ const EMAILS = {
   facundo: 'facundo.arroquy@harasmanager.com',
 }
 
-const DEMO_MAILTO =
-  `mailto:${EMAILS.tomas},${EMAILS.facundo}` +
-  '?subject=Solicitud%20de%20demo%20%E2%80%94%20HarasManager' +
-  '&body=Hola%2C%20me%20gustar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20HarasManager.'
 
 const MODULOS = [
   'Fichas de animales',

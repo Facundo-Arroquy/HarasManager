@@ -6,7 +6,6 @@ import {
   type LeadManualInput,
   crearLeadManual,
   actualizarLead,
-  insertarLead,
 } from '../../services/leadsService'
 import { getSupabaseClient } from '../../lib/supabase'
 import Spinner from '../../components/ui/Spinner'
@@ -44,20 +43,6 @@ function formatFecha(iso: string) {
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: '2-digit', minute: '2-digit',
   })
-}
-
-// ─── Badge de estado ──────────────────────────────────────────────────────────
-
-function EstadoBadge({ estado }: { estado: LeadEstado }) {
-  const c = ESTADO_CFG[estado]
-  return (
-    <span
-      className="text-[10px] font-semibold px-2 py-0.5 rounded whitespace-nowrap"
-      style={{ backgroundColor: c.bg, color: c.text, border: `1px solid ${c.border}` }}
-    >
-      {c.label}
-    </span>
-  )
 }
 
 // ─── Barra de funnel ──────────────────────────────────────────────────────────

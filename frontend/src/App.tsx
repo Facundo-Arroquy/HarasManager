@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useAuthStore } from './store/authStore'
 import Spinner from './components/ui/Spinner'
@@ -12,7 +12,7 @@ import {
   aceptarTerminos,
   type TerminosVigentes,
 } from './services/terminosService'
-import LandingPage from './pages/landing/LandingPage'
+const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
 import SuperAdminPage from './pages/superadmin/SuperAdminPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import CaballosPage from './pages/caballos/CaballosPage'
@@ -138,7 +138,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/landing" element={<LandingPage />} />
+        <Route path="/landing" element={<Suspense fallback={null}><LandingPage /></Suspense>} />
         <Route path="/login" element={<LoginPage />} />
         <Route index element={<RootRedirect />} />
 
