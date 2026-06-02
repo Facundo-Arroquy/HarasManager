@@ -12,6 +12,7 @@ import {
   aceptarTerminos,
   type TerminosVigentes,
 } from './services/terminosService'
+import LandingPage from './pages/landing/LandingPage'
 import SuperAdminPage from './pages/superadmin/SuperAdminPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import CaballosPage from './pages/caballos/CaballosPage'
@@ -31,7 +32,19 @@ import AlertasPage from './pages/alertas/AlertasPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 function RootRedirect() {
+  const { isAuthenticated, loading, session } = useAuth()
   const rol = useAuthStore((s) => s.rol)
+  const perfilCargado = useAuthStore((s) => s.perfilCargado)
+
+  if (loading || (session && !perfilCargado)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) return <Navigate to="/landing" replace />
   if (rol === 'veterinario') return <Navigate to="/panel-vet" replace />
   return <Navigate to="/dashboard" replace />
 }
@@ -124,7 +137,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route index element={<RootRedirect />} />
 
         {/* Rutas protegidas — todas dentro del AppLayout */}
         <Route
@@ -134,7 +149,6 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<RootRedirect />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
