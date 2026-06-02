@@ -1,591 +1,996 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Tag,
   Stethoscope,
   FlaskConical,
-  MapPin,
   TreePine,
   Bell,
-  Mail,
+  ShieldCheck,
   ChevronDown,
+  Mail,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { insertarLead } from '../../services/leadsService'
+
+// ─── Paleta y tipografías ────────────────────────────────────────────────────
+
+const C = {
+  charcoal: '#2C2C2C',
+  gold: '#8B6914',
+  goldLight: '#A67C1A',
+  goldSoft: '#D4B483',
+  goldPale: '#F5EDD8',
+  cream: '#FAF8F3',
+  offWhite: '#F0EDE6',
+  white: '#FFFFFF',
+}
+
+const display: React.CSSProperties = { fontFamily: "'Cormorant Garamond', serif" }
+const body: React.CSSProperties = { fontFamily: "'DM Sans', sans-serif" }
+
+const EMAILS = {
+  tomas: 'tomas.perezzorraquin@harasmanager.com',
+  facundo: 'facundo.arroquy@harasmanager.com',
+}
 
 const DEMO_MAILTO =
-  'mailto:tperezzorraquin@gmail.com,Facundoarroquy.w@gmail.com' +
-  '?subject=Solicitud%20de%20demo%20-%20Haras%20Manager' +
-  '&body=Hola%2C%20me%20gustar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20Haras%20Manager.'
+  `mailto:${EMAILS.tomas},${EMAILS.facundo}` +
+  '?subject=Solicitud%20de%20demo%20%E2%80%94%20HarasManager' +
+  '&body=Hola%2C%20me%20gustar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20HarasManager.'
 
-function HorseshoeSVG({ color = '#8B6914', size = 16 }: { color?: string; size?: number }) {
+const MODULOS = [
+  'Fichas de animales',
+  'Historial clínico',
+  'Centro de cría',
+  'Alertas sanitarias',
+  'Árbol genealógico',
+  'Revisión pre-venta',
+]
+
+// ─── Hook scroll reveal ──────────────────────────────────────────────────────
+
+function useScrollReveal() {
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible')
+          }
+        })
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+    )
+    document.querySelectorAll('[data-reveal]').forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [])
+}
+
+// ─── Componentes auxiliares ──────────────────────────────────────────────────
+
+function Overline({ children }: { children: React.ReactNode }) {
   return (
-    <svg
-      width={size}
-      height={Math.round(size * 0.875)}
-      viewBox="0 0 32 28"
-      fill="none"
-      aria-hidden="true"
+    <p
+      style={{
+        ...body,
+        fontSize: '0.65rem',
+        letterSpacing: '0.3em',
+        textTransform: 'uppercase',
+        color: C.gold,
+        fontWeight: 500,
+        margin: 0,
+      }}
     >
-      <path
-        d="M5 28 L5 13 Q5 2 16 2 Q27 2 27 13 L27 28"
-        stroke={color}
-        strokeWidth="6"
-        fill="none"
-        strokeLinecap="square"
-      />
-    </svg>
+      {children}
+    </p>
   )
 }
 
-function Logo({ inverted = false }: { inverted?: boolean }) {
-  if (!inverted) {
+function Divider() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '12px 0' }}>
+      <div style={{ flex: 1, height: '1px', backgroundColor: C.goldSoft }} />
+      <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: C.gold, flexShrink: 0 }} />
+      <div style={{ flex: 1, height: '1px', backgroundColor: C.goldSoft }} />
+    </div>
+  )
+}
+
+function PrimaryButton({
+  children,
+  href,
+  onClick,
+  type = 'button',
+  loading = false,
+}: {
+  children: React.ReactNode
+  href?: string
+  onClick?: () => void
+  type?: 'button' | 'submit'
+  loading?: boolean
+}) {
+  const style: React.CSSProperties = {
+    ...body,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    backgroundColor: C.charcoal,
+    color: C.white,
+    border: 'none',
+    padding: '14px 32px',
+    borderRadius: '4px',
+    fontWeight: 500,
+    fontSize: '0.9rem',
+    cursor: loading ? 'wait' : 'pointer',
+    letterSpacing: '0.02em',
+    transition: 'background-color 0.2s',
+    textDecoration: 'none',
+    opacity: loading ? 0.7 : 1,
+  }
+  if (href) {
     return (
-      <img
-        src="/logo-harasmanager.jpg"
-        alt="HarasManager — Gestión de caballos de punta a punta"
-        className="h-16 w-auto object-contain"
-      />
+      <a
+        href={href}
+        style={style}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = C.gold)}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = C.charcoal)}
+      >
+        {children}
+      </a>
     )
   }
   return (
-    <div className="flex flex-col items-start leading-none">
-      <div className="text-xl font-black tracking-tight select-none">
-        <span style={{ color: '#ffffff' }}>HARAS</span>
-        <span style={{ color: '#8B6914' }}>MANAGER</span>
-      </div>
-      <div className="flex items-center gap-1.5 mt-0.5">
-        <HorseshoeSVG color="#8B6914" size={11} />
-        <span className="text-[7px] font-semibold tracking-widest uppercase" style={{ color: '#9ca3af' }}>
-          Gestión de caballos de punta a punta
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function HorseVisual() {
-  return (
-    <div className="rounded-2xl p-6 flex flex-col gap-4" style={{ backgroundColor: '#2C2C3A' }}>
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg" style={{ backgroundColor: '#8B691422' }}>
-          <Tag className="w-6 h-6" style={{ color: '#8B6914' }} />
-        </div>
-        <div>
-          <div className="text-white font-semibold text-sm">Fortuna Real</div>
-          <div className="text-gray-400 text-xs">Yegua · 7 años · Pura Sangre</div>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {[
-          { label: 'Campo', value: 'Lote Norte' },
-          { label: 'Chip', value: '94100...' },
-          { label: 'Categoría', value: 'Reproductora' },
-          { label: 'Estado', value: 'Activa' },
-        ].map(({ label, value }) => (
-          <div key={label} className="rounded-lg p-2.5" style={{ backgroundColor: '#1a1a26' }}>
-            <div className="text-gray-500 text-xs">{label}</div>
-            <div className="text-white text-sm font-medium mt-0.5">{value}</div>
-          </div>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        {['Pedigree', 'Historial', 'Fotos'].map((tab) => (
-          <div
-            key={tab}
-            className="text-xs px-3 py-1 rounded-full"
-            style={
-              tab === 'Pedigree'
-                ? { backgroundColor: '#8B6914', color: '#fff' }
-                : { backgroundColor: '#1a1a26', color: '#9ca3af' }
-            }
-          >
-            {tab}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function MedicalVisual() {
-  const entries = [
-    { date: 'Hoy', text: 'Vacuna antigripal', icon: <Bell className="w-4 h-4" /> },
-    { date: '15/05', text: 'Revisión podal — Dr. Sosa', icon: <Stethoscope className="w-4 h-4" /> },
-    { date: '02/05', text: 'Alerta: próxima desparasitación', icon: <Bell className="w-4 h-4" /> },
-  ]
-  return (
-    <div className="rounded-2xl p-6 flex flex-col gap-4" style={{ backgroundColor: '#2C2C3A' }}>
-      <div className="flex items-center justify-between">
-        <span className="text-white font-semibold text-sm">Historial clínico</span>
-        <span
-          className="text-xs px-2 py-0.5 rounded-full"
-          style={{ backgroundColor: '#8B6914', color: '#fff' }}
-        >
-          2 alertas
-        </span>
-      </div>
-      <div className="flex flex-col gap-2">
-        {entries.map((e, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 p-2.5 rounded-lg"
-            style={{ backgroundColor: '#1a1a26' }}
-          >
-            <div style={{ color: '#8B6914' }}>{e.icon}</div>
-            <div className="flex-1">
-              <div className="text-white text-xs font-medium">{e.text}</div>
-              <div className="text-gray-500 text-xs">{e.date}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function PedigreeVisual() {
-  return (
-    <div className="rounded-2xl p-6 flex flex-col gap-5" style={{ backgroundColor: '#2C2C3A' }}>
-      <div className="flex items-center gap-3">
-        <TreePine className="w-5 h-5" style={{ color: '#8B6914' }} />
-        <span className="text-white font-semibold text-sm">Árbol genealógico</span>
-      </div>
-      <div className="flex flex-col items-center gap-3">
-        <div
-          className="px-4 py-2 rounded-lg text-white text-xs font-semibold"
-          style={{ backgroundColor: '#8B6914' }}
-        >
-          Fortuna Real
-        </div>
-        <div className="w-px h-3" style={{ backgroundColor: '#8B6914' }} />
-        <div className="flex gap-6">
-          {['Padre: Eclipse', 'Madre: Luna Azul'].map((name) => (
-            <div
-              key={name}
-              className="px-3 py-1.5 rounded-lg text-gray-300 text-xs text-center"
-              style={{ backgroundColor: '#1a1a26' }}
-            >
-              {name}
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-3">
-          {['Abuelo P.', 'Abuela P.', 'Abuelo M.', 'Abuela M.'].map((name) => (
-            <div
-              key={name}
-              className="px-2 py-1 rounded text-gray-500 text-[10px] text-center"
-              style={{ backgroundColor: '#1a1a26' }}
-            >
-              {name}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function EmbrionVisual() {
-  const rows = [
-    { donante: 'Luna Azul', receptor: 'Yegua #3', estado: 'Confirmada' },
-    { donante: 'Fortuna Real', receptor: 'Yegua #7', estado: 'Pendiente' },
-    { donante: 'Storm Queen', receptor: 'Yegua #1', estado: 'Confirmada' },
-  ]
-  return (
-    <div className="rounded-2xl p-6 flex flex-col gap-4" style={{ backgroundColor: '#2C2C3A' }}>
-      <div className="flex items-center gap-3">
-        <FlaskConical className="w-5 h-5" style={{ color: '#8B6914' }} />
-        <span className="text-white font-semibold text-sm">Centro de embriones</span>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <div className="grid grid-cols-3 gap-2 text-gray-500 text-[10px] uppercase tracking-wide px-1">
-          <span>Donante</span>
-          <span>Receptora</span>
-          <span>Estado</span>
-        </div>
-        {rows.map((row, i) => (
-          <div
-            key={i}
-            className="grid grid-cols-3 gap-2 p-2 rounded-lg items-center"
-            style={{ backgroundColor: '#1a1a26' }}
-          >
-            <span className="text-gray-300 text-xs">{row.donante}</span>
-            <span className="text-gray-300 text-xs">{row.receptor}</span>
-            <span
-              className="text-xs px-2 py-0.5 rounded-full text-center"
-              style={
-                row.estado === 'Confirmada'
-                  ? { backgroundColor: '#8B691433', color: '#8B6914' }
-                  : { backgroundColor: '#1e3a5f', color: '#60a5fa' }
-              }
-            >
-              {row.estado}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function BulletList({ items }: { items: string[] }) {
-  return (
-    <ul className="flex flex-col gap-2">
-      {items.map((item) => (
-        <li key={item} className="flex items-center gap-2 text-sm text-gray-600">
-          <span
-            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: '#8B6914' }}
-          />
-          {item}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function FeatureTag({
-  icon,
-  label,
-}: {
-  icon: React.ReactNode
-  label: string
-}) {
-  return (
-    <div
-      className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest mb-4 px-3 py-1 rounded-full"
-      style={{ backgroundColor: '#8B691418', color: '#8B6914' }}
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={loading}
+      style={style}
+      onMouseEnter={(e) => { if (!loading) e.currentTarget.style.backgroundColor = C.gold }}
+      onMouseLeave={(e) => { if (!loading) e.currentTarget.style.backgroundColor = C.charcoal }}
     >
-      {icon}
-      {label}
-    </div>
+      {children}
+    </button>
   )
 }
 
-export default function LandingPage() {
-  function scrollToFeatures() {
-    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+function OutlineButton({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        ...body,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '8px',
+        backgroundColor: 'transparent',
+        color: C.white,
+        border: `1px solid rgba(255,255,255,0.5)`,
+        padding: '13px 32px',
+        borderRadius: '4px',
+        fontWeight: 400,
+        fontSize: '0.9rem',
+        cursor: 'pointer',
+        letterSpacing: '0.02em',
+        transition: 'border-color 0.2s, color 0.2s',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = C.goldSoft
+        e.currentTarget.style.color = C.goldSoft
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)'
+        e.currentTarget.style.color = C.white
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function LogoImg({ height = 64, style: extraStyle }: { height?: number; style?: React.CSSProperties }) {
+  return (
+    <img
+      src="/logo_H_sin_fondo.png"
+      onError={(e) => { e.currentTarget.src = '/logo-harasmanager.jpg' }}
+      alt="HarasManager"
+      style={{ height, width: 'auto', objectFit: 'contain', display: 'block', ...extraStyle }}
+    />
+  )
+}
+
+// ─── NAVBAR ─────────────────────────────────────────────────────────────────
+
+function Navbar() {
+  function scrollTo(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const linkStyle: React.CSSProperties = {
+    ...body,
+    fontSize: '0.82rem',
+    color: C.charcoal,
+    textDecoration: 'none',
+    letterSpacing: '0.02em',
+    opacity: 0.75,
+    transition: 'opacity 0.15s',
   }
 
   return (
-    <div className="min-h-screen bg-white font-sans">
-      {/* ── NAVBAR ── */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <Logo />
+    <nav
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        backgroundColor: C.cream,
+        borderBottom: `1px solid ${C.goldSoft}`,
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: '0 24px',
+          height: '80px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '24px',
+        }}
+      >
+        <LogoImg height={64} />
+
+        {/* Links desktop */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '32px',
+            flex: 1,
+            justifyContent: 'center',
+          }}
+          className="hidden sm:flex"
+        >
+          {[
+            ['Por qué HarasManager', 'problema'],
+            ['Funcionalidades', 'features'],
+            ['Para quién', 'para-quien'],
+          ].map(([label, id]) => (
+            <button
+              key={id}
+              onClick={() => scrollTo(id)}
+              style={{ ...linkStyle, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.75')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <PrimaryButton onClick={() => scrollTo('contacto')}>Solicitar demo</PrimaryButton>
+      </div>
+    </nav>
+  )
+}
+
+// ─── HERO ────────────────────────────────────────────────────────────────────
+
+function Hero() {
+  function scrollToFeatures() {
+    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+  }
+  function scrollToContacto() {
+    document.getElementById('contacto')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  return (
+    <section style={{ position: 'relative', minHeight: '92vh', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      {/* Video */}
+      <video
+        autoPlay muted loop playsInline
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+        aria-hidden="true"
+      >
+        <source src="/video-caballos.mp4" type="video/mp4" />
+      </video>
+      {/* Overlay */}
+      <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(20,18,14,0.62)' }} />
+
+      <div
+        style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '80px 24px', maxWidth: '860px', margin: '0 auto' }}
+        data-reveal
+      >
+        <Overline>La plataforma equina profesional</Overline>
+        <div style={{ height: '20px' }} />
+        <h1
+          style={{
+            ...display,
+            fontSize: 'clamp(2.6rem, 6vw, 4.8rem)',
+            fontWeight: 700,
+            color: C.white,
+            lineHeight: 1.1,
+            margin: '0 0 24px',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          Gestión de caballos<br />
+          <em style={{ color: C.goldSoft, fontStyle: 'italic' }}>de punta a punta</em>
+        </h1>
+        <p
+          style={{
+            ...body,
+            fontSize: 'clamp(1rem, 2vw, 1.15rem)',
+            color: 'rgba(255,255,255,0.78)',
+            fontWeight: 300,
+            lineHeight: 1.7,
+            maxWidth: '580px',
+            margin: '0 auto 40px',
+          }}
+        >
+          Controlá cada aspecto de tu haras: animales, sanidad, pedigree y centro de cría,
+          todo centralizado en una sola plataforma.
+        </p>
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <PrimaryButton onClick={scrollToContacto}>
+            <Mail size={16} /> Solicitar demo gratuita
+          </PrimaryButton>
+          <OutlineButton onClick={scrollToFeatures}>
+            Ver funcionalidades <ChevronDown size={16} />
+          </OutlineButton>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── PROBLEMA / SOLUCIÓN ─────────────────────────────────────────────────────
+
+function ProblemaSolucion() {
+  return (
+    <section id="problema" style={{ backgroundColor: C.white, padding: '100px 24px' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        <div data-reveal style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <Overline>Por qué existe HarasManager</Overline>
+          <div style={{ height: '16px' }} />
+          <h2 style={{ ...display, fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
+            La gestión equina merece una herramienta a su altura
+          </h2>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '48px', alignItems: 'start' }}>
+          {/* El problema */}
+          <div data-reveal data-delay="100">
+            <p style={{ ...body, fontSize: '0.65rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: '#9B8B7A', fontWeight: 500, margin: '0 0 16px' }}>
+              El problema
+            </p>
+            <h3 style={{ ...display, fontSize: '1.5rem', fontWeight: 600, color: C.charcoal, margin: '0 0 16px', lineHeight: 1.3 }}>
+              Planillas, papel y WhatsApp
+            </h3>
+            <div style={{ width: '40px', height: '2px', backgroundColor: C.goldSoft, margin: '0 0 20px' }} />
+            <p style={{ ...body, fontSize: '0.95rem', color: '#6B6055', lineHeight: 1.75, margin: 0 }}>
+              Los haras manejan información crítica dispersa en múltiples herramientas.
+              Historiales clínicos perdidos, alertas que se olvidan, datos de pedigree
+              en papeles amarillentos. La falta de trazabilidad cuesta tiempo y dinero.
+            </p>
+          </div>
+
+          {/* Separador vertical */}
+          <div data-reveal style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0' }}>
+            <div style={{ flex: 1, width: '1px', minHeight: '120px', backgroundColor: C.goldSoft }} />
+            <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: C.gold, margin: '12px 0', flexShrink: 0 }} />
+            <div style={{ flex: 1, width: '1px', minHeight: '120px', backgroundColor: C.goldSoft }} />
+          </div>
+
+          {/* La solución */}
+          <div data-reveal data-delay="200">
+            <p style={{ ...body, fontSize: '0.65rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: C.gold, fontWeight: 500, margin: '0 0 16px' }}>
+              La solución
+            </p>
+            <h3 style={{ ...display, fontSize: '1.5rem', fontWeight: 600, color: C.charcoal, margin: '0 0 16px', lineHeight: 1.3 }}>
+              Todo en un solo lugar
+            </h3>
+            <div style={{ width: '40px', height: '2px', backgroundColor: C.gold, margin: '0 0 20px' }} />
+            <p style={{ ...body, fontSize: '0.95rem', color: '#6B6055', lineHeight: 1.75, margin: 0 }}>
+              HarasManager centraliza la gestión completa de tu establecimiento.
+              Fichas de animales, historial clínico inmutable, alertas automáticas,
+              árbol genealógico y centro de embriones. Una plataforma diseñada
+              específicamente para el mundo equino profesional.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── FEATURES ────────────────────────────────────────────────────────────────
+
+const FEATURES = [
+  {
+    icon: <Tag size={22} />,
+    title: 'Fichas de animales',
+    desc: 'Registro completo de cada caballo: chip electrónico, categoría, campo asignado, fotos y documentación. Toda la información en un solo lugar.',
+  },
+  {
+    icon: <Stethoscope size={22} />,
+    title: 'Historial clínico',
+    desc: 'Consultas y tratamientos registrados de forma inmutable por veterinario. Acceso controlado para profesionales externos.',
+  },
+  {
+    icon: <Bell size={22} />,
+    title: 'Alertas sanitarias',
+    desc: 'Recordatorios automáticos de vacunas, desparasitaciones y revisiones. No se te escapa ningún vencimiento sanitario.',
+  },
+  {
+    icon: <FlaskConical size={22} />,
+    title: 'Centro de cría',
+    desc: 'Gestión completa de flushings, transferencias de embriones y programa semanal. Trazabilidad del proceso reproductivo de punta a punta.',
+  },
+  {
+    icon: <TreePine size={22} />,
+    title: 'Árbol genealógico',
+    desc: 'Pedigree visual con registro de padres, madres y abuelos. Documentación lista para compraventa y certificaciones.',
+  },
+  {
+    icon: <ShieldCheck size={22} />,
+    title: 'Revisión pre-venta',
+    desc: 'Checklist sanitario integrado para preparar la venta de un animal. Historial clínico verificable para el comprador.',
+  },
+]
+
+function Features() {
+  return (
+    <section id="features" style={{ backgroundColor: C.cream, padding: '100px 24px' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        <div data-reveal style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <Overline>Funcionalidades</Overline>
+          <div style={{ height: '16px' }} />
+          <h2 style={{ ...display, fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
+            Todo lo que tu haras necesita
+          </h2>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '24px',
+          }}
+        >
+          {FEATURES.map((f, i) => (
+            <div
+              key={f.title}
+              data-reveal
+              data-delay={String(((i % 3) + 1) * 100) as '100' | '200' | '300'}
+              style={{
+                backgroundColor: C.white,
+                border: `1px solid ${C.goldSoft}`,
+                borderRadius: '4px',
+                padding: '32px',
+                transition: 'box-shadow 0.2s, border-color 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = `0 8px 32px rgba(139,105,20,0.12)`
+                e.currentTarget.style.borderColor = C.gold
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'none'
+                e.currentTarget.style.borderColor = C.goldSoft
+              }}
+            >
+              <div style={{ color: C.gold, marginBottom: '16px' }}>{f.icon}</div>
+              <h3 style={{ ...display, fontSize: '1.3rem', fontWeight: 600, color: C.charcoal, margin: '0 0 8px', lineHeight: 1.3 }}>
+                {f.title}
+              </h3>
+              <div style={{ width: '28px', height: '1px', backgroundColor: C.goldSoft, margin: '0 0 14px' }} />
+              <p style={{ ...body, fontSize: '0.88rem', color: '#7A6E64', lineHeight: 1.7, margin: 0 }}>
+                {f.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── PARA QUIÉN ──────────────────────────────────────────────────────────────
+
+function ParaQuien() {
+  const perfiles = [
+    {
+      numero: '01',
+      titulo: 'Propietarios de haras',
+      subtitulo: 'Visión completa de tu establecimiento',
+      desc: 'Controlá tu tropilla, tus campos y tu equipo desde cualquier lugar y dispositivo. Toda la información de tu haras centralizada y al instante.',
+      items: [
+        'Panel con estado en tiempo real de tus animales',
+        'Control de accesos y permisos por rol',
+        'Historial y documentación de cada caballo',
+        'Gestión del centro de embriones y reproducción',
+      ],
+    },
+    {
+      numero: '02',
+      titulo: 'Veterinarios',
+      subtitulo: 'Tu panel profesional, todos tus pacientes',
+      desc: 'Accedé al historial de tus pacientes equinos, registrá consultas y coordiná con los establecimientos que atendés, todo desde un panel propio.',
+      items: [
+        'Panel personalizado con tus pacientes asignados',
+        'Registro de consultas y tratamientos firmado',
+        'Acceso multi-establecimiento desde una cuenta',
+        'Alertas sanitarias y recordatorios por animal',
+      ],
+    },
+  ]
+
+  return (
+    <section id="para-quien" style={{ backgroundColor: C.white, padding: '100px 24px' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        <div data-reveal style={{ textAlign: 'center', marginBottom: '72px' }}>
+          <Overline>Para quién es</Overline>
+          <div style={{ height: '16px' }} />
+          <h2 style={{ ...display, fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
+            Diseñado para los profesionales del mundo equino
+          </h2>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px' }}>
+          {perfiles.map((p, i) => (
+            <div
+              key={p.titulo}
+              data-reveal
+              data-delay={i === 0 ? '100' : '200'}
+              style={{
+                backgroundColor: C.cream,
+                border: `1px solid ${C.goldSoft}`,
+                borderRadius: '4px',
+                padding: '48px 40px',
+              }}
+            >
+              <p style={{ ...display, fontSize: '3.5rem', fontWeight: 700, color: C.goldPale, margin: '0 0 24px', lineHeight: 1 }}>
+                {p.numero}
+              </p>
+              <h3 style={{ ...display, fontSize: '1.6rem', fontWeight: 700, color: C.charcoal, margin: '0 0 6px', lineHeight: 1.2 }}>
+                {p.titulo}
+              </h3>
+              <p style={{ ...body, fontSize: '0.75rem', color: C.gold, letterSpacing: '0.08em', fontWeight: 500, margin: '0 0 16px' }}>
+                {p.subtitulo}
+              </p>
+              <Divider />
+              <p style={{ ...body, fontSize: '0.92rem', color: '#6B6055', lineHeight: 1.75, margin: '16px 0 24px' }}>
+                {p.desc}
+              </p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {p.items.map((item) => (
+                  <li key={item} style={{ ...body, display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.87rem', color: '#4A403A' }}>
+                    <span style={{ color: C.gold, flexShrink: 0, marginTop: '2px', fontSize: '0.6rem', letterSpacing: '0.1em' }}>◆</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── SOCIAL PROOF ────────────────────────────────────────────────────────────
+
+function SocialProof() {
+  const metricas = [
+    { valor: '500+', etiqueta: 'caballos gestionados' },
+    { valor: '15+', etiqueta: 'haras activos' },
+    { valor: '100%', etiqueta: 'trazabilidad sanitaria' },
+  ]
+
+  return (
+    <section style={{ backgroundColor: C.cream, padding: '80px 24px', borderTop: `1px solid ${C.goldSoft}`, borderBottom: `1px solid ${C.goldSoft}` }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        <div
+          data-reveal
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: '40px',
+            textAlign: 'center',
+            marginBottom: '56px',
+          }}
+        >
+          {metricas.map((m) => (
+            <div key={m.etiqueta}>
+              <p style={{ ...display, fontSize: '3.2rem', fontWeight: 700, color: C.charcoal, margin: '0 0 6px', lineHeight: 1 }}>
+                {m.valor}
+              </p>
+              <p style={{ ...body, fontSize: '0.8rem', color: '#9B8B7A', letterSpacing: '0.06em', margin: 0, textTransform: 'uppercase' }}>
+                {m.etiqueta}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div data-reveal data-delay="200" style={{ textAlign: 'center' }}>
+          <Divider />
+          <div style={{ height: '32px' }} />
+          <blockquote
+            style={{
+              ...display,
+              fontSize: 'clamp(1.3rem, 3vw, 1.9rem)',
+              fontStyle: 'italic',
+              fontWeight: 400,
+              color: C.charcoal,
+              margin: '0 auto',
+              maxWidth: '680px',
+              lineHeight: 1.5,
+            }}
+          >
+            "La única plataforma que cubre la gestión equina de punta a punta."
+          </blockquote>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── FORMULARIO DE CONTACTO ──────────────────────────────────────────────────
+
+interface FormState {
+  nombre: string
+  email: string
+  nombre_establecimiento: string
+  cantidad_animales: string
+  modulos_interes: string[]
+  mensaje: string
+}
+
+const FORM_INICIAL: FormState = {
+  nombre: '',
+  email: '',
+  nombre_establecimiento: '',
+  cantidad_animales: '',
+  modulos_interes: [],
+  mensaje: '',
+}
+
+const inputStyle: React.CSSProperties = {
+  ...body,
+  width: '100%',
+  padding: '12px 16px',
+  border: `1px solid ${C.goldSoft}`,
+  borderRadius: '4px',
+  backgroundColor: C.white,
+  color: C.charcoal,
+  fontSize: '0.9rem',
+  outline: 'none',
+  transition: 'border-color 0.15s',
+  boxSizing: 'border-box',
+}
+
+const labelStyle: React.CSSProperties = {
+  ...body,
+  display: 'block',
+  fontSize: '0.78rem',
+  fontWeight: 500,
+  color: C.charcoal,
+  marginBottom: '8px',
+  letterSpacing: '0.02em',
+}
+
+function ContactForm() {
+  const [form, setForm] = useState<FormState>(FORM_INICIAL)
+  const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+
+  function toggleModulo(modulo: string) {
+    setForm((prev) => ({
+      ...prev,
+      modulos_interes: prev.modulos_interes.includes(modulo)
+        ? prev.modulos_interes.filter((m) => m !== modulo)
+        : [...prev.modulos_interes, modulo],
+    }))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitState('loading')
+    try {
+      await insertarLead(form)
+      setSubmitState('success')
+      setForm(FORM_INICIAL)
+    } catch {
+      setSubmitState('error')
+    }
+  }
+
+  return (
+    <section id="contacto" style={{ backgroundColor: C.white, padding: '100px 24px' }}>
+      <div style={{ maxWidth: '680px', margin: '0 auto' }}>
+        <div data-reveal style={{ textAlign: 'center', marginBottom: '56px' }}>
+          <Overline>Demo gratuita</Overline>
+          <div style={{ height: '16px' }} />
+          <h2 style={{ ...display, fontSize: 'clamp(2rem, 4vw, 2.8rem)', fontWeight: 700, color: C.charcoal, margin: '0 0 16px', lineHeight: 1.2 }}>
+            Hablemos de tu haras
+          </h2>
+          <p style={{ ...body, fontSize: '0.95rem', color: '#7A6E64', lineHeight: 1.7, margin: 0 }}>
+            Completá el formulario y te contactamos para coordinar una demo personalizada.
+          </p>
+        </div>
+
+        {submitState === 'success' ? (
+          <div
+            data-reveal
+            style={{
+              textAlign: 'center',
+              padding: '48px 32px',
+              border: `1px solid ${C.goldSoft}`,
+              borderRadius: '4px',
+              backgroundColor: C.cream,
+            }}
+          >
+            <p style={{ ...display, fontSize: '2rem', color: C.charcoal, margin: '0 0 12px' }}>¡Muchas gracias!</p>
+            <p style={{ ...body, fontSize: '0.95rem', color: '#7A6E64', lineHeight: 1.7, margin: 0 }}>
+              Recibimos tu consulta. Nos ponemos en contacto a la brevedad para coordinar la demo.
+            </p>
+          </div>
+        ) : (
+          <form data-reveal onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Nombre y apellido */}
+            <div>
+              <label style={labelStyle}>Nombre y apellido *</label>
+              <input
+                type="text"
+                required
+                value={form.nombre}
+                onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
+                style={inputStyle}
+                onFocus={(e) => (e.target.style.borderColor = C.gold)}
+                onBlur={(e) => (e.target.style.borderColor = C.goldSoft)}
+                placeholder="Juan García"
+              />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label style={labelStyle}>Email de contacto *</label>
+              <input
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                style={inputStyle}
+                onFocus={(e) => (e.target.style.borderColor = C.gold)}
+                onBlur={(e) => (e.target.style.borderColor = C.goldSoft)}
+                placeholder="juan@miharas.com.ar"
+              />
+            </div>
+
+            {/* Nombre establecimiento */}
+            <div>
+              <label style={labelStyle}>Nombre del establecimiento *</label>
+              <input
+                type="text"
+                required
+                value={form.nombre_establecimiento}
+                onChange={(e) => setForm((p) => ({ ...p, nombre_establecimiento: e.target.value }))}
+                style={inputStyle}
+                onFocus={(e) => (e.target.style.borderColor = C.gold)}
+                onBlur={(e) => (e.target.style.borderColor = C.goldSoft)}
+                placeholder="Haras La Estrella"
+              />
+            </div>
+
+            {/* Cantidad de animales */}
+            <div>
+              <label style={labelStyle}>Cantidad aproximada de animales</label>
+              <select
+                value={form.cantidad_animales}
+                onChange={(e) => setForm((p) => ({ ...p, cantidad_animales: e.target.value }))}
+                style={{ ...inputStyle, appearance: 'auto' }}
+                onFocus={(e) => (e.target.style.borderColor = C.gold)}
+                onBlur={(e) => (e.target.style.borderColor = C.goldSoft)}
+              >
+                <option value="">Seleccioná una opción</option>
+                <option value="1-20">1 a 20 animales</option>
+                <option value="21-50">21 a 50 animales</option>
+                <option value="51-100">51 a 100 animales</option>
+                <option value="+100">Más de 100 animales</option>
+              </select>
+            </div>
+
+            {/* Módulos de interés */}
+            <div>
+              <label style={labelStyle}>Módulos que te interesan</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
+                {MODULOS.map((modulo) => {
+                  const checked = form.modulos_interes.includes(modulo)
+                  return (
+                    <label
+                      key={modulo}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        padding: '10px 14px',
+                        border: `1px solid ${checked ? C.gold : C.goldSoft}`,
+                        borderRadius: '4px',
+                        backgroundColor: checked ? C.goldPale : C.cream,
+                        transition: 'all 0.15s',
+                        ...body,
+                        fontSize: '0.85rem',
+                        color: C.charcoal,
+                        userSelect: 'none',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleModulo(modulo)}
+                        style={{ accentColor: C.gold, width: '14px', height: '14px', flexShrink: 0 }}
+                      />
+                      {modulo}
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Mensaje */}
+            <div>
+              <label style={labelStyle}>Mensaje adicional <span style={{ color: '#9B8B7A', fontWeight: 300 }}>(opcional)</span></label>
+              <textarea
+                value={form.mensaje}
+                onChange={(e) => setForm((p) => ({ ...p, mensaje: e.target.value }))}
+                rows={4}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: '100px' }}
+                onFocus={(e) => (e.target.style.borderColor = C.gold)}
+                onBlur={(e) => (e.target.style.borderColor = C.goldSoft)}
+                placeholder="Contanos en qué etapa está tu haras, qué problemas querés resolver..."
+              />
+            </div>
+
+            {submitState === 'error' && (
+              <p style={{ ...body, fontSize: '0.85rem', color: '#C0392B', margin: 0 }}>
+                Hubo un error al enviar. Escribinos directamente a{' '}
+                <a href={`mailto:${EMAILS.tomas}`} style={{ color: C.gold }}>{EMAILS.tomas}</a>.
+              </p>
+            )}
+
+            <PrimaryButton type="submit" loading={submitState === 'loading'}>
+              <Mail size={16} />
+              {submitState === 'loading' ? 'Enviando...' : 'Enviar consulta'}
+            </PrimaryButton>
+          </form>
+        )}
+      </div>
+    </section>
+  )
+}
+
+// ─── FOOTER ──────────────────────────────────────────────────────────────────
+
+function Footer() {
+  function scrollTo(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const linkStyle: React.CSSProperties = {
+    ...body,
+    fontSize: '0.82rem',
+    color: 'rgba(255,255,255,0.55)',
+    textDecoration: 'none',
+    transition: 'color 0.15s',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
+  }
+
+  return (
+    <footer style={{ backgroundColor: C.charcoal, padding: '64px 24px 40px' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        {/* Logo + tagline */}
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <img
+            src="/Logo_V_sin_fondo.png"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
+            alt="HarasManager"
+            style={{ height: '100px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto 16px' }}
+          />
+          <p style={{ ...body, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.15em', textTransform: 'uppercase', margin: 0 }}>
+            Gestión de caballos de punta a punta
+          </p>
+        </div>
+
+        {/* Links */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '24px 40px',
+            marginBottom: '40px',
+          }}
+        >
+          {[
+            { label: 'Por qué HarasManager', id: 'problema' },
+            { label: 'Funcionalidades', id: 'features' },
+            { label: 'Para quién', id: 'para-quien' },
+            { label: 'Contacto', id: 'contacto' },
+          ].map(({ label, id }) => (
+            <button
+              key={id}
+              onClick={() => scrollTo(id)}
+              style={linkStyle}
+              onMouseEnter={(e) => (e.currentTarget.style.color = C.goldSoft)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
+            >
+              {label}
+            </button>
+          ))}
           <Link
             to="/login"
-            className="text-sm font-semibold px-4 py-2 rounded-lg border transition-colors hover:bg-[#8B6914] hover:text-white"
-            style={{ borderColor: '#8B6914', color: '#8B6914' }}
+            style={linkStyle}
+            onMouseEnter={(e) => (e.currentTarget.style.color = C.goldSoft)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
           >
             Iniciar sesión
           </Link>
         </div>
-      </nav>
 
-      {/* ── HERO ── */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-          src="/video-caballos.mp4"
-          aria-hidden="true"
-        />
-        <div
-          className="absolute inset-0"
-          style={{ backgroundColor: 'rgba(44, 44, 58, 0.72)' }}
-        />
-        <div className="relative z-10 text-center px-4 sm:px-6 max-w-4xl mx-auto py-20">
-          <p
-            className="text-sm font-semibold tracking-widest uppercase mb-5"
-            style={{ color: '#8B6914' }}
-          >
-            Gestión de caballos de punta a punta
-          </p>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-6">
-            La plataforma de gestión equina para haras profesionales
-          </h1>
-          <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto mb-10">
-            Controlá cada aspecto de tu establecimiento: sanidad, pedigree, campos y centro de
-            cría, todo en un solo lugar.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        {/* Emails */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 32px', marginBottom: '40px' }}>
+          {[EMAILS.tomas, EMAILS.facundo].map((email) => (
             <a
-              href={DEMO_MAILTO}
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-white text-base transition-colors bg-[#8B6914] hover:bg-[#A07820]"
+              key={email}
+              href={`mailto:${email}`}
+              style={{ ...linkStyle, fontSize: '0.78rem' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = C.goldSoft)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
             >
-              <Mail className="w-5 h-5" />
-              Solicitar una demo
+              {email}
             </a>
-            <button
-              onClick={scrollToFeatures}
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-white text-base border border-white/40 hover:bg-white/10 transition-colors"
-            >
-              Ver funcionalidades
-              <ChevronDown className="w-5 h-5" />
-            </button>
-          </div>
+          ))}
         </div>
-      </section>
 
-      {/* ── PROPUESTA DE VALOR ── */}
-      <section className="bg-slate-50 py-20 px-4">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-black text-center mb-3" style={{ color: '#2C2C3A' }}>
-            Todo lo que tu haras necesita
-          </h2>
-          <p className="text-center text-gray-500 mb-12 max-w-xl mx-auto">
-            Un sistema pensado para la gestión profesional del haras, desde la ficha del animal
-            hasta el centro de cría.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                emoji: '🐴',
-                title: 'Gestión de animales',
-                desc: 'Fichas completas, chip electrónico, categorías, campos y caballerizas. Toda la información de tu tropilla en un lugar.',
-              },
-              {
-                emoji: '🩺',
-                title: 'Seguimiento veterinario',
-                desc: 'Historial clínico, consultas, alertas sanitarias y revisión pre-venta. Acceso para vets externos con permisos controlados.',
-              },
-              {
-                emoji: '🔬',
-                title: 'Centro de cría',
-                desc: 'Flushings, transferencias de embriones y programa semanal. Trazabilidad completa del proceso reproductivo.',
-              },
-            ].map(({ emoji, title, desc }) => (
-              <div
-                key={title}
-                className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-              >
-                <div className="text-4xl mb-4">{emoji}</div>
-                <h3 className="text-lg font-bold mb-2" style={{ color: '#2C2C3A' }}>
-                  {title}
-                </h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        {/* Divider */}
+        <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.08)', marginBottom: '28px' }} />
 
-      {/* ── FEATURES DETALLADAS ── */}
-      <section id="features" className="py-20 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col gap-24">
-
-          {/* a) Control total de tu tropilla */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <FeatureTag icon={<Tag className="w-3.5 h-3.5" />} label="Módulo de caballos" />
-              <h3 className="text-3xl font-black mb-4" style={{ color: '#2C2C3A' }}>
-                Control total de tu tropilla
-              </h3>
-              <p className="text-gray-600 leading-relaxed mb-6">
-                Registrá cada animal con su ficha completa: chip electrónico, pedigree, categoría,
-                distribución en campos y caballerizas, y galería de fotos. Toda la información
-                centralizada y accesible desde cualquier dispositivo.
-              </p>
-              <BulletList
-                items={[
-                  'Fichas con chip y datos sanitarios',
-                  'Distribución por campos y caballerizas',
-                  'Galería de fotos y documentos',
-                  'Filtros y búsqueda avanzada',
-                ]}
-              />
-            </div>
-            <HorseVisual />
-          </div>
-
-          {/* b) Historial clínico y alertas */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="order-2 lg:order-1">
-              <MedicalVisual />
-            </div>
-            <div className="order-1 lg:order-2">
-              <FeatureTag
-                icon={<Stethoscope className="w-3.5 h-3.5" />}
-                label="Módulo veterinario"
-              />
-              <h3 className="text-3xl font-black mb-4" style={{ color: '#2C2C3A' }}>
-                Historial clínico y alertas
-              </h3>
-              <p className="text-gray-600 leading-relaxed mb-6">
-                Cada consulta y tratamiento queda registrado en el historial del animal. Configurá
-                alertas y recordatorios sanitarios, y habilitá el acceso a veterinarios externos
-                de forma controlada.
-              </p>
-              <BulletList
-                items={[
-                  'Historial clínico por animal',
-                  'Alertas y recordatorios sanitarios',
-                  'Acceso para veterinarios externos',
-                  'Revisión pre-venta integrada',
-                ]}
-              />
-            </div>
-          </div>
-
-          {/* c) Árbol genealógico y pedigree */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <FeatureTag icon={<TreePine className="w-3.5 h-3.5" />} label="Módulo de pedigree" />
-              <h3 className="text-3xl font-black mb-4" style={{ color: '#2C2C3A' }}>
-                Árbol genealógico y pedigree
-              </h3>
-              <p className="text-gray-600 leading-relaxed mb-6">
-                Visualizá el árbol genealógico completo de cada animal. Registrá padres, madres y
-                abuelos para tener la trazabilidad de linajes y facilitar la documentación de
-                compra-venta.
-              </p>
-              <BulletList
-                items={[
-                  'Árbol genealógico visual',
-                  'Registro de padres y madres',
-                  'Trazabilidad de linajes',
-                  'Documentación para compra-venta',
-                ]}
-              />
-            </div>
-            <PedigreeVisual />
-          </div>
-
-          {/* d) Centro de embriones */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="order-2 lg:order-1">
-              <EmbrionVisual />
-            </div>
-            <div className="order-1 lg:order-2">
-              <FeatureTag
-                icon={<FlaskConical className="w-3.5 h-3.5" />}
-                label="Centro de embriones"
-              />
-              <h3 className="text-3xl font-black mb-4" style={{ color: '#2C2C3A' }}>
-                Centro de embriones
-              </h3>
-              <p className="text-gray-600 leading-relaxed mb-6">
-                Gestioná flushings, transferencias y el programa semanal desde un módulo
-                especializado. Trazabilidad completa: donante, receptora y estado de cada
-                embrión en tiempo real.
-              </p>
-              <BulletList
-                items={[
-                  'Registro de flushings y embriones',
-                  'Gestión de transferencias',
-                  'Programa semanal de cría',
-                  'Seguimiento de receptoras',
-                ]}
-              />
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* ── ¿PARA QUIÉN? ── */}
-      <section className="bg-slate-50 py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-black text-center mb-3" style={{ color: '#2C2C3A' }}>
-            Diseñado para profesionales del mundo equino
-          </h2>
-          <p className="text-center text-gray-500 mb-12 max-w-xl mx-auto">
-            HarasManager fue pensado para los dos roles que mueven un haras: el propietario y el
-            veterinario.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {[
-              {
-                icon: <MapPin className="w-8 h-8" style={{ color: '#8B6914' }} />,
-                title: 'Propietarios de haras',
-                desc: 'Controlá tu establecimiento, tus animales y tu equipo desde cualquier lugar. Tomá decisiones con información precisa y en tiempo real.',
-                items: [
-                  'Visión 360° de tu tropilla',
-                  'Gestión de campos y caballerizas',
-                  'Control de accesos y permisos',
-                  'Historial completo por animal',
-                ],
-              },
-              {
-                icon: <Stethoscope className="w-8 h-8" style={{ color: '#8B6914' }} />,
-                title: 'Veterinarios',
-                desc: 'Accedé al historial de tus pacientes, registrá consultas y coordiná con los establecimientos que atendés, todo desde una sola plataforma.',
-                items: [
-                  'Panel propio con tus pacientes',
-                  'Registro de consultas y tratamientos',
-                  'Alertas sanitarias configurables',
-                  'Acceso multi-establecimiento',
-                ],
-              },
-            ].map(({ icon, title, desc, items }) => (
-              <div
-                key={title}
-                className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100"
-              >
-                <div className="mb-4">{icon}</div>
-                <h3 className="text-xl font-bold mb-3" style={{ color: '#2C2C3A' }}>
-                  {title}
-                </h3>
-                <p className="text-gray-500 text-sm leading-relaxed mb-5">{desc}</p>
-                <BulletList items={items} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── CTA FINAL ── */}
-      <section className="py-24 px-4" style={{ backgroundColor: '#2C2C3A' }}>
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-4xl font-black text-white mb-4">
-            ¿Listo para digitalizar tu haras?
-          </h2>
-          <p className="text-gray-300 text-lg mb-10">
-            Pedinos una demo y te mostramos cómo funciona.
-          </p>
-          <a
-            href={DEMO_MAILTO}
-            className="inline-flex items-center gap-2 px-10 py-4 rounded-xl font-bold text-white text-base transition-colors bg-[#8B6914] hover:bg-[#A07820]"
-          >
-            <Mail className="w-5 h-5" />
-            Solicitar demo
-          </a>
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer
-        className="py-12 px-4"
-        style={{ backgroundColor: '#2C2C3A', borderTop: '1px solid rgba(255,255,255,0.08)' }}
-      >
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-            <Logo inverted />
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 text-sm text-gray-400">
-              <Link to="/terminos" className="hover:text-white transition-colors">
-                Términos y condiciones
-              </Link>
-              <a
-                href="mailto:tperezzorraquin@gmail.com"
-                className="hover:text-white transition-colors"
-              >
-                tperezzorraquin@gmail.com
-              </a>
-              <a
-                href="mailto:Facundoarroquy.w@gmail.com"
-                className="hover:text-white transition-colors"
-              >
-                Facundoarroquy.w@gmail.com
-              </a>
-            </div>
-          </div>
-          <div className="mt-8 pt-6 border-t border-white/10 text-center text-gray-500 text-xs">
+        {/* Copyright */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+          <p style={{ ...body, fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', margin: 0 }}>
             © 2025 HarasManager. Todos los derechos reservados.
-          </div>
+          </p>
+          <Link
+            to="/terminos"
+            style={{ ...linkStyle, fontSize: '0.75rem' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = C.goldSoft)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
+          >
+            Términos y condiciones
+          </Link>
         </div>
-      </footer>
+      </div>
+    </footer>
+  )
+}
+
+// ─── LANDING PAGE ────────────────────────────────────────────────────────────
+
+export default function LandingPage() {
+  useScrollReveal()
+
+  return (
+    <div style={{ backgroundColor: C.cream, color: C.charcoal, fontFamily: "'DM Sans', sans-serif" }}>
+      <Navbar />
+      <Hero />
+      <ProblemaSolucion />
+      <Features />
+      <ParaQuien />
+      <SocialProof />
+      <ContactForm />
+      <Footer />
     </div>
   )
 }

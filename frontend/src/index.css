@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+:root {
+  --color-charcoal: #2C2C2C;
+  --color-gold: #8B6914;
+  --color-gold-light: #A67C1A;
+  --color-gold-soft: #D4B483;
+  --color-gold-pale: #F5EDD8;
+  --color-cream: #FAF8F3;
+  --color-off-white: #F0EDE6;
+  --font-display: 'Cormorant Garamond', serif;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -18,3 +31,18 @@
     min-height: 100svh;
   }
 }
+
+/* Animaciones de scroll reveal para la landing */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+[data-reveal][data-delay="100"] { transition-delay: 0.1s; }
+[data-reveal][data-delay="200"] { transition-delay: 0.2s; }
+[data-reveal][data-delay="300"] { transition-delay: 0.3s; }
+[data-reveal][data-delay="400"] { transition-delay: 0.4s; }
