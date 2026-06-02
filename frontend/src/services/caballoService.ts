@@ -32,6 +32,7 @@ export interface Caballo {
   padre_nombre?: string | null
   madre_id?: string | null
   madre_nombre?: string | null
+  propietario_nombre?: string | null
 }
 
 export interface ActualizarCaballoPayload {
@@ -86,9 +87,10 @@ export const caballoService = {
     if (error) throw error
     return (data ?? []).map((c: any) => ({
       ...c,
-      cat_raza:  c.raza_nombre   ? { nombre: c.raza_nombre }   : null,
-      cat_pelaje: c.pelaje_nombre ? { nombre: c.pelaje_nombre } : null,
-      campo:      c.campo_nombre  ? { nombre: c.campo_nombre }  : null,
+      cat_raza:          c.raza_nombre        ? { nombre: c.raza_nombre }        : null,
+      cat_pelaje:        c.pelaje_nombre      ? { nombre: c.pelaje_nombre }      : null,
+      campo:             c.campo_nombre       ? { nombre: c.campo_nombre }       : null,
+      propietario_nombre: c.propietario_nombre ?? null,
     }))
   },
 

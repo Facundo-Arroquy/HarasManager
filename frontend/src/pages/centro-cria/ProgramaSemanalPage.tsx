@@ -15,6 +15,7 @@ type AnimalItem = {
   categoria: string
   rol_reproductivo: RolReproductivo
   campo: { nombre: string } | null
+  marca: { nombre: string } | null
 }
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────
@@ -70,16 +71,20 @@ export default function ProgramaSemanalPage() {
   useEffect(() => {
     if (sociedadId) {
       if (registros.length === 0) cargar(sociedadId)
-      crianzaService.listarAnimalesReproductivos(sociedadId).then((data) => {
-        setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
-        setCargandoAnim(false)
-      })
+      crianzaService.listarAnimalesReproductivos(sociedadId)
+        .then((data) => {
+          setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+        })
+        .catch((err) => console.error('[ProgramaSemanal] listarAnimalesReproductivos:', err))
+        .finally(() => setCargandoAnim(false))
     } else if (rol === 'veterinario') {
       if (registros.length === 0) cargarParaVet()
-      crianzaService.listarAnimalesReproductivosVet().then((data) => {
-        setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
-        setCargandoAnim(false)
-      })
+      crianzaService.listarAnimalesReproductivosVet()
+        .then((data) => {
+          setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+        })
+        .catch((err) => console.error('[ProgramaSemanal] listarAnimalesReproductivosVet:', err))
+        .finally(() => setCargandoAnim(false))
     }
   }, [sociedadId, rol]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -202,6 +207,41 @@ export default function ProgramaSemanalPage() {
         </div>
       </div>
 
+      {/* Donantes y Receptoras */}
+      {cargandoAnim ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {['Donantes', 'Receptoras'].map((t) => (
+            <div key={t} className="rounded-lg border border-slate-200 bg-white p-3 animate-pulse">
+              <div className="h-3 w-20 bg-slate-100 rounded mb-3" />
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => <div key={i} className="h-8 bg-slate-50 rounded" />)}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <GrupoAnimales
+            titulo="Donantes"
+            animales={donantes}
+            color="brand"
+            canEdit={rol === 'veterinario'}
+            onRegistrar={(id) => abrirModal(id)}
+            registros={registros}
+            recordatorios={recordatorios}
+          />
+          <GrupoAnimales
+            titulo="Receptoras"
+            animales={receptoras}
+            color="blue"
+            canEdit={rol === 'veterinario'}
+            onRegistrar={(id) => abrirModal(id)}
+            registros={registros}
+            recordatorios={recordatorios}
+          />
+        </div>
+      )}
+
       {/* Panel del día seleccionado */}
       <div className="space-y-4">
         <h2 className="text-sm font-medium text-slate-600">
@@ -293,65 +333,11 @@ export default function ProgramaSemanalPage() {
 
         {/* Estado vacío del día */}
         {registrosDia.length === 0 && recordatoriosDia.length === 0 && (
-          <div className="text-center py-8 text-slate-400 text-sm">
+          <div className="text-center py-6 text-slate-400 text-sm">
             Sin actividad registrada.
           </div>
         )}
       </div>
-
-      {/* Resumen de animales del programa */}
-      {!cargandoAnim && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <GrupoAnimales
-            titulo="Donantes"
-            animales={donantes}
-            color="brand"
-            canEdit={rol === 'veterinario'}
-            onRegistrar={(id) => abrirModal(id)}
-            registros={registros}
-            recordatorios={recordatorios}
-          />
-          <GrupoAnimales
-            titulo="Receptoras"
-            animales={receptoras}
-            color="blue"
-            canEdit={rol === 'veterinario'}
-            onRegistrar={(id) => abrirModal(id)}
-            registros={registros}
-            recordatorios={recordatorios}
-          />
-          {padrillos.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white p-3">
-              <p className="text-xs font-medium text-slate-400 mb-2">Padrillos</p>
-              <div className="space-y-1">
-                {padrillos.map((p) => (
-                  <p key={p.id} className="text-sm text-slate-600">{p.nombre}</p>
-                ))}
-              </div>
-            </div>
-          )}
-          {sinRol.length > 0 && (
-            <div className="rounded-lg border border-slate-300 border-dashed bg-slate-50 p-3">
-              <p className="text-xs font-medium text-slate-400 mb-2">Sin rol asignado</p>
-              <div className="space-y-1">
-                {sinRol.map((y) => (
-                  <div key={y.id} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">{y.nombre}</span>
-                    {rol === 'veterinario' && (
-                      <button
-                        onClick={() => abrirModal(y.id)}
-                        className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                      >
-                        + Registro
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Modal */}
       {modalAbierto && rol === 'veterinario' && (
@@ -383,6 +369,49 @@ function RolBadge({ rol }: { rol: RolReproductivo }) {
   )
 }
 
+function FilaAnimal({
+  a, canEdit, onRegistrar, registros, recordatorios,
+}: {
+  a: AnimalItem
+  canEdit: boolean
+  onRegistrar: (id: string) => void
+  registros: ReturnType<typeof useCrianzaStore.getState>['registros']
+  recordatorios: ReturnType<typeof useCrianzaStore.getState>['recordatorios']
+}) {
+  const hoy = toISO(new Date())
+  const ultReg = registros
+    .filter((r) => r.caballo_id === a.id)
+    .sort((x, y) => y.fecha.localeCompare(x.fecha))[0]
+  const recHoy = recordatorios.filter(
+    (r) => r.caballo_id === a.id && r.fecha_vto === hoy &&
+      (r.estado === 'pendiente' || r.estado === 'vencido')
+  )
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="min-w-0">
+        <p className="text-sm text-slate-700 font-medium truncate">{a.nombre}</p>
+        <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+          {a.campo && <span>{a.campo.nombre}</span>}
+          {ultReg && <span>Últ. {formatFechaCorta(ultReg.fecha)}</span>}
+          {recHoy.length > 0 && (
+            <span className="text-brand-600">{recHoy[0].tipo}</span>
+          )}
+        </div>
+      </div>
+      {canEdit && (
+        <button
+          onClick={() => onRegistrar(a.id)}
+          className="shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+        >
+          <Plus size={11} />
+          Reg.
+        </button>
+      )}
+    </div>
+  )
+}
+
 function GrupoAnimales({
   titulo, animales, color, canEdit = true, onRegistrar, registros, recordatorios,
 }: {
@@ -394,50 +423,79 @@ function GrupoAnimales({
   registros: ReturnType<typeof useCrianzaStore.getState>['registros']
   recordatorios: ReturnType<typeof useCrianzaStore.getState>['recordatorios']
 }) {
-  const hoy = toISO(new Date())
   const borderColor = color === 'brand' ? 'border-brand-200' : 'border-blue-200'
   const titleColor  = color === 'brand' ? 'text-brand-600' : 'text-blue-600'
 
   if (animales.length === 0) return null
 
+  // Agrupar por empresa (marca), luego por campo
+  const porEmpresa = animales.reduce<Record<string, AnimalItem[]>>((acc, a) => {
+    const key = a.marca?.nombre ?? 'Sin empresa'
+    ;(acc[key] ??= []).push(a)
+    return acc
+  }, {})
+
+  const empresas = Object.keys(porEmpresa).sort((a, b) =>
+    a === 'Sin empresa' ? 1 : b === 'Sin empresa' ? -1 : a.localeCompare(b)
+  )
+
   return (
     <div className={`rounded-lg border bg-white p-3 ${borderColor}`}>
-      <p className={`text-xs font-medium mb-2 ${titleColor}`}>{titulo}</p>
-      <div className="space-y-2">
-        {animales.map((a) => {
-          const ultReg = registros
-            .filter((r) => r.caballo_id === a.id)
-            .sort((x, y) => y.fecha.localeCompare(x.fecha))[0]
+      <p className={`text-xs font-medium mb-3 ${titleColor}`}>
+        {titulo} <span className="text-slate-400 font-normal">({animales.length})</span>
+      </p>
+      <div className="space-y-4">
+        {empresas.map((empresa) => {
+          const animalesEmpresa = porEmpresa[empresa]
 
-          const recHoy = recordatorios.filter(
-            (r) => r.caballo_id === a.id && r.fecha_vto === hoy &&
-              (r.estado === 'pendiente' || r.estado === 'vencido')
+          // Sub-agrupar por campo dentro de la empresa
+          const porCampo = animalesEmpresa.reduce<Record<string, AnimalItem[]>>((acc, a) => {
+            const key = a.campo?.nombre ?? 'Sin campo'
+            ;(acc[key] ??= []).push(a)
+            return acc
+          }, {})
+
+          const campos = Object.keys(porCampo).sort((a, b) =>
+            a === 'Sin campo' ? 1 : b === 'Sin campo' ? -1 : a.localeCompare(b)
           )
+          const tieneVariosCampos = campos.length > 1 || (campos.length === 1 && campos[0] !== 'Sin campo')
 
           return (
-            <div key={a.id} className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-sm text-slate-700 font-medium truncate">{a.nombre}</p>
-                <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                  {a.campo && <span>{a.campo.nombre}</span>}
-                  {ultReg && (
-                    <span>Últ. {formatFechaCorta(ultReg.fecha)}</span>
-                  )}
-                  {recHoy.length > 0 && (
-                    <span className="text-brand-600">
-                      {recHoy[0].tipo}
-                    </span>
-                  )}
+            <div key={empresa}>
+              <p className="text-xs font-semibold text-slate-600 mb-1.5">{empresa}</p>
+              {tieneVariosCampos ? (
+                <div className="space-y-3 pl-2 border-l border-slate-100">
+                  {campos.map((campo) => (
+                    <div key={campo}>
+                      <p className="text-[11px] text-slate-400 mb-1">{campo}</p>
+                      <div className="space-y-2">
+                        {porCampo[campo].map((a) => (
+                          <FilaAnimal
+                            key={a.id}
+                            a={a}
+                            canEdit={canEdit}
+                            onRegistrar={onRegistrar}
+                            registros={registros}
+                            recordatorios={recordatorios}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              {canEdit && (
-                <button
-                  onClick={() => onRegistrar(a.id)}
-                  className="shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
-                >
-                  <Plus size={11} />
-                  Reg.
-                </button>
+              ) : (
+                <div className="space-y-2 pl-2 border-l border-slate-100">
+                  {animalesEmpresa.map((a) => (
+                    <FilaAnimal
+                      key={a.id}
+                      a={a}
+                      canEdit={canEdit}
+                      onRegistrar={onRegistrar}
+                      registros={registros}
+                      recordatorios={recordatorios}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           )

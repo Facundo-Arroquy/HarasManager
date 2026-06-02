@@ -70,6 +70,11 @@
 - **Asignado:** Facundo
 - **Descripción:** Preparar y enviar el archivo Excel base a Gero.
 
+### [ ] Orden de listas panel programa semanal
+- **Estado:** pendiente
+- **Asignado:** -
+- **Descripción:** En la tabla de programa semanal debe tener las listas de receptoras y donantes separadas por empresa y campo en lo posible.
+
 ---
 
 ## 🟡 Media prioridad
