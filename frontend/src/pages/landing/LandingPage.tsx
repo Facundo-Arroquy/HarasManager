@@ -193,7 +193,7 @@ function LogoImg({ height = 64, style: extraStyle }: { height?: number; style?: 
       src="/logo_H_sin_fondo.png"
       onError={(e) => { e.currentTarget.src = '/logo-harasmanager.jpg' }}
       alt="HarasManager"
-      style={{ height, width: 'auto', objectFit: 'contain', display: 'block', ...extraStyle }}
+      style={{ height, width: 'auto', objectFit: 'contain', display: 'block', mixBlendMode: 'multiply', ...extraStyle }}
     />
   )
 }
