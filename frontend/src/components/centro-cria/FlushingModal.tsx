@@ -21,6 +21,12 @@ type AnimalItem = {
   rol_reproductivo: 'Donante' | 'Receptora' | null
 }
 
+type PadrilloItem = {
+  id: string
+  nombre: string
+  empresa: string | null
+}
+
 const ESTADIOS = ['Mórula', 'Blastocisto temprano', 'Blastocisto', 'Blastocisto expandido'] as const
 const TAMANIOS = ['Pequeño', 'Mediano', 'Grande'] as const
 const GRADOS   = [1, 2, 3, 4] as const
@@ -31,8 +37,9 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
   const { user, sociedadActiva } = useAuth()
   const { crearFlushing, actualizarEstadoRecordatorio } = useCrianzaStore()
 
-  const [animales, setAnimales] = useState<AnimalItem[]>([])
-  const [cargando, setCargando] = useState(true)
+  const [animales,   setAnimales]   = useState<AnimalItem[]>([])
+  const [padrillos,  setPadrillos]  = useState<PadrilloItem[]>([])
+  const [cargando,   setCargando]   = useState(true)
 
   // Form
   const [caballoId,   setCaballoId]   = useState(caballoIdInicial ?? recordatorio?.caballo_id ?? '')
@@ -42,23 +49,51 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
   const [estadio,     setEstadio]     = useState<string>('')
   const [grado,       setGrado]       = useState<number | ''>('')
   const [tamanio,     setTamanio]     = useState<string>('')
-  const [padrilloId,  setPadrilloId]  = useState('')
+  const [padrilloIds,   setPadrilloIds]   = useState<string[]>([''])
+  const [padrilloTextos, setPadrilloTextos] = useState<string[]>([''])
   const [pgGiven,     setPgGiven]     = useState(false)
   const [notas,       setNotas]       = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
 
-  const donantes  = animales.filter((a) => a.rol_reproductivo === 'Donante')
-  const padrillos = animales.filter((a) => a.categoria === 'Padrillo')
+  // Para el rol 'veterinario', sociedadActiva es null (vet global sin sociedad fija).
+  // En ese caso derivamos el sociedad_id del recordatorio o del caballoIdInicial.
+  const efectivaSociedadId = sociedadActiva?.id ?? recordatorio?.sociedad_id ?? ''
+
+  const donantes = animales.filter((a) => a.rol_reproductivo === 'Donante')
 
   useEffect(() => {
-    if (!sociedadActiva) return
-    crianzaService.listarAnimalesReproductivos(sociedadActiva.id).then((data) => {
-      setAnimales(data as AnimalItem[])
-      setCargando(false)
-    })
-  }, [sociedadActiva])
+    if (!efectivaSociedadId) return
+
+    async function cargar() {
+      try {
+        const animalesData = await crianzaService.listarAnimalesReproductivos(efectivaSociedadId)
+        setAnimales(animalesData as AnimalItem[])
+
+        // Intentar cargar padrillos de todas las sociedades del vet
+        try {
+          const vetData = await crianzaService.listarAnimalesReproductivosVet()
+          const vetPadrillos = (vetData as { id: string; nombre: string; categoria: string; marca?: { nombre: string } | null }[])
+            .filter((a) => a.categoria === 'Padrillo')
+          setPadrillos(vetPadrillos.length > 0
+            ? vetPadrillos.map((a) => ({ id: a.id, nombre: a.nombre, empresa: a.marca?.nombre ?? null }))
+            : (animalesData as AnimalItem[])
+                .filter((a) => a.categoria === 'Padrillo')
+                .map((a) => ({ id: a.id, nombre: a.nombre, empresa: null })))
+        } catch {
+          // Fallback: padrillos solo de la sociedad del recordatorio
+          setPadrillos((animalesData as AnimalItem[])
+            .filter((a) => a.categoria === 'Padrillo')
+            .map((a) => ({ id: a.id, nombre: a.nombre, empresa: null })))
+        }
+      } finally {
+        setCargando(false)
+      }
+    }
+
+    cargar()
+  }, [efectivaSociedadId])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -66,21 +101,45 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
+  // Sincronizar largo de los arrays de padrillos con la cantidad de embriones
+  useEffect(() => {
+    if (esNegativo) {
+      setPadrilloIds([''])
+      setPadrilloTextos([''])
+      return
+    }
+    const n = Math.max(1, Number(cantidad) || 1)
+    const resize = (prev: string[]) => {
+      if (prev.length === n) return prev
+      const next = [...prev]
+      while (next.length < n) next.push('')
+      return next.slice(0, n)
+    }
+    setPadrilloIds(resize)
+    setPadrilloTextos(resize)
+  }, [cantidad, esNegativo])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
 
-    if (!caballoId)     return setError('Seleccioná la donante.')
-    if (!fecha)         return setError('La fecha es requerida.')
-    if (!user?.id || !sociedadActiva) return
+    if (!caballoId)          return setError('Seleccioná la donante.')
+    if (!fecha)              return setError('La fecha es requerida.')
+    if (!user?.id || !efectivaSociedadId) return
 
     if (!esNegativo && !cantidad) return setError('Indicá la cantidad de embriones (o marcá como negativo).')
 
     setSaving(true)
     try {
+      // Padrillos con texto libre (sin ID) se guardan en notas
+      const textosLibres = padrilloTextos
+        .map((t, i) => (t.trim() && !padrilloIds[i] ? `Embrión ${i + 1}: ${t.trim()}` : null))
+        .filter(Boolean)
+      const notasFinales = [notas.trim(), ...textosLibres].filter(Boolean).join(' | ') || null
+
       const flushing = await crearFlushing({
         caballo_id:            caballoId,
-        sociedad_id:           sociedadActiva.id,
+        sociedad_id:           efectivaSociedadId,
         fecha,
         veterinario_id:        user.id,
         es_negativo:           esNegativo,
@@ -89,11 +148,11 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
         grado:                 grado !== '' ? (grado as 1 | 2 | 3 | 4) : null,
         tamanio:               tamanio || null,
         zona_pelucida:         null,
-        padrillo_id:           padrilloId || null,
+        padrillo_id:           padrilloIds.find((id) => id) || null,
         origen_recordatorio_id: recordatorio?.id ?? null,
         pg_given:              pgGiven,
         cancelado:             false,
-        notas:                 notas.trim() || null,
+        notas:                 notasFinales,
       })
 
       // Marcar el recordatorio de origen como hecho
@@ -232,23 +291,60 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
                   </select>
                 </div>
               </div>
+
+              {/* Padrillos — un selector por embrión */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-500">
+                  {padrilloIds.length === 1 ? 'Padrillo' : 'Padrillos'}
+                </label>
+                {padrilloIds.map((pid, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      {padrilloIds.length > 1 && (
+                        <span className="text-xs text-slate-400 w-16 shrink-0">Embrión {i + 1}</span>
+                      )}
+                      <select
+                        value={pid}
+                        onChange={(e) => {
+                          const next = [...padrilloIds]
+                          next[i] = e.target.value
+                          // Si selecciona del dropdown, limpiar el texto libre
+                          if (e.target.value) {
+                            const textos = [...padrilloTextos]
+                            textos[i] = ''
+                            setPadrilloTextos(textos)
+                          }
+                          setPadrilloIds(next)
+                        }}
+                        className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      >
+                        <option value="">— Sin especificar —</option>
+                        {padrillos.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nombre}{p.empresa ? ` (${p.empresa})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Texto libre: visible solo cuando no hay selección del dropdown */}
+                    {!pid && (
+                      <input
+                        type="text"
+                        value={padrilloTextos[i] ?? ''}
+                        onChange={(e) => {
+                          const next = [...padrilloTextos]
+                          next[i] = e.target.value
+                          setPadrilloTextos(next)
+                        }}
+                        placeholder="O escribí el nombre si no está en la lista"
+                        className={`w-full rounded-md border bg-slate-50 px-3 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500 ${padrilloIds.length > 1 ? 'ml-[4.5rem]' : ''} border-slate-200`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
             </>
           )}
-
-          {/* Padrillo */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-500">Padrillo</label>
-            <select
-              value={padrilloId}
-              onChange={(e) => setPadrilloId(e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            >
-              <option value="">— Sin especificar —</option>
-              {padrillos.map((p) => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
-          </div>
 
           {/* PG + Notas */}
           <label className="flex items-center gap-2.5 cursor-pointer">

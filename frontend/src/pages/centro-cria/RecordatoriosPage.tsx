@@ -22,7 +22,7 @@ export default function RecordatoriosPage() {
   const [filtro, setFiltro] = useState<EstadoRecordatorio | 'todos'>('pendiente')
   const [cancelando, setCancelando] = useState<string | null>(null)
   const [flushingRec, setFlushingRec] = useState<RecordatorioCria | null>(null)
-  const [flushingIdParaTransf, setFlushingIdParaTransf] = useState<string | null>(null)
+  const [flushingParaTransf, setFlushingParaTransf] = useState<{ id: string; sociedadId: string } | null>(null)
 
   useEffect(() => {
     if (sociedadId) cargar(sociedadId)
@@ -112,19 +112,20 @@ export default function RecordatoriosPage() {
           recordatorio={flushingRec}
           onClose={() => setFlushingRec(null)}
           onSuccess={(flushingId) => {
+            const sid = flushingRec?.sociedad_id ?? ''
             setFlushingRec(null)
-            // Si hubo embriones (no negativo), ofrecer registrar transferencia
-            setFlushingIdParaTransf(flushingId)
+            setFlushingParaTransf({ id: flushingId, sociedadId: sid })
           }}
         />
       )}
 
       {/* Modal transferencia encadenado tras flushing positivo */}
-      {flushingIdParaTransf && (
+      {flushingParaTransf && (
         <TransferenciaModal
-          flushingId={flushingIdParaTransf}
-          onClose={() => setFlushingIdParaTransf(null)}
-          onSuccess={() => setFlushingIdParaTransf(null)}
+          flushingId={flushingParaTransf.id}
+          sociedadId={flushingParaTransf.sociedadId}
+          onClose={() => setFlushingParaTransf(null)}
+          onSuccess={() => setFlushingParaTransf(null)}
         />
       )}
     </div>

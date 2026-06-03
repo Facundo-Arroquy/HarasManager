@@ -14,6 +14,8 @@ interface Props {
   flushingId?: string
   donantePredId?: string
   padrilloPreId?: string
+  // Fallback para el rol 'veterinario' (sociedadActiva es null)
+  sociedadId?: string
 }
 
 type AnimalItem = {
@@ -29,10 +31,13 @@ const TONOS        = ['Excelente', 'Bueno', 'Regular', 'Malo'] as const
 const HOY = new Date().toISOString().split('T')[0]
 
 export default function TransferenciaModal({
-  onClose, onSuccess, flushing, flushingId, donantePredId, padrilloPreId,
+  onClose, onSuccess, flushing, flushingId, donantePredId, padrilloPreId, sociedadId,
 }: Props) {
   const { user, sociedadActiva } = useAuth()
   const { crearRegistro, crearTransferencia } = useCrianzaStore()
+
+  // Para el rol 'veterinario', sociedadActiva es null. Usar el prop sociedadId o el del flushing.
+  const efectivaSociedadId = sociedadActiva?.id ?? flushing?.sociedad_id ?? sociedadId ?? ''
 
   const [animales, setAnimales] = useState<AnimalItem[]>([])
   const [cargando, setCargando] = useState(true)
@@ -65,12 +70,12 @@ export default function TransferenciaModal({
   const padrillos  = animales.filter((a) => a.categoria === 'Padrillo')
 
   useEffect(() => {
-    if (!sociedadActiva) return
-    crianzaService.listarAnimalesReproductivos(sociedadActiva.id)
+    if (!efectivaSociedadId) return
+    crianzaService.listarAnimalesReproductivos(efectivaSociedadId)
       .then((data) => setAnimales(data as AnimalItem[]))
       .catch(() => {})
       .finally(() => setCargando(false))
-  }, [sociedadActiva])
+  }, [efectivaSociedadId])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -85,7 +90,7 @@ export default function TransferenciaModal({
     if (!receptoraId)  return setError('Seleccioná la receptora.')
     if (!donanteId)    return setError('Seleccioná la donante.')
     if (!fecha)        return setError('La fecha es requerida.')
-    if (!user?.id || !sociedadActiva) return
+    if (!user?.id || !efectivaSociedadId) return
 
     setSaving(true)
     try {
@@ -93,7 +98,7 @@ export default function TransferenciaModal({
       const registro = await crearRegistro(
         {
           caballo_id:         receptoraId,
-          sociedad_id:        sociedadActiva.id,
+          sociedad_id:        efectivaSociedadId,
           fecha,
           veterinario_id:     user.id,
           ovario_izq:         ovIzq ? [ovIzq] : [],
