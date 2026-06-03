@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
       apellido,
       email,
       activo: true,
+      ...(rol === 'veterinario' ? { rol: 'veterinario' } : {}),
     })
     if (userError) {
       await supabaseAdmin.auth.admin.deleteUser(userId)

@@ -230,7 +230,8 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
       onSuccess()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar.')
+      const msg = (err as any)?.message ?? (err instanceof Error ? err.message : null)
+      setError(msg ?? 'Error al guardar.')
     } finally {
       setSubmitting(false)
     }
