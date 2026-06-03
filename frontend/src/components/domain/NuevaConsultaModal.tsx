@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, Plus, Trash2 } from 'lucide-react'
+import { X, Plus, Trash2, ImageIcon } from 'lucide-react'
 import { caballoService } from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { historialService } from '../../services/historialService'
@@ -60,6 +60,27 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
   const remMed  = (id: string) => setMeds((m) => m.filter((r) => r.tempId !== id))
   const updMed  = (id: string, key: keyof MedRow, val: string) =>
     setMeds((m) => m.map((r) => r.tempId === id ? { ...r, [key]: val } : r))
+
+  // Imagen adjunta
+  const [imagenFile,    setImagenFile]    = useState<File | null>(null)
+  const [imagenPreview, setImagenPreview] = useState<string | null>(
+    entryToEdit?.imagen_url ?? null
+  )
+  const imagenInputRef = useRef<HTMLInputElement>(null)
+
+  function handleImagenChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    setImagenFile(file)
+    if (file) {
+      setImagenPreview(URL.createObjectURL(file))
+    }
+  }
+
+  function quitarImagen() {
+    setImagenFile(null)
+    setImagenPreview(null)
+    if (imagenInputRef.current) imagenInputRef.current.value = ''
+  }
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState<string | null>(null)
@@ -135,6 +156,13 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
     setSubmitting(true)
     setError(null)
     try {
+      let imagenUrl: string | undefined = entryToEdit?.imagen_url ?? undefined
+      if (imagenFile) {
+        imagenUrl = await historialService.subirImagenConsulta(selCaballoId, imagenFile)
+      } else if (imagenPreview === null) {
+        imagenUrl = undefined // se borró
+      }
+
       const partesAfectadas = partes
         .filter((p) => p.parteCuerpoId)
         .map((p) => ({
@@ -159,6 +187,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
           tratamiento:     tratamiento   || undefined,
           observaciones:   observaciones || undefined,
           proximaConsulta: proximaCons   || undefined,
+          imagenUrl,
           partesAfectadas,
           medicamentos,
         })
@@ -172,6 +201,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
           observaciones:   observaciones || undefined,
           proximaConsulta: proximaCons   || undefined,
           creadoPor:       user.id,
+          imagenUrl,
           partesAfectadas,
           medicamentos,
         })
@@ -351,6 +381,52 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
                     </div>
                   ))}
                 </div>
+              </section>
+
+              {/* ── Imagen adjunta ── */}
+              <section>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    Imagen adjunta
+                  </h3>
+                  {!imagenPreview && (
+                    <button
+                      type="button"
+                      onClick={() => imagenInputRef.current?.click()}
+                      className={addRowBtn}
+                    >
+                      <ImageIcon size={12} /> Agregar imagen
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  ref={imagenInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleImagenChange}
+                />
+
+                {imagenPreview ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={imagenPreview}
+                      alt="Vista previa"
+                      className="max-h-48 rounded-lg border border-slate-200 object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={quitarImagen}
+                      className="absolute -top-2 -right-2 rounded-full bg-white border border-slate-300 p-0.5 text-slate-400 hover:text-red-600 shadow-sm transition-colors"
+                      title="Quitar imagen"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">Sin imagen adjunta.</p>
+                )}
               </section>
 
               {/* ── Medicamentos ── */}

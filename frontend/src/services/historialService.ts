@@ -11,6 +11,7 @@ export interface NuevaConsultaPayload {
   observaciones?: string
   proximaConsulta?: string     // fecha YYYY-MM-DD
   creadoPor: string            // usuario.id
+  imagenUrl?: string
   partesAfectadas: Array<{
     parteCuerpoId: number
     lado: string
@@ -44,6 +45,17 @@ export interface AlertaVet {
 }
 
 export const historialService = {
+  async subirImagenConsulta(caballoId: string, file: File): Promise<string> {
+    const supabase = getSupabaseClient()
+    const ext = file.name.split('.').pop()
+    const path = `consultas/${caballoId}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('caballos').upload(path, file, { upsert: true })
+    if (error) throw error
+    const { data } = supabase.storage.from('caballos').getPublicUrl(path)
+    return data.publicUrl
+  },
+
+
   async listarRecientesVet(limit = 5): Promise<HistorialResumen[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.rpc('get_consultas_recientes_vet', { p_limit: limit })
@@ -133,7 +145,7 @@ export const historialService = {
       .from('historial_clinico')
       .select(`
         id, fecha_consulta, diagnostico, tratamiento, creado_por,
-        observaciones, proxima_consulta, created_at,
+        observaciones, proxima_consulta, imagen_url, created_at,
         cat_tipo_consulta(id, nombre),
         usuario!creado_por(nombre, apellido),
         historial_parte_afectada(
@@ -196,6 +208,7 @@ export const historialService = {
         tratamiento:      payload.tratamiento   ?? null,
         observaciones:    payload.observaciones ?? null,
         proxima_consulta: payload.proximaConsulta ?? null,
+        imagen_url:       payload.imagenUrl ?? null,
       })
       .eq('id', historialId)
     if (e1) throw e1
@@ -285,6 +298,7 @@ export const historialService = {
         observaciones: payload.observaciones,
         proxima_consulta: payload.proximaConsulta,
         creado_por: payload.creadoPor,
+        imagen_url: payload.imagenUrl ?? null,
       })
       .select('id')
       .single()

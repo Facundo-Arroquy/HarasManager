@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Pill, MapPin, Calendar, Pencil } from 'lucide-react'
+import { ChevronDown, ChevronUp, Pill, MapPin, Calendar, Pencil, ImageIcon } from 'lucide-react'
 import { useState } from 'react'
 import { formatFecha } from '../../utils/fecha'
 
@@ -25,6 +25,7 @@ export interface HistorialEntry {
   observaciones?: string | null
   proxima_consulta?: string | null
   creado_por?: string | null
+  imagen_url?: string | null
   cat_tipo_consulta: { id?: number; nombre: string }
   usuario: { nombre: string; apellido: string }
   historial_parte_afectada: Parte[]
@@ -42,7 +43,8 @@ export default function HistorialCard({ entry, onEditar }: Props) {
     entry.historial_parte_afectada.length > 0 ||
     entry.historial_medicamento.length > 0 ||
     !!entry.observaciones ||
-    !!entry.proxima_consulta
+    !!entry.proxima_consulta ||
+    !!entry.imagen_url
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -93,6 +95,11 @@ export default function HistorialCard({ entry, onEditar }: Props) {
 
         {/* Acciones: indicadores + editar + toggle */}
         <div className="shrink-0 flex items-center gap-2 mt-0.5">
+          {entry.imagen_url && (
+            <span className="flex items-center gap-1 text-[11px] text-slate-400">
+              <ImageIcon size={11} />
+            </span>
+          )}
           {entry.historial_parte_afectada.length > 0 && (
             <span className="flex items-center gap-1 text-[11px] text-slate-400">
               <MapPin size={11} />
@@ -176,6 +183,21 @@ export default function HistorialCard({ entry, onEditar }: Props) {
                 Observaciones
               </h4>
               <p className="text-xs text-slate-500">{entry.observaciones}</p>
+            </section>
+          )}
+
+          {entry.imagen_url && (
+            <section>
+              <h4 className="text-[11px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
+                <ImageIcon size={11} /> Imagen
+              </h4>
+              <a href={entry.imagen_url} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={entry.imagen_url}
+                  alt="Imagen de consulta"
+                  className="max-h-64 rounded-lg border border-slate-200 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                />
+              </a>
             </section>
           )}
 
