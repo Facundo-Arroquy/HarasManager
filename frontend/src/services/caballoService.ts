@@ -119,7 +119,8 @@ export const caballoService = {
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
         cat_pelaje(nombre),
-        campo(nombre)
+        campo(nombre),
+        marca(nombre)
       `)
       .eq('sociedad_id', sociedadId)
       .eq('activo', true)

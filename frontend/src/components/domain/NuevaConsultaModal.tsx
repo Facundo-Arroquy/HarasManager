@@ -27,12 +27,19 @@ const uid = () => String(++_id)
 export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, onSuccess }: Props) {
   const user    = useAuthStore((s) => s.user)
   const sociedad = useAuthStore((s) => s.sociedadActiva)
+  const rol      = useAuthStore((s) => s.rol)
 
   // Catálogos
-  const [caballos,   setCaballos]   = useState<{ id: string; nombre: string }[]>([])
-  const [tipos,      setTipos]      = useState<{ id: number; nombre: string }[]>([])
-  const [partesCat,  setPartesCat]  = useState<{ id: number; nombre: string }[]>([])
-  const [loadingCat, setLoadingCat] = useState(true)
+  const [caballos,        setCaballos]        = useState<{ id: string; nombre: string; marca_nombre?: string }[]>([])
+  const [busquedaCaballo, setBusquedaCaballo] = useState('')
+  const [dropdownAbierto, setDropdownAbierto] = useState(false)
+  const [tipos,           setTipos]           = useState<{ id: number; nombre: string }[]>([])
+  const [partesCat,       setPartesCat]       = useState<{ id: number; nombre: string }[]>([])
+  const [loadingCat,      setLoadingCat]      = useState(true)
+
+  const caballosFiltrados = caballos.filter((c) =>
+    c.nombre.toLowerCase().includes(busquedaCaballo.toLowerCase())
+  )
 
   // Campos del formulario
   const [selCaballoId,    setSelCaballoId]    = useState(caballoId ?? '')
@@ -95,8 +102,22 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
 
   // Cargar catálogos y pre-rellenar si es edición
   useEffect(() => {
+    const cargarCaballos = caballoId
+      ? Promise.resolve([] as { id: string; nombre: string; marca_nombre?: string }[])
+      : rol === 'veterinario' && user?.id
+        ? caballoService.listarDelVeterinario(user.id).then((data: any[]) =>
+            [...data]
+              .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+              .map((c) => ({ id: c.id, nombre: c.nombre, marca_nombre: c.propietario_nombre ?? 'Desconocido' }))
+          )
+        : caballoService.listar(sociedad?.id ?? '').then((data: any[]) =>
+            [...data]
+              .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+              .map((c) => ({ id: c.id, nombre: c.nombre, marca_nombre: c.marca?.nombre ?? 'Desconocido' }))
+          )
+
     Promise.all([
-      caballoId ? Promise.resolve([]) : caballoService.listar(sociedad?.id ?? ''),
+      cargarCaballos,
       catalogoService.tiposConsulta(),
       catalogoService.partesCuerpo(),
     ]).then(([cabs, tip, par]) => {
@@ -245,17 +266,50 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
               {/* Selector de caballo (solo si no viene pre-seleccionado) */}
               {!caballoId && (
                 <Field label="Caballo *">
-                  <select
-                    value={selCaballoId}
-                    onChange={(e) => setSelCaballoId(e.target.value)}
-                    required
-                    className={selectClass}
-                  >
-                    <option value="">— Seleccionar caballo —</option>
-                    {caballos.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={busquedaCaballo}
+                      onChange={(e) => {
+                        setBusquedaCaballo(e.target.value)
+                        setSelCaballoId('')
+                        setDropdownAbierto(true)
+                      }}
+                      onFocus={() => { if (busquedaCaballo) setDropdownAbierto(true) }}
+                      placeholder="Buscar caballo…"
+                      className={inputClass}
+                      autoComplete="off"
+                    />
+                    {dropdownAbierto && busquedaCaballo && (
+                      <div className="absolute z-10 left-0 right-0 top-full mt-1 rounded-lg border border-slate-300 bg-white shadow-md max-h-52 overflow-y-auto">
+                        {caballosFiltrados.length === 0 ? (
+                          <p className="px-3 py-2 text-xs text-slate-400 italic">Sin resultados.</p>
+                        ) : (
+                          caballosFiltrados.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setSelCaballoId(c.id)
+                                setBusquedaCaballo(c.nombre)
+                                setDropdownAbierto(false)
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-slate-100 transition-colors"
+                            >
+                              <p className="text-sm text-slate-700">{c.nombre}</p>
+                              {c.marca_nombre && (
+                                <p className="text-[11px] text-slate-400">{c.marca_nombre}</p>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {!selCaballoId && !busquedaCaballo && (
+                    <p className="text-[11px] text-slate-400 mt-0.5">Escribí el nombre para buscar.</p>
+                  )}
                 </Field>
               )}
 
