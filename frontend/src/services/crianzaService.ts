@@ -631,7 +631,7 @@ export const crianzaService = {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('caballo')
-      .select('id, nombre, categoria, rol_reproductivo, campo(nombre), marca(nombre)')
+      .select('id, nombre, categoria, rol_reproductivo, campo(nombre)')
       .eq('sociedad_id', sociedadId)
       .eq('activo', true)
       .order('nombre')
@@ -642,7 +642,6 @@ export const crianzaService = {
       categoria: string
       rol_reproductivo: RolReproductivo
       campo: { nombre: string } | null
-      marca: { nombre: string } | null
     }>
   },
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, Plus, Trash2 } from 'lucide-react'
+import { X, Plus, Trash2, ImageIcon } from 'lucide-react'
 import { caballoService } from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { historialService } from '../../services/historialService'
@@ -27,12 +27,19 @@ const uid = () => String(++_id)
 export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, onSuccess }: Props) {
   const user    = useAuthStore((s) => s.user)
   const sociedad = useAuthStore((s) => s.sociedadActiva)
+  const rol      = useAuthStore((s) => s.rol)
 
   // Catálogos
-  const [caballos,   setCaballos]   = useState<{ id: string; nombre: string }[]>([])
-  const [tipos,      setTipos]      = useState<{ id: number; nombre: string }[]>([])
-  const [partesCat,  setPartesCat]  = useState<{ id: number; nombre: string }[]>([])
-  const [loadingCat, setLoadingCat] = useState(true)
+  const [caballos,        setCaballos]        = useState<{ id: string; nombre: string; marca_nombre?: string }[]>([])
+  const [busquedaCaballo, setBusquedaCaballo] = useState('')
+  const [dropdownAbierto, setDropdownAbierto] = useState(false)
+  const [tipos,           setTipos]           = useState<{ id: number; nombre: string }[]>([])
+  const [partesCat,       setPartesCat]       = useState<{ id: number; nombre: string }[]>([])
+  const [loadingCat,      setLoadingCat]      = useState(true)
+
+  const caballosFiltrados = caballos.filter((c) =>
+    c.nombre.toLowerCase().includes(busquedaCaballo.toLowerCase())
+  )
 
   // Campos del formulario
   const [selCaballoId,    setSelCaballoId]    = useState(caballoId ?? '')
@@ -61,6 +68,27 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
   const updMed  = (id: string, key: keyof MedRow, val: string) =>
     setMeds((m) => m.map((r) => r.tempId === id ? { ...r, [key]: val } : r))
 
+  // Imagen adjunta
+  const [imagenFile,    setImagenFile]    = useState<File | null>(null)
+  const [imagenPreview, setImagenPreview] = useState<string | null>(
+    entryToEdit?.imagen_url ?? null
+  )
+  const imagenInputRef = useRef<HTMLInputElement>(null)
+
+  function handleImagenChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null
+    setImagenFile(file)
+    if (file) {
+      setImagenPreview(URL.createObjectURL(file))
+    }
+  }
+
+  function quitarImagen() {
+    setImagenFile(null)
+    setImagenPreview(null)
+    if (imagenInputRef.current) imagenInputRef.current.value = ''
+  }
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState<string | null>(null)
 
@@ -74,8 +102,22 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
 
   // Cargar catálogos y pre-rellenar si es edición
   useEffect(() => {
+    const cargarCaballos = caballoId
+      ? Promise.resolve([] as { id: string; nombre: string; marca_nombre?: string }[])
+      : rol === 'veterinario' && user?.id
+        ? caballoService.listarDelVeterinario(user.id).then((data: any[]) =>
+            [...data]
+              .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+              .map((c) => ({ id: c.id, nombre: c.nombre, marca_nombre: c.empresa_nombre ?? c.propietario_nombre ?? 'Desconocido' }))
+          )
+        : caballoService.listar(sociedad?.id ?? '').then((data: any[]) =>
+            [...data]
+              .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+              .map((c) => ({ id: c.id, nombre: c.nombre, marca_nombre: c.marca?.nombre ?? 'Desconocido' }))
+          )
+
     Promise.all([
-      caballoId ? Promise.resolve([]) : caballoService.listar(sociedad?.id ?? ''),
+      cargarCaballos,
       catalogoService.tiposConsulta(),
       catalogoService.partesCuerpo(),
     ]).then(([cabs, tip, par]) => {
@@ -135,6 +177,13 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
     setSubmitting(true)
     setError(null)
     try {
+      let imagenUrl: string | undefined = entryToEdit?.imagen_url ?? undefined
+      if (imagenFile) {
+        imagenUrl = await historialService.subirImagenConsulta(selCaballoId, imagenFile)
+      } else if (imagenPreview === null) {
+        imagenUrl = undefined // se borró
+      }
+
       const partesAfectadas = partes
         .filter((p) => p.parteCuerpoId)
         .map((p) => ({
@@ -159,6 +208,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
           tratamiento:     tratamiento   || undefined,
           observaciones:   observaciones || undefined,
           proximaConsulta: proximaCons   || undefined,
+          imagenUrl,
           partesAfectadas,
           medicamentos,
         })
@@ -172,6 +222,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
           observaciones:   observaciones || undefined,
           proximaConsulta: proximaCons   || undefined,
           creadoPor:       user.id,
+          imagenUrl,
           partesAfectadas,
           medicamentos,
         })
@@ -179,7 +230,8 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
       onSuccess()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar.')
+      const msg = (err as any)?.message ?? (err instanceof Error ? err.message : null)
+      setError(msg ?? 'Error al guardar.')
     } finally {
       setSubmitting(false)
     }
@@ -215,17 +267,50 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
               {/* Selector de caballo (solo si no viene pre-seleccionado) */}
               {!caballoId && (
                 <Field label="Caballo *">
-                  <select
-                    value={selCaballoId}
-                    onChange={(e) => setSelCaballoId(e.target.value)}
-                    required
-                    className={selectClass}
-                  >
-                    <option value="">— Seleccionar caballo —</option>
-                    {caballos.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={busquedaCaballo}
+                      onChange={(e) => {
+                        setBusquedaCaballo(e.target.value)
+                        setSelCaballoId('')
+                        setDropdownAbierto(true)
+                      }}
+                      onFocus={() => { if (busquedaCaballo) setDropdownAbierto(true) }}
+                      placeholder="Buscar caballo…"
+                      className={inputClass}
+                      autoComplete="off"
+                    />
+                    {dropdownAbierto && busquedaCaballo && (
+                      <div className="absolute z-10 left-0 right-0 top-full mt-1 rounded-lg border border-slate-300 bg-white shadow-md max-h-52 overflow-y-auto">
+                        {caballosFiltrados.length === 0 ? (
+                          <p className="px-3 py-2 text-xs text-slate-400 italic">Sin resultados.</p>
+                        ) : (
+                          caballosFiltrados.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setSelCaballoId(c.id)
+                                setBusquedaCaballo(c.nombre)
+                                setDropdownAbierto(false)
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-slate-100 transition-colors"
+                            >
+                              <p className="text-sm text-slate-700">{c.nombre}</p>
+                              {c.marca_nombre && (
+                                <p className="text-[11px] text-slate-400">{c.marca_nombre}</p>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {!selCaballoId && !busquedaCaballo && (
+                    <p className="text-[11px] text-slate-400 mt-0.5">Escribí el nombre para buscar.</p>
+                  )}
                 </Field>
               )}
 
@@ -351,6 +436,52 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
                     </div>
                   ))}
                 </div>
+              </section>
+
+              {/* ── Imagen adjunta ── */}
+              <section>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    Imagen adjunta
+                  </h3>
+                  {!imagenPreview && (
+                    <button
+                      type="button"
+                      onClick={() => imagenInputRef.current?.click()}
+                      className={addRowBtn}
+                    >
+                      <ImageIcon size={12} /> Agregar imagen
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  ref={imagenInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleImagenChange}
+                />
+
+                {imagenPreview ? (
+                  <div className="relative inline-block">
+                    <img
+                      src={imagenPreview}
+                      alt="Vista previa"
+                      className="max-h-48 rounded-lg border border-slate-200 object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={quitarImagen}
+                      className="absolute -top-2 -right-2 rounded-full bg-white border border-slate-300 p-0.5 text-slate-400 hover:text-red-600 shadow-sm transition-colors"
+                      title="Quitar imagen"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">Sin imagen adjunta.</p>
+                )}
               </section>
 
               {/* ── Medicamentos ── */}
