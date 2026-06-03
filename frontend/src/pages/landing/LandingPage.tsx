@@ -76,7 +76,7 @@ function useScrollReveal() {
 
 // ─── Componentes auxiliares ──────────────────────────────────────────────────
 
-function Overline({ children }: { children: React.ReactNode }) {
+function Overline({ children, color = C.gold }: { children: React.ReactNode; color?: string }) {
   return (
     <p
       style={{
@@ -84,9 +84,10 @@ function Overline({ children }: { children: React.ReactNode }) {
         fontSize: '0.65rem',
         letterSpacing: '0.3em',
         textTransform: 'uppercase',
-        color: C.gold,
+        color,
         fontWeight: 500,
         margin: 0,
+        textShadow: color !== C.gold ? '0 1px 4px rgba(0,0,0,0.5)' : 'none',
       }}
     >
       {children}
@@ -252,13 +253,12 @@ function Navbar() {
         {/* Links desktop */}
         <div
           style={{
-            display: 'flex',
+            display: isMobile ? 'none' : 'flex',
             alignItems: 'center',
             gap: '32px',
             flex: 1,
             justifyContent: 'center',
           }}
-          className="hidden sm:flex"
         >
           {[
             ['Por qué HarasManager', 'problema'],
@@ -312,7 +312,7 @@ function Hero() {
         style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: isMobile ? '48px 20px' : '80px 24px', maxWidth: '860px', margin: '0 auto' }}
         data-reveal
       >
-        <Overline>La plataforma equina profesional</Overline>
+        <Overline color={C.goldSoft}>La plataforma equina profesional</Overline>
         <div style={{ height: '20px' }} />
         <h1
           style={{
@@ -883,17 +883,15 @@ function Footer() {
   return (
     <footer style={{ backgroundColor: C.charcoal, padding: isMobile ? '48px 20px 32px' : '64px 24px 40px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        {/* Logo + tagline */}
+        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <img
-            src="/Logo_V_sin_fondo.png"
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
-            alt="HarasManager"
-            style={{ height: '100px', width: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto 16px' }}
-          />
-          <p style={{ ...body, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.15em', textTransform: 'uppercase', margin: 0 }}>
-            Gestión de caballos de punta a punta
-          </p>
+          <div style={{ display: 'inline-block', backgroundColor: C.white, borderRadius: '12px', padding: '16px 28px' }}>
+            <img
+              src="/HarasManagerLogoV.jpeg"
+              alt="HarasManager"
+              style={{ height: '110px', width: 'auto', objectFit: 'contain', display: 'block' }}
+            />
+          </div>
         </div>
 
         {/* Links */}
@@ -967,7 +965,7 @@ export default function LandingPage() {
   useScrollReveal()
 
   return (
-    <div style={{ backgroundColor: C.cream, color: C.charcoal, fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ backgroundColor: C.cream, color: C.charcoal, fontFamily: "'DM Sans', sans-serif", overflowX: 'hidden' }}>
       <Navbar />
       <Hero />
       <ProblemaSolucion />
