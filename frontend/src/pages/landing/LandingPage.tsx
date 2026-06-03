@@ -43,6 +43,18 @@ const MODULOS = [
   'Revisión pre-venta',
 ]
 
+// ─── Hook mobile ─────────────────────────────────────────────────────────────
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+  return isMobile
+}
+
 // ─── Hook scroll reveal ──────────────────────────────────────────────────────
 
 function useScrollReveal() {
@@ -197,6 +209,8 @@ function LogoImg({ height = 64, style: extraStyle }: { height?: number; style?: 
 // ─── NAVBAR ─────────────────────────────────────────────────────────────────
 
 function Navbar() {
+  const isMobile = useIsMobile()
+
   function scrollTo(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -225,15 +239,15 @@ function Navbar() {
         style={{
           maxWidth: '1200px',
           margin: '0 auto',
-          padding: '0 24px',
-          height: '80px',
+          padding: '0 20px',
+          height: isMobile ? '64px' : '80px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '24px',
+          gap: '16px',
         }}
       >
-        <LogoImg height={64} />
+        <LogoImg height={isMobile ? 44 : 64} />
 
         {/* Links desktop */}
         <div
@@ -272,6 +286,8 @@ function Navbar() {
 // ─── HERO ────────────────────────────────────────────────────────────────────
 
 function Hero() {
+  const isMobile = useIsMobile()
+
   function scrollToFeatures() {
     document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -293,7 +309,7 @@ function Hero() {
       <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(20,18,14,0.62)' }} />
 
       <div
-        style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '80px 24px', maxWidth: '860px', margin: '0 auto' }}
+        style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: isMobile ? '48px 20px' : '80px 24px', maxWidth: '860px', margin: '0 auto' }}
         data-reveal
       >
         <Overline>La plataforma equina profesional</Overline>
@@ -342,18 +358,20 @@ function Hero() {
 // ─── PROBLEMA / SOLUCIÓN ─────────────────────────────────────────────────────
 
 function ProblemaSolucion() {
+  const isMobile = useIsMobile()
+
   return (
-    <section id="problema" style={{ backgroundColor: C.white, padding: '100px 24px' }}>
+    <section id="problema" style={{ backgroundColor: C.white, padding: isMobile ? '64px 20px' : '100px 24px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        <div data-reveal style={{ textAlign: 'center', marginBottom: '64px' }}>
+        <div data-reveal style={{ textAlign: 'center', marginBottom: isMobile ? '40px' : '64px' }}>
           <Overline>Por qué existe HarasManager</Overline>
           <div style={{ height: '16px' }} />
-          <h2 style={{ ...display, fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
+          <h2 style={{ ...display, fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
             La gestión equina merece una herramienta a su altura
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '48px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: isMobile ? '40px' : '48px', alignItems: 'start' }}>
           {/* El problema */}
           <div data-reveal data-delay="100">
             <p style={{ ...body, fontSize: '0.65rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: '#9B8B7A', fontWeight: 500, margin: '0 0 16px' }}>
@@ -370,15 +388,24 @@ function ProblemaSolucion() {
             </p>
           </div>
 
-          {/* Separador vertical */}
-          <div data-reveal style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0' }}>
-            <div style={{ flex: 1, width: '1px', minHeight: '120px', backgroundColor: C.goldSoft }} />
-            <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: C.gold, margin: '12px 0', flexShrink: 0 }} />
-            <div style={{ flex: 1, width: '1px', minHeight: '120px', backgroundColor: C.goldSoft }} />
-          </div>
+          {/* Separador — oculto en mobile */}
+          {!isMobile && (
+            <div data-reveal style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0' }}>
+              <div style={{ flex: 1, width: '1px', minHeight: '120px', backgroundColor: C.goldSoft }} />
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: C.gold, margin: '12px 0', flexShrink: 0 }} />
+              <div style={{ flex: 1, width: '1px', minHeight: '120px', backgroundColor: C.goldSoft }} />
+            </div>
+          )}
 
           {/* La solución */}
           <div data-reveal data-delay="200">
+            {isMobile && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+                <div style={{ flex: 1, height: '1px', backgroundColor: C.goldSoft }} />
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: C.gold, flexShrink: 0 }} />
+                <div style={{ flex: 1, height: '1px', backgroundColor: C.goldSoft }} />
+              </div>
+            )}
             <p style={{ ...body, fontSize: '0.65rem', letterSpacing: '0.3em', textTransform: 'uppercase', color: C.gold, fontWeight: 500, margin: '0 0 16px' }}>
               La solución
             </p>
@@ -435,13 +462,15 @@ const FEATURES = [
 ]
 
 function Features() {
+  const isMobile = useIsMobile()
+
   return (
-    <section id="features" style={{ backgroundColor: C.cream, padding: '100px 24px' }}>
+    <section id="features" style={{ backgroundColor: C.cream, padding: isMobile ? '64px 20px' : '100px 24px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        <div data-reveal style={{ textAlign: 'center', marginBottom: '64px' }}>
+        <div data-reveal style={{ textAlign: 'center', marginBottom: isMobile ? '40px' : '64px' }}>
           <Overline>Funcionalidades</Overline>
           <div style={{ height: '16px' }} />
-          <h2 style={{ ...display, fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
+          <h2 style={{ ...display, fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
             Todo lo que tu haras necesita
           </h2>
         </div>
@@ -449,8 +478,8 @@ function Features() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '24px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
+            gap: '16px',
           }}
         >
           {FEATURES.map((f, i) => (
@@ -520,18 +549,20 @@ function ParaQuien() {
     },
   ]
 
+  const isMobile = useIsMobile()
+
   return (
-    <section id="para-quien" style={{ backgroundColor: C.white, padding: '100px 24px' }}>
+    <section id="para-quien" style={{ backgroundColor: C.white, padding: isMobile ? '64px 20px' : '100px 24px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        <div data-reveal style={{ textAlign: 'center', marginBottom: '72px' }}>
+        <div data-reveal style={{ textAlign: 'center', marginBottom: isMobile ? '40px' : '72px' }}>
           <Overline>Para quién es</Overline>
           <div style={{ height: '16px' }} />
-          <h2 style={{ ...display, fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
+          <h2 style={{ ...display, fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
             Diseñado para los profesionales del mundo equino
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: '24px' }}>
           {perfiles.map((p, i) => (
             <div
               key={p.titulo}
@@ -541,7 +572,7 @@ function ParaQuien() {
                 backgroundColor: C.cream,
                 border: `1px solid ${C.goldSoft}`,
                 borderRadius: '4px',
-                padding: '48px 40px',
+                padding: isMobile ? '32px 24px' : '48px 40px',
               }}
             >
               <p style={{ ...display, fontSize: '3.5rem', fontWeight: 700, color: C.goldPale, margin: '0 0 24px', lineHeight: 1 }}>
@@ -621,6 +652,7 @@ const labelStyle: React.CSSProperties = {
 }
 
 function ContactForm() {
+  const isMobile = useIsMobile()
   const [form, setForm] = useState<FormState>(FORM_INICIAL)
   const [submitState, setSubmitState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
 
@@ -646,7 +678,7 @@ function ContactForm() {
   }
 
   return (
-    <section id="contacto" style={{ backgroundColor: C.white, padding: '100px 24px' }}>
+    <section id="contacto" style={{ backgroundColor: C.white, padding: isMobile ? '64px 20px' : '100px 24px' }}>
       <div style={{ maxWidth: '680px', margin: '0 auto' }}>
         <div data-reveal style={{ textAlign: 'center', marginBottom: '56px' }}>
           <Overline>Demo gratuita</Overline>
@@ -760,7 +792,7 @@ function ContactForm() {
             {/* Módulos de interés */}
             <div>
               <label style={labelStyle}>Módulos que te interesan</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(180px, 100%), 1fr))', gap: '10px' }}>
                 {MODULOS.map((modulo) => {
                   const checked = form.modulos_interes.includes(modulo)
                   return (
@@ -830,6 +862,8 @@ function ContactForm() {
 // ─── FOOTER ──────────────────────────────────────────────────────────────────
 
 function Footer() {
+  const isMobile = useIsMobile()
+
   function scrollTo(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -847,7 +881,7 @@ function Footer() {
   }
 
   return (
-    <footer style={{ backgroundColor: C.charcoal, padding: '64px 24px 40px' }}>
+    <footer style={{ backgroundColor: C.charcoal, padding: isMobile ? '48px 20px 32px' : '64px 24px 40px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
         {/* Logo + tagline */}
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
@@ -917,18 +951,10 @@ function Footer() {
         <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.08)', marginBottom: '28px' }} />
 
         {/* Copyright */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'space-between', alignItems: 'center', gap: '12px', textAlign: isMobile ? 'center' : 'left' }}>
           <p style={{ ...body, fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', margin: 0 }}>
-            © 2025 HarasManager. Todos los derechos reservados.
+            © 2026 HarasManager. Todos los derechos reservados.
           </p>
-          <Link
-            to="/terminos"
-            style={{ ...linkStyle, fontSize: '0.75rem' }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = C.goldSoft)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
-          >
-            Términos y condiciones
-          </Link>
         </div>
       </div>
     </footer>
