@@ -108,7 +108,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
         ? caballoService.listarDelVeterinario(user.id).then((data: any[]) =>
             [...data]
               .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-              .map((c) => ({ id: c.id, nombre: c.nombre, marca_nombre: c.propietario_nombre ?? 'Desconocido' }))
+              .map((c) => ({ id: c.id, nombre: c.nombre, marca_nombre: c.empresa_nombre ?? c.propietario_nombre ?? 'Desconocido' }))
           )
         : caballoService.listar(sociedad?.id ?? '').then((data: any[]) =>
             [...data]
