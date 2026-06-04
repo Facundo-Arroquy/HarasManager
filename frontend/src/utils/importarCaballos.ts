@@ -100,13 +100,13 @@ export function generarPlantillaExcel(catalogs: CatalogContext): void {
   const campo = catalogs.campos[0]?.nombre  ?? ''
 
   const sheetData = [
-    HEADERS,
-    ['Compadre', '2020-05-15', 'Caballo', '', r1, p1, campo, '941000024850001', 'SA-001', 'Don Quijote III', ''],
-    ['La Niña',  '2019-03-20', 'Yegua',   'Donante', r2, p2, campo, '', '', '', 'Yegua Bonita'],
+    [...HEADERS, '_ejemplo'],
+    ['Compadre', '2020-05-15', 'Caballo', '', r1, p1, campo, '941000024850001', 'SA-001', 'Don Quijote III', '', 'SI'],
+    ['La Niña',  '2019-03-20', 'Yegua',   'Donante', r2, p2, campo, '', '', '', 'Yegua Bonita', 'SI'],
   ]
 
   const ws = XLSX.utils.aoa_to_sheet(sheetData)
-  ws['!cols'] = HEADERS.map((h) => ({ wch: Math.max(h.length + 4, 18) }))
+  ws['!cols'] = [...HEADERS, '_ejemplo'].map((h) => ({ wch: Math.max(h.length + 4, 18) }))
   XLSX.utils.book_append_sheet(wb, ws, 'Importar Caballos')
 
   const maxRows = Math.max(catalogs.razas.length, catalogs.pelajes.length, catalogs.campos.length, 1)
@@ -141,7 +141,12 @@ export async function parsearExcel(file: File): Promise<ExcelRow[]> {
           return entry ? entry[1] : ''
         }
 
-        const result: ExcelRow[] = rows.map((row) => {
+        const filteredRows = rows.filter((row) => {
+          const entry = Object.entries(row).find(([k]) => k.toLowerCase().trim() === '_ejemplo')
+          return !entry || String(entry[1]).trim().toUpperCase() !== 'SI'
+        })
+
+        const result: ExcelRow[] = filteredRows.map((row) => {
           const raw = get(row, 'fecha_nacimiento')
           return {
             nombre:           str(get(row, 'nombre')),
