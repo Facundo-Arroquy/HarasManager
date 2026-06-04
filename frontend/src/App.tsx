@@ -6,6 +6,8 @@ import Spinner from './components/ui/Spinner'
 import TerminosModal from './components/ui/TerminosModal'
 import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/auth/LoginPage'
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
+import ResetPasswordPage from './pages/auth/ResetPasswordPage'
 import {
   getTerminosVigentes,
   usuarioAceptoTerminos,
@@ -140,6 +142,8 @@ export default function App() {
       <Routes>
         <Route path="/landing" element={<Suspense fallback={null}><LandingPage /></Suspense>} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route index element={<RootRedirect />} />
 
         {/* Rutas protegidas — todas dentro del AppLayout */}

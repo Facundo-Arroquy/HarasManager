@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Eye, EyeOff, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import logoUrl from '../../assets/logo.png'
@@ -141,6 +141,15 @@ export default function LoginPage() {
             >
               {submitting ? 'Ingresando…' : 'Ingresar'}
             </button>
+
+            <div className="text-center">
+              <Link
+                to="/forgot-password"
+                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
           </form>
         </div>
 
