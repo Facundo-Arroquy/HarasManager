@@ -1,16 +1,9 @@
 import { useState } from 'react'
-import { UserPlus, CheckCircle2, AlertCircle, Lock } from 'lucide-react'
-import Tooltip from '../../components/ui/Tooltip'
-
-// ── TEMPORALMENTE DESHABILITADO ──────────────────────────────────────────────
-// Se reactiva cuando esté lista la lógica de invitaciones en producción.
-const HABILITADO = false
-// ─────────────────────────────────────────────────────────────────────────────
+import { Search, UserPlus, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { isMockMode } from '../../dev/mockMode'
 import { getSupabaseClient } from '../../lib/supabase'
 
-// Roles disponibles (mirror de cat_rol seed)
 const ROLES = [
   { id: 1, nombre: 'admin',       label: 'Admin' },
   { id: 2, nombre: 'veterinario', label: 'Veterinario' },
@@ -19,136 +12,131 @@ const ROLES = [
   { id: 5, nombre: 'peticero',    label: 'Peticero' },
 ]
 
-function generateTempPassword(): string {
-  return crypto.randomUUID().replace(/-/g, '') + 'Aa1!'
+interface UsuarioEncontrado {
+  id: string
+  nombre: string
+  apellido: string
+  email: string
 }
 
 export default function InvitarUsuarioTab() {
   const { sociedadActiva } = useAuth()
 
-  const [loading,  setLoading]  = useState(false)
-  const [success,  setSuccess]  = useState<string | null>(null)
-  const [error,    setError]    = useState<string | null>(null)
-
-  // Campos del formulario
-  const [nombre,   setNombre]   = useState('')
-  const [apellido, setApellido] = useState('')
-  const [email,    setEmail]    = useState('')
-  const [rolId,    setRolId]    = useState<number>(2)  // veterinario por defecto
+  const [email,     setEmail]     = useState('')
+  const [buscando,  setBuscando]  = useState(false)
+  const [usuario,   setUsuario]   = useState<UsuarioEncontrado | null>(null)
+  const [buscado,   setBuscado]   = useState(false)
+  const [rolId,     setRolId]     = useState<number>(2)
+  const [enviando,  setEnviando]  = useState(false)
+  const [success,   setSuccess]   = useState<string | null>(null)
+  const [error,     setError]     = useState<string | null>(null)
 
   function reset() {
-    setNombre(''); setApellido(''); setEmail('')
+    setEmail('')
+    setUsuario(null)
+    setBuscado(false)
     setRolId(2)
     setError(null)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleBuscar(e: React.FormEvent) {
     e.preventDefault()
-    if (!sociedadActiva) return
-    if (!nombre.trim() || !apellido.trim() || !email.trim()) {
-      setError('Completá nombre, apellido y email.'); return
-    }
+    if (!email.trim()) return
 
-    setLoading(true); setError(null); setSuccess(null)
+    setBuscando(true)
+    setError(null)
+    setUsuario(null)
+    setBuscado(false)
 
     try {
       if (isMockMode()) {
-        // En mock: simular éxito sin llamadas reales
-        await new Promise((r) => setTimeout(r, 600))
-        setSuccess(`Invitación enviada a ${email} (simulado en modo demo).`)
+        await new Promise((r) => setTimeout(r, 400))
+        setUsuario({ id: 'mock-vet', nombre: 'Carlos', apellido: 'Gómez', email: email.trim() })
+        setBuscado(true)
+        return
+      }
+
+      const supabase = getSupabaseClient()
+      const { data, error: rpcError } = await supabase.rpc('buscar_usuario_por_email', {
+        p_email: email.trim(),
+      })
+
+      if (rpcError) throw rpcError
+
+      if (!data || data.length === 0) {
+        setUsuario(null)
+      } else {
+        setUsuario(data[0] as UsuarioEncontrado)
+      }
+      setBuscado(true)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al buscar el usuario.')
+    } finally {
+      setBuscando(false)
+    }
+  }
+
+  async function handleInvitar() {
+    if (!usuario || !sociedadActiva) return
+
+    setEnviando(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      if (isMockMode()) {
+        await new Promise((r) => setTimeout(r, 500))
+        setSuccess(`${usuario.nombre} ${usuario.apellido} fue agregado al haras.`)
         reset()
         return
       }
 
       const supabase = getSupabaseClient()
 
-      // 1. Crear usuario en auth (dispara el trigger → crea public.usuario)
-      const { data: authData, error: signUpErr } = await supabase.auth.signUp({
-        email,
-        password: generateTempPassword(),
-        options: {
-          data: { nombre: nombre.trim(), apellido: apellido.trim() },
-          emailRedirectTo: window.location.origin,
-        },
-      })
+      // Verificar que no tenga ya una membresía activa en esta sociedad
+      const { data: membExist } = await supabase
+        .from('membresia')
+        .select('id')
+        .eq('usuario_id', usuario.id)
+        .eq('sociedad_id', sociedadActiva.id)
+        .eq('activa', true)
+        .maybeSingle()
 
-      if (signUpErr) {
-        // Mensajes más amigables para errores comunes
-        if (signUpErr.message.includes('Signups not allowed')) {
-          setError(
-            'El registro público está deshabilitado en Supabase. ' +
-            'Habilitalo en Authentication → Settings → Allow new users to sign up.'
-          )
-        } else if (signUpErr.message.includes('already registered')) {
-          setError('Ya existe un usuario con ese email.')
-        } else {
-          setError(signUpErr.message)
-        }
+      if (membExist) {
+        setError('Este usuario ya es miembro activo del haras.')
         return
       }
 
-      const userId = authData.user?.id
-      if (!userId) {
-        setError('No se pudo obtener el ID del usuario creado.')
-        return
-      }
-
-      // 2. Crear membresía (permitido para admin por RLS)
       const { error: membErr } = await supabase.from('membresia').insert({
-        usuario_id:  userId,
+        usuario_id:  usuario.id,
         sociedad_id: sociedadActiva.id,
         rol_id:      rolId,
         activa:      true,
       })
 
-      if (membErr) {
-        setError('Usuario creado pero no se pudo asignar el rol: ' + membErr.message)
-        return
-      }
+      if (membErr) throw membErr
 
-      setSuccess(`Invitación enviada a ${email}. El usuario recibirá un email para confirmar su cuenta.`)
+      setSuccess(`${usuario.nombre} ${usuario.apellido} fue agregado al haras correctamente.`)
       reset()
-
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error inesperado.')
+      setError(e instanceof Error ? e.message : 'Error al agregar al usuario.')
     } finally {
-      setLoading(false)
+      setEnviando(false)
     }
-  }
-
-  if (!HABILITADO) {
-    return (
-      <div className="max-w-lg">
-        <div>
-          <h2 className="text-sm font-medium text-slate-600">Invitar nuevo usuario</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            El usuario recibirá un email para activar su cuenta y establecer su contraseña.
-          </p>
-        </div>
-        <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50 py-12 text-center">
-          <Lock size={24} className="text-slate-400" />
-          <p className="text-sm font-medium text-slate-500">Próximamente</p>
-          <p className="text-xs text-slate-400 max-w-xs">
-            Esta función estará disponible en una próxima versión.
-          </p>
-        </div>
-      </div>
-    )
   }
 
   return (
     <div className="max-w-lg space-y-6">
 
       <div>
-        <h2 className="text-sm font-medium text-slate-600">Invitar nuevo usuario</h2>
+        <h2 className="text-sm font-medium text-slate-600">Invitar usuario existente</h2>
         <p className="text-xs text-slate-400 mt-0.5">
-          El usuario recibirá un email para activar su cuenta y establecer su contraseña.
+          Buscá por email a un usuario ya registrado en la plataforma para agregarlo a este haras.
         </p>
       </div>
 
-      {/* Feedback */}
       {success && (
-        <div className="flex items-start gap-3 rounded-lg border border-emerald-800 bg-brand-50/50 px-4 py-3 text-sm text-brand-500">
+        <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
           <span>{success}</span>
         </div>
@@ -160,79 +148,69 @@ export default function InvitarUsuarioTab() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Nombre + Apellido */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className={field}>
-            <label className={label}>Nombre *</label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="María"
-              className={input}
-              required
-            />
-          </div>
-          <div className={field}>
-            <label className={label}>Apellido *</label>
-            <input
-              type="text"
-              value={apellido}
-              onChange={(e) => setApellido(e.target.value)}
-              placeholder="García"
-              className={input}
-              required
-            />
-          </div>
-        </div>
-
-        {/* Email */}
-        <div className={field}>
-          <label className={label}>Email *</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="maria@ejemplo.com"
-            className={input}
-            required
-          />
-        </div>
-
-        {/* Rol */}
-        <div className={field}>
-          <div className="flex items-center gap-1.5">
-            <label className={label}>Rol *</label>
-            <Tooltip text="Define qué puede hacer el usuario: Admin (gestión completa), Veterinario (registros clínicos), Piloto / Jugador (solo ve sus caballos), Peticero (vista limitada)." />
-          </div>
-          <select
-            value={rolId}
-            onChange={(e) => setRolId(Number(e.target.value))}
-            className={select}
-          >
-            {ROLES.map((r) => (
-              <option key={r.id} value={r.id}>{r.label}</option>
-            ))}
-          </select>
-        </div>
-
+      {/* Búsqueda por email */}
+      <form onSubmit={handleBuscar} className="flex gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => { setEmail(e.target.value); setBuscado(false); setUsuario(null) }}
+          placeholder="email@ejemplo.com"
+          className="flex-1 rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:border-brand-400 focus:outline-none"
+          required
+        />
         <button
           type="submit"
-          disabled={loading}
-          className="flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-500 disabled:opacity-50 px-5 py-2.5 text-sm font-medium text-white transition-colors"
+          disabled={buscando || !email.trim()}
+          className="flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors"
         >
-          <UserPlus size={15} />
-          {loading ? 'Enviando…' : 'Enviar invitación'}
+          <Search size={14} />
+          {buscando ? 'Buscando…' : 'Buscar'}
         </button>
       </form>
+
+      {/* Resultado de búsqueda */}
+      {buscado && !usuario && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          No existe ningún usuario con ese email en la plataforma.{' '}
+          <span className="font-medium">Pedile al superadmin que lo cree primero.</span>
+        </div>
+      )}
+
+      {usuario && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700 shrink-0">
+              {usuario.nombre[0]}{usuario.apellido[0]}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-800">{usuario.nombre} {usuario.apellido}</p>
+              <p className="text-xs text-slate-400 truncate">{usuario.email}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-slate-500">Rol en este haras *</label>
+            <select
+              value={rolId}
+              onChange={(e) => setRolId(Number(e.target.value))}
+              className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none"
+            >
+              {ROLES.map((r) => (
+                <option key={r.id} value={r.id}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={handleInvitar}
+            disabled={enviando}
+            className="flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-600 disabled:opacity-50 px-5 py-2.5 text-sm font-medium text-white transition-colors"
+          >
+            <UserPlus size={15} />
+            {enviando ? 'Agregando…' : 'Agregar al haras'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-const field  = 'flex flex-col gap-1'
-const label  = 'text-xs font-medium text-slate-500'
-const base   = 'rounded-lg border border-slate-300 bg-slate-100 text-sm text-slate-700 placeholder-slate-400 focus:border-brand-400 focus:outline-none px-3 py-2 w-full'
-const input  = base
-const select = base
