@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Search, Plus, MapPin, CheckSquare, X, Building2, LayoutList } from 'lucide-react'
+import { Search, Plus, MapPin, CheckSquare, X, Building2, LayoutList, FileDown } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
@@ -9,6 +9,7 @@ import CaballoDetalleModal from '../../components/domain/CaballoDetalleModal'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
+import ImportarCaballosModal from '../../components/domain/ImportarCaballosModal'
 import Spinner from '../../components/ui/Spinner'
 
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
@@ -46,6 +47,7 @@ export default function CaballosPage() {
 
   const [showConsulta,   setShowConsulta]   = useState(false)
   const [showNuevo,      setShowNuevo]      = useState(false)
+  const [showImportar,   setShowImportar]   = useState(false)
   const [caballoDetalle, setCaballoDetalle] = useState<Caballo | null>(null)
   const [caballoEditar,  setCaballoEditar]  = useState<Caballo | null>(null)
 
@@ -253,6 +255,16 @@ export default function CaballosPage() {
               </button>
               <Tooltip text="Seleccioná varios caballos y aplicá el mismo campo, categoría o rol reproductivo a todos en un solo paso." />
             </div>
+          )}
+          {rol === 'admin' && !modoSeleccion && (
+            <button
+              onClick={() => setShowImportar(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
+              title="Importar caballos por Excel"
+            >
+              <FileDown size={15} />
+              <span className="hidden sm:inline">Importar Excel</span>
+            </button>
           )}
           {modoSeleccion && (
             <button
@@ -507,6 +519,12 @@ export default function CaballosPage() {
         </div>
       )}
 
+      {showImportar && (
+        <ImportarCaballosModal
+          onClose={() => setShowImportar(false)}
+          onSuccess={() => { setShowImportar(false); cargar() }}
+        />
+      )}
       {showConsulta && (
         <NuevaConsultaModal onClose={() => setShowConsulta(false)} onSuccess={cargar} />
       )}

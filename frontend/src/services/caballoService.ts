@@ -3,6 +3,7 @@ import { isMockMode, getMockUserId } from '../dev/mockMode'
 import { getMockUser } from '../dev/mockUsers'
 import { MOCK_SOCIEDAD } from '../dev/mockUsers'
 import { MOCK_CABALLOS, MOCK_ACCESOS_VET, MOCK_RAZAS, MOCK_PELAJES, MOCK_SOCIEDADES } from '../dev/mockData'
+import type { BulkCaballoPayload } from '../utils/importarCaballos'
 
 // Lookup de nombre de empresa por sociedad_id (mock)
 function getEmpresaNombre(sociedadId: string): string {
@@ -37,11 +38,11 @@ export interface Caballo {
 
 export interface ActualizarCaballoPayload {
   nombre: string
-  fecha_nacimiento: string
+  fecha_nacimiento?: string | null
   categoria: 'Caballo' | 'Yegua' | 'Padrillo' | 'Potrillo'
   rol_reproductivo?: Subcategoria | null
-  raza_id: number
-  pelaje_id: number
+  raza_id?: number | null
+  pelaje_id?: number | null
   numero_chip?: string
   numero_registro?: string
   campo_id?: string | null
@@ -53,11 +54,11 @@ export interface ActualizarCaballoPayload {
 
 export interface NuevoCaballoPayload {
   nombre: string
-  fecha_nacimiento: string
+  fecha_nacimiento?: string | null
   categoria: 'Caballo' | 'Yegua' | 'Padrillo' | 'Potrillo'
   rol_reproductivo?: Subcategoria | null
-  raza_id: number
-  pelaje_id: number
+  raza_id?: number | null
+  pelaje_id?: number | null
   numero_chip?: string
   numero_registro?: string
   campo_id?: string | null
@@ -350,5 +351,69 @@ export const caballoService = {
       .update({ activo: false })
       .eq('id', id)
     if (error) throw error
+  },
+
+  async importarMasivo(
+    payloads: BulkCaballoPayload[],
+    sociedadId: string,
+  ): Promise<{ insertados: number; errores: { index: number; message: string }[] }> {
+    if (isMockMode()) {
+      const { MOCK_CAMPOS } = await import('../dev/mockData')
+      let insertados = 0
+      for (let i = 0; i < payloads.length; i++) {
+        const p = payloads[i]
+        const raza   = MOCK_RAZAS.find((r) => r.id === p.raza_id)
+        const pelaje = MOCK_PELAJES.find((pl) => pl.id === p.pelaje_id)
+        const campo  = p.campo_id ? MOCK_CAMPOS.find((c) => c.id === p.campo_id) : null
+        MOCK_CABALLOS.push({
+          id:              `cab-${Date.now()}-${i}`,
+          nombre:          p.nombre,
+          fecha_nacimiento: p.fecha_nacimiento ?? '',
+          categoria:       p.categoria,
+          rol_reproductivo: p.rol_reproductivo ?? null,
+          raza_id:         p.raza_id,
+          pelaje_id:       p.pelaje_id,
+          numero_chip:     p.numero_chip ?? '',
+          numero_registro: p.numero_registro ?? '',
+          sociedad_id:     sociedadId,
+          campo_id:        p.campo_id ?? null,
+          activo:          true,
+          cat_raza:        raza   ? { nombre: raza.nombre }   : null,
+          cat_pelaje:      pelaje ? { nombre: pelaje.nombre } : null,
+          campo:           campo  ? { nombre: campo.nombre }  : null,
+        })
+        insertados++
+      }
+      return { insertados, errores: [] }
+    }
+
+    const supabase = getSupabaseClient()
+    const rows = payloads.map((p) => ({
+      nombre:           p.nombre,
+      fecha_nacimiento: p.fecha_nacimiento,
+      categoria:        p.categoria,
+      rol_reproductivo: p.rol_reproductivo ?? null,
+      raza_id:          p.raza_id,
+      pelaje_id:        p.pelaje_id,
+      numero_chip:      p.numero_chip      ?? null,
+      numero_registro:  p.numero_registro  ?? null,
+      sociedad_id:      sociedadId,
+      campo_id:         p.campo_id         ?? null,
+      padre_nombre:     p.padre_nombre     ?? null,
+      madre_nombre:     p.madre_nombre     ?? null,
+    }))
+
+    const { error: bulkError } = await supabase.from('caballo').insert(rows)
+    if (!bulkError) return { insertados: payloads.length, errores: [] }
+
+    // Fallback: inserción individual para aislar errores
+    let insertados = 0
+    const errores: { index: number; message: string }[] = []
+    for (let i = 0; i < rows.length; i++) {
+      const { error } = await supabase.from('caballo').insert(rows[i])
+      if (error) errores.push({ index: i + 1, message: error.message })
+      else insertados++
+    }
+    return { insertados, errores }
   },
 }
