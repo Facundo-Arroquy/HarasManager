@@ -375,6 +375,23 @@ HarasManager/
 
 ---
 
+## Migraciones
+
+Las migraciones **se aplican manualmente** pegando el SQL en el **SQL Editor de Supabase Dashboard**.
+No se usa `supabase db push` ni `supabase migration up` — la CLI no trackea qué migraciones
+fueron ejecutadas, por lo que correr esos comandos intentaría aplicar todo de nuevo.
+
+Los archivos en `supabase/migrations/` sirven como historial documentado de los cambios a la DB
+y como fuente de verdad para recrear el esquema en un entorno nuevo.
+
+**Flujo para aplicar una migración:**
+1. Crear el archivo `.sql` en `supabase/migrations/` siguiendo el formato `YYYYMMDDNNNNN_descripcion.sql`
+2. Ir a Supabase Dashboard → SQL Editor
+3. Pegar el contenido del archivo y ejecutar
+4. Hacer commit del archivo en la rama correspondiente
+
+---
+
 ## Convenciones de Código
 
 ### Base de datos
