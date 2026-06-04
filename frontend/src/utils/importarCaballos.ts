@@ -93,12 +93,11 @@ function capitalize(s: string): string {
 export function generarPlantillaExcel(catalogs: CatalogContext): void {
   const wb = XLSX.utils.book_new()
 
-  const r1 = catalogs.razas[0]?.nombre ?? 'Cuarto de Milla'
-  const r2 = catalogs.razas[1]?.nombre ?? r1
-  const p1 = catalogs.pelajes[0]?.nombre ?? 'Zaino'
-  const p2 = catalogs.pelajes[1]?.nombre ?? p1
-  const campo = catalogs.campos[0]?.nombre ?? 'Potrero Norte'
-  const marca = catalogs.marcas[0]?.nombre ?? ''
+  const r1    = catalogs.razas[0]?.nombre   ?? ''
+  const r2    = catalogs.razas[1]?.nombre   ?? r1
+  const p1    = catalogs.pelajes[0]?.nombre ?? ''
+  const p2    = catalogs.pelajes[1]?.nombre ?? p1
+  const campo = catalogs.campos[0]?.nombre  ?? ''
 
   const sheetData = [
     HEADERS,
