@@ -31,8 +31,8 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
     fecha_nacimiento: '',
     categoria: 'Caballo' as NuevoCaballoPayload['categoria'],
     subcategoria: '' as string,
-    raza_id: 0,
-    pelaje_id: 0,
+    raza_id: 0,    // 0 = sin selección
+    pelaje_id: 0,  // 0 = sin selección
     numero_chip: '',
     numero_registro: '',
     campo_id: '' as string,
@@ -61,11 +61,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       setPelajes(p)
       setCampos(c)
       setCaballos(cabs as Caballo[])
-      setForm((f) => ({
-        ...f,
-        raza_id:   r[0]?.id ?? 0,
-        pelaje_id: p[0]?.id ?? 0,
-      }))
+      // No pre-seleccionamos raza/pelaje — el admin elige o deja vacío
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -75,25 +71,22 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.nombre.trim())       return setError('El nombre es requerido.')
-    if (!form.fecha_nacimiento)    return setError('La fecha de nacimiento es requerida.')
-    if (!form.raza_id)             return setError('Seleccioná una raza.')
-    if (!form.pelaje_id)           return setError('Seleccioná un pelaje.')
+    if (!form.nombre.trim())         return setError('El nombre es requerido.')
     if (!vetMode && !sociedadActiva) return
-    if (vetMode && !userId)        return
+    if (vetMode && !userId)          return
 
     setSaving(true)
     setError('')
 
     const payload: NuevoCaballoPayload = {
       nombre:           form.nombre.trim(),
-      fecha_nacimiento: form.fecha_nacimiento,
       categoria:        form.categoria,
       rol_reproductivo: form.categoria === 'Yegua' && form.subcategoria
                           ? form.subcategoria as 'Donante' | 'Receptora'
                           : null,
-      raza_id:          Number(form.raza_id),
-      pelaje_id:        Number(form.pelaje_id),
+      raza_id:          form.raza_id   || null,
+      pelaje_id:        form.pelaje_id || null,
+      fecha_nacimiento: form.fecha_nacimiento || null,
       numero_chip:      form.numero_chip.trim() || undefined,
       numero_registro:  form.numero_registro.trim() || undefined,
       campo_id:         vetMode ? null : (form.campo_id || null),
@@ -158,7 +151,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
           {/* Fecha + Categoría */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Fecha nacimiento *</label>
+              <label className="text-xs font-medium text-slate-500">Fecha nacimiento</label>
               <input
                 type="date"
                 value={form.fecha_nacimiento}
@@ -167,7 +160,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Categoría *</label>
+              <label className="text-xs font-medium text-slate-500">Categoría</label>
               <select
                 value={form.categoria}
                 onChange={(e) => set('categoria', e.target.value)}
@@ -221,22 +214,24 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
           {/* Raza + Pelaje */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Raza *</label>
+              <label className="text-xs font-medium text-slate-500">Raza</label>
               <select
                 value={form.raza_id}
                 onChange={(e) => set('raza_id', Number(e.target.value))}
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               >
+                <option value={0}>— Sin especificar —</option>
                 {razas.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Pelaje *</label>
+              <label className="text-xs font-medium text-slate-500">Pelaje</label>
               <select
                 value={form.pelaje_id}
                 onChange={(e) => set('pelaje_id', Number(e.target.value))}
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               >
+                <option value={0}>— Sin especificar —</option>
                 {pelajes.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
             </div>
