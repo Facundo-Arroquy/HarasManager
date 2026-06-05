@@ -15,7 +15,7 @@ type AnimalItem = {
   categoria: string
   rol_reproductivo: RolReproductivo
   campo: { nombre: string } | null
-  marca: { nombre: string } | null
+  marca?: { nombre: string } | null
 }
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────

@@ -210,7 +210,7 @@ export function validarYMapear(rows: ExcelRow[], catalogs: CatalogContext): Pars
     if (catRaw) {
       const norm = capitalize(catRaw)
       if (CATEGORIAS_VALIDAS.has(norm)) {
-        categoria = norm as typeof categoria
+        categoria = norm as 'Caballo' | 'Yegua' | 'Padrillo' | 'Potrillo'
       } else {
         warn('categoria', `Categoría "${catRaw}" inválida — se usará "Caballo"`)
       }

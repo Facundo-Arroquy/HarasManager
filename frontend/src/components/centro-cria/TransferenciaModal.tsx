@@ -119,7 +119,7 @@ export default function TransferenciaModal({
 
       // 2. Crear la transferencia vinculada a ese registro
       await crearTransferencia({
-        sociedad_id:          sociedadActiva.id,
+        sociedad_id:          efectivaSociedadId,
         fecha,
         veterinario_id:       user.id,
         registro_id:          registro.id,
