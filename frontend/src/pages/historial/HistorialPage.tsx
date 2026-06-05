@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch, Printer, ImageIcon } from 'lucide-react'
+import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch, Printer, ImageIcon, Pencil } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { historialService } from '../../services/historialService'
@@ -12,6 +12,7 @@ import Spinner from '../../components/ui/Spinner'
 import FotoCaballo from '../../components/domain/FotoCaballo'
 import HistorialCard, { type HistorialEntry } from '../../components/domain/HistorialCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
+import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import ArbolGenealogico from '../../components/domain/ArbolGenealogico'
 import type { RegistroClinicoCria, Flushing, TransferenciaEmbrionaria } from '../../types/crianza'
 
@@ -35,6 +36,7 @@ export default function HistorialPage() {
   const [loading,    setLoading]    = useState(true)
   const [error,      setError]      = useState<string | null>(null)
   const [showModal,   setShowModal]   = useState(false)
+  const [showEditar,  setShowEditar]  = useState(false)
   const [entryToEdit, setEntryToEdit] = useState<HistorialEntry | null>(null)
 
   const [tab, setTab] = useState<'clinico' | 'reproductivo' | 'genealogia' | 'foto'>('clinico')
@@ -152,6 +154,15 @@ export default function HistorialPage() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* Editar caballo — admin, jugador, piloto y veterinario */}
+            {(rol === 'admin' || rol === 'jugador' || rol === 'piloto' || rol === 'veterinario') && (
+              <button
+                onClick={() => setShowEditar(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-slate-100 hover:bg-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors"
+              >
+                <Pencil size={15} /> Editar
+              </button>
+            )}
             {/* Exportar ficha — admin y veterinario */}
             {(rol === 'admin' || rol === 'veterinario') && (
               <>
@@ -439,13 +450,27 @@ export default function HistorialPage() {
         </div>
       )}
 
-      {/* Modal nueva consulta o edición */}
+      {/* Modal nueva consulta o edición de historial */}
       {(showModal || !!entryToEdit) && id && (
         <NuevaConsultaModal
           caballoId={id}
           entryToEdit={entryToEdit ?? undefined}
           onClose={() => { setShowModal(false); setEntryToEdit(null) }}
           onSuccess={cargarHistorial}
+        />
+      )}
+
+      {/* Modal editar caballo */}
+      {showEditar && caballo && (
+        <EditarCaballoModal
+          caballo={caballo}
+          caballos={todosCaballos}
+          vetMode={rol === 'veterinario'}
+          onClose={() => setShowEditar(false)}
+          onSuccess={() => {
+            setShowEditar(false)
+            caballoService.obtener(caballo.id).then(setCaballo).catch(() => {})
+          }}
         />
       )}
     </div>

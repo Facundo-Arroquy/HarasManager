@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Search, Plus, MapPin, CheckSquare, X, Building2, LayoutList, FileDown } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
-import CaballoDetalleModal from '../../components/domain/CaballoDetalleModal'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
-import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import ImportarCaballosModal from '../../components/domain/ImportarCaballosModal'
 import Spinner from '../../components/ui/Spinner'
 
@@ -25,6 +24,7 @@ const canManageCampos = (rol: string | null) =>
   rol === 'admin' || rol === 'jugador' || rol === 'piloto'
 
 export default function CaballosPage() {
+  const navigate   = useNavigate()
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const userId     = useAuthStore((s) => s.user?.id)
   const rol        = useAuthStore((s) => s.rol)
@@ -45,11 +45,9 @@ export default function CaballosPage() {
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
 
-  const [showConsulta,   setShowConsulta]   = useState(false)
-  const [showNuevo,      setShowNuevo]      = useState(false)
-  const [showImportar,   setShowImportar]   = useState(false)
-  const [caballoDetalle, setCaballoDetalle] = useState<Caballo | null>(null)
-  const [caballoEditar,  setCaballoEditar]  = useState<Caballo | null>(null)
+  const [showConsulta, setShowConsulta] = useState(false)
+  const [showNuevo,    setShowNuevo]    = useState(false)
+  const [showImportar, setShowImportar] = useState(false)
 
   // ── Selección masiva ────────────────────────────────────────────────────────
   const [modoSeleccion,    setModoSeleccion]    = useState(false)
@@ -441,7 +439,7 @@ export default function CaballosPage() {
               key={empresaId}
               empresaNombre={nombre}
               caballos={cabs}
-              onDetalle={setCaballoDetalle}
+              onDetalle={(c) => navigate(`/caballos/${c.id}/historial`)}
               modoSeleccion={modoSeleccion}
               seleccionados={seleccionados}
               onToggle={toggleSeleccion}
@@ -459,7 +457,7 @@ export default function CaballosPage() {
                   caballos={grupos[campo.id] ?? []}
                   rol={rol}
                   onCampoChange={cargar}
-                  onDetalle={setCaballoDetalle}
+                  onDetalle={(c) => navigate(`/caballos/${c.id}/historial`)}
                   modoSeleccion={modoSeleccion}
                   seleccionados={seleccionados}
                   onToggle={toggleSeleccion}
@@ -473,7 +471,7 @@ export default function CaballosPage() {
                   caballos={sinCampo}
                   rol={rol}
                   onCampoChange={cargar}
-                  onDetalle={setCaballoDetalle}
+                  onDetalle={(c) => navigate(`/caballos/${c.id}/historial`)}
                   modoSeleccion={modoSeleccion}
                   seleccionados={seleccionados}
                   onToggle={toggleSeleccion}
@@ -494,7 +492,7 @@ export default function CaballosPage() {
                   caballos={grupos[campo.id]}
                   rol={rol}
                   onCampoChange={cargar}
-                  onDetalle={setCaballoDetalle}
+                  onDetalle={(c) => navigate(`/caballos/${c.id}/historial`)}
                   modoSeleccion={modoSeleccion}
                   seleccionados={seleccionados}
                   onToggle={toggleSeleccion}
@@ -507,7 +505,7 @@ export default function CaballosPage() {
                   caballos={sinCampo}
                   rol={rol}
                   onCampoChange={cargar}
-                  onDetalle={setCaballoDetalle}
+                  onDetalle={(c) => navigate(`/caballos/${c.id}/historial`)}
                   modoSeleccion={modoSeleccion}
                   seleccionados={seleccionados}
                   onToggle={toggleSeleccion}
@@ -533,23 +531,6 @@ export default function CaballosPage() {
           onClose={() => setShowNuevo(false)}
           onSuccess={() => { setShowNuevo(false); cargar() }}
           vetMode={esVet}
-        />
-      )}
-      {caballoDetalle && (
-        <CaballoDetalleModal
-          caballo={caballoDetalle}
-          puedeEditar={canManageCampos(rol) || esVet}
-          onClose={() => setCaballoDetalle(null)}
-          onEditar={() => { setCaballoDetalle(null); setCaballoEditar(caballoDetalle) }}
-        />
-      )}
-      {caballoEditar && (
-        <EditarCaballoModal
-          caballo={caballoEditar}
-          caballos={caballos}
-          vetMode={esVet}
-          onClose={() => setCaballoEditar(null)}
-          onSuccess={() => { setCaballoEditar(null); cargar() }}
         />
       )}
 
