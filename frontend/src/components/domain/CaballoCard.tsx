@@ -9,6 +9,7 @@ interface CaballoCardProps {
     fecha_nacimiento?: string | null
     categoria?: string | null
     rol_reproductivo?: string | null
+    prenada?: boolean | null
     numero_registro?: string | null
     cat_raza?: { nombre: string } | null
     cat_pelaje?: { nombre: string } | null
@@ -98,6 +99,11 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
         {subBadgeClass && caballo.rol_reproductivo && (
           <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${subBadgeClass}`}>
             {caballo.rol_reproductivo}
+          </span>
+        )}
+        {caballo.categoria === 'Yegua' && caballo.prenada && (
+          <span className="rounded-full px-2 py-0.5 text-[11px] font-medium bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200">
+            Preñada
           </span>
         )}
       </span>
