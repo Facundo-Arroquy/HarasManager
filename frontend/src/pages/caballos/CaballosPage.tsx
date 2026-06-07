@@ -151,7 +151,9 @@ export default function CaballosPage() {
       const mes      = fn ? fn.slice(0, 7) : null // "YYYY-MM"
       const okDesde  = !filtroDesde || (mes !== null && mes >= filtroDesde)
       const okHasta  = !filtroHasta || (mes !== null && mes <= filtroHasta)
-      return okNombre && okCat && okDesde && okHasta
+      // Las yeguas receptoras se gestionan desde "Caballos Centro" (Centro de Embriones)
+      const okRol    = !(c.categoria === 'Yegua' && (c as any).rol_reproductivo === 'Receptora')
+      return okNombre && okCat && okDesde && okHasta && okRol
     })
     if (ordenSubcat === 'ninguno') return base
     const orden = ORDEN_SUBCAT[ordenSubcat]
