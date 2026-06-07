@@ -34,9 +34,11 @@ export const fotoService = {
     }
 
     const supabase = getSupabaseClient()
+    // Intentar borrar si ya existe para evitar conflictos de UPDATE en RLS
+    await supabase.storage.from(BUCKET).remove([caballoId])
     const { error } = await supabase.storage
       .from(BUCKET)
-      .upload(caballoId, file, { upsert: true, contentType: file.type })
+      .upload(caballoId, file, { contentType: file.type })
 
     if (error) throw new Error(error.message)
     localStorage.setItem(VERSION_KEY(caballoId), Date.now().toString())
