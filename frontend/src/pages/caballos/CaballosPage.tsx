@@ -41,7 +41,6 @@ export default function CaballosPage() {
   const [error,    setError]    = useState<string | null>(null)
   const [busqueda,    setBusqueda]    = useState('')
   const [filtro,      setFiltro]      = useState('Todos')
-  const [ordenSubcat, setOrdenSubcat] = useState<'ninguno' | 'receptoras' | 'donantes'>('ninguno')
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
 
@@ -138,29 +137,19 @@ export default function CaballosPage() {
     }
   }
 
-  const ORDEN_SUBCAT: Record<string, Record<string, number>> = {
-    receptoras: { Receptora: 0, Donante: 1 },
-    donantes:   { Donante: 0, Receptora: 1 },
-  }
-
   const filtrados = useMemo(() => {
-    const base = caballos.filter((c) => {
+    return caballos.filter((c) => {
       const okNombre = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
       const okCat    = filtro === 'Todos' || c.categoria === filtro
       const fn       = (c as any).fecha_nacimiento as string | null
       const mes      = fn ? fn.slice(0, 7) : null // "YYYY-MM"
       const okDesde  = !filtroDesde || (mes !== null && mes >= filtroDesde)
       const okHasta  = !filtroHasta || (mes !== null && mes <= filtroHasta)
-      return okNombre && okCat && okDesde && okHasta
+      // Las yeguas receptoras se gestionan desde "Caballos Centro" (Centro de Embriones)
+      const okRol    = !(c.categoria === 'Yegua' && (c as any).rol_reproductivo === 'Receptora')
+      return okNombre && okCat && okDesde && okHasta && okRol
     })
-    if (ordenSubcat === 'ninguno') return base
-    const orden = ORDEN_SUBCAT[ordenSubcat]
-    return [...base].sort((a, b) => {
-      const pa = orden[(a as any).rol_reproductivo ?? ''] ?? 2
-      const pb = orden[(b as any).rol_reproductivo ?? ''] ?? 2
-      return pa - pb
-    })
-  }, [caballos, busqueda, filtro, ordenSubcat, filtroDesde, filtroHasta]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [caballos, busqueda, filtro, filtroDesde, filtroHasta]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const grupos = useMemo(() => {
     const byCampo: Record<string, Caballo[]> = {}
@@ -357,38 +346,6 @@ export default function CaballosPage() {
                 </button>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Orden por rol reproductivo: select en mobile, botones en sm+ */}
-        {!modoSeleccion && (
-          <div className="flex items-center gap-2">
-            {/* Mobile: select */}
-            <select
-              value={ordenSubcat}
-              onChange={(e) => setOrdenSubcat(e.target.value as typeof ordenSubcat)}
-              className="sm:hidden flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
-            >
-              <option value="ninguno">Orden: por defecto</option>
-              <option value="receptoras">Receptoras primero</option>
-              <option value="donantes">Donantes primero</option>
-            </select>
-            {/* Desktop: botones */}
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Orden:</span>
-              <Tooltip text="Reordena el listado poniendo primero las yeguas con ese rol reproductivo. No filtra, solo cambia el orden." />
-              {(['ninguno', 'receptoras', 'donantes'] as const).map((op) => (
-                <button
-                  key={op}
-                  onClick={() => setOrdenSubcat(op)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                    ordenSubcat === op ? 'bg-slate-200 text-slate-900' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                  }`}
-                >
-                  {op === 'ninguno' ? 'Por defecto' : op === 'receptoras' ? 'Receptoras primero' : 'Donantes primero'}
-                </button>
-              ))}
-            </div>
           </div>
         )}
 

@@ -39,6 +39,7 @@ export const NAV_GROUPS: NavGroup[] = [
     requiresAccesoCentro: true,
     items: [
       { to: '/centro-cria',                label: 'Panel reproductivo', icon: <FlaskConical size={18} /> },
+      { to: '/centro-cria/caballos',       label: 'Caballos Centro',    icon: <LayoutGrid size={18} /> },
       { to: '/centro-cria/programa',       label: 'Programa semanal',   icon: <CalendarDays size={18} /> },
       { to: '/centro-cria/recordatorios',  label: 'Recordatorios',      icon: <Bell size={18} /> },
       { to: '/centro-cria/flushings',      label: 'Flushings',                    icon: <Droplets size={18} /> },
