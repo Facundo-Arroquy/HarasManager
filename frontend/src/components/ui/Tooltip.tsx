@@ -9,7 +9,7 @@ interface TooltipProps {
 export default function Tooltip({ text }: TooltipProps) {
   const [show, setShow]     = useState(false)
   const [coords, setCoords] = useState({ top: 0, left: 0 })
-  const btnRef = useRef<HTMLButtonElement>(null)
+  const btnRef = useRef<HTMLSpanElement>(null)
 
   function calcCoords() {
     if (!btnRef.current) return
@@ -23,19 +23,21 @@ export default function Tooltip({ text }: TooltipProps) {
 
   return (
     <span className="inline-flex shrink-0 items-center">
-      <button
+      <span
         ref={btnRef}
-        type="button"
+        role="button"
+        tabIndex={0}
         onMouseEnter={open}
         onMouseLeave={close}
         onFocus={open}
         onBlur={close}
-        onClick={toggle}
-        className="text-slate-400 hover:text-slate-500 transition-colors"
+        onClick={(e) => { e.stopPropagation(); toggle() }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggle() } }}
+        className="text-slate-400 hover:text-slate-500 transition-colors cursor-pointer"
         aria-label="Más información"
       >
         <Info size={13} />
-      </button>
+      </span>
 
       {show && createPortal(
         <div

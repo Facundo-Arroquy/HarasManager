@@ -24,10 +24,10 @@ export default function FotoCaballo({ caballoId, nombre, canEdit = false, size =
     setUploading(true)
     try {
       const url = await fotoService.subir(caballoId, file)
-      setSrc(url.startsWith('data:') ? url : `${url}?v=${Date.now()}`)
+      setSrc(url)
       setHasError(false)
-    } catch {
-      // fallo silencioso
+    } catch (err) {
+      console.error('[FotoCaballo] Error al subir foto:', err)
     } finally {
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''
