@@ -3,6 +3,7 @@ import { isMockMode } from '../dev/mockMode'
 
 const BUCKET = 'caballos'
 const MOCK_KEY = (id: string) => `hm_foto_caballo_${id}`
+const VERSION_KEY = (id: string) => `hm_foto_v_${id}`
 
 export const fotoService = {
   /** URL pública de la foto. En mock devuelve el data URL guardado en localStorage. */
@@ -12,7 +13,9 @@ export const fotoService = {
     }
     const base = import.meta.env.VITE_SUPABASE_URL
     if (!base) return ''
-    return `${base}/storage/v1/object/public/${BUCKET}/${caballoId}`
+    const url = `${base}/storage/v1/object/public/${BUCKET}/${caballoId}`
+    const v = localStorage.getItem(VERSION_KEY(caballoId))
+    return v ? `${url}?v=${v}` : url
   },
 
   /** Sube (o reemplaza) la foto del caballo. Devuelve la URL resultante. */
@@ -36,6 +39,7 @@ export const fotoService = {
       .upload(caballoId, file, { upsert: true, contentType: file.type })
 
     if (error) throw new Error(error.message)
+    localStorage.setItem(VERSION_KEY(caballoId), Date.now().toString())
     return this.getUrl(caballoId)
   },
 
@@ -47,5 +51,6 @@ export const fotoService = {
     }
     const supabase = getSupabaseClient()
     await supabase.storage.from(BUCKET).remove([caballoId])
+    localStorage.removeItem(VERSION_KEY(caballoId))
   },
 }
