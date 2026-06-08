@@ -3,7 +3,7 @@ import { getSupabaseClient } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
 import { isMockMode, getMockUserId } from '../dev/mockMode'
 import { getMockUser } from '../dev/mockUsers'
-import { tieneAccesoCentroCria } from '../services/accesoCentroCriaService'
+import { tieneAccesoCentroCria, tieneAccesoCentroCriaVeterinario } from '../services/accesoCentroCriaService'
 
 // Carga el perfil desde Supabase y configura el store según el rol del usuario.
 // Solo corre si rol todavía no fue cargado (evita llamadas redundantes en remounts).
@@ -28,6 +28,7 @@ async function cargarPerfilProd(
 
     if (perfil?.rol === 'veterinario') {
       store.setRolVeterinario()
+      tieneAccesoCentroCriaVeterinario(userId).then((v) => store.setAccesosCentroC(v)).catch(() => {})
       return
     }
 
@@ -70,6 +71,7 @@ export function useAuth() {
       }
       if (mockUser.rol === 'veterinario') {
         store.setRolVeterinario()
+        store.setAccesosCentroC(mockUser.accesosCentroC)
         return
       }
       store.setSociedadActiva(mockUser.sociedad, mockUser.rol)
