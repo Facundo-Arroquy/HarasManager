@@ -27,6 +27,22 @@ export async function tieneAccesoCentroCria(userId: string): Promise<boolean> {
   return data?.acceso_centro_cria ?? false
 }
 
+// Veterinarios son usuarios globales sin membresía — su acceso al Centro de
+// Embriones lo otorga/deniega el superadmin directamente sobre usuario.acceso_centro_cria
+export async function tieneAccesoCentroCriaVeterinario(userId: string): Promise<boolean> {
+  if (isMockMode()) {
+    const u = MOCK_USERS.find((x) => x.id === userId)
+    return u?.accesosCentroC ?? false
+  }
+  const supabase = getSupabaseClient()
+  const { data } = await supabase
+    .from('usuario')
+    .select('acceso_centro_cria')
+    .eq('id', userId)
+    .maybeSingle()
+  return data?.acceso_centro_cria ?? false
+}
+
 export async function listarAccesosCentroCria(sociedadId: string): Promise<UserAccesoCentro[]> {
   if (isMockMode()) {
     return MOCK_USERS.map((u) => ({

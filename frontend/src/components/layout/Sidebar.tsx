@@ -17,10 +17,11 @@ export default function Sidebar() {
     ),
   })).filter((group) => {
     if (group.items.length === 0) return false
-    if (group.requiresAccesoCentro) return (
-      rol === 'veterinario' ||                              // vets: acceso siempre (data filtrada por sus caballos)
-      (accesosCentroCOrg && (rol === 'admin' || accesosCentroC))
-    )
+    if (group.requiresAccesoCentro) {
+      // Veterinarios: acceso personal otorgado/denegado por el superadmin
+      if (rol === 'veterinario') return accesosCentroC
+      return accesosCentroCOrg && (rol === 'admin' || accesosCentroC)
+    }
     return true
   })
 
