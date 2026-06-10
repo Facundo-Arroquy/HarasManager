@@ -41,6 +41,7 @@ export default function CaballosPage() {
   const [error,    setError]    = useState<string | null>(null)
   const [busqueda,    setBusqueda]    = useState('')
   const [filtro,      setFiltro]      = useState('Todos')
+  const [ordenSubcat, setOrdenSubcat] = useState<'ninguno' | 'receptoras' | 'donantes'>('ninguno')
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
 
@@ -141,6 +142,11 @@ export default function CaballosPage() {
     } finally {
       setBulkSaving(false)
     }
+  }
+
+  const ORDEN_SUBCAT: Record<string, Record<string, number>> = {
+    receptoras: { Receptora: 0, Donante: 1 },
+    donantes:   { Donante: 0, Receptora: 1 },
   }
 
   const filtrados = useMemo(() => {
