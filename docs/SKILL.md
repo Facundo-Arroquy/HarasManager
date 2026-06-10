@@ -102,8 +102,9 @@ CREATE TABLE usuario (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   nombre VARCHAR(100) NOT NULL, apellido VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE, telefono VARCHAR(30),
-  rol VARCHAR(20),  -- NULL | 'superadmin' | 'veterinario'
-  activo BOOLEAN DEFAULT TRUE,
+  rol TEXT DEFAULT 'admin',  -- NULL | 'superadmin' | 'veterinario' | 'admin'
+  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  acceso_centro_cria BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -317,6 +318,7 @@ El campo `rol_reproductivo` ('Donante' | 'Receptora' | null) vive en la tabla `c
 
 ### Política por tabla
 
+- **`usuario`**: SELECT = propio O admin de la sociedad. UPDATE propio (`usuario_update_propio`) solo permite editar `nombre`, `apellido` y `telefono`. Los campos `rol`, `activo`, `acceso_centro_cria` y `email` están bloqueados para auto-modificación mediante el trigger `bloquear_self_escalation`.
 - **`marca`**: SELECT = propietario de esa marca OR admin haras. INSERT/UPDATE = admin haras (o admin marca para UPDATE).
 - **`caballo`**: SELECT = propietario (mismo dominio) OR vet con acceso OR admin haras. INSERT = solo admin haras. UPDATE = admin haras O admin de la marca del caballo.
 - **`historial_clinico`**: SELECT hereda acceso al caballo. INSERT/UPDATE = solo `creado_por` (veterinario).
