@@ -41,6 +41,7 @@ export default function CaballosPage() {
   const [error,    setError]    = useState<string | null>(null)
   const [busqueda,    setBusqueda]    = useState('')
   const [filtro,      setFiltro]      = useState('Todos')
+  const [ordenSubcat, setOrdenSubcat] = useState<'ninguno' | 'receptoras' | 'donantes'>('ninguno')
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
 
@@ -54,7 +55,9 @@ export default function CaballosPage() {
   const [bulkCampoId,      setBulkCampoId]      = useState(SIN_CAMBIO)
   const [bulkCategoria,    setBulkCategoria]    = useState(SIN_CAMBIO)
   const [bulkSubcategoria, setBulkSubcategoria] = useState(SIN_CAMBIO)
+  const [bulkPrenada,      setBulkPrenada]      = useState(SIN_CAMBIO)
   const [bulkSaving,       setBulkSaving]       = useState(false)
+  const [soloPreñadas,     setSoloPreñadas]     = useState(false)
 
   const salirModoSeleccion = useCallback(() => {
     setModoSeleccion(false)
@@ -62,6 +65,7 @@ export default function CaballosPage() {
     setBulkCampoId(SIN_CAMBIO)
     setBulkCategoria(SIN_CAMBIO)
     setBulkSubcategoria(SIN_CAMBIO)
+    setBulkPrenada(SIN_CAMBIO)
   }, [])
 
   const toggleSeleccion = useCallback((id: string) => {
@@ -116,19 +120,22 @@ export default function CaballosPage() {
 
   // ── Edición masiva ───────────────────────────────────────────────────────────
   const hayBulkCambios =
-    bulkCampoId !== SIN_CAMBIO || bulkCategoria !== SIN_CAMBIO || bulkSubcategoria !== SIN_CAMBIO
+    bulkCampoId !== SIN_CAMBIO || bulkCategoria !== SIN_CAMBIO ||
+    bulkSubcategoria !== SIN_CAMBIO || bulkPrenada !== SIN_CAMBIO
 
   async function aplicarEdicionMasiva() {
     if (!hayBulkCambios || seleccionados.size === 0) return
     setBulkSaving(true)
     try {
-      const cambios: { campo_id?: string | null; categoria?: string; rol_reproductivo?: string | null } = {}
+      const cambios: { campo_id?: string | null; categoria?: string; rol_reproductivo?: string | null; prenada?: boolean | null } = {}
       if (bulkCampoId !== SIN_CAMBIO)
         cambios.campo_id = bulkCampoId === SIN_CAMPO ? null : bulkCampoId
       if (bulkCategoria !== SIN_CAMBIO)
         cambios.categoria = bulkCategoria
       if (bulkSubcategoria !== SIN_CAMBIO)
         cambios.rol_reproductivo = bulkSubcategoria === '' ? null : bulkSubcategoria
+      if (bulkPrenada !== SIN_CAMBIO)
+        cambios.prenada = bulkPrenada === 'true'
       await caballoService.editarMasivo(Array.from(seleccionados), cambios)
       await cargar()
       salirModoSeleccion()
@@ -137,19 +144,32 @@ export default function CaballosPage() {
     }
   }
 
+  const ORDEN_SUBCAT: Record<string, Record<string, number>> = {
+    receptoras: { Receptora: 0, Donante: 1 },
+    donantes:   { Donante: 0, Receptora: 1 },
+  }
+
   const filtrados = useMemo(() => {
-    return caballos.filter((c) => {
-      const okNombre = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
-      const okCat    = filtro === 'Todos' || c.categoria === filtro
-      const fn       = (c as any).fecha_nacimiento as string | null
-      const mes      = fn ? fn.slice(0, 7) : null // "YYYY-MM"
-      const okDesde  = !filtroDesde || (mes !== null && mes >= filtroDesde)
-      const okHasta  = !filtroHasta || (mes !== null && mes <= filtroHasta)
+    const base = caballos.filter((c) => {
+      const okNombre   = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
+      const okCat      = filtro === 'Todos' || c.categoria === filtro
+      const fn         = (c as any).fecha_nacimiento as string | null
+      const mes        = fn ? fn.slice(0, 7) : null // "YYYY-MM"
+      const okDesde    = !filtroDesde || (mes !== null && mes >= filtroDesde)
+      const okHasta    = !filtroHasta || (mes !== null && mes <= filtroHasta)
+      const okPrenadas = !soloPreñadas || ((c as any).prenada === true && c.categoria === 'Yegua')
       // Las yeguas receptoras se gestionan desde "Caballos Centro" (Centro de Embriones)
-      const okRol    = !(c.categoria === 'Yegua' && (c as any).rol_reproductivo === 'Receptora')
-      return okNombre && okCat && okDesde && okHasta && okRol
+      const okRol      = !(c.categoria === 'Yegua' && (c as any).rol_reproductivo === 'Receptora')
+      return okNombre && okCat && okDesde && okHasta && okPrenadas && okRol
     })
-  }, [caballos, busqueda, filtro, filtroDesde, filtroHasta]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (ordenSubcat === 'ninguno') return base
+    const orden = ORDEN_SUBCAT[ordenSubcat]
+    return [...base].sort((a, b) => {
+      const pa = orden[(a as any).rol_reproductivo ?? ''] ?? 2
+      const pb = orden[(b as any).rol_reproductivo ?? ''] ?? 2
+      return pa - pb
+    })
+  }, [caballos, busqueda, filtro, ordenSubcat, filtroDesde, filtroHasta, soloPreñadas]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const grupos = useMemo(() => {
     const byCampo: Record<string, Caballo[]> = {}
@@ -348,6 +368,56 @@ export default function CaballosPage() {
             )}
           </div>
         )}
+
+        {/* Filtro preñadas */}
+        {!modoSeleccion && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSoloPreñadas((v) => !v)}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border ${
+                soloPreñadas
+                  ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                  : 'text-slate-500 border-slate-300 hover:bg-slate-100 hover:text-slate-700'
+              }`}
+            >
+              <span className={`inline-block w-2 h-2 rounded-full ${soloPreñadas ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+              Solo preñadas
+            </button>
+          </div>
+        )}
+
+        {/* Orden por rol reproductivo: select en mobile, botones en sm+ */}
+        {!modoSeleccion && (
+          <div className="flex items-center gap-2">
+            {/* Mobile: select */}
+            <select
+              value={ordenSubcat}
+              onChange={(e) => setOrdenSubcat(e.target.value as typeof ordenSubcat)}
+              className="sm:hidden flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
+            >
+              <option value="ninguno">Orden: por defecto</option>
+              <option value="receptoras">Receptoras primero</option>
+              <option value="donantes">Donantes primero</option>
+            </select>
+            {/* Desktop: botones */}
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Orden:</span>
+              <Tooltip text="Reordena el listado poniendo primero las yeguas con ese rol reproductivo. No filtra, solo cambia el orden." />
+              {(['ninguno', 'receptoras', 'donantes'] as const).map((op) => (
+                <button
+                  key={op}
+                  onClick={() => setOrdenSubcat(op)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                    ordenSubcat === op ? 'bg-slate-200 text-slate-900' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
+                  }`}
+                >
+                  {op === 'ninguno' ? 'Por defecto' : op === 'receptoras' ? 'Receptoras primero' : 'Donantes primero'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
 
         {/* Filtro por camada (rango de mes de nacimiento) */}
         {!modoSeleccion && (
@@ -565,6 +635,22 @@ export default function CaballosPage() {
                   <option value="">Sin especificar</option>
                   <option value="Donante">Donante</option>
                   <option value="Receptora">Receptora</option>
+                </select>
+              </div>
+
+              {/* Preñada (solo yeguas) */}
+              <div className="sm:flex-1 sm:min-w-[120px]">
+                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
+                  Preñada
+                </label>
+                <select
+                  value={bulkPrenada}
+                  onChange={(e) => setBulkPrenada(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none"
+                >
+                  <option value={SIN_CAMBIO}>— Sin cambio —</option>
+                  <option value="true">Sí</option>
+                  <option value="false">No</option>
                 </select>
               </div>
 

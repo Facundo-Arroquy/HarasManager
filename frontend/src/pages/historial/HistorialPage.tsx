@@ -39,6 +39,16 @@ export default function HistorialPage() {
   const [showEditar,  setShowEditar]  = useState(false)
   const [entryToEdit, setEntryToEdit] = useState<HistorialEntry | null>(null)
 
+  // ── Preñada ─────────────────────────────────────────────────────────────────
+  const [prenada,       setPrenada]       = useState(false)
+  const [fechaPrenez,   setFechaPrenez]   = useState('')
+  const [baselinePren,  setBaselinePren]  = useState(false)
+  const [baselineFecha, setBaselineFecha] = useState('')
+  const [prenSaving,    setPrenSaving]    = useState(false)
+  const [prenError,     setPrenError]     = useState('')
+  const [prenOk,        setPrenOk]        = useState(false)
+  const cambiosPren = prenada !== baselinePren || fechaPrenez !== baselineFecha
+
   const [tab, setTab] = useState<'clinico' | 'reproductivo' | 'genealogia' | 'foto'>('clinico')
   const [repLoading,    setRepLoading]    = useState(false)
   const [registrosCria, setRegistrosCria] = useState<RegistroClinicoCria[]>([])
@@ -97,10 +107,40 @@ export default function HistorialPage() {
       .then(([cab, hist]) => {
         setCaballo(cab)
         setHistorial(hist as object[])
+        // Inicializar estados de preñada desde los datos del caballo
+        const p = (cab as any).prenada ?? false
+        const f = (cab as any).fecha_prenez ?? ''
+        setPrenada(p); setBaselinePren(p)
+        setFechaPrenez(f); setBaselineFecha(f)
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
   }, [id])
+
+  async function guardarPrenada() {
+    if (!caballo) return
+    setPrenSaving(true); setPrenError(''); setPrenOk(false)
+    try {
+      await caballoService.togglePrenada(
+        caballo.id,
+        prenada,
+        prenada ? (fechaPrenez || null) : null,
+        rol === 'veterinario',
+      )
+      setBaselinePren(prenada)
+      setBaselineFecha(prenada ? fechaPrenez : '')
+      setPrenOk(true)
+    } catch (e: unknown) {
+      setPrenError(
+        e instanceof Error ? e.message
+          : typeof e === 'object' && e !== null && 'message' in e
+            ? String((e as { message: unknown }).message)
+            : 'Error inesperado al guardar'
+      )
+    } finally {
+      setPrenSaving(false)
+    }
+  }
 
   if (loading) {
     return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
@@ -137,11 +177,16 @@ export default function HistorialPage() {
               size={72}
             />
             <div>
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <h1 className="text-2xl font-bold text-slate-900">{caballo.nombre}</h1>
                 {caballo.categoria && (
                   <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${badgeClass}`}>
                     {caballo.categoria}
+                  </span>
+                )}
+                {caballo.categoria === 'Yegua' && prenada && (
+                  <span className="rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200">
+                    Preñada
                   </span>
                 )}
               </div>
@@ -192,6 +237,54 @@ export default function HistorialPage() {
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Toggle preñada — solo Yegua, admin y veterinario */}
+      {caballo?.categoria === 'Yegua' && (rol === 'admin' || rol === 'veterinario') && (
+        <div className={`mb-5 rounded-lg border px-4 py-3 ${prenada ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`text-sm font-medium ${prenada ? 'text-emerald-800' : 'text-slate-600'}`}>Preñada</p>
+              <p className="text-xs text-slate-400">Gestación activa</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setPrenada((v) => !v); setPrenOk(false); if (prenada) setFechaPrenez('') }}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${prenada ? 'bg-emerald-500' : 'bg-slate-300'}`}
+            >
+              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${prenada ? 'translate-x-4' : 'translate-x-1'}`} />
+            </button>
+          </div>
+          {prenada && (
+            <div className="mt-2.5">
+              <label className="block text-[11px] font-medium text-emerald-700 mb-1">Fecha de preñez</label>
+              <input
+                type="date"
+                value={fechaPrenez}
+                onChange={(e) => { setFechaPrenez(e.target.value); setPrenOk(false) }}
+                className="w-full rounded-md border border-emerald-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+              />
+            </div>
+          )}
+          {prenOk && !cambiosPren && (
+            <p className="mt-2 text-xs text-emerald-600 font-medium">✓ Guardado</p>
+          )}
+          {prenError && (
+            <p className="mt-2 text-xs text-rose-600">{prenError}</p>
+          )}
+          {cambiosPren && (
+            <div className="mt-2.5 flex justify-end">
+              <button
+                type="button"
+                onClick={guardarPrenada}
+                disabled={prenSaving}
+                className="px-3 py-1 text-xs font-medium rounded-md bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
+              >
+                {prenSaving ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

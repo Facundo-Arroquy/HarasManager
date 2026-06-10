@@ -19,6 +19,8 @@ export interface Caballo {
   fecha_nacimiento: string
   categoria: string
   rol_reproductivo?: string | null
+  prenada?: boolean
+  fecha_prenez?: string | null
   raza_id: number
   pelaje_id: number
   numero_chip?: string
@@ -41,6 +43,8 @@ export interface ActualizarCaballoPayload {
   fecha_nacimiento?: string | null
   categoria: 'Caballo' | 'Yegua' | 'Padrillo' | 'Potrillo'
   rol_reproductivo?: Subcategoria | null
+  prenada?: boolean
+  fecha_prenez?: string | null
   raza_id?: number | null
   pelaje_id?: number | null
   numero_chip?: string
@@ -86,8 +90,24 @@ export const caballoService = {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.rpc('get_caballos_veterinario')
     if (error) throw error
-    return (data ?? []).map((c: any) => ({
+    const rows = data ?? []
+
+    // get_caballos_veterinario puede no devolver prenada/fecha_prenez si fue
+    // creado antes de esas columnas. Las obtenemos con una query directa.
+    const ids = rows.map((c: any) => c.id as string)
+    let prenMap = new Map<string, { prenada: boolean; fecha_prenez: string | null }>()
+    if (ids.length > 0) {
+      const { data: prenData } = await supabase
+        .from('caballo')
+        .select('id, prenada, fecha_prenez')
+        .in('id', ids)
+      ;(prenData ?? []).forEach((p: any) => prenMap.set(p.id, { prenada: p.prenada ?? false, fecha_prenez: p.fecha_prenez ?? null }))
+    }
+
+    return rows.map((c: any) => ({
       ...c,
+      prenada:           prenMap.get(c.id)?.prenada      ?? c.prenada      ?? false,
+      fecha_prenez:      prenMap.get(c.id)?.fecha_prenez ?? c.fecha_prenez ?? null,
       cat_raza:          c.raza_nombre        ? { nombre: c.raza_nombre }        : null,
       cat_pelaje:        c.pelaje_nombre      ? { nombre: c.pelaje_nombre }      : null,
       campo:             c.campo_nombre       ? { nombre: c.campo_nombre }       : null,
@@ -115,7 +135,7 @@ export const caballoService = {
     const { data, error } = await supabase
       .from('caballo')
       .select(`
-        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, campo_id,
+        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, prenada, fecha_prenez, campo_id,
         raza_id, pelaje_id, numero_chip, numero_registro, activo,
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
@@ -140,7 +160,7 @@ export const caballoService = {
     const { data, error } = await supabase
       .from('caballo')
       .select(`
-        id, nombre, fecha_nacimiento, categoria, rol_reproductivo,
+        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, prenada, fecha_prenez,
         numero_chip, numero_registro, activo, sociedad_id, campo_id,
         raza_id, pelaje_id,
         padre_id, padre_nombre, madre_id, madre_nombre,
@@ -264,30 +284,35 @@ export const caballoService = {
     }
 
     const supabase = getSupabaseClient()
-    const { error } = await supabase
-      .from('caballo')
-      .update({
-        nombre:           payload.nombre,
-        fecha_nacimiento: payload.fecha_nacimiento,
-        categoria:        payload.categoria,
-        rol_reproductivo: payload.rol_reproductivo ?? null,
-        raza_id:          payload.raza_id,
-        pelaje_id:        payload.pelaje_id,
-        numero_chip:      payload.numero_chip ?? null,
-        numero_registro:  payload.numero_registro ?? null,
-        campo_id:         payload.campo_id ?? null,
-        padre_id:         payload.padre_id    ?? null,
-        padre_nombre:     payload.padre_nombre ?? null,
-        madre_id:         payload.madre_id    ?? null,
-        madre_nombre:     payload.madre_nombre ?? null,
-      })
-      .eq('id', id)
+    const update: Record<string, unknown> = {
+      nombre:           payload.nombre,
+      fecha_nacimiento: payload.fecha_nacimiento,
+      categoria:        payload.categoria,
+      rol_reproductivo: payload.rol_reproductivo ?? null,
+      raza_id:          payload.raza_id,
+      pelaje_id:        payload.pelaje_id,
+      numero_chip:      payload.numero_chip ?? null,
+      numero_registro:  payload.numero_registro ?? null,
+      campo_id:         payload.campo_id ?? null,
+      padre_id:         payload.padre_id    ?? null,
+      padre_nombre:     payload.padre_nombre ?? null,
+      madre_id:         payload.madre_id    ?? null,
+      madre_nombre:     payload.madre_nombre ?? null,
+    }
+    if (payload.categoria !== 'Yegua') {
+      update.prenada      = false
+      update.fecha_prenez = null
+    } else if ('prenada' in payload) {
+      update.prenada      = payload.prenada ?? false
+      update.fecha_prenez = payload.prenada ? (payload.fecha_prenez ?? null) : null
+    }
+    const { error } = await supabase.from('caballo').update(update).eq('id', id)
     if (error) throw error
   },
 
   async editarMasivo(
     ids: string[],
-    cambios: { campo_id?: string | null; categoria?: string; rol_reproductivo?: string | null }
+    cambios: { campo_id?: string | null; categoria?: string; rol_reproductivo?: string | null; prenada?: boolean | null }
   ): Promise<void> {
     if (isMockMode()) {
       const { MOCK_CAMPOS } = await import('../dev/mockData')
@@ -312,6 +337,10 @@ export const caballoService = {
     if ('campo_id' in cambios)         update.campo_id         = cambios.campo_id ?? null
     if (cambios.categoria)             update.categoria        = cambios.categoria
     if ('rol_reproductivo' in cambios) update.rol_reproductivo = cambios.rol_reproductivo ?? null
+    if ('prenada' in cambios) {
+      update.prenada      = cambios.prenada ?? false
+      update.fecha_prenez = cambios.prenada ? undefined : null
+    }
     const { error } = await supabase.from('caballo').update(update).in('id', ids)
     if (error) throw error
   },
@@ -352,6 +381,29 @@ export const caballoService = {
       .update({ activo: false })
       .eq('id', id)
     if (error) throw error
+  },
+
+  /** Toggle preñada — admins usan update directo; vets usan RPC SECURITY DEFINER */
+  async togglePrenada(id: string, prenada: boolean, fechaPrenez: string | null, esVet: boolean): Promise<void> {
+    const supabase = getSupabaseClient()
+    if (esVet) {
+      const { error } = await supabase.rpc('toggle_prenada_veterinario', {
+        p_caballo_id:   id,
+        p_prenada:      prenada,
+        p_fecha_prenez: fechaPrenez ?? null,
+      })
+      if (error) throw error
+    } else {
+      const { error } = await supabase
+        .from('caballo')
+        .update({
+          prenada,
+          fecha_prenez: prenada ? (fechaPrenez ?? null) : null,
+          updated_at:   new Date().toISOString(),
+        })
+        .eq('id', id)
+      if (error) throw error
+    }
   },
 
   async importarMasivo(
