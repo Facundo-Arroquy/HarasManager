@@ -41,7 +41,6 @@ export default function CaballosPage() {
   const [error,    setError]    = useState<string | null>(null)
   const [busqueda,    setBusqueda]    = useState('')
   const [filtro,      setFiltro]      = useState('Todos')
-  const [ordenSubcat, setOrdenSubcat] = useState<'ninguno' | 'receptoras' | 'donantes'>('ninguno')
   const [filtroDesde, setFiltroDesde] = useState('')
   const [filtroHasta, setFiltroHasta] = useState('')
 
@@ -144,11 +143,6 @@ export default function CaballosPage() {
     }
   }
 
-  const ORDEN_SUBCAT: Record<string, Record<string, number>> = {
-    receptoras: { Receptora: 0, Donante: 1 },
-    donantes:   { Donante: 0, Receptora: 1 },
-  }
-
   const filtrados = useMemo(() => {
     const base = caballos.filter((c) => {
       const okNombre   = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
@@ -158,7 +152,9 @@ export default function CaballosPage() {
       const okDesde    = !filtroDesde || (mes !== null && mes >= filtroDesde)
       const okHasta    = !filtroHasta || (mes !== null && mes <= filtroHasta)
       const okPrenadas = !soloPreñadas || ((c as any).prenada === true && c.categoria === 'Yegua')
-      return okNombre && okCat && okDesde && okHasta && okPrenadas
+      // Las yeguas receptoras se gestionan desde "Caballos Centro" (Centro de Embriones)
+      const okRol      = !(c.categoria === 'Yegua' && (c as any).rol_reproductivo === 'Receptora')
+      return okNombre && okCat && okDesde && okHasta && okPrenadas && okRol
     })
     if (ordenSubcat === 'ninguno') return base
     const orden = ORDEN_SUBCAT[ordenSubcat]
@@ -415,6 +411,7 @@ export default function CaballosPage() {
             </div>
           </div>
         )}
+
 
         {/* Filtro por camada (rango de mes de nacimiento) */}
         {!modoSeleccion && (

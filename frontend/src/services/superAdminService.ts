@@ -1,6 +1,6 @@
 import { isMockMode } from '../dev/mockMode'
 import { MOCK_MEMBRESIAS, MOCK_CABALLOS, MOCK_CAMPOS, MOCK_SOCIEDADES } from '../dev/mockData'
-import { MOCK_SOCIEDAD } from '../dev/mockUsers'
+import { MOCK_SOCIEDAD, MOCK_USERS } from '../dev/mockUsers'
 import { getSupabaseClient } from '../lib/supabase'
 
 export interface EmpresaStats {
@@ -32,6 +32,15 @@ export interface NuevoUsuarioPayload {
   accesosCentroC: boolean
 }
 
+export interface VeterinarioAcceso {
+  id: string
+  nombre: string
+  apellido: string
+  email: string
+  activo: boolean
+  accesoCentroC: boolean
+}
+
 // ── Estado mutable mock ────────────────────────────────────────────────────────
 
 let membresias = MOCK_MEMBRESIAS.map((m) => ({ ...m }))
@@ -40,6 +49,17 @@ let sociedades: Array<{ id: string; nombre: string; accesosCentroC: boolean }> =
   { id: MOCK_SOCIEDAD.id, nombre: MOCK_SOCIEDAD.nombre, accesosCentroC: MOCK_SOCIEDAD.acceso_centro_cria },
   ...MOCK_SOCIEDADES.map((s) => ({ id: s.id, nombre: s.nombre, accesosCentroC: s.acceso_centro_cria })),
 ]
+
+const veterinarios: VeterinarioAcceso[] = MOCK_USERS
+  .filter((u) => u.rol === 'veterinario')
+  .map((u) => ({
+    id: u.id,
+    nombre: u.nombre,
+    apellido: u.apellido,
+    email: u.email,
+    activo: true,
+    accesoCentroC: u.accesosCentroC,
+  }))
 
 // ── Servicio ──────────────────────────────────────────────────────────────────
 
@@ -272,6 +292,49 @@ export const superAdminService = {
       .from('sociedad')
       .update({ acceso_centro_cria: valor })
       .eq('id', sociedadId)
+    if (error) throw error
+  },
+
+  // ── Veterinarios ─────────────────────────────────────────────────────────────
+  // Los veterinarios son usuarios globales (usuario.rol = 'veterinario'), sin
+  // sociedad/membresía fija. El superadmin otorga/deniega su acceso al Centro
+  // de Embriones igual que con las empresas, pero a nivel de usuario.
+
+  async listarVeterinarios(): Promise<VeterinarioAcceso[]> {
+    if (isMockMode()) {
+      return veterinarios.map((v) => ({ ...v }))
+    }
+
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('usuario')
+      .select('id, nombre, apellido, email, activo, acceso_centro_cria')
+      .eq('rol', 'veterinario')
+      .order('nombre')
+    if (error) throw error
+
+    return (data ?? []).map((u: any) => ({
+      id: u.id,
+      nombre: u.nombre,
+      apellido: u.apellido,
+      email: u.email,
+      activo: u.activo,
+      accesoCentroC: u.acceso_centro_cria ?? false,
+    }))
+  },
+
+  async toggleAccesoCentroCVeterinario(usuarioId: string, valor: boolean): Promise<void> {
+    if (isMockMode()) {
+      const v = veterinarios.find((x) => x.id === usuarioId)
+      if (v) v.accesoCentroC = valor
+      return
+    }
+
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('usuario')
+      .update({ acceso_centro_cria: valor })
+      .eq('id', usuarioId)
     if (error) throw error
   },
 

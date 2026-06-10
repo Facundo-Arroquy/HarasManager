@@ -29,6 +29,7 @@ import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
 import FlushingsPage from './pages/centro-cria/FlushingsPage'
 import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
 import ConfigCriaPage from './pages/centro-cria/ConfigCriaPage'
+import CaballosCentroPage from './pages/centro-cria/CaballosCentroPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 import TransferirVetPage from './pages/vet/TransferirVetPage'
 import AlertasPage from './pages/alertas/AlertasPage'
@@ -109,8 +110,10 @@ function RequireCentroCria() {
   const accesosCentroCOrg = useAuthStore((s) => s.accesosCentroCOrg)
   const rol = useAuthStore((s) => s.rol)
 
-  // Los veterinarios siempre tienen acceso al centro de cría
-  if (rol === 'veterinario') return <Outlet />
+  // Veterinarios: el acceso lo otorga/deniega el superadmin (usuario.acceso_centro_cria)
+  if (rol === 'veterinario') {
+    return accesosCentroC ? <Outlet /> : <Navigate to="/dashboard" replace />
+  }
 
   if (!accesosCentroC && !accesosCentroCOrg) {
     return <Navigate to="/dashboard" replace />
@@ -164,6 +167,7 @@ export default function App() {
           {/* Centro de Embriones — requiere acceso explícito por usuario u organización */}
           <Route element={<RequireCentroCria />}>
             <Route path="/centro-cria" element={<DashboardCriaPage />} />
+            <Route path="/centro-cria/caballos" element={<CaballosCentroPage />} />
             <Route path="/centro-cria/programa" element={<ProgramaSemanalPage />} />
             <Route path="/centro-cria/recordatorios" element={<RecordatoriosPage />} />
             <Route path="/centro-cria/transferencias" element={<TransferenciasPage />} />

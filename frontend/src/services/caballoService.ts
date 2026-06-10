@@ -162,6 +162,7 @@ export const caballoService = {
       .select(`
         id, nombre, fecha_nacimiento, categoria, rol_reproductivo, prenada, fecha_prenez,
         numero_chip, numero_registro, activo, sociedad_id, campo_id,
+        raza_id, pelaje_id,
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(id, nombre),
         cat_pelaje(id, nombre),

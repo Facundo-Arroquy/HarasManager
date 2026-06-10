@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
-import { X, GitBranch } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { X, Plus, GitBranch, Camera } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService, type NuevoCaballoPayload, type Caballo } from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
+import { fotoService } from '../../services/fotoService'
 import PedigreeCombobox, { type HorseRef } from './PedigreeCombobox'
 
 interface Props {
@@ -23,6 +24,9 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
   const [pelajes, setPelajes] = useState<{ id: number; nombre: string }[]>([])
   const [campos,  setCampos]  = useState<Campo[]>([])
   const [caballos, setCaballos] = useState<Caballo[]>([])
+  const [nuevoCampo, setNuevoCampo] = useState('')
+  const [creandoCampo, setCreandoCampo] = useState(false)
+
   const [form, setForm] = useState({
     nombre: '',
     fecha_nacimiento: '',
@@ -38,8 +42,21 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
   const [padre, setPadre] = useState<HorseRef>({ id: null, nombre: null })
   const [madre, setMadre] = useState<HorseRef>({ id: null, nombre: null })
 
+  const [fotoFile, setFotoFile]       = useState<File | null>(null)
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null)
+  const fotoInputRef = useRef<HTMLInputElement>(null)
+
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
+
+  function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setFotoFile(file)
+    const reader = new FileReader()
+    reader.onload = (ev) => setFotoPreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
 
   useEffect(() => {
     const caballosPromise = vetMode && userId
@@ -94,10 +111,16 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
     }
 
     try {
+      let nuevoId: string
       if (vetMode) {
-        await caballoService.crearParaVet(payload, userId!)
+        const result = await caballoService.crearParaVet(payload, userId!)
+        nuevoId = result.id
       } else {
-        await caballoService.crear(payload, sociedadActiva!.id)
+        const result = await caballoService.crear(payload, sociedadActiva!.id)
+        nuevoId = result.id
+      }
+      if (fotoFile) {
+        try { await fotoService.subir(nuevoId, fotoFile) } catch { /* no bloquear creación */ }
       }
       onSuccess()
     } catch (err: unknown) {
@@ -133,6 +156,37 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
           onSubmit={handleSubmit}
           className="overflow-y-auto flex-1 p-5 space-y-4"
         >
+          {/* Foto */}
+          <div className="flex justify-center pb-1">
+            <div className="relative" style={{ width: 72, height: 72 }}>
+              <div className="w-full h-full rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 flex items-center justify-center">
+                {fotoPreview ? (
+                  <img src={fotoPreview} alt="preview" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-slate-300 text-2xl font-bold select-none">
+                    {form.nombre ? form.nombre.charAt(0).toUpperCase() : '?'}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => fotoInputRef.current?.click()}
+                className="absolute bottom-0 right-0 flex items-center justify-center rounded-full bg-slate-200 border-2 border-white hover:bg-brand-500 transition-colors cursor-pointer"
+                style={{ width: 24, height: 24 }}
+                title="Agregar foto"
+              >
+                <Camera size={11} className="text-slate-600 group-hover:text-white" />
+              </button>
+              <input
+                ref={fotoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleFotoChange}
+              />
+            </div>
+          </div>
+
           {/* Nombre */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500">Nombre *</label>
@@ -237,14 +291,51 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
           {/* Campo / Caballeriza — solo en modo org */}
           {!vetMode && <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500">Campo / Caballeriza</label>
-            <select
-              value={form.campo_id}
-              onChange={(e) => set('campo_id', e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            >
-              <option value="">— Sin asignar —</option>
-              {campos.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={form.campo_id}
+                onChange={(e) => set('campo_id', e.target.value)}
+                className="flex-1 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              >
+                <option value="">— Sin asignar —</option>
+                {campos.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => setCreandoCampo((v) => !v)}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-md border border-slate-300 text-xs text-slate-500 hover:text-slate-700 hover:border-slate-400 transition-colors"
+                title="Crear nuevo campo"
+              >
+                <Plus size={13} />
+                Nuevo
+              </button>
+            </div>
+            {creandoCampo && (
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="text"
+                  value={nuevoCampo}
+                  onChange={(e) => setNuevoCampo(e.target.value)}
+                  placeholder="Nombre del campo"
+                  className="flex-1 rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+                <button
+                  type="button"
+                  disabled={!nuevoCampo.trim()}
+                  onClick={async () => {
+                    if (!nuevoCampo.trim() || !sociedadActiva) return
+                    const c = await campoService.crear(nuevoCampo.trim(), undefined, sociedadActiva.id)
+                    setCampos((prev) => [...prev, c])
+                    set('campo_id', c.id)
+                    setNuevoCampo('')
+                    setCreandoCampo(false)
+                  }}
+                  className="px-3 py-1.5 rounded-md bg-brand-500 hover:bg-brand-500 text-xs font-medium text-white disabled:opacity-40 transition-colors"
+                >
+                  Crear
+                </button>
+              </div>
+            )}
           </div>}
 
           {/* Chip + Registro */}
