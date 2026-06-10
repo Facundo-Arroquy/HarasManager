@@ -305,7 +305,7 @@ El campo `rol_reproductivo` ('Donante' | 'Receptora' | null) vive en la tabla `c
 | `get_marca_usuario(sociedad_id)` | Retorna el `id` de la marca cuyo `dominio_email` coincide con el email del usuario |
 | `es_admin_haras(sociedad_id)` | Admin con rol 'admin' y SIN marca asociada a su dominio → ve todo el haras |
 | `es_admin_marca(marca_id)` | Admin cuyo dominio de email = dominio de esa marca |
-| `vet_tiene_acceso(caballo_id)` | El vet tiene acceso masivo (por marca) o individual (por caballo) vía `acceso_veterinario` |
+| `vet_tiene_acceso(caballo_id)` | `auth.uid()` tiene `usuario.rol='veterinario'` y `activo=true`, **y** tiene fila activa en `acceso_veterinario` con `caballo_id` directo o `marca_id` de ese caballo |
 
 ### Quién ve qué
 
