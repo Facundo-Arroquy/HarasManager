@@ -70,6 +70,7 @@ HarasManager/
 - PKs: UUID con `gen_random_uuid()` (catálogos simples usan SERIAL)
 - Siempre `TIMESTAMPTZ`, nunca `TIMESTAMP` sin zona
 - Toda tabla con datos de negocio tiene `sociedad_id` (multi-tenant)
+- Cada vez que se agrega o modifica una tabla, columna, función o política RLS, **actualizar `docs/SKILL.md`** en el mismo PR
 
 **Supabase**
 - No crear usuarios desde el frontend — solo el admin invita usuarios
@@ -95,6 +96,8 @@ HarasManager/
 
 ## Migraciones de Supabase
 
-⚠️ Las migraciones **no están en el repo** todavía. El esquema actual de la DB
-está documentado en `docs/SKILL.md`. Antes de tocar cualquier tabla, consultar
-ese archivo para entender la estructura real.
+Las migraciones están en `supabase/migrations/` con el formato `YYYYMMDDNNNNN_descripcion.sql`.
+Se aplican **manualmente** pegando el SQL en Supabase Dashboard → SQL Editor (no usar `supabase db push`).
+
+Antes de tocar cualquier tabla, consultar `docs/SKILL.md` para entender la estructura real.
+Después de aplicar una migración, actualizar `docs/SKILL.md` en el mismo PR.
