@@ -5,7 +5,7 @@ description: >
   en CUALQUIER tarea relacionada con este proyecto: diseño de tablas, endpoints,
   componentes React, lógica de permisos, migraciones, o cualquier decisión técnica.
   Si el usuario menciona caballos, historial clínico, sociedades, veterinarios,
-  acceso_vet, Supabase multi-tenant, o cualquier módulo de esta app,
+  marcas, acceso_veterinario, Supabase multi-tenant, o cualquier módulo de esta app,
   consultar este skill primero sin excepción, si sigue habiendo dudas consultarme.
 ---
 
@@ -15,7 +15,7 @@ description: >
 
 Sistema web multi-tenant para gestión equina. Permite a múltiples sociedades
 (haciendas, establecimientos) administrar sus animales, historial clínico,
-propietarios y usuarios con control total de permisos.
+marcas propietarias y usuarios con control total de permisos.
 
 **Escala inicial:** ~10 sociedades, 70–150 caballos c/u, ~15.000 registros clínicos.
 **Expansión futura:** más sociedades, más países, adjuntos multimedia (MongoDB Atlas).
@@ -63,6 +63,11 @@ propietarios y usuarios con control total de permisos.
 7. **Separación de responsabilidades** — Frontend no tiene lógica de negocio.
    Toda validación y regla de negocio vive en el backend o en funciones de Supabase.
 
+8. **Propiedad por dominio de email** — Los propietarios no son personas físicas
+   registradas manualmente. La marca propietaria se identifica por el dominio del email
+   del usuario (e.g. `@losalamos.com` → Estancia Los Álamos). Esto elimina duplicación
+   de datos y simplifica el control de acceso.
+
 ---
 
 ## Modelo de Base de Datos (3FN)
@@ -86,8 +91,7 @@ CREATE TABLE sociedad (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre VARCHAR(200) NOT NULL,
   cuit VARCHAR(20), direccion TEXT,
-  activa BOOLEAN NOT NULL DEFAULT TRUE,
-  acceso_centro_cria BOOLEAN DEFAULT FALSE,
+  activa BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -110,42 +114,22 @@ CREATE TABLE membresia (
   usuario_id UUID NOT NULL REFERENCES usuario(id),
   sociedad_id UUID NOT NULL REFERENCES sociedad(id),
   rol_id INTEGER NOT NULL REFERENCES cat_rol(id),
-  activa BOOLEAN NOT NULL DEFAULT TRUE,
-  acceso_centro_cria BOOLEAN NOT NULL DEFAULT FALSE,
+  activa BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(usuario_id, sociedad_id, rol_id)
 );
 
--- Campos físicos (potreros/lotes dentro de la sociedad)
-CREATE TABLE campo (
+-- ─── MARCAS (reemplaza propietario/propiedad) ──────────────────────────────
+-- Una marca = una empresa/familia propietaria identificada por dominio de email.
+-- Todos los usuarios cuyo email termina en @dominio_email pertenecen a esta marca.
+CREATE TABLE marca (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sociedad_id UUID NOT NULL REFERENCES sociedad(id),
   nombre VARCHAR(200) NOT NULL,
-  descripcion TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Propietarios (personas/empresas dueñas de caballos)
-CREATE TABLE propietario (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  nombre VARCHAR(200) NOT NULL,
-  documento VARCHAR(50),
-  telefono VARCHAR(30),
-  email VARCHAR(255),
-  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
-  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Propiedad: relación vigente y futura entre caballo y propietario
-CREATE TABLE propiedad (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  caballo_id UUID NOT NULL REFERENCES caballo(id),
-  propietario_id UUID NOT NULL REFERENCES propietario(id),
-  fecha_inicio DATE NOT NULL,
-  fecha_fin DATE,
-  registrado_por UUID NOT NULL REFERENCES usuario(id),
-  observaciones TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  dominio_email VARCHAR(100) NOT NULL,  -- e.g. 'losalamos.com'
+  activa BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(sociedad_id, dominio_email)
 );
 
 -- Caballos
@@ -154,32 +138,45 @@ CREATE TABLE caballo (
   nombre VARCHAR(150) NOT NULL,
   fecha_nacimiento DATE,
   categoria VARCHAR(20) CHECK (categoria IN ('Yegua','Padrillo','Caballo','Potrillo')),
-  subcategoria TEXT,
   raza_id INTEGER REFERENCES cat_raza(id),
   pelaje_id INTEGER REFERENCES cat_pelaje(id),
   numero_chip VARCHAR(50), numero_registro VARCHAR(50),
   sociedad_id UUID NOT NULL REFERENCES sociedad(id),
-  campo_id UUID REFERENCES campo(id),
-  padre_id UUID REFERENCES caballo(id),
-  madre_id UUID REFERENCES caballo(id),
-  padre_nombre TEXT,
-  madre_nombre TEXT,
-  vet_owner_id UUID REFERENCES usuario(id),
-  rol_reproductivo TEXT CHECK (rol_reproductivo IN ('Donante','Receptora')),
-  prenada BOOLEAN DEFAULT FALSE,
-  fecha_prenez DATE,
-  en_venta_pendiente BOOLEAN DEFAULT FALSE,
-  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  marca_id UUID REFERENCES marca(id),  -- propietario actual (NULL = sin asignar)
+  activo BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Acceso explícito de un vet a un caballo individual
-CREATE TABLE acceso_vet (
+-- Acceso explícito de un vet a una marca (masivo) o caballo (individual)
+-- XOR: o tiene marca_id O tiene caballo_id, nunca ambos ni ninguno
+CREATE TABLE acceso_veterinario (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   vet_id UUID NOT NULL REFERENCES usuario(id),
+  marca_id UUID REFERENCES marca(id),    -- NULL si es acceso individual
+  caballo_id UUID REFERENCES caballo(id), -- NULL si es acceso masivo
+  activo BOOLEAN DEFAULT TRUE,
+  otorgado_por UUID NOT NULL REFERENCES usuario(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_xor CHECK (
+    (marca_id IS NOT NULL AND caballo_id IS NULL)
+    OR
+    (marca_id IS NULL AND caballo_id IS NOT NULL)
+  )
+  -- Dos partial UNIQUE indexes garantizan unicidad (no UNIQUE NULLS NOT DISTINCT):
+  -- UNIQUE(vet_id, marca_id)   WHERE marca_id   IS NOT NULL
+  -- UNIQUE(vet_id, caballo_id) WHERE caballo_id IS NOT NULL
+);
+
+-- Historial de propiedad (transferencias de marca)
+-- Inmutable: solo INSERT, nunca UPDATE/DELETE
+CREATE TABLE historial_propiedad (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   caballo_id UUID NOT NULL REFERENCES caballo(id),
-  otorgado_por UUID REFERENCES usuario(id),
-  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  marca_anterior_id UUID REFERENCES marca(id),  -- NULL = primera asignación
+  marca_nueva_id UUID NOT NULL REFERENCES marca(id),
+  fecha_transferencia DATE NOT NULL,
+  registrado_por UUID NOT NULL REFERENCES usuario(id),
+  observaciones TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
@@ -194,7 +191,6 @@ CREATE TABLE historial_clinico (
   fecha_consulta TIMESTAMPTZ NOT NULL,
   diagnostico TEXT, tratamiento TEXT, observaciones TEXT,
   proxima_consulta DATE,
-  imagen_url TEXT,
   creado_por UUID NOT NULL REFERENCES usuario(id),
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
   -- REGLA RLS: solo creado_por puede hacer UPDATE
@@ -294,79 +290,6 @@ CREATE TABLE cria_transferencia (
 
 El campo `rol_reproductivo` ('Donante' | 'Receptora' | null) vive en la tabla `caballo`.
 
-### Alertas
-
-```sql
-CREATE TABLE alerta (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  sociedad_id UUID REFERENCES sociedad(id),
-  motivo TEXT NOT NULL,
-  fecha_alerta DATE NOT NULL,
-  activo BOOLEAN NOT NULL DEFAULT TRUE,
-  creado_por UUID NOT NULL REFERENCES usuario(id),
-  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE TABLE alerta_caballo (
-  alerta_id UUID NOT NULL REFERENCES alerta(id),
-  caballo_id UUID NOT NULL REFERENCES caballo(id)
-);
-```
-
-### Términos y Condiciones
-
-```sql
-CREATE TABLE terminos_condiciones (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  version INTEGER NOT NULL UNIQUE,
-  titulo TEXT NOT NULL DEFAULT 'Términos y Condiciones',
-  contenido TEXT NOT NULL,
-  activo BOOLEAN NOT NULL DEFAULT FALSE,
-  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE TABLE terminos_aceptacion (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  usuario_id UUID NOT NULL REFERENCES usuario(id),
-  version_id UUID NOT NULL REFERENCES terminos_condiciones(id),
-  aceptado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE(usuario_id, version_id)
-);
-```
-
-### Ventas y Leads (CRM)
-
-```sql
--- Registro de ventas de caballos entre sociedades o a externos
-CREATE TABLE venta_caballo (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  caballo_id UUID NOT NULL REFERENCES caballo(id),
-  caballo_nombre TEXT NOT NULL, caballo_categoria TEXT,
-  padre_nombre TEXT, madre_nombre TEXT,
-  sociedad_vendedora_id UUID NOT NULL REFERENCES sociedad(id),
-  tipo_comprador TEXT NOT NULL,         -- 'sociedad' | 'externo'
-  sociedad_compradora_id UUID REFERENCES sociedad(id),
-  comprador_nombre TEXT, comprador_contacto TEXT,
-  estado TEXT NOT NULL DEFAULT 'pendiente',  -- 'pendiente' | 'confirmado' | 'cancelado'
-  fecha_operacion DATE NOT NULL,
-  fecha_vencimiento DATE NOT NULL,
-  precio_venta NUMERIC, moneda TEXT DEFAULT 'USD',
-  notas TEXT, creado_por UUID REFERENCES usuario(id),
-  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Prospectos de nuevos clientes (landing page)
-CREATE TABLE lead (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  nombre TEXT NOT NULL, email TEXT NOT NULL,
-  nombre_establecimiento TEXT NOT NULL,
-  cantidad_animales TEXT, modulos_interes TEXT[],
-  mensaje TEXT, telefono TEXT,
-  estado TEXT NOT NULL DEFAULT 'nuevo',   -- 'nuevo' | 'contactado' | 'ganado' | 'perdido'
-  notas TEXT, origen TEXT NOT NULL DEFAULT 'landing',
-  responsable TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
 ---
 
 ## Lógica de Acceso (RLS)
@@ -376,32 +299,31 @@ CREATE TABLE lead (
 | Función | Descripción |
 |---------|-------------|
 | `tiene_membresia(sociedad_id)` | El usuario autenticado tiene membresía activa en esa sociedad |
-| `es_admin(sociedad_id)` | Tiene rol 'admin' en esa sociedad |
-| `es_veterinario(sociedad_id)` | Tiene `usuario.rol = 'veterinario'` y `activo = TRUE` |
-| `is_superadmin()` | Tiene `usuario.rol = 'superadmin'` |
-| `vet_tiene_acceso(caballo_id)` | El vet tiene `usuario.rol = 'veterinario'` y `activo = TRUE` |
-| `get_caballos_veterinario(vet_id)` | Caballos accesibles para el vet vía `acceso_vet` (con propietario) |
-| `actualizar_caballo_veterinario(...)` | Actualiza campos de caballo desde sesión de vet |
-| `toggle_prenada_veterinario(caballo_id, prenada, fecha)` | Activa/desactiva preñada de una yegua |
-| `buscar_usuario_por_email(email)` | Búsqueda de usuario por email (service_role) |
-| `bloquear_self_escalation()` | Trigger que impide que un usuario modifique su propio `rol`/`activo`/`acceso_centro_cria`/`email` |
+| `es_admin(sociedad_id)` | Tiene rol 'admin' en esa sociedad (haras o marca) |
+| `es_veterinario(sociedad_id)` | Tiene rol 'veterinario' en esa sociedad |
+| `email_dominio()` | `split_part(auth.jwt() ->> 'email', '@', 2)` |
+| `get_marca_usuario(sociedad_id)` | Retorna el `id` de la marca cuyo `dominio_email` coincide con el email del usuario |
+| `es_admin_haras(sociedad_id)` | Admin con rol 'admin' y SIN marca asociada a su dominio → ve todo el haras |
+| `es_admin_marca(marca_id)` | Admin cuyo dominio de email = dominio de esa marca |
+| `vet_tiene_acceso(caballo_id)` | El vet tiene acceso masivo (por marca) o individual (por caballo) vía `acceso_veterinario` |
 
 ### Quién ve qué
 
 | Rol | Caballos visibles | Historial clínico |
 |-----|-------------------|-------------------|
-| **Admin** | Todos los caballos de la sociedad | Todos |
-| **Miembro** (jugador, peticero, piloto) | Los de la sociedad vía membresía activa | Los de caballos visibles |
-| **Veterinario** | Solo los con acceso explícito concedido vía `acceso_vet` | Solo los de caballos con acceso |
-| **Superadmin** | Todos (cross-sociedad) | Todos |
+| **Admin haras** (`marcaId=null`) | Todos los caballos de la sociedad | Todos |
+| **Admin marca** (`@dominio.com`) | Solo los de su marca | Solo los de sus caballos |
+| **Jugador / Peticero** | Solo los de su marca | Solo los de sus caballos |
+| **Veterinario** | Solo los con acceso explícito concedido | Solo los de caballos con acceso |
 
 ### Política por tabla
 
 - **`usuario`**: SELECT = propio O admin de la sociedad. UPDATE propio (`usuario_update_propio`) solo permite editar `nombre`, `apellido` y `telefono`. Los campos `rol`, `activo`, `acceso_centro_cria` y `email` están bloqueados para auto-modificación mediante el trigger `bloquear_self_escalation`.
-- **`caballo`**: SELECT = miembro activo de la sociedad OR vet con acceso (`acceso_vet`). INSERT = solo admin. UPDATE = admin O vet (campos limitados).
+- **`marca`**: SELECT = propietario de esa marca OR admin haras. INSERT/UPDATE = admin haras (o admin marca para UPDATE).
+- **`caballo`**: SELECT = propietario (mismo dominio) OR vet con acceso OR admin haras. INSERT = solo admin haras. UPDATE = admin haras O admin de la marca del caballo.
 - **`historial_clinico`**: SELECT hereda acceso al caballo. INSERT/UPDATE = solo `creado_por` (veterinario).
-- **`acceso_vet`**: Acceso individual por caballo. INSERT/UPDATE = admin de la sociedad.
-- **`propietario`/`propiedad`**: Gestión de propietarios dentro de la sociedad. INSERT/UPDATE = admin.
+- **`acceso_veterinario`**: SELECT = vet (sus propios accesos) O admin marca (los que otorgó) O admin haras. INSERT/UPDATE = admin de la marca afectada.
+- **`historial_propiedad`**: SELECT = propietario O admin haras. INSERT = solo admin haras. Sin UPDATE/DELETE (inmutable).
 
 ---
 
@@ -424,7 +346,7 @@ HarasManager/
 │   │   │   └── admin/                  # AdminPage (pendiente)
 │   │   ├── dev/                        # Solo en DEV — mock system
 │   │   │   ├── mockMode.ts             # localStorage toggle
-│   │   │   ├── mockUsers.ts            # usuarios de demo
+│   │   │   ├── mockUsers.ts            # 5 usuarios de demo con marcaId
 │   │   │   ├── mockData.ts             # MOCK_CABALLOS, MOCK_HISTORIAL, MOCK_MARCAS
 │   │   │   └── DevPanel.tsx            # Floating panel para cambiar usuario
 │   │   ├── hooks/
@@ -442,26 +364,16 @@ HarasManager/
     └── migrations/
         ├── 20260509000001_catalogs.sql
         ├── 20260509000002_core_entities.sql
-        ├── 20260509000003_horses_and_owners.sql
+        ├── 20260509000003_horses_and_owners.sql   # obsoleto, ver nota abajo
         ├── 20260509000004_clinical_history.sql
         ├── 20260509000005_rls_policies.sql
-        ├── 20260510000003_campo.sql
-        ├── 20260511000001_invite_trigger.sql
-        ├── 20260522000001_centro_cria.sql
-        ├── 20260524000000_superadmin_rls.sql
-        ├── 20260524000001_terminos_condiciones.sql
-        ├── 20260524000002_alertas.sql
-        ├── 20260524000003_actualizar_caballo_vet.sql
-        ├── 20260528000001_fix_vet_tiene_acceso.sql
-        ├── 20260601000001_fix_actualizar_caballo_vet_rol_reproductivo.sql
-        ├── 20260601000002_fix_get_caballos_vet_rol_reproductivo.sql
-        ├── 20260601000003_rls_vet_campo_marca.sql
-        ├── 20260601000004_get_caballos_vet_propietario.sql
-        ├── 20260603000001_buscar_usuario_por_email.sql
-        ├── 20260603000002_fix_rls_vet_global.sql
-        ├── 20260605000001_prenada.sql
-        └── 20260611000001_bloquear_self_escalation.sql
+        ├── 20260510000001_marca_model.sql          # DROP propietario/propiedad, ADD marca
+        └── 20260510000002_rls_marca_model.sql      # RLS actualizado para modelo de marcas
 ```
+
+> **Nota:** `20260509000003` creó `propietario` y `propiedad`. Fueron eliminadas por
+> `20260510000001_marca_model.sql`. La tabla `propiedad` fue reemplazada por
+> `historial_propiedad` y `propietario` por `marca`.
 
 ---
 
@@ -488,7 +400,7 @@ y como fuente de verdad para recrear el esquema en un entorno nuevo.
 - Nombres de tablas: `snake_case` en singular (`caballo`, no `caballos`)
 - Catálogos: prefijo `cat_` (`cat_raza`, `cat_pelaje`)
 - PKs: siempre `UUID` con `gen_random_uuid()` excepto catálogos simples (SERIAL)
-- FKs: `tabla_id` (`caballo_id`, `sociedad_id`, `propietario_id`)
+- FKs: `tabla_id` (`caballo_id`, `sociedad_id`, `marca_id`)
 - Fechas: siempre `TIMESTAMPTZ`, nunca `TIMESTAMP` sin zona
 
 ### Frontend (Vite — NO es Next.js)
@@ -504,28 +416,34 @@ y como fuente de verdad para recrear el esquema en un entorno nuevo.
 
 ## Roles y Permisos (matriz definitiva)
 
-| Acción | admin | veterinario | jugador/piloto | peticero | superadmin |
-|--------|-------|-------------|----------------|----------|------------|
-| Ver todos los caballos de la sociedad | ✅ | Con acceso | ✅ | ✅ | ✅ |
-| Crear registro clínico | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Editar su propio registro clínico | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Otorgar acceso a vet (por caballo) | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Gestionar propietarios | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Crear usuarios en la sociedad | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Gestionar todas las sociedades | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Acción | admin haras | admin marca | veterinario | jugador/piloto | peticero |
+|--------|-------------|-------------|-------------|----------------|----------|
+| Ver todos los caballos del haras | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Ver caballos de su marca | ✅ | ✅ | Con acceso | ✅ | ✅ |
+| Crear registro clínico | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Editar su propio registro clínico | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Registrar transferencia de marca | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Otorgar acceso a vet (masivo/individual) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Crear/gestionar marcas | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Crear usuarios en la sociedad | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
 ## Mock System (desarrollo)
 
-Los usuarios de demo cubren los roles principales:
+Los 5 usuarios de demo cubren todos los roles y escenarios de acceso:
 
 | ID mock | Usuario | Email | Rol | Ve |
 |---------|---------|-------|-----|----|
-| `mock-admin` | Carlos Mendoza | admin@haras-demo.com | admin | Todos los caballos de la sociedad |
+| `mock-admin-haras` | Carlos Mendoza | admin@haras-demo.com | admin | Todo el haras |
 | `mock-veterinario` | Dra. Valentina Ríos | vet@haras-demo.com | veterinario | Caballos con acceso concedido |
-| `mock-jugador` | Martín Urquiza | martin@haras-demo.com | jugador | Caballos de la sociedad |
-| `mock-peticero` | Diego Suárez | diego@haras-demo.com | peticero | Caballos de la sociedad |
+| `mock-admin-marca` | Rodrigo Benavídez | admin@losalamos.com | admin | Solo Estancia Los Álamos |
+| `mock-jugador` | Martín Urquiza | martin@losalamos.com | jugador | Solo Estancia Los Álamos |
+| `mock-peticero` | Diego Suárez | diego@pcba.com.ar | peticero | Solo Polo Club BA |
+
+Marcas demo:
+- `mock-marca-001`: Estancia Los Álamos (`losalamos.com`) — caballos cab-001..cab-006
+- `mock-marca-002`: Polo Club Buenos Aires (`pcba.com.ar`) — caballos cab-007..cab-008
 
 ---
 
