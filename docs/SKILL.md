@@ -302,7 +302,7 @@ El campo `rol_reproductivo` ('Donante' | 'Receptora' | null) vive en la tabla `c
 | `es_admin(sociedad_id)` | Tiene rol 'admin' en esa sociedad (haras o marca) |
 | `es_veterinario(sociedad_id)` | Tiene rol 'veterinario' en esa sociedad |
 | `email_dominio()` | `split_part(auth.jwt() ->> 'email', '@', 2)` |
-| `get_marca_usuario(sociedad_id)` | Retorna el `id` de la marca cuyo `dominio_email` coincide con el email del usuario |
+| `get_marca_usuario(sociedad_id)` | Retorna el `id` de la marca cuyo `dominio_email` coincide con el email del usuario, **solo si el usuario tiene membresía activa en esa sociedad** (si no, NULL). |
 | `es_admin_haras(sociedad_id)` | Admin con rol 'admin' y SIN marca asociada a su dominio → ve todo el haras |
 | `es_admin_marca(marca_id)` | Admin cuyo dominio de email = dominio de esa marca |
 | `vet_tiene_acceso(caballo_id)` | `auth.uid()` tiene `usuario.rol='veterinario'` y `activo=true`, **y** tiene fila activa en `acceso_veterinario` con `caballo_id` directo o `marca_id` de ese caballo |
