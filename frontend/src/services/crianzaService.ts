@@ -11,6 +11,7 @@ import type {
   TransferenciaEmbrionaria,
   NuevaTransferenciaPayload,
   RolReproductivo,
+  EstadoReproductivo,
 } from '../types/crianza'
 
 // =============================================================================
@@ -705,5 +706,42 @@ export const crianzaService = {
       .update({ rol_reproductivo: rol })
       .eq('id', caballoId)
     if (error) throw error
+  },
+
+  async actualizarEstadoReproductivo(
+    caballoId: string,
+    sociedadId: string,
+    estadoAnterior: EstadoReproductivo,
+    estadoNuevo: EstadoReproductivo,
+    creadoPor: string,
+    motivo?: string,
+  ): Promise<void> {
+    if (isMockMode()) {
+      const { MOCK_CABALLOS } = await import('../dev/mockData')
+      const cab = MOCK_CABALLOS.find((c) => c.id === caballoId)
+      if (cab) (cab as any).estado_reproductivo = estadoNuevo
+      return
+    }
+    const supabase = getSupabaseClient()
+
+    // 1. Actualizar la columna en caballo
+    const { error: errCaballo } = await supabase
+      .from('caballo')
+      .update({ estado_reproductivo: estadoNuevo })
+      .eq('id', caballoId)
+    if (errCaballo) throw errCaballo
+
+    // 2. Insertar auditoría en cria_estado_transicion
+    const { error: errAudit } = await supabase
+      .from('cria_estado_transicion')
+      .insert({
+        caballo_id:     caballoId,
+        sociedad_id:    sociedadId,
+        estado_anterior: estadoAnterior,
+        estado_nuevo:   estadoNuevo,
+        motivo:         motivo ?? null,
+        creado_por:     creadoPor,
+      })
+    if (errAudit) throw errAudit
   },
 }

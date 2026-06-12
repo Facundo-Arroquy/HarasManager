@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, LayoutGrid, MapPin, Building2 } from 'lucide-react'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
+import { crianzaService } from '../../services/crianzaService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
 import EstadoReproductivoPipeline from '../../components/centro-cria/EstadoReproductivoPipeline'
@@ -20,6 +21,7 @@ export default function CaballosCentroPage() {
   const userId     = useAuthStore((s) => s.user?.id)
   const rol        = useAuthStore((s) => s.rol)
   const esVet      = rol === 'veterinario'
+  const canEdit    = rol === 'veterinario' || rol === 'admin'
 
   const [caballos, setCaballos] = useState<Caballo[]>([])
   const [campos,   setCampos]   = useState<Campo[]>([])
@@ -28,32 +30,51 @@ export default function CaballosCentroPage() {
   const [busqueda, setBusqueda] = useState('')
   const [filtroRol, setFiltroRol] = useState<FiltroRol>('Todos')
 
-  useEffect(() => {
-    let vivo = true
-    async function cargar() {
-      setLoading(true)
-      setError(null)
-      try {
-        if (esVet) {
-          const c = userId ? await caballoService.listarDelVeterinario(userId) : []
-          if (vivo) { setCaballos(c); setCampos([]) }
-        } else {
-          if (!sociedadId) return
-          const [c, f] = await Promise.all([
-            caballoService.listar(sociedadId),
-            campoService.listar(sociedadId),
-          ])
-          if (vivo) { setCaballos(c); setCampos(f) }
-        }
-      } catch (e: unknown) {
-        if (vivo) setError((e as any)?.message ?? (e instanceof Error ? e.message : String(e)))
-      } finally {
-        if (vivo) setLoading(false)
+  const cargar = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      if (esVet) {
+        const c = userId ? await caballoService.listarDelVeterinario(userId) : []
+        setCaballos(c); setCampos([])
+      } else {
+        if (!sociedadId) return
+        const [c, f] = await Promise.all([
+          caballoService.listar(sociedadId),
+          campoService.listar(sociedadId),
+        ])
+        setCaballos(c); setCampos(f)
       }
+    } catch (e: unknown) {
+      setError((e as any)?.message ?? (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setLoading(false)
     }
-    cargar()
-    return () => { vivo = false }
   }, [sociedadId, userId, esVet])
+
+  useEffect(() => { cargar() }, [cargar])
+
+  async function handleCambiarEstado(
+    caballo: Caballo,
+    nuevoEstado: EstadoReproductivo,
+  ) {
+    const sid = (caballo as any).sociedad_id as string | undefined
+    if (!sid || !userId) return
+    const estadoAnterior = (caballo as any).estado_reproductivo as EstadoReproductivo
+    await crianzaService.actualizarEstadoReproductivo(
+      caballo.id,
+      sid,
+      estadoAnterior ?? null,
+      nuevoEstado,
+      userId,
+    )
+    // Actualizar localmente sin full-reload para mayor responsividad
+    setCaballos((prev) =>
+      prev.map((c) =>
+        c.id === caballo.id ? { ...c, estado_reproductivo: nuevoEstado } as any : c
+      )
+    )
+  }
 
   // Solo donantes y receptoras, ordenadas alfabéticamente (el servicio ya las trae con .order('nombre'))
   const filtrados = useMemo(() => {
@@ -155,7 +176,9 @@ export default function CaballosCentroPage() {
               titulo={nombre}
               icono={<Building2 size={14} className="text-sky-500" />}
               caballos={cabs}
+              canEdit={canEdit}
               onDetalle={irAlDetalle}
+              onCambiarEstado={handleCambiarEstado}
             />
           ))}
 
@@ -169,7 +192,9 @@ export default function CaballosCentroPage() {
                   subtitulo={campo.descripcion}
                   icono={<MapPin size={14} className="text-brand-500" />}
                   caballos={gruposPorCampo[campo.id]}
+                  canEdit={canEdit}
                   onDetalle={irAlDetalle}
+                  onCambiarEstado={handleCambiarEstado}
                 />
               ))}
               {sinCampo.length > 0 && (
@@ -177,7 +202,9 @@ export default function CaballosCentroPage() {
                   titulo="Sin campo asignado"
                   icono={<MapPin size={14} className="text-slate-400" />}
                   caballos={sinCampo}
+                  canEdit={canEdit}
                   onDetalle={irAlDetalle}
+                  onCambiarEstado={handleCambiarEstado}
                 />
               )}
             </>
@@ -191,13 +218,15 @@ export default function CaballosCentroPage() {
 // ── Sección agrupada (por campo o por empresa) ────────────────────────────────
 
 function GrupoSection({
-  titulo, subtitulo, icono, caballos, onDetalle,
+  titulo, subtitulo, icono, caballos, canEdit, onDetalle, onCambiarEstado,
 }: {
   titulo: string
   subtitulo?: string | null
   icono: React.ReactNode
   caballos: Caballo[]
+  canEdit: boolean
   onDetalle: (c: Caballo) => void
+  onCambiarEstado: (c: Caballo, nuevoEstado: EstadoReproductivo) => Promise<void>
 }) {
   return (
     <section>
@@ -211,7 +240,7 @@ function GrupoSection({
       </div>
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
         {caballos.map((caballo) => {
-          const rolRepro = (caballo as any).rol_reproductivo as 'Donante' | 'Receptora' | null
+          const rolRepro    = (caballo as any).rol_reproductivo as 'Donante' | 'Receptora' | null
           const estadoRepro = (caballo as any).estado_reproductivo as EstadoReproductivo
           return (
             <div key={caballo.id} className="divide-y divide-slate-100">
@@ -220,6 +249,8 @@ function GrupoSection({
                 <EstadoReproductivoPipeline
                   rol={rolRepro}
                   estado={estadoRepro ?? null}
+                  canEdit={canEdit}
+                  onCambiar={(nuevo) => onCambiarEstado(caballo, nuevo)}
                 />
               )}
             </div>
