@@ -8,6 +8,8 @@ import type {
   EstadoRecordatorio,
   Flushing,
   NuevoFlushingPayload,
+  Embrion,
+  NuevoEmbrionPayload,
   TransferenciaEmbrionaria,
   NuevaTransferenciaPayload,
   RolReproductivo,
@@ -198,10 +200,6 @@ const MOCK_FLUSHINGS: Flushing[] = [
     veterinario_id: 'mock-vet-001',
     es_negativo: false,
     cantidad: 2,
-    estadio: 'Mórula',
-    grado: 1,
-    tamanio: 'Mediano',
-    zona_pelucida: null,
     padrillo_id: 'cab-003',
     origen_recordatorio_id: 'rem-003',
     pg_given: false,
@@ -226,6 +224,7 @@ const MOCK_TRANSFERENCIAS: TransferenciaEmbrionaria[] = [
     caballo_donante_id: 'cab-002',
     padrillo_id: 'cab-003',
     flushing_id: 'flush-001',
+    embrion_id: null,
     cl_calidad: 'Buena',
     tono_uterino: 'Bueno',
     tono_cervical: 'Normal',
@@ -473,6 +472,39 @@ export const crianzaService = {
       .single()
     if (error) throw error
     return data as Flushing
+  },
+
+  async crearEmbriones(payloads: NuevoEmbrionPayload[]): Promise<Embrion[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('embrion')
+      .insert(payloads)
+      .select('*')
+    if (error) throw error
+    return data as Embrion[]
+  },
+
+  async listarEmbrionesDisponibles(sociedadId: string, donanteId?: string): Promise<Embrion[]> {
+    const supabase = getSupabaseClient()
+    let q = supabase
+      .from('embrion')
+      .select(`*, donante:caballo_donante_id(nombre), padrillo:padrillo_id(nombre)`)
+      .eq('sociedad_id', sociedadId)
+      .eq('estado', 'disponible')
+      .order('created_at', { ascending: false })
+    if (donanteId) q = q.eq('caballo_donante_id', donanteId)
+    const { data, error } = await q
+    if (error) throw error
+    return data as Embrion[]
+  },
+
+  async marcarEmbrionTransferido(embrionId: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('embrion')
+      .update({ estado: 'transferido' })
+      .eq('id', embrionId)
+    if (error) throw error
   },
 
   async actualizarFlushing(id: string, payload: Partial<NuevoFlushingPayload>): Promise<void> {

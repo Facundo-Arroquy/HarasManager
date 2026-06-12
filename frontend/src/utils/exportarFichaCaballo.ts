@@ -243,13 +243,11 @@ export async function generarFichaHtml(data: FichaCaballoData, { autoPrint = fal
     <div class="rep-section">
       <div class="rep-title">Flushings (${flushings.length})</div>
       <table>
-        <thead><tr><th>Fecha</th><th>Resultado</th><th>Estadio</th><th>Grado</th><th>Padrillo</th><th>Vet.</th></tr></thead>
+        <thead><tr><th>Fecha</th><th>Resultado</th><th>Padrillo</th><th>Vet.</th></tr></thead>
         <tbody>
           ${flushings.map((f) => `<tr ${f.cancelado ? 'style="opacity:.55"' : ''}>
             <td class="td">${formatFecha(f.fecha)}</td>
             <td class="td">${f.es_negativo ? 'Negativo' : `${f.cantidad} embrión(es)`}</td>
-            <td class="td">${f.estadio ?? '—'}</td>
-            <td class="td">${f.grado != null ? `G${f.grado}` : '—'}</td>
             <td class="td">${f.padrillo?.nombre ?? '—'}</td>
             <td class="td">${f.veterinario ? `Dr/a. ${f.veterinario.apellido}` : '—'}</td>
           </tr>`).join('')}

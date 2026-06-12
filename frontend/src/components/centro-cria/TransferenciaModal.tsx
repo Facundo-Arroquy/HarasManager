@@ -3,7 +3,7 @@ import { X, AlertCircle, ArrowLeftRight } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
-import type { Flushing } from '../../types/crianza'
+import type { Flushing, Embrion } from '../../types/crianza'
 
 interface Props {
   onClose: () => void
@@ -30,6 +30,15 @@ const TONOS        = ['Excelente', 'Bueno', 'Regular', 'Malo'] as const
 
 const HOY = new Date().toISOString().split('T')[0]
 
+function labelEmbrion(e: Embrion, idx: number): string {
+  const partes: string[] = [`#${idx + 1}`]
+  if (e.estadio) partes.push(e.estadio)
+  if (e.grado != null) partes.push(`G${e.grado}`)
+  if (e.tamanio) partes.push(e.tamanio)
+  if ((e.donante as any)?.nombre) partes.push(`— ${(e.donante as any).nombre}`)
+  return partes.join(' · ')
+}
+
 export default function TransferenciaModal({
   onClose, onSuccess, flushing, flushingId, donantePredId, padrilloPreId, sociedadId,
 }: Props) {
@@ -39,8 +48,9 @@ export default function TransferenciaModal({
   // Para el rol 'veterinario', sociedadActiva es null. Usar el prop sociedadId o el del flushing.
   const efectivaSociedadId = sociedadActiva?.id ?? flushing?.sociedad_id ?? sociedadId ?? ''
 
-  const [animales, setAnimales] = useState<AnimalItem[]>([])
-  const [cargando, setCargando] = useState(true)
+  const [animales,  setAnimales]  = useState<AnimalItem[]>([])
+  const [embriones, setEmbriones] = useState<Embrion[]>([])
+  const [cargando,  setCargando]  = useState(true)
 
   // Derivados de flushing prop
   const donantePredId_ = flushing?.caballo_id ?? donantePredId ?? ''
@@ -50,6 +60,7 @@ export default function TransferenciaModal({
   // Form
   const [receptoraId,   setReceptoraId]   = useState('')
   const [donanteId,     setDonanteId]     = useState(donantePredId_)
+  const [embrionId,     setEmbrionId]     = useState('')
   const [padrilloId,    setPadrilloId]    = useState(padrilloPreId_)
   const [fecha,         setFecha]         = useState(HOY)
   const [clCalidad,     setClCalidad]     = useState<string>('')
@@ -59,7 +70,7 @@ export default function TransferenciaModal({
   const [notas,         setNotas]         = useState('')
 
   // Ovarios de la receptora al momento de la transferencia
-  const [ovIzq, setOvIzq] = useState<string>('CLV')   // cuerpo lúteo lo más común
+  const [ovIzq, setOvIzq] = useState<string>('CLV')
   const [ovDer, setOvDer] = useState<string>('Chico')
 
   const [saving, setSaving] = useState(false)
@@ -69,6 +80,7 @@ export default function TransferenciaModal({
   const donantes   = animales.filter((a) => a.rol_reproductivo === 'Donante')
   const padrillos  = animales.filter((a) => a.categoria === 'Padrillo')
 
+  // Carga animales
   useEffect(() => {
     if (!efectivaSociedadId) return
     crianzaService.listarAnimalesReproductivos(efectivaSociedadId)
@@ -76,6 +88,24 @@ export default function TransferenciaModal({
       .catch(() => {})
       .finally(() => setCargando(false))
   }, [efectivaSociedadId])
+
+  // Carga embriones disponibles cuando cambia la donante
+  useEffect(() => {
+    if (!efectivaSociedadId) return
+    setEmbrionId('')
+    crianzaService.listarEmbrionesDisponibles(efectivaSociedadId, donanteId || undefined)
+      .then(setEmbriones)
+      .catch(() => setEmbriones([]))
+  }, [efectivaSociedadId, donanteId])
+
+  // Cuando se selecciona un embrión, auto-fill padrillo
+  useEffect(() => {
+    if (!embrionId) return
+    const emb = embriones.find((e) => e.id === embrionId)
+    if (emb?.padrillo_id && !padrilloPreId_) {
+      setPadrilloId(emb.padrillo_id)
+    }
+  }, [embrionId, embriones, padrilloPreId_])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -117,7 +147,7 @@ export default function TransferenciaModal({
         'Receptora'
       )
 
-      // 2. Crear la transferencia vinculada a ese registro
+      // 2. Crear la transferencia vinculada
       await crearTransferencia({
         sociedad_id:          efectivaSociedadId,
         fecha,
@@ -127,12 +157,18 @@ export default function TransferenciaModal({
         caballo_donante_id:   donanteId,
         padrillo_id:          padrilloId || null,
         flushing_id:          flushingId_ || null,
+        embrion_id:           embrionId || null,
         cl_calidad:           clCalidad || null,
         tono_uterino:         tonoUterino || null,
         tono_cervical:        tonoCervical || null,
         clasificacion:        clasificacion || null,
         notas:                notas.trim() || null,
       })
+
+      // 3. Marcar el embrión como transferido
+      if (embrionId) {
+        await crianzaService.marcarEmbrionTransferido(embrionId)
+      }
 
       onSuccess?.()
       onClose()
@@ -201,39 +237,69 @@ export default function TransferenciaModal({
             </div>
           </div>
 
-          {/* Donante + Padrillo */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Donante *</label>
-              <select
-                value={donanteId}
-                onChange={(e) => setDonanteId(e.target.value)}
-                disabled={!!donantePredId_}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
-              >
-                <option value="">— Seleccioná —</option>
-                {donantes.map((d) => (
-                  <option key={d.id} value={d.id}>{d.nombre}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Padrillo</label>
-              <select
-                value={padrilloId}
-                onChange={(e) => setPadrilloId(e.target.value)}
-                disabled={!!padrilloPreId_}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
-              >
-                <option value="">— Sin especificar —</option>
-                {padrillos.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                ))}
-              </select>
-            </div>
+          {/* Donante */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Donante *</label>
+            <select
+              value={donanteId}
+              onChange={(e) => setDonanteId(e.target.value)}
+              disabled={!!donantePredId_}
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+            >
+              <option value="">— Seleccioná —</option>
+              {donantes.map((d) => (
+                <option key={d.id} value={d.id}>{d.nombre}</option>
+              ))}
+            </select>
           </div>
 
-          {/* Ovarios de la receptora (estado al momento de la transferencia) */}
+          {/* Embrión disponible */}
+          {donanteId && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-500">
+                Embrión
+                {embriones.length > 0 && (
+                  <span className="ml-1 text-[10px] font-normal text-slate-400">
+                    ({embriones.length} disponible{embriones.length !== 1 ? 's' : ''})
+                  </span>
+                )}
+              </label>
+              {embriones.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">Sin embriones disponibles para esta donante.</p>
+              ) : (
+                <select
+                  value={embrionId}
+                  onChange={(e) => setEmbrionId(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                >
+                  <option value="">— Sin especificar —</option>
+                  {embriones.map((emb, i) => (
+                    <option key={emb.id} value={emb.id}>
+                      {labelEmbrion(emb, i)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+
+          {/* Padrillo */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Padrillo</label>
+            <select
+              value={padrilloId}
+              onChange={(e) => setPadrilloId(e.target.value)}
+              disabled={!!padrilloPreId_}
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60"
+            >
+              <option value="">— Sin especificar —</option>
+              {padrillos.map((p) => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Ovarios de la receptora */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-slate-500">Estado ovárico de la receptora</p>
             <div className="grid grid-cols-2 gap-3">
@@ -260,7 +326,6 @@ export default function TransferenciaModal({
             </div>
           </div>
 
-          {/* Separador */}
           <div className="border-t border-slate-200" />
 
           {/* Condición reproductiva */}
@@ -335,6 +400,11 @@ export default function TransferenciaModal({
             <p className="text-xs text-slate-500">
               • Registro de transferencia embrionaria
             </p>
+            {embrionId && (
+              <p className="text-xs text-slate-500">
+                • El embrión seleccionado pasará a estado <span className="text-blue-600">Transferido</span>
+              </p>
+            )}
           </div>
 
           {error && (

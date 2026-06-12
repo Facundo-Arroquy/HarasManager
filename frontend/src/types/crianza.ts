@@ -150,10 +150,6 @@ export interface Flushing {
   veterinario_id:          string
   es_negativo:             boolean
   cantidad:                number | null
-  estadio:                 string | null
-  grado:                   1 | 2 | 3 | 4 | null
-  tamanio:                 string | null
-  zona_pelucida:           string | null
   padrillo_id:             string | null
   origen_recordatorio_id:  string | null
   pg_given:                boolean
@@ -173,6 +169,36 @@ export type NuevoFlushingPayload = Omit<
 >
 
 // ---------------------------------------------------------------------------
+// Embrión (originado en un flushing)
+// ---------------------------------------------------------------------------
+
+export type EstadoEmbrion = 'disponible' | 'transferido' | 'descartado' | 'congelado'
+
+export interface Embrion {
+  id:                 string
+  flushing_id:        string
+  caballo_donante_id: string
+  sociedad_id:        string
+  padrillo_id:        string | null
+  estadio:            string | null
+  grado:              1 | 2 | 3 | 4 | null
+  tamanio:            string | null
+  zona_pelucida:      string | null
+  estado:             EstadoEmbrion
+  notas:              string | null
+  created_at:         string
+  updated_at:         string
+  // joins opcionales
+  donante?:           { nombre: string }
+  padrillo?:          { nombre: string } | null
+}
+
+export type NuevoEmbrionPayload = Omit<
+  Embrion,
+  'id' | 'created_at' | 'updated_at' | 'donante' | 'padrillo'
+>
+
+// ---------------------------------------------------------------------------
 // Transferencia embrionaria
 // ---------------------------------------------------------------------------
 
@@ -186,6 +212,7 @@ export interface TransferenciaEmbrionaria {
   caballo_donante_id:   string
   padrillo_id:          string | null
   flushing_id:          string | null
+  embrion_id:           string | null
   cl_calidad:           string | null
   tono_uterino:         string | null
   tono_cervical:        string | null
@@ -198,11 +225,12 @@ export interface TransferenciaEmbrionaria {
   donante?:             { nombre: string }
   padrillo?:            { nombre: string } | null
   veterinario?:         { nombre: string; apellido: string }
+  embrion?:             { estadio: string | null; grado: number | null } | null
 }
 
 export type NuevaTransferenciaPayload = Omit<
   TransferenciaEmbrionaria,
-  'id' | 'created_at' | 'updated_at' | 'receptora' | 'donante' | 'padrillo' | 'veterinario'
+  'id' | 'created_at' | 'updated_at' | 'receptora' | 'donante' | 'padrillo' | 'veterinario' | 'embrion'
 >
 
 // ---------------------------------------------------------------------------
