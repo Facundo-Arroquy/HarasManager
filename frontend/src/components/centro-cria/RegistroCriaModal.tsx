@@ -79,6 +79,15 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
     }
   }, [sociedadActiva, rol])
 
+  // Si abre con un animal pre-seleccionado, derivar su sociedad apenas se cargan los animales.
+  // El select onChange no se dispara en ese caso → sin esto el vet sin sociedadActiva pega
+  // "No se pudo determinar la sociedad del animal." aunque el animal sí la tenga.
+  useEffect(() => {
+    if (!caballoId || animales.length === 0) return
+    const animal = animales.find((a) => a.id === caballoId)
+    if (animal?.sociedad_id) setAnimalSociedadId(animal.sociedad_id)
+  }, [caballoId, animales])
+
   // Escape para cerrar
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
