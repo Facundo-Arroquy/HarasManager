@@ -11,6 +11,19 @@ description: >
 
 # Equine Management System — Skill Maestro de Arquitectura
 
+> ## ⚠️ Estado del modelo (2026-06-11)
+>
+> Este documento refleja el **schema vivo en producción**, no las migraciones del repo.
+> El equipo aplica migraciones a mano en el SQL Editor; varias quedaron sin aplicar
+> y generaron drift. Antes de proponer cualquier fix sobre RLS, funciones o tablas,
+> **verificar el schema vivo vía el MCP de Supabase** (`list_tables`, `pg_policy`,
+> `pg_proc`) — no confiar en lo que dicen las migraciones.
+>
+> **Modelo abandonado** (en migraciones pero NO en prod): `marca`, `acceso_veterinario`,
+> `historial_propiedad`, columna `caballo.marca_id`, funciones `get_marca_usuario` /
+> `email_dominio` / `es_admin_haras` / `es_admin_marca`. La granularidad de propiedad
+> es por **sociedad**, no por marca/dominio. Ver task 35 del kanban.
+
 ## Visión General
 
 Sistema web multi-tenant para gestión equina. Permite a múltiples sociedades
