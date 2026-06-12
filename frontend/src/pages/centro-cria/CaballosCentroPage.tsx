@@ -5,7 +5,9 @@ import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
+import EstadoReproductivoPipeline from '../../components/centro-cria/EstadoReproductivoPipeline'
 import Spinner from '../../components/ui/Spinner'
+import type { EstadoReproductivo } from '../../types/crianza'
 
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
 
@@ -208,9 +210,21 @@ function GrupoSection({
         </span>
       </div>
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
-        {caballos.map((caballo) => (
-          <CaballoCard key={caballo.id} caballo={caballo} onClick={() => onDetalle(caballo)} />
-        ))}
+        {caballos.map((caballo) => {
+          const rolRepro = (caballo as any).rol_reproductivo as 'Donante' | 'Receptora' | null
+          const estadoRepro = (caballo as any).estado_reproductivo as EstadoReproductivo
+          return (
+            <div key={caballo.id} className="divide-y divide-slate-100">
+              <CaballoCard caballo={caballo} onClick={() => onDetalle(caballo)} />
+              {rolRepro && (
+                <EstadoReproductivoPipeline
+                  rol={rolRepro}
+                  estado={estadoRepro ?? null}
+                />
+              )}
+            </div>
+          )
+        })}
       </div>
     </section>
   )

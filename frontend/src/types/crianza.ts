@@ -25,6 +25,46 @@ export type ChipObs    = typeof CHIPS_OBS[number]
 export type RolReproductivo = 'Donante' | 'Receptora' | null
 
 // ---------------------------------------------------------------------------
+// Estado reproductivo — máquina de estados del flujo reproductivo
+// ---------------------------------------------------------------------------
+
+export type EstadoReproductivoDonante =
+  | 'revision' | 'strelling' | 'inseminacion' | 'oxy' | 'ov' | 'flushing' | 'pg' | 'espera'
+
+export type EstadoReproductivoReceptora =
+  | 'revision' | 'ov' | 'disponible' | 'transferida' | 'eco1' | 'eco2' | 'eco3' | 'prenada' | 'vacia'
+
+export type EstadoReproductivo = EstadoReproductivoDonante | EstadoReproductivoReceptora | null
+
+// Pasos ordenados por flujo
+export const PASOS_DONANTE: EstadoReproductivoDonante[] = [
+  'revision', 'strelling', 'inseminacion', 'oxy', 'ov', 'flushing', 'pg', 'espera',
+]
+
+export const PASOS_RECEPTORA: EstadoReproductivoReceptora[] = [
+  'revision', 'ov', 'disponible', 'transferida', 'eco1', 'eco2', 'eco3', 'prenada',
+]
+
+// Labels para mostrar en UI
+export const LABEL_ESTADO: Record<string, string> = {
+  revision:     'Revisión',
+  strelling:    'Strelling',
+  inseminacion: 'Inseminación',
+  oxy:          'Oxy',
+  ov:           'OV',
+  flushing:     'Flushing',
+  pg:           'PG',
+  espera:       'Espera',
+  disponible:   'Disponible',
+  transferida:  'Transferida',
+  eco1:         'Eco 1',
+  eco2:         'Eco 2',
+  eco3:         'Eco 3',
+  prenada:      'Preñada',
+  vacia:        'Vacía',
+}
+
+// ---------------------------------------------------------------------------
 // Registro clínico reproductivo
 // ---------------------------------------------------------------------------
 
