@@ -144,16 +144,30 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
         veterinario_id:        user.id,
         es_negativo:           esNegativo,
         cantidad:              esNegativo ? null : Number(cantidad),
-        estadio:               estadio || null,
-        grado:                 grado !== '' ? (grado as 1 | 2 | 3 | 4) : null,
-        tamanio:               tamanio || null,
-        zona_pelucida:         null,
         padrillo_id:           padrilloIds.find((id) => id) || null,
         origen_recordatorio_id: recordatorio?.id ?? null,
         pg_given:              pgGiven,
         cancelado:             false,
         notas:                 notasFinales,
       })
+
+      // Crear N filas en embrion (una por embrión recuperado)
+      if (!esNegativo && Number(cantidad) > 0) {
+        const n = Number(cantidad)
+        const embriones = Array.from({ length: n }, (_, i) => ({
+          flushing_id:        flushing.id,
+          caballo_donante_id: caballoId,
+          sociedad_id:        efectivaSociedadId,
+          padrillo_id:        padrilloIds[i] || null,
+          estadio:            estadio || null,
+          grado:              grado !== '' ? (grado as 1 | 2 | 3 | 4) : null,
+          tamanio:            tamanio || null,
+          zona_pelucida:      null,
+          estado:             'disponible' as const,
+          notas:              null,
+        }))
+        await crianzaService.crearEmbriones(embriones)
+      }
 
       // Marcar el recordatorio de origen como hecho
       if (recordatorio?.id) {

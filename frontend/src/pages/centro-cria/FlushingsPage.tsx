@@ -85,9 +85,6 @@ export default function FlushingsPage() {
                             {f.cantidad} {f.cantidad === 1 ? 'embrión' : 'embriones'}
                           </span>
                         )}
-                        {f.estadio && <span>{f.estadio}</span>}
-                        {f.grado != null && <span>Grado {f.grado}</span>}
-                        {f.tamanio && <span>{f.tamanio}</span>}
                       </>
                     )}
                     {f.veterinario && <span>Dr/a. {f.veterinario.apellido}</span>}

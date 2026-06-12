@@ -8,9 +8,12 @@ import type {
   EstadoRecordatorio,
   Flushing,
   NuevoFlushingPayload,
+  Embrion,
+  NuevoEmbrionPayload,
   TransferenciaEmbrionaria,
   NuevaTransferenciaPayload,
   RolReproductivo,
+  EstadoReproductivo,
 } from '../types/crianza'
 
 // =============================================================================
@@ -197,10 +200,6 @@ const MOCK_FLUSHINGS: Flushing[] = [
     veterinario_id: 'mock-vet-001',
     es_negativo: false,
     cantidad: 2,
-    estadio: 'Mórula',
-    grado: 1,
-    tamanio: 'Mediano',
-    zona_pelucida: null,
     padrillo_id: 'cab-003',
     origen_recordatorio_id: 'rem-003',
     pg_given: false,
@@ -225,6 +224,7 @@ const MOCK_TRANSFERENCIAS: TransferenciaEmbrionaria[] = [
     caballo_donante_id: 'cab-002',
     padrillo_id: 'cab-003',
     flushing_id: 'flush-001',
+    embrion_id: null,
     cl_calidad: 'Buena',
     tono_uterino: 'Bueno',
     tono_cervical: 'Normal',
@@ -474,6 +474,39 @@ export const crianzaService = {
     return data as Flushing
   },
 
+  async crearEmbriones(payloads: NuevoEmbrionPayload[]): Promise<Embrion[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('embrion')
+      .insert(payloads)
+      .select('*')
+    if (error) throw error
+    return data as Embrion[]
+  },
+
+  async listarEmbrionesDisponibles(sociedadId: string, donanteId?: string): Promise<Embrion[]> {
+    const supabase = getSupabaseClient()
+    let q = supabase
+      .from('embrion')
+      .select(`*, donante:caballo_donante_id(nombre), padrillo:padrillo_id(nombre)`)
+      .eq('sociedad_id', sociedadId)
+      .eq('estado', 'disponible')
+      .order('created_at', { ascending: false })
+    if (donanteId) q = q.eq('caballo_donante_id', donanteId)
+    const { data, error } = await q
+    if (error) throw error
+    return data as Embrion[]
+  },
+
+  async marcarEmbrionTransferido(embrionId: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('embrion')
+      .update({ estado: 'transferido' })
+      .eq('id', embrionId)
+    if (error) throw error
+  },
+
   async actualizarFlushing(id: string, payload: Partial<NuevoFlushingPayload>): Promise<void> {
     if (isMockMode()) {
       const idx = MOCK_FLUSHINGS.findIndex((f) => f.id === id)
@@ -705,5 +738,42 @@ export const crianzaService = {
       .update({ rol_reproductivo: rol })
       .eq('id', caballoId)
     if (error) throw error
+  },
+
+  async actualizarEstadoReproductivo(
+    caballoId: string,
+    sociedadId: string,
+    estadoAnterior: EstadoReproductivo,
+    estadoNuevo: EstadoReproductivo,
+    creadoPor: string,
+    motivo?: string,
+  ): Promise<void> {
+    if (isMockMode()) {
+      const { MOCK_CABALLOS } = await import('../dev/mockData')
+      const cab = MOCK_CABALLOS.find((c) => c.id === caballoId)
+      if (cab) (cab as any).estado_reproductivo = estadoNuevo
+      return
+    }
+    const supabase = getSupabaseClient()
+
+    // 1. Actualizar la columna en caballo
+    const { error: errCaballo } = await supabase
+      .from('caballo')
+      .update({ estado_reproductivo: estadoNuevo })
+      .eq('id', caballoId)
+    if (errCaballo) throw errCaballo
+
+    // 2. Insertar auditoría en cria_estado_transicion
+    const { error: errAudit } = await supabase
+      .from('cria_estado_transicion')
+      .insert({
+        caballo_id:     caballoId,
+        sociedad_id:    sociedadId,
+        estado_anterior: estadoAnterior,
+        estado_nuevo:   estadoNuevo,
+        motivo:         motivo ?? null,
+        creado_por:     creadoPor,
+      })
+    if (errAudit) throw errAudit
   },
 }

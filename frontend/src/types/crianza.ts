@@ -25,6 +25,46 @@ export type ChipObs    = typeof CHIPS_OBS[number]
 export type RolReproductivo = 'Donante' | 'Receptora' | null
 
 // ---------------------------------------------------------------------------
+// Estado reproductivo — máquina de estados del flujo reproductivo
+// ---------------------------------------------------------------------------
+
+export type EstadoReproductivoDonante =
+  | 'revision' | 'strelling' | 'inseminacion' | 'oxy' | 'ov' | 'flushing' | 'pg' | 'espera'
+
+export type EstadoReproductivoReceptora =
+  | 'revision' | 'ov' | 'disponible' | 'transferida' | 'eco1' | 'eco2' | 'eco3' | 'prenada' | 'vacia'
+
+export type EstadoReproductivo = EstadoReproductivoDonante | EstadoReproductivoReceptora | null
+
+// Pasos ordenados por flujo
+export const PASOS_DONANTE: EstadoReproductivoDonante[] = [
+  'revision', 'strelling', 'inseminacion', 'oxy', 'ov', 'flushing', 'pg', 'espera',
+]
+
+export const PASOS_RECEPTORA: EstadoReproductivoReceptora[] = [
+  'revision', 'ov', 'disponible', 'transferida', 'eco1', 'eco2', 'eco3', 'prenada',
+]
+
+// Labels para mostrar en UI
+export const LABEL_ESTADO: Record<string, string> = {
+  revision:     'Revisión',
+  strelling:    'Strelling',
+  inseminacion: 'Inseminación',
+  oxy:          'Oxy',
+  ov:           'OV',
+  flushing:     'Flushing',
+  pg:           'PG',
+  espera:       'Espera',
+  disponible:   'Disponible',
+  transferida:  'Transferida',
+  eco1:         'Eco 1',
+  eco2:         'Eco 2',
+  eco3:         'Eco 3',
+  prenada:      'Preñada',
+  vacia:        'Vacía',
+}
+
+// ---------------------------------------------------------------------------
 // Registro clínico reproductivo
 // ---------------------------------------------------------------------------
 
@@ -110,10 +150,6 @@ export interface Flushing {
   veterinario_id:          string
   es_negativo:             boolean
   cantidad:                number | null
-  estadio:                 string | null
-  grado:                   1 | 2 | 3 | 4 | null
-  tamanio:                 string | null
-  zona_pelucida:           string | null
   padrillo_id:             string | null
   origen_recordatorio_id:  string | null
   pg_given:                boolean
@@ -133,6 +169,36 @@ export type NuevoFlushingPayload = Omit<
 >
 
 // ---------------------------------------------------------------------------
+// Embrión (originado en un flushing)
+// ---------------------------------------------------------------------------
+
+export type EstadoEmbrion = 'disponible' | 'transferido' | 'descartado' | 'congelado'
+
+export interface Embrion {
+  id:                 string
+  flushing_id:        string
+  caballo_donante_id: string
+  sociedad_id:        string
+  padrillo_id:        string | null
+  estadio:            string | null
+  grado:              1 | 2 | 3 | 4 | null
+  tamanio:            string | null
+  zona_pelucida:      string | null
+  estado:             EstadoEmbrion
+  notas:              string | null
+  created_at:         string
+  updated_at:         string
+  // joins opcionales
+  donante?:           { nombre: string }
+  padrillo?:          { nombre: string } | null
+}
+
+export type NuevoEmbrionPayload = Omit<
+  Embrion,
+  'id' | 'created_at' | 'updated_at' | 'donante' | 'padrillo'
+>
+
+// ---------------------------------------------------------------------------
 // Transferencia embrionaria
 // ---------------------------------------------------------------------------
 
@@ -146,6 +212,7 @@ export interface TransferenciaEmbrionaria {
   caballo_donante_id:   string
   padrillo_id:          string | null
   flushing_id:          string | null
+  embrion_id:           string | null
   cl_calidad:           string | null
   tono_uterino:         string | null
   tono_cervical:        string | null
@@ -158,11 +225,12 @@ export interface TransferenciaEmbrionaria {
   donante?:             { nombre: string }
   padrillo?:            { nombre: string } | null
   veterinario?:         { nombre: string; apellido: string }
+  embrion?:             { estadio: string | null; grado: number | null } | null
 }
 
 export type NuevaTransferenciaPayload = Omit<
   TransferenciaEmbrionaria,
-  'id' | 'created_at' | 'updated_at' | 'receptora' | 'donante' | 'padrillo' | 'veterinario'
+  'id' | 'created_at' | 'updated_at' | 'receptora' | 'donante' | 'padrillo' | 'veterinario' | 'embrion'
 >
 
 // ---------------------------------------------------------------------------
