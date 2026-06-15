@@ -30,6 +30,7 @@ import FlushingsPage from './pages/centro-cria/FlushingsPage'
 import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
 import ConfigCriaPage from './pages/centro-cria/ConfigCriaPage'
 import CaballosCentroPage from './pages/centro-cria/CaballosCentroPage'
+import EmbrionesPage from './pages/centro-cria/EmbrionesPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 import TransferirVetPage from './pages/vet/TransferirVetPage'
 import AlertasPage from './pages/alertas/AlertasPage'
@@ -171,7 +172,8 @@ export default function App() {
             <Route path="/centro-cria/programa" element={<ProgramaSemanalPage />} />
             <Route path="/centro-cria/recordatorios" element={<RecordatoriosPage />} />
             <Route path="/centro-cria/transferencias" element={<TransferenciasPage />} />
-            <Route path="/centro-cria/flushings" element={<FlushingsPage />} />
+            <Route path="/centro-cria/flushings"  element={<FlushingsPage />} />
+            <Route path="/centro-cria/embriones" element={<EmbrionesPage />} />
             <Route path="/centro-cria/config" element={<ConfigCriaPage />} />
           </Route>
           <Route path="/transferencias" element={<TransferirEmpresaPage />} />

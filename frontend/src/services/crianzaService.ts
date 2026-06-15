@@ -484,6 +484,22 @@ export const crianzaService = {
     return data as Embrion[]
   },
 
+  async listarTodosEmbriones(sociedadId: string): Promise<Embrion[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('embrion')
+      .select(`
+        *,
+        donante:caballo_donante_id(nombre),
+        padrillo:padrillo_id(nombre),
+        cria_transferencia!embrion_id(fecha, receptora:caballo_receptora_id(nombre))
+      `)
+      .eq('sociedad_id', sociedadId)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return data as Embrion[]
+  },
+
   async listarEmbrionesDisponibles(sociedadId: string, donanteId?: string): Promise<Embrion[]> {
     const supabase = getSupabaseClient()
     let q = supabase
