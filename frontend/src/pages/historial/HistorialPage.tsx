@@ -446,8 +446,6 @@ export default function HistorialPage() {
                             ) : (
                               <span className="text-brand-600 font-medium">
                                 {f.cantidad} {f.cantidad === 1 ? 'embrión' : 'embriones'}
-                                {f.estadio ? ` · ${f.estadio}` : ''}
-                                {f.grado != null ? ` · G${f.grado}` : ''}
                               </span>
                             )}
                             {f.padrillo && (

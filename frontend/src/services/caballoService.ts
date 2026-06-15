@@ -19,6 +19,7 @@ export interface Caballo {
   fecha_nacimiento: string
   categoria: string
   rol_reproductivo?: string | null
+  estado_reproductivo?: string | null
   prenada?: boolean
   fecha_prenez?: string | null
   raza_id: number
@@ -135,7 +136,7 @@ export const caballoService = {
     const { data, error } = await supabase
       .from('caballo')
       .select(`
-        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, prenada, fecha_prenez, campo_id,
+        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
         raza_id, pelaje_id, numero_chip, numero_registro, activo,
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
@@ -160,7 +161,7 @@ export const caballoService = {
     const { data, error } = await supabase
       .from('caballo')
       .select(`
-        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, prenada, fecha_prenez,
+        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez,
         numero_chip, numero_registro, activo, sociedad_id, campo_id,
         raza_id, pelaje_id,
         padre_id, padre_nombre, madre_id, madre_nombre,

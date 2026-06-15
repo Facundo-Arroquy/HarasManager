@@ -174,6 +174,13 @@ CREATE TABLE caballo (
   sociedad_id UUID REFERENCES sociedad(id),    -- NULL si es caballo de un vet sin sociedad asignada
   campo_id UUID REFERENCES campo(id),          -- potrero actual
   rol_reproductivo TEXT CHECK (rol_reproductivo IN ('Donante','Receptora')),  -- NULL = sin rol
+  -- Estado actual dentro del flujo reproductivo (máquina de estados — migración 20260612000001)
+  -- Donante: revision | strelling | inseminacion | oxy | ov | flushing | pg | espera
+  -- Receptora: revision | ov | disponible | transferida | eco1 | eco2 | eco3 | prenada | vacia
+  estado_reproductivo TEXT CHECK (estado_reproductivo IS NULL OR estado_reproductivo = ANY (ARRAY[
+    'revision','strelling','inseminacion','oxy','ov','flushing','pg','espera',
+    'disponible','transferida','eco1','eco2','eco3','prenada','vacia'
+  ])),
   padre_id UUID REFERENCES caballo(id),        -- FK al padrillo si está registrado
   padre_nombre TEXT,                           -- nombre libre si el padre no está en sistema
   madre_id UUID REFERENCES caballo(id),
@@ -275,10 +282,7 @@ CREATE TABLE cria_flushing (
   veterinario_id UUID NOT NULL REFERENCES usuario(id),
   es_negativo BOOLEAN DEFAULT FALSE,
   cantidad SMALLINT,
-  estadio TEXT,           -- 'Mórula' | 'Blastocisto temprano' | 'Blastocisto' | 'Blastocisto expandido'
-  grado SMALLINT CHECK (grado >= 1 AND grado <= 4),
-  tamanio TEXT,
-  zona_pelucida TEXT,
+  -- estadio/grado/tamanio/zona_pelucida fueron movidos a tabla embrion (migración 20260612000001)
   padrillo_id UUID REFERENCES caballo(id),
   origen_recordatorio_id UUID REFERENCES cria_recordatorio(id),
   pg_given BOOLEAN DEFAULT FALSE,
@@ -297,12 +301,81 @@ CREATE TABLE cria_transferencia (
   caballo_donante_id UUID NOT NULL REFERENCES caballo(id),
   padrillo_id UUID REFERENCES caballo(id),
   flushing_id UUID REFERENCES cria_flushing(id),
+  embrion_id UUID REFERENCES embrion(id),                    -- embrión específico transferido
   cl_calidad TEXT,
   tono_uterino TEXT,
   tono_cervical TEXT,
   clasificacion TEXT,     -- 'Fresco' | 'Congelado'
+  sexo_embrion TEXT,      -- 'macho' | 'hembra' | 'no_determinado'
+  fecha_sexado DATE,
+  -- GENERATED ALWAYS AS STORED: fecha + 335 días 12 hs
+  fecha_probable_parto DATE GENERATED ALWAYS AS ((fecha + INTERVAL '335 days 12 hours')::date) STORED,
   notas TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Un embrión por flushing; hereda padrillo_id del flushing
+CREATE TABLE embrion (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  flushing_id UUID NOT NULL REFERENCES cria_flushing(id),
+  padrillo_id UUID REFERENCES caballo(id),        -- heredado del flushing
+  caballo_donante_id UUID NOT NULL REFERENCES caballo(id),
+  estadio TEXT,   -- 'Mórula' | 'Blastocisto temprano' | 'Blastocisto' | 'Blastocisto expandido'
+  grado SMALLINT CHECK (grado >= 1 AND grado <= 4),
+  tamanio TEXT,
+  zona_pelucida TEXT,
+  estado TEXT NOT NULL DEFAULT 'disponible'
+    CHECK (estado IN ('disponible','transferido','descartado','congelado')),
+  notas TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Eco 1 / 2 / 3 post-transferencia
+CREATE TABLE cria_ecografia (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  transferencia_id UUID NOT NULL REFERENCES cria_transferencia(id),
+  caballo_receptora_id UUID NOT NULL REFERENCES caballo(id),
+  veterinario_id UUID NOT NULL REFERENCES usuario(id),
+  numero SMALLINT NOT NULL CHECK (numero IN (1,2,3)),
+  fecha DATE NOT NULL,
+  resultado TEXT NOT NULL CHECK (resultado IN ('prenada','abortada','pendiente')),
+  ovario_izq TEXT[] NOT NULL DEFAULT '{}',
+  ovario_der TEXT[] NOT NULL DEFAULT '{}',
+  notas TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (transferencia_id, numero)
+);
+
+-- Plazos configurables por sociedad (sociedad_id NULL = default global)
+CREATE TABLE cria_parametro (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sociedad_id UUID REFERENCES sociedad(id),  -- NULL = global
+  clave TEXT NOT NULL,
+  descripcion TEXT,
+  valor_dias SMALLINT,
+  valor_horas SMALLINT,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE NULLS NOT DISTINCT (sociedad_id, clave)
+);
+-- Claves disponibles: dias_strelling_alerta, dias_inseminacion_alerta, horas_oxy_alerta,
+--   dias_flushing_alerta, dias_espera_ciclo, horas_strelling_receptora, horas_ovusynch_receptora,
+--   dias_ov_eco1, dias_eco1_eco2, dias_eco2_eco3
+
+-- Auditoría inmutable de cambios de estado_reproductivo (solo INSERT)
+CREATE TABLE cria_estado_transicion (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  caballo_id UUID NOT NULL REFERENCES caballo(id),
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  estado_anterior TEXT,   -- NULL = primer estado
+  estado_nuevo TEXT NOT NULL,
+  motivo TEXT,
+  registro_origen_id UUID REFERENCES cria_registro_clinico(id),
+  flushing_origen_id UUID REFERENCES cria_flushing(id),
+  transferencia_origen_id UUID REFERENCES cria_transferencia(id),
+  creado_por UUID NOT NULL REFERENCES usuario(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
@@ -509,6 +582,25 @@ CREATE TABLE lead (
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_id)`
 - INSERT: `vet_tiene_acceso(caballo_id)` (solo vets activos)
 - UPDATE: `veterinario_id = auth.uid()` o `es_admin(sociedad_id)` (en recordatorio)
+
+**`embrion`**
+- SELECT: `tiene_membresia(sociedad_id)` o `is_superadmin()`
+- INSERT: `vet_tiene_acceso(caballo_donante_id)`
+- UPDATE: `vet_tiene_acceso(caballo_donante_id)` o `es_admin(sociedad_id)` o `is_superadmin()`
+
+**`cria_ecografia`**
+- SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_receptora_id)` o `is_superadmin()`
+- INSERT: `vet_tiene_acceso(caballo_receptora_id)`
+- UPDATE: `veterinario_id = auth.uid()` o `es_admin(sociedad_id)` o `is_superadmin()`
+
+**`cria_parametro`**
+- SELECT: `sociedad_id IS NULL` (globales, visibles para todos) o `tiene_membresia(sociedad_id)` o `is_superadmin()`
+- INSERT/UPDATE: `sociedad_id IS NULL AND is_superadmin()` o `es_admin(sociedad_id)`
+
+**`cria_estado_transicion`**
+- SELECT: `tiene_membresia(sociedad_id)` o `is_superadmin()`
+- INSERT: `vet_tiene_acceso(caballo_id)` o `es_admin(sociedad_id)` o `is_superadmin()`
+- Sin UPDATE/DELETE (tabla append-only)
 
 **`venta_caballo`**
 - SELECT: miembro de sociedad vendedora o compradora

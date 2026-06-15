@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Droplets, ArrowLeftRight } from 'lucide-react'
+import { Droplets, ArrowLeftRight, Plus } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import type { Flushing } from '../../types/crianza'
 import Spinner from '../../components/ui/Spinner'
 import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
+import FlushingModal from '../../components/centro-cria/FlushingModal'
 
 export default function FlushingsPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const rol        = useAuthStore((s) => s.rol)
   const { flushings, loading, cargar, cargarParaVet } = useCrianzaStore()
   const [flushingParaTransf, setFlushingParaTransf] = useState<Flushing | null>(null)
+  const [showNuevoFlushing, setShowNuevoFlushing] = useState(false)
 
   useEffect(() => {
     if (sociedadId && flushings.length === 0) cargar(sociedadId)
@@ -25,9 +27,20 @@ export default function FlushingsPage() {
 
   return (
     <div className="space-y-5 p-1">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Flushings</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Registros de recuperación embrionaria</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Flushings</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Registros de recuperación embrionaria</p>
+        </div>
+        {(rol === 'veterinario' || rol === 'admin') && (
+          <button
+            onClick={() => setShowNuevoFlushing(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors shrink-0"
+          >
+            <Plus size={14} />
+            Nuevo flushing
+          </button>
+        )}
       </div>
 
       {/* Resumen */}
@@ -85,9 +98,6 @@ export default function FlushingsPage() {
                             {f.cantidad} {f.cantidad === 1 ? 'embrión' : 'embriones'}
                           </span>
                         )}
-                        {f.estadio && <span>{f.estadio}</span>}
-                        {f.grado != null && <span>Grado {f.grado}</span>}
-                        {f.tamanio && <span>{f.tamanio}</span>}
                       </>
                     )}
                     {f.veterinario && <span>Dr/a. {f.veterinario.apellido}</span>}
@@ -97,14 +107,24 @@ export default function FlushingsPage() {
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   <span className="text-xs text-slate-400">{formatFecha(f.fecha)}</span>
-                  {!f.cancelado && !f.es_negativo && rol === 'veterinario' && (
-                    <button
-                      onClick={() => setFlushingParaTransf(f)}
-                      className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
-                    >
-                      <ArrowLeftRight size={11} />
-                      Transferir
-                    </button>
+                  {!f.cancelado && !f.es_negativo && (rol === 'veterinario' || rol === 'admin') && (
+                    <div className="relative group">
+                      <button
+                        onClick={() => rol === 'veterinario' && setFlushingParaTransf(f)}
+                        disabled={rol !== 'veterinario'}
+                        className="flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-100"
+                      >
+                        <ArrowLeftRight size={11} />
+                        Transferir
+                      </button>
+                      {rol !== 'veterinario' && (
+                        <div className="absolute bottom-full right-0 mb-1.5 hidden group-hover:block z-10 pointer-events-none">
+                          <div className="bg-slate-800 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap">
+                            Solo veterinarios pueden registrar transferencias
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -118,6 +138,17 @@ export default function FlushingsPage() {
           flushing={flushingParaTransf}
           onClose={() => setFlushingParaTransf(null)}
           onSuccess={() => setFlushingParaTransf(null)}
+        />
+      )}
+
+      {showNuevoFlushing && (
+        <FlushingModal
+          onClose={() => setShowNuevoFlushing(false)}
+          onSuccess={() => {
+            setShowNuevoFlushing(false)
+            if (sociedadId) cargar(sociedadId)
+            else if (rol === 'veterinario') cargarParaVet()
+          }}
         />
       )}
     </div>

@@ -44,15 +44,15 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
   // Form
   const [caballoId,   setCaballoId]   = useState(caballoIdInicial ?? recordatorio?.caballo_id ?? '')
   const [fecha,       setFecha]       = useState(recordatorio?.fecha_vto ?? HOY)
-  const [esNegativo,  setEsNegativo]  = useState(false)
-  const [cantidad,    setCantidad]    = useState('')
-  const [estadio,     setEstadio]     = useState<string>('')
-  const [grado,       setGrado]       = useState<number | ''>('')
-  const [tamanio,     setTamanio]     = useState<string>('')
-  const [padrilloIds,   setPadrilloIds]   = useState<string[]>([''])
-  const [padrilloTextos, setPadrilloTextos] = useState<string[]>([''])
-  const [pgGiven,     setPgGiven]     = useState(false)
-  const [notas,       setNotas]       = useState('')
+  const [esNegativo,   setEsNegativo]   = useState(false)
+  const [cantidad,     setCantidad]     = useState('')
+  const [estadio,      setEstadio]      = useState<string>('')
+  const [grado,        setGrado]        = useState<number | ''>('')
+  const [tamanio,      setTamanio]      = useState<string>('')
+  const [padrilloId,   setPadrilloId]   = useState('')
+  const [padrilloTexto, setPadrilloTexto] = useState('')
+  const [pgGiven,      setPgGiven]      = useState(false)
+  const [notas,        setNotas]        = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
@@ -101,24 +101,6 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  // Sincronizar largo de los arrays de padrillos con la cantidad de embriones
-  useEffect(() => {
-    if (esNegativo) {
-      setPadrilloIds([''])
-      setPadrilloTextos([''])
-      return
-    }
-    const n = Math.max(1, Number(cantidad) || 1)
-    const resize = (prev: string[]) => {
-      if (prev.length === n) return prev
-      const next = [...prev]
-      while (next.length < n) next.push('')
-      return next.slice(0, n)
-    }
-    setPadrilloIds(resize)
-    setPadrilloTextos(resize)
-  }, [cantidad, esNegativo])
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -131,29 +113,43 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
 
     setSaving(true)
     try {
-      // Padrillos con texto libre (sin ID) se guardan en notas
-      const textosLibres = padrilloTextos
-        .map((t, i) => (t.trim() && !padrilloIds[i] ? `Embrión ${i + 1}: ${t.trim()}` : null))
-        .filter(Boolean)
-      const notasFinales = [notas.trim(), ...textosLibres].filter(Boolean).join(' | ') || null
+      // Padrillo con texto libre se guarda en notas
+      const notaTextoLibre = padrilloTexto.trim() && !padrilloId
+        ? `Padrillo: ${padrilloTexto.trim()}`
+        : null
+      const notasFinales = [notas.trim(), notaTextoLibre].filter(Boolean).join(' | ') || null
 
       const flushing = await crearFlushing({
-        caballo_id:            caballoId,
-        sociedad_id:           efectivaSociedadId,
+        caballo_id:             caballoId,
+        sociedad_id:            efectivaSociedadId,
         fecha,
-        veterinario_id:        user.id,
-        es_negativo:           esNegativo,
-        cantidad:              esNegativo ? null : Number(cantidad),
-        estadio:               estadio || null,
-        grado:                 grado !== '' ? (grado as 1 | 2 | 3 | 4) : null,
-        tamanio:               tamanio || null,
-        zona_pelucida:         null,
-        padrillo_id:           padrilloIds.find((id) => id) || null,
+        veterinario_id:         user.id,
+        es_negativo:            esNegativo,
+        cantidad:               esNegativo ? null : Number(cantidad),
+        padrillo_id:            padrilloId || null,
         origen_recordatorio_id: recordatorio?.id ?? null,
-        pg_given:              pgGiven,
-        cancelado:             false,
-        notas:                 notasFinales,
+        pg_given:               pgGiven,
+        cancelado:              false,
+        notas:                  notasFinales,
       })
+
+      // Crear N filas en embrion — todas del mismo padrillo
+      if (!esNegativo && Number(cantidad) > 0) {
+        const n = Number(cantidad)
+        const embriones = Array.from({ length: n }, () => ({
+          flushing_id:        flushing.id,
+          caballo_donante_id: caballoId,
+          sociedad_id:        efectivaSociedadId,
+          padrillo_id:        padrilloId || null,
+          estadio:            estadio || null,
+          grado:              grado !== '' ? (grado as 1 | 2 | 3 | 4) : null,
+          tamanio:            tamanio || null,
+          zona_pelucida:      null,
+          estado:             'disponible' as const,
+          notas:              null,
+        }))
+        await crianzaService.crearEmbriones(embriones)
+      }
 
       // Marcar el recordatorio de origen como hecho
       if (recordatorio?.id) {
@@ -292,56 +288,33 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
                 </div>
               </div>
 
-              {/* Padrillos — un selector por embrión */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-500">
-                  {padrilloIds.length === 1 ? 'Padrillo' : 'Padrillos'}
-                </label>
-                {padrilloIds.map((pid, i) => (
-                  <div key={i} className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      {padrilloIds.length > 1 && (
-                        <span className="text-xs text-slate-400 w-16 shrink-0">Embrión {i + 1}</span>
-                      )}
-                      <select
-                        value={pid}
-                        onChange={(e) => {
-                          const next = [...padrilloIds]
-                          next[i] = e.target.value
-                          // Si selecciona del dropdown, limpiar el texto libre
-                          if (e.target.value) {
-                            const textos = [...padrilloTextos]
-                            textos[i] = ''
-                            setPadrilloTextos(textos)
-                          }
-                          setPadrilloIds(next)
-                        }}
-                        className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                      >
-                        <option value="">— Sin especificar —</option>
-                        {padrillos.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nombre}{p.empresa ? ` (${p.empresa})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    {/* Texto libre: visible solo cuando no hay selección del dropdown */}
-                    {!pid && (
-                      <input
-                        type="text"
-                        value={padrilloTextos[i] ?? ''}
-                        onChange={(e) => {
-                          const next = [...padrilloTextos]
-                          next[i] = e.target.value
-                          setPadrilloTextos(next)
-                        }}
-                        placeholder="O escribí el nombre si no está en la lista"
-                        className={`w-full rounded-md border bg-slate-50 px-3 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500 ${padrilloIds.length > 1 ? 'ml-[4.5rem]' : ''} border-slate-200`}
-                      />
-                    )}
-                  </div>
-                ))}
+              {/* Padrillo — único para todos los embriones del flushing */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500">Padrillo</label>
+                <select
+                  value={padrilloId}
+                  onChange={(e) => {
+                    setPadrilloId(e.target.value)
+                    if (e.target.value) setPadrilloTexto('')
+                  }}
+                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                >
+                  <option value="">— Sin especificar —</option>
+                  {padrillos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}{p.empresa ? ` (${p.empresa})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {!padrilloId && (
+                  <input
+                    type="text"
+                    value={padrilloTexto}
+                    onChange={(e) => setPadrilloTexto(e.target.value)}
+                    placeholder="O escribí el nombre si no está en la lista"
+                    className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                )}
               </div>
             </>
           )}
