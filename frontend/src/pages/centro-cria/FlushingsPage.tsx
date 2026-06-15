@@ -108,13 +108,23 @@ export default function FlushingsPage() {
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   <span className="text-xs text-slate-400">{formatFecha(f.fecha)}</span>
                   {!f.cancelado && !f.es_negativo && (rol === 'veterinario' || rol === 'admin') && (
-                    <button
-                      onClick={() => setFlushingParaTransf(f)}
-                      className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
-                    >
-                      <ArrowLeftRight size={11} />
-                      Transferir
-                    </button>
+                    <div className="relative group">
+                      <button
+                        onClick={() => rol === 'veterinario' && setFlushingParaTransf(f)}
+                        disabled={rol !== 'veterinario'}
+                        className="flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors bg-blue-100 text-blue-600 hover:bg-blue-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-blue-100"
+                      >
+                        <ArrowLeftRight size={11} />
+                        Transferir
+                      </button>
+                      {rol !== 'veterinario' && (
+                        <div className="absolute bottom-full right-0 mb-1.5 hidden group-hover:block z-10 pointer-events-none">
+                          <div className="bg-slate-800 text-white text-[10px] rounded px-2 py-1 whitespace-nowrap">
+                            Solo veterinarios pueden registrar transferencias
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
