@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, MapPin, CheckSquare, X, Building2, LayoutList, FileDown } from 'lucide-react'
+import { Search, Plus, CheckSquare, X, FileDown, ChevronDown } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
@@ -12,9 +12,7 @@ import ImportarCaballosModal from '../../components/domain/ImportarCaballosModal
 import Spinner from '../../components/ui/Spinner'
 
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
-type VistaVet = 'empresa' | 'campo'
 
-const VISTA_KEY       = 'haras_vista_caballos_vet'
 const CATEGORIAS      = ['Todos', 'Caballo', 'Yegua', 'Padrillo', 'Potrillo']
 const CATEGORIAS_EDIT = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo']
 const SIN_CAMBIO      = '__sin_cambio__'
@@ -22,6 +20,16 @@ const SIN_CAMPO       = '__sin_campo__'
 
 const canManageCampos = (rol: string | null) =>
   rol === 'admin' || rol === 'jugador' || rol === 'piloto'
+
+/** Retorna la camada como "YYYY-YYYY+1". Jul-Dic → camada del año siguiente. */
+function getCamada(fechaNacimiento: string | null): string | null {
+  if (!fechaNacimiento) return null
+  const date = new Date(fechaNacimiento + 'T12:00:00')
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  if (month >= 7) return `${year}-${year + 1}`
+  return `${year - 1}-${year}`
+}
 
 export default function CaballosPage() {
   const navigate   = useNavigate()
@@ -31,25 +39,32 @@ export default function CaballosPage() {
 
   const esVet = rol === 'veterinario'
 
-  const [vistaVet, setVistaVet] = useState<VistaVet>(
-    () => (localStorage.getItem(VISTA_KEY) as VistaVet) ?? 'empresa'
-  )
-
   const [caballos, setCaballos] = useState<Caballo[]>([])
   const [campos,   setCampos]   = useState<Campo[]>([])
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState<string | null>(null)
-  const [busqueda,    setBusqueda]    = useState('')
-  const [filtro,      setFiltro]      = useState('Todos')
-  const [ordenSubcat, setOrdenSubcat] = useState<'ninguno' | 'receptoras' | 'donantes'>('ninguno')
-  const [filtroDesde, setFiltroDesde] = useState('')
-  const [filtroHasta, setFiltroHasta] = useState('')
+
+  const [busqueda,         setBusqueda]         = useState('')
+  const [filtro,           setFiltro]           = useState('Todos')
+  const [soloPreñadas,     setSoloPreñadas]     = useState(false)
+
+  const [filtroEmpresaIds, setFiltroEmpresaIds] = useState<Set<string>>(new Set())
+  const [showEmpresaDD,    setShowEmpresaDD]    = useState(false)
+  const empresaRef = useRef<HTMLDivElement>(null)
+
+  const [filtroCamposIds,  setFiltroCamposIds]  = useState<Set<string>>(new Set())
+  const [showCamposDD,     setShowCamposDD]     = useState(false)
+  const camposRef  = useRef<HTMLDivElement>(null)
+
+  const [filtroCamadas,    setFiltroCamadas]    = useState<Set<string>>(new Set())
+  const [showCamadas,      setShowCamadas]      = useState(false)
+  const camadasRef = useRef<HTMLDivElement>(null)
 
   const [showConsulta, setShowConsulta] = useState(false)
   const [showNuevo,    setShowNuevo]    = useState(false)
   const [showImportar, setShowImportar] = useState(false)
 
-  // ── Selección masiva ────────────────────────────────────────────────────────
+  // ── Selección masiva ──────────────────────────────────────────────────────
   const [modoSeleccion,    setModoSeleccion]    = useState(false)
   const [seleccionados,    setSeleccionados]    = useState<Set<string>>(new Set())
   const [bulkCampoId,      setBulkCampoId]      = useState(SIN_CAMBIO)
@@ -57,7 +72,6 @@ export default function CaballosPage() {
   const [bulkSubcategoria, setBulkSubcategoria] = useState(SIN_CAMBIO)
   const [bulkPrenada,      setBulkPrenada]      = useState(SIN_CAMBIO)
   const [bulkSaving,       setBulkSaving]       = useState(false)
-  const [soloPreñadas,     setSoloPreñadas]     = useState(false)
 
   const salirModoSeleccion = useCallback(() => {
     setModoSeleccion(false)
@@ -93,7 +107,7 @@ export default function CaballosPage() {
       if (esVet && userId) {
         const c = await caballoService.listarDelVeterinario(userId)
         setCaballos(c)
-        setCampos([]) // vets ven agrupado por empresa o campo sin necesitar la lista de campos
+        setCampos([])
       } else {
         if (!sociedadId) return
         const [c, f] = await Promise.all([
@@ -113,12 +127,18 @@ export default function CaballosPage() {
 
   useEffect(() => { cargar() }, [sociedadId, userId, esVet]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function cambiarVistaVet(v: VistaVet) {
-    setVistaVet(v)
-    localStorage.setItem(VISTA_KEY, v)
-  }
+  // Cerrar dropdowns al hacer click fuera
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (empresaRef.current && !empresaRef.current.contains(e.target as Node)) setShowEmpresaDD(false)
+      if (camposRef.current  && !camposRef.current.contains(e.target as Node))  setShowCamposDD(false)
+      if (camadasRef.current && !camadasRef.current.contains(e.target as Node)) setShowCamadas(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
-  // ── Edición masiva ───────────────────────────────────────────────────────────
+  // ── Edición masiva ────────────────────────────────────────────────────────
   const hayBulkCambios =
     bulkCampoId !== SIN_CAMBIO || bulkCategoria !== SIN_CAMBIO ||
     bulkSubcategoria !== SIN_CAMBIO || bulkPrenada !== SIN_CAMBIO
@@ -144,68 +164,80 @@ export default function CaballosPage() {
     }
   }
 
-  const ORDEN_SUBCAT: Record<string, Record<string, number>> = {
-    receptoras: { Receptora: 0, Donante: 1 },
-    donantes:   { Donante: 0, Receptora: 1 },
-  }
+  // ── Opciones de filtros ───────────────────────────────────────────────────
+  const empresasDisponibles = useMemo(() => {
+    if (!esVet) return []
+    const mapa: Record<string, string> = {}
+    for (const c of caballos) {
+      // El RPC get_caballos_veterinario devuelve sociedad_id como ID de empresa
+      const id     = (c as any).sociedad_id    as string | null
+      const nombre = (c as any).empresa_nombre as string | null
+      if (id && nombre && !mapa[id]) mapa[id] = nombre
+    }
+    return Object.entries(mapa)
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [caballos, esVet])
 
-  const filtrados = useMemo(() => {
+  // Para vets: cuando cambia empresa filter, limpiar campos que ya no aplican
+  useEffect(() => {
+    if (!esVet || filtroCamposIds.size === 0) return
+    setFiltroCamposIds((prev) => {
+      const camposValidos = new Set(
+        caballos
+          .filter((c) => filtroEmpresaIds.size === 0 || filtroEmpresaIds.has((c as any).sociedad_id ?? ''))
+          .map((c) => (c as any).campo_id as string | null)
+          .filter(Boolean)
+      )
+      const next = new Set([...prev].filter((id) => camposValidos.has(id)))
+      return next.size === prev.size ? prev : next
+    })
+  }, [filtroEmpresaIds]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const camposDisponiblesParaFiltro = useMemo(() => {
+    const mapa: Record<string, string> = {}
+    // Para vets con empresa seleccionada, mostrar solo campos de esas empresas
+    const base = esVet && filtroEmpresaIds.size > 0
+      ? caballos.filter((c) => filtroEmpresaIds.has((c as any).sociedad_id ?? ''))
+      : caballos
+    for (const c of base) {
+      const id     = (c as any).campo_id as string | null
+      const nombre = (c as any).campo?.nombre as string | undefined
+                  ?? campos.find((f) => f.id === id)?.nombre
+      if (id && nombre && !mapa[id]) mapa[id] = nombre
+    }
+    return Object.entries(mapa)
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [caballos, campos, esVet, filtroEmpresaIds])
+
+  const camadasDisponibles = useMemo(() => {
+    const set = new Set<string>()
+    for (const c of caballos) {
+      const camada = getCamada((c as any).fecha_nacimiento)
+      if (camada) set.add(camada)
+    }
+    return Array.from(set).sort().reverse()
+  }, [caballos])
+
+  // ── Lista filtrada y ordenada A-Z ─────────────────────────────────────────
+  const filtradosOrdenados = useMemo(() => {
     const base = caballos.filter((c) => {
       const okNombre   = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
       const okCat      = filtro === 'Todos' || c.categoria === filtro
-      const fn         = (c as any).fecha_nacimiento as string | null
-      const mes        = fn ? fn.slice(0, 7) : null // "YYYY-MM"
-      const okDesde    = !filtroDesde || (mes !== null && mes >= filtroDesde)
-      const okHasta    = !filtroHasta || (mes !== null && mes <= filtroHasta)
+      const okEmpresa  = filtroEmpresaIds.size === 0 || filtroEmpresaIds.has((c as any).sociedad_id ?? '')
+      const okCampo    = filtroCamposIds.size === 0  || filtroCamposIds.has((c as any).campo_id ?? '')
+      const okCamada   = filtroCamadas.size === 0    || (() => {
+        const camada = getCamada((c as any).fecha_nacimiento)
+        return camada !== null && filtroCamadas.has(camada)
+      })()
       const okPrenadas = !soloPreñadas || ((c as any).prenada === true && c.categoria === 'Yegua')
       // Las yeguas receptoras se gestionan desde "Caballos Centro" (Centro de Embriones)
       const okRol      = !(c.categoria === 'Yegua' && (c as any).rol_reproductivo === 'Receptora')
-      return okNombre && okCat && okDesde && okHasta && okPrenadas && okRol
+      return okNombre && okCat && okEmpresa && okCampo && okCamada && okPrenadas && okRol
     })
-    if (ordenSubcat === 'ninguno') return base
-    const orden = ORDEN_SUBCAT[ordenSubcat]
-    return [...base].sort((a, b) => {
-      const pa = orden[(a as any).rol_reproductivo ?? ''] ?? 2
-      const pb = orden[(b as any).rol_reproductivo ?? ''] ?? 2
-      return pa - pb
-    })
-  }, [caballos, busqueda, filtro, ordenSubcat, filtroDesde, filtroHasta, soloPreñadas]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const grupos = useMemo(() => {
-    const byCampo: Record<string, Caballo[]> = {}
-    for (const c of filtrados) {
-      const key = (c as any).campo_id ?? '__sin_campo__'
-      if (!byCampo[key]) byCampo[key] = []
-      byCampo[key].push(c)
-    }
-    return byCampo
-  }, [filtrados])
-
-  const gruposPorEmpresa = useMemo(() => {
-    const byEmpresa: Record<string, { nombre: string; caballos: Caballo[] }> = {}
-    for (const c of filtrados) {
-      const id     = (c as any).empresa_id     ?? (c as any).sociedad_id ?? 'desconocida'
-      const nombre = (c as any).empresa_nombre ?? id
-      if (!byEmpresa[id]) byEmpresa[id] = { nombre, caballos: [] }
-      byEmpresa[id].caballos.push(c)
-    }
-    return byEmpresa
-  }, [filtrados])
-
-  const camposConCaballos = campos.filter((c) => grupos[c.id]?.length)
-  const sinCampo          = grupos['__sin_campo__'] ?? []
-
-  // Para vista vet por campo: construimos campos únicos a partir de los caballos
-  const camposVet = useMemo(() => {
-    if (!esVet) return []
-    const mapa: Record<string, { id: string; nombre: string; descripcion?: string }> = {}
-    for (const c of filtrados) {
-      const id     = (c as any).campo_id
-      const nombre = (c as any).campo?.nombre
-      if (id && nombre && !mapa[id]) mapa[id] = { id, nombre }
-    }
-    return Object.values(mapa)
-  }, [filtrados, esVet])
+    return base.sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [caballos, busqueda, filtro, filtroEmpresaIds, filtroCamposIds, filtroCamadas, soloPreñadas]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto pb-32">
@@ -214,10 +246,7 @@ export default function CaballosPage() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Caballos</h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            {loading ? '…' : esVet
-              ? `${caballos.length} animales · ${Object.keys(gruposPorEmpresa).length} empresa${Object.keys(gruposPorEmpresa).length !== 1 ? 's' : ''}`
-              : `${caballos.length} animales · ${campos.length} campos`
-            }
+            {loading ? '…' : `${caballos.length} animales`}
           </p>
         </div>
 
@@ -287,7 +316,7 @@ export default function CaballosPage() {
 
       {/* Filtros */}
       <div className="flex flex-col gap-2 mb-5">
-        {/* Búsqueda + categoría en la misma fila */}
+        {/* Búsqueda + categoría mobile */}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -299,73 +328,35 @@ export default function CaballosPage() {
               className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
             />
           </div>
-          {/* Categoría: select en mobile, botones en sm+ */}
           {!modoSeleccion && (
-            <>
-              <select
-                value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
-                className="sm:hidden rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
-              >
-                {CATEGORIAS.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-              {/* Vista vet toggle — móvil: select; desktop: botones */}
-              {esVet && (
-                <select
-                  value={vistaVet}
-                  onChange={(e) => cambiarVistaVet(e.target.value as VistaVet)}
-                  className="sm:hidden rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
-                >
-                  <option value="empresa">Por empresa</option>
-                  <option value="campo">Por campo</option>
-                </select>
-              )}
-            </>
+            <select
+              value={filtro}
+              onChange={(e) => setFiltro(e.target.value)}
+              className="sm:hidden rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
+            >
+              {CATEGORIAS.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
           )}
         </div>
 
-        {/* Fila extra en sm+: botones de categoría + vista vet + orden */}
+        {/* Botones de categoría (desktop) */}
         {!modoSeleccion && (
-          <div className="hidden sm:flex items-center gap-3 flex-wrap">
-            <div className="flex gap-1.5 flex-wrap">
-              {CATEGORIAS.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setFiltro(cat)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                    filtro === cat
-                      ? 'bg-slate-200 text-slate-900'
-                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Toggle vista vet (desktop) */}
-            {esVet && (
-              <div className="flex rounded-lg border border-slate-300 overflow-hidden text-xs font-medium ml-auto">
-                <button
-                  onClick={() => cambiarVistaVet('empresa')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors ${
-                    vistaVet === 'empresa' ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <Building2 size={13} /> Por empresa
-                </button>
-                <button
-                  onClick={() => cambiarVistaVet('campo')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 border-l border-slate-300 transition-colors ${
-                    vistaVet === 'campo' ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <LayoutList size={13} /> Por campo
-                </button>
-              </div>
-            )}
+          <div className="hidden sm:flex gap-1.5 flex-wrap">
+            {CATEGORIAS.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setFiltro(cat)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                  filtro === cat
+                    ? 'bg-slate-200 text-slate-900'
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         )}
 
@@ -386,162 +377,113 @@ export default function CaballosPage() {
           </div>
         )}
 
-        {/* Orden por rol reproductivo: select en mobile, botones en sm+ */}
-        {!modoSeleccion && (
-          <div className="flex items-center gap-2">
-            {/* Mobile: select */}
-            <select
-              value={ordenSubcat}
-              onChange={(e) => setOrdenSubcat(e.target.value as typeof ordenSubcat)}
-              className="sm:hidden flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
-            >
-              <option value="ninguno">Orden: por defecto</option>
-              <option value="receptoras">Receptoras primero</option>
-              <option value="donantes">Donantes primero</option>
-            </select>
-            {/* Desktop: botones */}
-            <div className="hidden sm:flex items-center gap-2">
-              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Orden:</span>
-              <Tooltip text="Reordena el listado poniendo primero las yeguas con ese rol reproductivo. No filtra, solo cambia el orden." />
-              {(['ninguno', 'receptoras', 'donantes'] as const).map((op) => (
-                <button
-                  key={op}
-                  onClick={() => setOrdenSubcat(op)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                    ordenSubcat === op ? 'bg-slate-200 text-slate-900' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'
-                  }`}
-                >
-                  {op === 'ninguno' ? 'Por defecto' : op === 'receptoras' ? 'Receptoras primero' : 'Donantes primero'}
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Filtro por empresa — solo veterinarios */}
+        {!modoSeleccion && esVet && empresasDisponibles.length > 0 && (
+          <FiltroDropdown
+            label="Empresa:"
+            seleccionados={filtroEmpresaIds}
+            opciones={empresasDisponibles}
+            show={showEmpresaDD}
+            onToggleShow={() => setShowEmpresaDD((v) => !v)}
+            onToggleOpcion={(id) =>
+              setFiltroEmpresaIds((prev) => {
+                const next = new Set(prev)
+                if (next.has(id)) { next.delete(id) } else { next.add(id) }
+                return next
+              })
+            }
+            onLimpiar={() => setFiltroEmpresaIds(new Set())}
+            textoTodos="Todas"
+            textoUno={(id) => empresasDisponibles.find((e) => e.id === id)?.nombre ?? '1 empresa'}
+            textoMultiple={(n) => `${n} empresas`}
+            containerRef={empresaRef}
+            minWidth="min-w-[200px]"
+          />
         )}
 
+        {/* Filtro por campo */}
+        {!modoSeleccion && camposDisponiblesParaFiltro.length > 0 && (
+          <FiltroDropdown
+            label="Campo:"
+            seleccionados={filtroCamposIds}
+            opciones={camposDisponiblesParaFiltro}
+            show={showCamposDD}
+            onToggleShow={() => setShowCamposDD((v) => !v)}
+            onToggleOpcion={(id) =>
+              setFiltroCamposIds((prev) => {
+                const next = new Set(prev)
+                if (next.has(id)) { next.delete(id) } else { next.add(id) }
+                return next
+              })
+            }
+            onLimpiar={() => setFiltroCamposIds(new Set())}
+            textoTodos="Todos"
+            textoUno={(id) => camposDisponiblesParaFiltro.find((c) => c.id === id)?.nombre ?? '1 campo'}
+            textoMultiple={(n) => `${n} campos`}
+            containerRef={camposRef}
+            minWidth="min-w-[180px]"
+          />
+        )}
 
-        {/* Filtro por camada (rango de mes de nacimiento) */}
-        {!modoSeleccion && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider shrink-0">Camada:</span>
-            <Tooltip text="Filtrá animales por período de nacimiento. Dejá uno solo para ver desde/hasta un mes en particular." />
-            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-              <input
-                type="month"
-                value={filtroDesde}
-                onChange={(e) => setFiltroDesde(e.target.value)}
-                className="flex-1 min-w-0 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
-              />
-              <span className="text-xs text-slate-400 shrink-0">→</span>
-              <input
-                type="month"
-                value={filtroHasta}
-                onChange={(e) => setFiltroHasta(e.target.value)}
-                className="flex-1 min-w-0 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:border-slate-400 focus:outline-none"
-              />
-            </div>
-            {(filtroDesde || filtroHasta) && (
-              <button
-                onClick={() => { setFiltroDesde(''); setFiltroHasta('') }}
-                className="shrink-0 rounded-lg border border-slate-300 p-1.5 text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors"
-                title="Limpiar filtro de camada"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
+        {/* Filtro por camada */}
+        {!modoSeleccion && camadasDisponibles.length > 0 && (
+          <FiltroDropdown
+            label="Camada:"
+            seleccionados={filtroCamadas}
+            opciones={camadasDisponibles.map((c) => ({ id: c, nombre: c }))}
+            show={showCamadas}
+            onToggleShow={() => setShowCamadas((v) => !v)}
+            onToggleOpcion={(id) =>
+              setFiltroCamadas((prev) => {
+                const next = new Set(prev)
+                if (next.has(id)) { next.delete(id) } else { next.add(id) }
+                return next
+              })
+            }
+            onLimpiar={() => setFiltroCamadas(new Set())}
+            textoTodos="Todas"
+            textoUno={(id) => id}
+            textoMultiple={(n) => `${n} camadas`}
+            containerRef={camadasRef}
+            minWidth="min-w-[160px]"
+          />
         )}
       </div>
 
       {loading && <div className="flex justify-center py-20"><Spinner size="lg" /></div>}
       {error   && <div className="rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-700">Error: {error}</div>}
-      {!loading && !error && filtrados.length === 0 && (
+      {!loading && !error && filtradosOrdenados.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-sm">Sin resultados</div>
       )}
 
-      {!loading && !error && filtrados.length > 0 && (
-        <div className="space-y-8">
-          {/* Vista veterinario por empresa */}
-          {esVet && vistaVet === 'empresa' && Object.entries(gruposPorEmpresa).map(([empresaId, { nombre, caballos: cabs }]) => (
-            <EmpresaSection
-              key={empresaId}
-              empresaNombre={nombre}
-              caballos={cabs}
-              onDetalle={(c) => navigate(`/caballos/${c.id}/historial`)}
-              modoSeleccion={modoSeleccion}
-              seleccionados={seleccionados}
-              onToggle={toggleSeleccion}
-              onToggleTodos={toggleTodos}
-            />
-          ))}
-
-          {/* Vista veterinario por campo */}
-          {esVet && vistaVet === 'campo' && (
-            <>
-              {camposVet.map((campo) => (
-                <CampoSection
-                  key={campo.id}
-                  campo={campo as Campo}
-                  caballos={grupos[campo.id] ?? []}
-                  rol={rol}
-                  onCampoChange={cargar}
-                  onDetalle={(c) => navigate(`/caballos/${c.id}/historial`)}
-                  modoSeleccion={modoSeleccion}
-                  seleccionados={seleccionados}
-                  onToggle={toggleSeleccion}
-                  onToggleTodos={toggleTodos}
-                  mostrarEmpresa
-                />
-              ))}
-              {sinCampo.length > 0 && (
-                <CampoSection
-                  campo={null}
-                  caballos={sinCampo}
-                  rol={rol}
-                  onCampoChange={cargar}
-                  onDetalle={(c) => navigate(`/caballos/${c.id}/historial`)}
-                  modoSeleccion={modoSeleccion}
-                  seleccionados={seleccionados}
-                  onToggle={toggleSeleccion}
-                  onToggleTodos={toggleTodos}
-                  mostrarEmpresa
-                />
-              )}
-            </>
+      {!loading && !error && filtradosOrdenados.length > 0 && (
+        <>
+          {modoSeleccion && (
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-xs text-slate-400">{filtradosOrdenados.length} animales</span>
+              <button
+                onClick={() => toggleTodos(filtradosOrdenados.map((c) => c.id))}
+                className="text-xs text-brand-500 hover:text-brand-600 transition-colors"
+              >
+                {filtradosOrdenados.every((c) => seleccionados.has(c.id))
+                  ? 'Deseleccionar todos'
+                  : 'Seleccionar todos'}
+              </button>
+            </div>
           )}
-
-          {/* Vista admin/jugador/piloto: por campo de la sociedad */}
-          {!esVet && (
-            <>
-              {camposConCaballos.map((campo) => (
-                <CampoSection
-                  key={campo.id}
-                  campo={campo}
-                  caballos={grupos[campo.id]}
-                  rol={rol}
-                  onCampoChange={cargar}
-                  onDetalle={(c) => navigate(`/caballos/${c.id}/historial`)}
-                  modoSeleccion={modoSeleccion}
-                  seleccionados={seleccionados}
-                  onToggle={toggleSeleccion}
-                  onToggleTodos={toggleTodos}
-                />
-              ))}
-              {sinCampo.length > 0 && (
-                <CampoSection
-                  campo={null}
-                  caballos={sinCampo}
-                  rol={rol}
-                  onCampoChange={cargar}
-                  onDetalle={(c) => navigate(`/caballos/${c.id}/historial`)}
-                  modoSeleccion={modoSeleccion}
-                  seleccionados={seleccionados}
-                  onToggle={toggleSeleccion}
-                  onToggleTodos={toggleTodos}
-                />
-              )}
-            </>
-          )}
-        </div>
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
+            {filtradosOrdenados.map((caballo) => (
+              <CaballoCard
+                key={caballo.id}
+                caballo={caballo}
+                onClick={() => navigate(`/caballos/${caballo.id}/historial`)}
+                seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
+                onToggle={modoSeleccion ? () => toggleSeleccion(caballo.id) : undefined}
+                empresaNombre={esVet ? (caballo as any).empresa_nombre : undefined}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {showImportar && (
@@ -563,11 +505,11 @@ export default function CaballosPage() {
 
       {/* Panel flotante de edición masiva */}
       {modoSeleccion && (
-        <div className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-300 bg-white/95 backdrop-blur-sm px-4 py-3 md:py-4"
+        <div
+          className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-300 bg-white/95 backdrop-blur-sm px-4 py-3 md:py-4"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
         >
           <div className="max-w-3xl mx-auto space-y-3">
-            {/* Contador */}
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-600">
                 {seleccionados.size === 0
@@ -584,13 +526,9 @@ export default function CaballosPage() {
               )}
             </div>
 
-            {/* Controles — grid 2 cols en mobile, fila en desktop */}
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-end">
-              {/* Campo */}
               <div className="sm:flex-1 sm:min-w-[140px]">
-                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-                  Campo
-                </label>
+                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Campo</label>
                 <select
                   value={bulkCampoId}
                   onChange={(e) => setBulkCampoId(e.target.value)}
@@ -598,34 +536,24 @@ export default function CaballosPage() {
                 >
                   <option value={SIN_CAMBIO}>— Sin cambio —</option>
                   <option value={SIN_CAMPO}>Sin campo</option>
-                  {campos.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nombre}</option>
-                  ))}
+                  {campos.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                 </select>
               </div>
 
-              {/* Categoría */}
               <div className="sm:flex-1 sm:min-w-[130px]">
-                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-                  Categoría
-                </label>
+                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Categoría</label>
                 <select
                   value={bulkCategoria}
                   onChange={(e) => { setBulkCategoria(e.target.value); if (e.target.value !== 'Yegua') setBulkSubcategoria(SIN_CAMBIO) }}
                   className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none"
                 >
                   <option value={SIN_CAMBIO}>— Sin cambio —</option>
-                  {CATEGORIAS_EDIT.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+                  {CATEGORIAS_EDIT.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
               </div>
 
-              {/* Rol reproductivo */}
               <div className="sm:flex-1 sm:min-w-[130px]">
-                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-                  Rol reprod.
-                </label>
+                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Rol reprod.</label>
                 <select
                   value={bulkSubcategoria}
                   onChange={(e) => setBulkSubcategoria(e.target.value)}
@@ -638,11 +566,8 @@ export default function CaballosPage() {
                 </select>
               </div>
 
-              {/* Preñada (solo yeguas) */}
               <div className="sm:flex-1 sm:min-w-[120px]">
-                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
-                  Preñada
-                </label>
+                <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Preñada</label>
                 <select
                   value={bulkPrenada}
                   onChange={(e) => setBulkPrenada(e.target.value)}
@@ -654,7 +579,6 @@ export default function CaballosPage() {
                 </select>
               </div>
 
-              {/* Botón aplicar — full width en mobile (ocupa las 2 cols) */}
               <button
                 onClick={aplicarEdicionMasiva}
                 disabled={!hayBulkCambios || seleccionados.size === 0 || bulkSaving}
@@ -670,119 +594,74 @@ export default function CaballosPage() {
   )
 }
 
-// ── Sección de un campo ───────────────────────────────────────────────────────
+// ── Dropdown multi-select reutilizable ────────────────────────────────────────
 
-interface CampoSectionProps {
-  campo: Campo | null
-  caballos: Caballo[]
-  rol: string | null
-  onCampoChange: () => void
-  onDetalle: (c: Caballo) => void
-  modoSeleccion: boolean
+interface FiltroDropdownProps {
+  label: string
   seleccionados: Set<string>
-  onToggle: (id: string) => void
-  onToggleTodos: (ids: string[]) => void
-  mostrarEmpresa?: boolean
+  opciones: { id: string; nombre: string }[]
+  show: boolean
+  onToggleShow: () => void
+  onToggleOpcion: (id: string) => void
+  onLimpiar: () => void
+  textoTodos: string
+  textoUno: (id: string) => string
+  textoMultiple: (n: number) => string
+  containerRef: React.RefObject<HTMLDivElement>
+  minWidth: string
 }
 
-function CampoSection({
-  campo, caballos, onDetalle,
-  modoSeleccion, seleccionados, onToggle, onToggleTodos,
-  mostrarEmpresa,
-}: CampoSectionProps) {
-  const ids            = caballos.map((c) => c.id)
-  const todosEnSeccion = ids.every((id) => seleccionados.has(id))
+function FiltroDropdown({
+  label, seleccionados, opciones, show, onToggleShow, onToggleOpcion, onLimpiar,
+  textoTodos, textoUno, textoMultiple, containerRef, minWidth,
+}: FiltroDropdownProps) {
+  const textoBoton =
+    seleccionados.size === 0 ? textoTodos
+    : seleccionados.size === 1 ? textoUno(Array.from(seleccionados)[0])
+    : textoMultiple(seleccionados.size)
 
   return (
-    <section>
-      <div className="flex items-center gap-2 mb-1">
-        <MapPin size={14} className={campo ? 'text-brand-500' : 'text-slate-400'} />
-        <h2 className="text-sm font-semibold text-slate-600">
-          {campo?.nombre ?? 'Sin campo asignado'}
-        </h2>
-        {campo?.descripcion && (
-          <span className="text-xs text-slate-400">· {campo.descripcion}</span>
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider shrink-0">{label}</span>
+      <div className="relative" ref={containerRef}>
+        <button
+          onClick={onToggleShow}
+          className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+            seleccionados.size > 0
+              ? 'border-brand-500 bg-brand-50 text-brand-700'
+              : 'border-slate-300 text-slate-500 hover:border-slate-400 hover:text-slate-700'
+          }`}
+        >
+          {textoBoton}
+          <ChevronDown size={12} className={`transition-transform ${show ? 'rotate-180' : ''}`} />
+        </button>
+        {show && (
+          <div className={`absolute top-full mt-1 left-0 z-20 ${minWidth} rounded-xl border border-slate-200 bg-white shadow-lg py-1`}>
+            {opciones.map((op) => (
+              <label
+                key={op.id}
+                className="flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={seleccionados.has(op.id)}
+                  onChange={() => onToggleOpcion(op.id)}
+                  className="rounded border-slate-300"
+                />
+                {op.nombre}
+              </label>
+            ))}
+          </div>
         )}
-        <span className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-slate-400">
-            {caballos.length} animal{caballos.length !== 1 ? 'es' : ''}
-          </span>
-          {modoSeleccion && (
-            <button
-              onClick={() => onToggleTodos(ids)}
-              className="text-xs text-brand-500 hover:text-brand-500 transition-colors"
-            >
-              {todosEnSeccion ? 'Deseleccionar todos' : 'Seleccionar todos'}
-            </button>
-          )}
-        </span>
       </div>
-      {/* Lista compacta */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
-        {caballos.map((caballo) => (
-          <CaballoCard
-            key={caballo.id}
-            caballo={caballo}
-            onClick={() => onDetalle(caballo)}
-            seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
-            onToggle={modoSeleccion ? () => onToggle(caballo.id) : undefined}
-            empresaNombre={mostrarEmpresa ? (caballo as any).empresa_nombre : undefined}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-// ── Sección de empresa (vista vet) ────────────────────────────────────────────
-
-interface EmpresaSectionProps {
-  empresaNombre: string
-  caballos: Caballo[]
-  onDetalle: (c: Caballo) => void
-  modoSeleccion: boolean
-  seleccionados: Set<string>
-  onToggle: (id: string) => void
-  onToggleTodos: (ids: string[]) => void
-}
-
-function EmpresaSection({
-  empresaNombre, caballos, onDetalle,
-  modoSeleccion, seleccionados, onToggle, onToggleTodos,
-}: EmpresaSectionProps) {
-  const ids            = caballos.map((c) => c.id)
-  const todosEnSeccion = ids.every((id) => seleccionados.has(id))
-
-  return (
-    <section>
-      <div className="flex items-center gap-2 mb-1">
-        <Building2 size={14} className="text-sky-500" />
-        <h2 className="text-sm font-semibold text-slate-600">{empresaNombre}</h2>
-        <span className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-slate-400">
-            {caballos.length} animal{caballos.length !== 1 ? 'es' : ''}
-          </span>
-          {modoSeleccion && (
-            <button
-              onClick={() => onToggleTodos(ids)}
-              className="text-xs text-brand-500 hover:text-brand-500 transition-colors"
-            >
-              {todosEnSeccion ? 'Deseleccionar todos' : 'Seleccionar todos'}
-            </button>
-          )}
-        </span>
-      </div>
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
-        {caballos.map((caballo) => (
-          <CaballoCard
-            key={caballo.id}
-            caballo={caballo}
-            onClick={() => onDetalle(caballo)}
-            seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
-            onToggle={modoSeleccion ? () => onToggle(caballo.id) : undefined}
-          />
-        ))}
-      </div>
-    </section>
+      {seleccionados.size > 0 && (
+        <button
+          onClick={onLimpiar}
+          className="rounded-lg border border-slate-300 p-1.5 text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors"
+        >
+          <X size={13} />
+        </button>
+      )}
+    </div>
   )
 }

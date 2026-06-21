@@ -81,6 +81,7 @@ HarasManager/
 - No crear un backend Express (no está en el plan del MVP)
 - No hardcodear `sociedad_id` ni `usuario_id`
 - No agregar dependencias sin verificar que Supabase no lo resuelve ya
+- **No agregar sección de "Transferencias" en la página de Caballos** — fue eliminada intencionalmente. La transferencia de embriones se gestiona exclusivamente desde "Centro de Cría".
 
 ---
 
