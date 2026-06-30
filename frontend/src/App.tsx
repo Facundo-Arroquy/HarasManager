@@ -108,18 +108,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 function RequireCentroCria() {
   const accesosCentroC = useAuthStore((s) => s.accesosCentroC)
-  const accesosCentroCOrg = useAuthStore((s) => s.accesosCentroCOrg)
-  const rol = useAuthStore((s) => s.rol)
-
-  // Veterinarios: el acceso lo otorga/deniega el superadmin (usuario.acceso_centro_cria)
-  if (rol === 'veterinario') {
-    return accesosCentroC ? <Outlet /> : <Navigate to="/dashboard" replace />
-  }
-
-  if (!accesosCentroC && !accesosCentroCOrg) {
-    return <Navigate to="/dashboard" replace />
-  }
-  return <Outlet />
+  return accesosCentroC ? <Outlet /> : <Navigate to="/dashboard" replace />
 }
 
 function RequireSuperAdmin() {

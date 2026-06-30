@@ -39,7 +39,7 @@ export default function BottomNav() {
   if (rol === 'superadmin') return null
 
   const visibleItems = NAV_ITEMS.filter((item) => {
-    if (item.requiresAccesoCentro) return rol === 'admin' || accesosCentroC
+    if (item.requiresAccesoCentro) return accesosCentroC
     return !item.roles || (rol && item.roles.includes(rol))
   })
 

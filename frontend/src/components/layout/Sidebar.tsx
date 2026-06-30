@@ -5,7 +5,7 @@ import { NAV_GROUPS } from './navItems'
 import logoUrl from '../../assets/logo.png'
 
 export default function Sidebar() {
-  const { rol, sociedadActiva, user, signOut, accesosCentroC, accesosCentroCOrg } = useAuth()
+  const { rol, sociedadActiva, user, signOut, accesosCentroC } = useAuth()
   const location = useLocation()
 
   if (rol === 'superadmin') return null
@@ -17,11 +17,7 @@ export default function Sidebar() {
     ),
   })).filter((group) => {
     if (group.items.length === 0) return false
-    if (group.requiresAccesoCentro) {
-      // Veterinarios: acceso personal otorgado/denegado por el superadmin
-      if (rol === 'veterinario') return accesosCentroC
-      return accesosCentroCOrg && (rol === 'admin' || accesosCentroC)
-    }
+    if (group.requiresAccesoCentro) return accesosCentroC
     return true
   })
 
