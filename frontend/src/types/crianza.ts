@@ -218,7 +218,6 @@ export interface TransferenciaEmbrionaria {
   tono_cervical:        string | null
   clasificacion:        'Fresco' | 'Congelado' | null
   notas:                string | null
-  fecha_probable_parto: string | null
   created_at:           string
   updated_at:           string
   // joins opcionales
@@ -231,7 +230,7 @@ export interface TransferenciaEmbrionaria {
 
 export type NuevaTransferenciaPayload = Omit<
   TransferenciaEmbrionaria,
-  'id' | 'created_at' | 'updated_at' | 'fecha_probable_parto' | 'receptora' | 'donante' | 'padrillo' | 'veterinario' | 'embrion'
+  'id' | 'created_at' | 'updated_at' | 'receptora' | 'donante' | 'padrillo' | 'veterinario' | 'embrion'
 >
 
 // ---------------------------------------------------------------------------

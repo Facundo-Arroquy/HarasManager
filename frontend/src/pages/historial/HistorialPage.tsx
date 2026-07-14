@@ -265,6 +265,20 @@ export default function HistorialPage() {
                 onChange={(e) => { setFechaPrenez(e.target.value); setPrenOk(false) }}
                 className="w-full rounded-md border border-emerald-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-400"
               />
+              {fechaPrenez && (() => {
+                const inicio = new Date(`${fechaPrenez}T00:00:00`)
+                const diasDePrenada = Math.floor((Date.now() - inicio.getTime()) / 86400000)
+                const partoProbable = new Date(inicio.getTime() + 360 * 86400000)
+                const fechaPartoStr = `${partoProbable.getFullYear()}-${String(partoProbable.getMonth() + 1).padStart(2, '0')}-${String(partoProbable.getDate()).padStart(2, '0')}`
+                return (
+                  <div className="mt-2 flex items-center gap-2 text-xs">
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
+                      {diasDePrenada} días de preñada
+                    </span>
+                    <span className="text-emerald-600">Parto probable: {formatFecha(fechaPartoStr)}</span>
+                  </div>
+                )
+              })()}
             </div>
           )}
           {prenOk && !cambiosPren && (
@@ -476,49 +490,35 @@ export default function HistorialPage() {
                     <span className="text-xs text-slate-600">{transferencias.length}</span>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-white divide-y divide-slate-200">
-                    {transferencias.map((t) => {
-                      const esReceptoraPrenada = t.caballo_receptora_id === id && caballo?.prenada && t.fecha_probable_parto
-                      const diasDePrenada = esReceptoraPrenada
-                        ? Math.floor((Date.now() - new Date(`${t.fecha}T00:00:00`).getTime()) / 86400000)
-                        : null
-                      return (
-                        <div key={t.id} className="px-4 py-3 text-sm">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <div className="flex items-center gap-1.5 text-slate-600">
-                                <span>{t.receptora?.nombre ?? '—'}</span>
-                                <ArrowLeftRight size={10} className="text-slate-400" />
-                                <span className="text-slate-500">{t.donante?.nombre ?? '—'}</span>
-                                {t.padrillo && (
-                                  <>
-                                    <span className="text-slate-400">×</span>
-                                    <span className="text-slate-400">{t.padrillo.nombre}</span>
-                                  </>
-                                )}
-                              </div>
-                              <div className="flex gap-2 mt-1 text-xs text-slate-400">
-                                {t.clasificacion && <span>{t.clasificacion}</span>}
-                                {t.cl_calidad && <span>CL {t.cl_calidad}</span>}
-                              </div>
-                              {esReceptoraPrenada && (
-                                <div className="mt-1.5 flex items-center gap-2 text-xs">
-                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200">
-                                    {diasDePrenada} días de preñada
-                                  </span>
-                                  <span className="text-slate-400">Parto probable: {formatFecha(t.fecha_probable_parto!)}</span>
-                                </div>
+                    {transferencias.map((t) => (
+                      <div key={t.id} className="px-4 py-3 text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <span>{t.receptora?.nombre ?? '—'}</span>
+                              <ArrowLeftRight size={10} className="text-slate-400" />
+                              <span className="text-slate-500">{t.donante?.nombre ?? '—'}</span>
+                              {t.padrillo && (
+                                <>
+                                  <span className="text-slate-400">×</span>
+                                  <span className="text-slate-400">{t.padrillo.nombre}</span>
+                                </>
                               )}
                             </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-xs text-slate-500">{formatFecha(t.fecha)}</p>
-                              {t.veterinario && (
-                                <p className="text-[11px] text-slate-400">Dr/a. {t.veterinario.apellido}</p>
-                              )}
+                            <div className="flex gap-2 mt-1 text-xs text-slate-400">
+                              {t.clasificacion && <span>{t.clasificacion}</span>}
+                              {t.cl_calidad && <span>CL {t.cl_calidad}</span>}
                             </div>
                           </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs text-slate-500">{formatFecha(t.fecha)}</p>
+                            {t.veterinario && (
+                              <p className="text-[11px] text-slate-400">Dr/a. {t.veterinario.apellido}</p>
+                            )}
+                          </div>
                         </div>
-                      )
-                    })}
+                      </div>
+                    ))}
                   </div>
                 </section>
               )}
