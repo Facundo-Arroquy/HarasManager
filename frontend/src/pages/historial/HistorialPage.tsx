@@ -476,35 +476,49 @@ export default function HistorialPage() {
                     <span className="text-xs text-slate-600">{transferencias.length}</span>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-white divide-y divide-slate-200">
-                    {transferencias.map((t) => (
-                      <div key={t.id} className="px-4 py-3 text-sm">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-1.5 text-slate-600">
-                              <span>{t.receptora?.nombre ?? '—'}</span>
-                              <ArrowLeftRight size={10} className="text-slate-400" />
-                              <span className="text-slate-500">{t.donante?.nombre ?? '—'}</span>
-                              {t.padrillo && (
-                                <>
-                                  <span className="text-slate-400">×</span>
-                                  <span className="text-slate-400">{t.padrillo.nombre}</span>
-                                </>
+                    {transferencias.map((t) => {
+                      const esReceptoraPrenada = t.caballo_receptora_id === id && caballo?.prenada && t.fecha_probable_parto
+                      const diasDePrenada = esReceptoraPrenada
+                        ? Math.floor((Date.now() - new Date(`${t.fecha}T00:00:00`).getTime()) / 86400000)
+                        : null
+                      return (
+                        <div key={t.id} className="px-4 py-3 text-sm">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-1.5 text-slate-600">
+                                <span>{t.receptora?.nombre ?? '—'}</span>
+                                <ArrowLeftRight size={10} className="text-slate-400" />
+                                <span className="text-slate-500">{t.donante?.nombre ?? '—'}</span>
+                                {t.padrillo && (
+                                  <>
+                                    <span className="text-slate-400">×</span>
+                                    <span className="text-slate-400">{t.padrillo.nombre}</span>
+                                  </>
+                                )}
+                              </div>
+                              <div className="flex gap-2 mt-1 text-xs text-slate-400">
+                                {t.clasificacion && <span>{t.clasificacion}</span>}
+                                {t.cl_calidad && <span>CL {t.cl_calidad}</span>}
+                              </div>
+                              {esReceptoraPrenada && (
+                                <div className="mt-1.5 flex items-center gap-2 text-xs">
+                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200">
+                                    {diasDePrenada} días de preñada
+                                  </span>
+                                  <span className="text-slate-400">Parto probable: {formatFecha(t.fecha_probable_parto!)}</span>
+                                </div>
                               )}
                             </div>
-                            <div className="flex gap-2 mt-1 text-xs text-slate-400">
-                              {t.clasificacion && <span>{t.clasificacion}</span>}
-                              {t.cl_calidad && <span>CL {t.cl_calidad}</span>}
+                            <div className="text-right shrink-0">
+                              <p className="text-xs text-slate-500">{formatFecha(t.fecha)}</p>
+                              {t.veterinario && (
+                                <p className="text-[11px] text-slate-400">Dr/a. {t.veterinario.apellido}</p>
+                              )}
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-xs text-slate-500">{formatFecha(t.fecha)}</p>
-                            {t.veterinario && (
-                              <p className="text-[11px] text-slate-400">Dr/a. {t.veterinario.apellido}</p>
-                            )}
-                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </section>
               )}
