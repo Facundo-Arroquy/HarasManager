@@ -121,7 +121,8 @@ export default function TransferenciaModal({
     if (!receptoraId)  return setError('Seleccioná la receptora.')
     if (!donanteId)    return setError('Seleccioná la donante.')
     if (!fecha)        return setError('La fecha es requerida.')
-    if (!user?.id || !efectivaSociedadId) return
+    if (!user?.id)     return setError('No se pudo identificar al usuario. Volvé a iniciar sesión.')
+    if (!efectivaSociedadId) return setError('No se pudo determinar la sociedad. Cerrá el modal y volvé a intentar.')
 
     setSaving(true)
     try {

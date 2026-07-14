@@ -531,11 +531,15 @@ export const crianzaService = {
 
   async marcarEmbrionTransferido(embrionId: string): Promise<void> {
     const supabase = getSupabaseClient()
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('embrion')
       .update({ estado: 'transferido' })
       .eq('id', embrionId)
+      .select('id')
     if (error) throw error
+    if (!data || data.length === 0) {
+      throw new Error('No se pudo actualizar el estado del embrión (posible restricción de permisos).')
+    }
   },
 
   async actualizarFlushing(id: string, payload: Partial<NuevoFlushingPayload>): Promise<void> {
