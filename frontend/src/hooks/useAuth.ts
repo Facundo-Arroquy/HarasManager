@@ -27,8 +27,9 @@ async function cargarPerfilProd(
     }
 
     if (perfil?.rol === 'veterinario') {
+      const accesosCria = await tieneAccesoCentroCriaVeterinario(userId).catch(() => false)
+      store.setAccesosCentroC(accesosCria)
       store.setRolVeterinario()
-      tieneAccesoCentroCriaVeterinario(userId).then((v) => store.setAccesosCentroC(v)).catch(() => {})
       return
     }
 
@@ -45,12 +46,15 @@ async function cargarPerfilProd(
       ? (memb as any).cat_rol[0]
       : (memb as any)?.cat_rol
 
+    // Esperar el check de acceso antes de marcar el perfil como cargado,
+    // para que RequireCentroCria no redirija prematuramente.
+    const accesosCria = await tieneAccesoCentroCria(userId).catch(() => false)
+    store.setAccesosCentroC(accesosCria)
     store.setSociedadActiva(
       (memb as any)?.sociedad ?? null,
       catRol?.nombre ?? null
     )
     store.setLoading(false)
-    tieneAccesoCentroCria(userId).then((v) => store.setAccesosCentroC(v)).catch(() => {})
   } catch {
     // Asegurar que el spinner se desbloquea aunque falle la carga del perfil
     store.setPerfilCargado()
