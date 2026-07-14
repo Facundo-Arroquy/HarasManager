@@ -32,6 +32,7 @@ const HOY = new Date().toISOString().split('T')[0]
 
 function labelEmbrion(e: Embrion, idx: number): string {
   const partes: string[] = [`#${idx + 1}`]
+  if (e.estado === 'congelado') partes.push('Vitrificado')
   if (e.estadio) partes.push(e.estadio)
   if (e.grado != null) partes.push(`G${e.grado}`)
   if (e.tamanio) partes.push(e.tamanio)
@@ -269,7 +270,11 @@ export default function TransferenciaModal({
               ) : (
                 <select
                   value={embrionId}
-                  onChange={(e) => setEmbrionId(e.target.value)}
+                  onChange={(e) => {
+                    setEmbrionId(e.target.value)
+                    const emb = embriones.find((x) => x.id === e.target.value)
+                    if (emb) setClasificacion(emb.estado === 'congelado' ? 'Congelado' : 'Fresco')
+                  }}
                   className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 >
                   <option value="">— Sin especificar —</option>
@@ -374,7 +379,7 @@ export default function TransferenciaModal({
               >
                 <option value="">—</option>
                 <option value="Fresco">Fresco</option>
-                <option value="Congelado">Congelado</option>
+                <option value="Congelado">Vitrificado</option>
               </select>
             </div>
           </div>

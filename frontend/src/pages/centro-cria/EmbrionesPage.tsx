@@ -22,7 +22,7 @@ const ESTADO_BADGE: Record<EstadoEmbrion, string> = {
 const ESTADO_LABEL: Record<EstadoEmbrion, string> = {
   disponible:  'Disponible',
   transferido: 'Transferido',
-  congelado:   'Congelado',
+  congelado:   'Vitrificado',
   descartado:  'Descartado',
 }
 
@@ -43,10 +43,11 @@ export default function EmbrionesPage() {
 
   useEffect(() => {
     if (!sociedadId && rol !== 'veterinario') return
-    const sid = sociedadId ?? ''
-    if (!sid) return
     setLoading(true)
-    crianzaService.listarTodosEmbriones(sid)
+    const promesa = sociedadId
+      ? crianzaService.listarTodosEmbriones(sociedadId)
+      : crianzaService.listarTodosEmbrionesVet()
+    promesa
       .then((data) => setEmbriones(data as EmbrionConTransf[]))
       .catch(() => setEmbriones([]))
       .finally(() => setLoading(false))
