@@ -11,13 +11,13 @@ description: >
 
 # Equine Management System — Skill Maestro de Arquitectura
 
-> ## ⚠️ Estado del modelo (2026-06-11)
+> ## ⚠️ Estado del modelo (2026-06-18)
 >
 > Este documento refleja el **schema vivo en producción**, no las migraciones del repo.
-> El equipo aplica migraciones a mano en el SQL Editor; varias quedaron sin aplicar
-> y generaron drift. Antes de proponer cualquier fix sobre RLS, funciones o tablas,
+> Las migraciones se aplican vía MCP (`apply_migration`); antes se aplicaban a mano,
+> lo que generó drift. Antes de proponer cualquier fix sobre RLS, funciones o tablas,
 > **verificar el schema vivo vía el MCP de Supabase** (`list_tables`, `pg_policy`,
-> `pg_proc`) — no confiar en lo que dicen las migraciones.
+> `pg_proc`) — no confiar solo en las migraciones del repo.
 >
 > **Modelo abandonado** (en migraciones pero NO en prod): `marca`, `acceso_veterinario`,
 > `historial_propiedad`, columna `caballo.marca_id`, funciones `get_marca_usuario` /
@@ -664,17 +664,14 @@ HarasManager/
 
 ## Migraciones
 
-Las migraciones **se aplican manualmente** pegando el SQL en el **SQL Editor de Supabase Dashboard**.
-No se usa `supabase db push` ni `supabase migration up`. Supabase no registra qué migraciones
-fueron ejecutadas (la tabla de tracking está vacía), por lo que los archivos en
-`supabase/migrations/` son exclusivamente historial documental para recrear el esquema.
+Las migraciones **se aplican directamente con el MCP server de Supabase** (`apply_migration`).
+No se usa `supabase db push` ni `supabase migration up`.
 
 **Flujo para aplicar una migración:**
 1. Crear el archivo `.sql` en `supabase/migrations/` con formato `YYYYMMDDNNNNN_descripcion.sql`
-2. Ir a Supabase Dashboard → SQL Editor
-3. Pegar el contenido y ejecutar
-4. Hacer commit del archivo en la rama correspondiente
-5. Actualizar este SKILL.md en el mismo PR
+2. Aplicar con el MCP: `mcp__supabase__apply_migration` con el contenido del archivo
+3. Hacer commit del archivo en la rama correspondiente
+4. Actualizar este SKILL.md en el mismo PR
 
 ---
 

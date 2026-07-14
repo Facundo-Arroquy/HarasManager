@@ -97,7 +97,7 @@ HarasManager/
 ## Migraciones de Supabase
 
 Las migraciones están en `supabase/migrations/` con el formato `YYYYMMDDNNNNN_descripcion.sql`.
-Se aplican **manualmente** pegando el SQL en Supabase Dashboard → SQL Editor (no usar `supabase db push`).
+Se aplican con el **MCP server de Supabase** (`apply_migration`). No usar `supabase db push` ni el SQL Editor manual.
 
 Antes de tocar cualquier tabla, consultar `docs/SKILL.md` para entender la estructura real.
 Después de aplicar una migración, actualizar `docs/SKILL.md` en el mismo PR.
