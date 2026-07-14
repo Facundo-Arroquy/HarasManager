@@ -38,7 +38,7 @@ export default function EmbrionesPage() {
   const rol        = useAuthStore((s) => s.rol)
 
   const [embriones, setEmbriones] = useState<EmbrionConTransf[]>([])
-  const [loading,   setLoading]   = useState(false)
+  const [loading,   setLoading]   = useState(true)
   const [filtro,    setFiltro]    = useState<EstadoEmbrion | 'todos'>('todos')
 
   useEffect(() => {
