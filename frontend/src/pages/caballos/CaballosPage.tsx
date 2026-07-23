@@ -607,7 +607,7 @@ interface FiltroDropdownProps {
   textoTodos: string
   textoUno: (id: string) => string
   textoMultiple: (n: number) => string
-  containerRef: React.RefObject<HTMLDivElement>
+  containerRef: React.RefObject<HTMLDivElement | null>
   minWidth: string
 }
 
