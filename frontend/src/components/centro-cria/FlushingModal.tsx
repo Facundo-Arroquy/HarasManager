@@ -148,7 +148,17 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
           estado:             'disponible' as const,
           notas:              null,
         }))
-        await crianzaService.crearEmbriones(embriones)
+        try {
+          await crianzaService.crearEmbriones(embriones)
+        } catch (errEmb) {
+          // El flushing ya quedó guardado: sin las filas en embrion el stock
+          // muestra la cantidad pero no hay nada transferible.
+          throw new Error(
+            `El flushing se guardó, pero no se pudieron crear los ${n} embriones: ` +
+            `${errEmb instanceof Error ? errEmb.message : 'error desconocido'}. ` +
+            'Revisá los permisos sobre la donante y volvé a cargarlos.'
+          )
+        }
       }
 
       // Marcar el recordatorio de origen como hecho

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { X, AlertCircle, ArrowLeftRight } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { X, AlertCircle, ArrowLeftRight, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
@@ -30,6 +30,11 @@ const TONOS        = ['Excelente', 'Bueno', 'Regular', 'Malo'] as const
 
 const HOY = new Date().toISOString().split('T')[0]
 
+function formatFecha(iso: string): string {
+  const [y, m, d] = iso.split('T')[0].split('-')
+  return `${d}/${m}/${y.slice(2)}`
+}
+
 function labelEmbrion(e: Embrion, idx: number): string {
   const partes: string[] = [`#${idx + 1}`]
   if (e.estado === 'congelado') partes.push('Vitrificado')
@@ -44,7 +49,7 @@ export default function TransferenciaModal({
   onClose, onSuccess, flushing, flushingId, donantePredId, padrilloPreId, sociedadId,
 }: Props) {
   const { user, sociedadActiva } = useAuth()
-  const { crearRegistro, crearTransferencia } = useCrianzaStore()
+  const { crearRegistro, crearTransferencia, transferencias } = useCrianzaStore()
 
   // Para el rol 'veterinario', sociedadActiva es null. Usar el prop sociedadId o el del flushing.
   const efectivaSociedadId = sociedadActiva?.id ?? flushing?.sociedad_id ?? sociedadId ?? ''
@@ -76,10 +81,29 @@ export default function TransferenciaModal({
 
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
+  const [exito,  setExito]  = useState(false)
+  // La receptora no se bloquea: se avisa que ya recibió una transferencia y se
+  // pide una confirmación explícita antes de guardar.
+  const [confirmadoRepetida, setConfirmadoRepetida] = useState(false)
 
   const receptoras = animales.filter((a) => a.rol_reproductivo === 'Receptora')
   const donantes   = animales.filter((a) => a.rol_reproductivo === 'Donante')
   const padrillos  = animales.filter((a) => a.categoria === 'Padrillo')
+
+  // Última transferencia registrada por receptora, para avisar reutilización
+  const ultimaTransfPorReceptora = useMemo(() => {
+    const mapa = new Map<string, string>()
+    for (const t of transferencias) {
+      const previa = mapa.get(t.caballo_receptora_id)
+      if (!previa || t.fecha > previa) mapa.set(t.caballo_receptora_id, t.fecha)
+    }
+    return mapa
+  }, [transferencias])
+
+  const ultimaTransfReceptora = receptoraId ? ultimaTransfPorReceptora.get(receptoraId) : undefined
+
+  // Los embriones salen del flushing: sin stock disponible no hay transferencia posible
+  const sinEmbriones = !!donanteId && embriones.length === 0
 
   // Carga animales
   useEffect(() => {
@@ -124,6 +148,18 @@ export default function TransferenciaModal({
     if (!user?.id)     return setError('No se pudo identificar al usuario. Volvé a iniciar sesión.')
     if (!efectivaSociedadId) return setError('No se pudo determinar la sociedad. Cerrá el modal y volvé a intentar.')
 
+    // El embrión sale del flushing y es obligatorio: sin él la transferencia
+    // quedaría sin stock que descontar y el embrión seguiría figurando disponible.
+    if (sinEmbriones) {
+      return setError('La donante no tiene embriones disponibles. Registrá el flushing con la cantidad recuperada antes de transferir.')
+    }
+    if (!embrionId) return setError('Seleccioná el embrión a transferir.')
+
+    if (ultimaTransfReceptora && !confirmadoRepetida) {
+      setConfirmadoRepetida(true)
+      return setError(`Esta receptora ya recibió una transferencia el ${formatFecha(ultimaTransfReceptora)}. Volvé a presionar para confirmar.`)
+    }
+
     setSaving(true)
     try {
       // 1. Crear registro clínico de la receptora con chip "Transferida"
@@ -167,13 +203,14 @@ export default function TransferenciaModal({
         notas:                notas.trim() || null,
       })
 
-      // 3. Marcar el embrión como transferido
-      if (embrionId) {
-        await crianzaService.marcarEmbrionTransferido(embrionId)
-      }
+      // 3. Marcar el embrión como transferido — tira error si la RLS lo bloquea
+      await crianzaService.marcarEmbrionTransferido(embrionId)
 
-      onSuccess?.()
-      onClose()
+      setExito(true)
+      setTimeout(() => {
+        onSuccess?.()
+        onClose()
+      }, 1200)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al guardar.')
     } finally {
@@ -218,14 +255,23 @@ export default function TransferenciaModal({
               <label className="text-xs font-medium text-slate-500">Receptora *</label>
               <select
                 value={receptoraId}
-                onChange={(e) => setReceptoraId(e.target.value)}
+                onChange={(e) => {
+                  setReceptoraId(e.target.value)
+                  setConfirmadoRepetida(false)
+                  setError('')
+                }}
                 disabled={cargando}
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
               >
                 <option value="">— Seleccioná —</option>
-                {receptoras.map((r) => (
-                  <option key={r.id} value={r.id}>{r.nombre}</option>
-                ))}
+                {receptoras.map((r) => {
+                  const ultima = ultimaTransfPorReceptora.get(r.id)
+                  return (
+                    <option key={r.id} value={r.id}>
+                      {ultima ? `${r.nombre} · Transferida ${formatFecha(ultima)}` : r.nombre}
+                    </option>
+                  )
+                })}
               </select>
             </div>
             <div className="space-y-1.5">
@@ -238,6 +284,18 @@ export default function TransferenciaModal({
               />
             </div>
           </div>
+
+          {/* Aviso: receptora ya usada */}
+          {ultimaTransfReceptora && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2">
+              <AlertTriangle size={13} className="text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-800">
+                Esta receptora ya recibió una transferencia el{' '}
+                <span className="font-medium">{formatFecha(ultimaTransfReceptora)}</span>.
+                Verificá que esté vacía antes de volver a transferirle.
+              </p>
+            </div>
+          )}
 
           {/* Donante */}
           <div className="space-y-1.5">
@@ -259,15 +317,21 @@ export default function TransferenciaModal({
           {donanteId && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-500">
-                Embrión
+                Embrión *
                 {embriones.length > 0 && (
                   <span className="ml-1 text-[10px] font-normal text-slate-400">
                     ({embriones.length} disponible{embriones.length !== 1 ? 's' : ''})
                   </span>
                 )}
               </label>
-              {embriones.length === 0 ? (
-                <p className="text-xs text-slate-400 italic">Sin embriones disponibles para esta donante.</p>
+              {sinEmbriones ? (
+                <div className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2">
+                  <AlertCircle size={13} className="text-red-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-red-700">
+                    Esta donante no tiene embriones disponibles. Los embriones se generan al registrar
+                    el flushing con la cantidad recuperada — cargalo antes de transferir.
+                  </p>
+                </div>
               ) : (
                 <select
                   value={embrionId}
@@ -278,7 +342,7 @@ export default function TransferenciaModal({
                   }}
                   className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 >
-                  <option value="">— Sin especificar —</option>
+                  <option value="">— Seleccioná —</option>
                   {embriones.map((emb, i) => (
                     <option key={emb.id} value={emb.id}>
                       {labelEmbrion(emb, i)}
@@ -414,9 +478,18 @@ export default function TransferenciaModal({
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 text-xs text-red-600">
-              <AlertCircle size={13} />
+            <div className="flex items-start gap-2 text-xs text-red-600">
+              <AlertCircle size={13} className="mt-0.5 shrink-0" />
               {error}
+            </div>
+          )}
+
+          {exito && (
+            <div className="flex items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2">
+              <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+              <p className="text-xs text-emerald-800">
+                Transferencia registrada. El embrión pasó a <span className="font-medium">Transferido</span>.
+              </p>
             </div>
           )}
         </form>
@@ -433,10 +506,13 @@ export default function TransferenciaModal({
           <button
             type="submit"
             form="transferencia-form"
-            disabled={saving}
-            className="px-4 py-2 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50"
+            disabled={saving || exito || sinEmbriones}
+            className="px-4 py-2 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? 'Guardando…' : 'Registrar transferencia'}
+            {saving ? 'Guardando…'
+              : exito ? 'Registrada ✓'
+              : confirmadoRepetida ? 'Confirmar transferencia'
+              : 'Registrar transferencia'}
           </button>
         </div>
       </div>
