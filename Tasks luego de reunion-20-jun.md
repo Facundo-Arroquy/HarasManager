@@ -61,7 +61,7 @@ También: algunos caballos jóvenes **solo tienen RP (número)** como identifica
 
 **Qué es:** El registro clínico del centro de cría (`cria_registro_clinico`) necesita capturar más info del útero:
 - **C/T** (con tono / sin tono)
-- **Niveles de edema:** ED 1, ED 2, ED 3
+- **Niveles de edema:** ED 1, ED 2, ED 3, ED 3/2
 - **Nivel de líquido:** + / ++ / +++
 
 Hoy el campo `utero TEXT[]` existe pero habría que definir los valores posibles y asegurarse de que el formulario los capture.
@@ -76,7 +76,7 @@ Hoy el campo `utero TEXT[]` existe pero habría que definir los valores posibles
 - Vista de embriones vitrificados
 - Posibilidad de transferirlos a una receptora (flujo igual al de embrión fresco)
 
-**Ya existe en DB:** `embrion.estado IN ('disponible','transferido','descartado','congelado')` y `cria_transferencia.clasificacion TEXT` ('Fresco' | 'Congelado').
+**Ya existe en DB:** `embrion.estado IN ('disponible','transferido','descartado','congelado')` y `cria_transferencia.clasificacion TEXT` ('Fresco' | 'Congelado'). aca cambia donde diga congelado pone vetrificado no congelado.
 
 ---
 
@@ -101,7 +101,7 @@ Hoy el campo `utero TEXT[]` existe pero habría que definir los valores posibles
 
 **Qué es:** Cuando en una ecografía el resultado es "abortada", la yegua receptora debe:
 - Cambiar `estado_reproductivo` → `'vacia'`
-- Aparecer en una lista de "yeguas vacías" o "yeguas que abortaron"
+- Aparecer en una lista de "yeguas vacías" o "yeguas que abortaron" debe aparecer en ambas, si una yagua aborta debemos tenerlo en cuenta para no inseminar con un buen embrion ya que hay posibilidades que aborte de nuevo
 - Reiniciar el flujo para poder volver a recibir un embrión
 
 **Ya existe:** La columna `estado_reproductivo` en `caballo` y `cria_ecografia.resultado IN ('prenada','abortada','pendiente')`. Hay que conectar la lógica.
@@ -118,7 +118,7 @@ Hoy el campo `utero TEXT[]` existe pero habría que definir los valores posibles
 
 **Hoy:** `cria_ecografia.numero SMALLINT CHECK (numero IN (1,2,3))` — limita a 3 ecos. Habría que ampliar o cambiar el constraint si se habilitan ecos adicionales.
 
-**Duda:** ¿Los ecos adicionales son raros o es algo frecuente? Si es frecuente conviene sacar el constraint `IN (1,2,3)` y permitir `numero >= 1`.
+**Duda:** ¿Los ecos adicionales son raros o es algo frecuente? Si es frecuente conviene sacar el constraint `IN (1,2,3)` y permitir `numero >= 1`. si hacelo
 
 ---
 
@@ -150,7 +150,7 @@ Hoy el campo `utero TEXT[]` existe pero habría que definir los valores posibles
 
 **Qué es:** Cuando un caballo muere o es dado de baja, los recordatorios activos de ese caballo deben marcarse como cancelados automáticamente (o con un motivo especial "muerta/baja").
 
-**Duda:** ¿"Muerta/baja" es un nuevo `cancel_motivo` en `cria_recordatorio`, o también hay que cambiar el estado del caballo (`caballo.activo = false`)?
+**Duda:** ¿"Muerta/baja" es un nuevo `cancel_motivo` en `cria_recordatorio`, o también hay que cambiar el estado del caballo (`caballo.activo = false`)? queda en un registro de animales muertos y todos los registros pendientes se eliminan, dentro del panel de muertos el administrador puede eliminar el cabalo justo a su historial o no. 
 
 ---
 
@@ -192,14 +192,20 @@ La reunión mencionó una imagen (C8DF0FC7...) que no pude ver pero parece ser u
 
 | # | Duda | Quién define |
 |---|------|-------------|
-| A | ¿"RP" es `numero_registro` existente o campo nuevo? | Gero / Tomi |
+| A | ¿"RP" es `numero_registro` existente o campo nuevo? | Gero / Tomi | 
+es un identificativo del caballo diferente del nombre, este puede no ser unico en el mismo campo. por ejemplo puede hacer un 222 camada 2010 y otro 222 camada 2020, pero el RP es el mismo, por lo que no se puede usar como identificador. 
 | B | ¿"Camada" = `campo` en DB, o es una agrupación por temporada/fecha de nacimiento? | Gero |
+Camada es el año en el cual nacio el caballo, como toman 6 meses de un año y 6 de otro se usa por ejemplo 2025-2026. 
 | C | ¿Plan sanitario = template reutilizable o registros individuales por caballo? | Gero / Tomi |
+reutilizable 
 | D | ¿Los "trabajos" de sanidad van en `historial_clinico` o tabla separada? | Facu decide según modelo |
 | E | ¿"Configurables" en acciones reproductivas = catálogo editable o texto libre? | Gero |
+catálogo editable
 | F | ¿Revisión por días de semana: lo configura el vet o el admin? ¿Es por animal o global? | Gero |
 | G | ¿Ecos adicionales (más allá de 3) son frecuentes? ¿Hay que romper el constraint? | Gero |
+si son frecuentes
 | H | ¿"Registro de trabajo por día" es vista en app o exportación PDF/Excel? | Gero / Tomi |
+ambas
 | I | ¿"Trabajo para más de un caballo" es aplicar el mismo registro a N caballos en una carga, o es otra cosa? | Gero |
 | J | ¿Qué imagen/mockup es el C8DF0FC7...PNG? No se pudo visualizar en esta sesión. | Facu revisar |
 
