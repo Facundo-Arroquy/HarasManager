@@ -6,10 +6,10 @@ import type {
   RecordatorioCria,
   Flushing,
   TransferenciaEmbrionaria,
+  RegistrarTransferenciaPayload,
   NuevoRegistroCriaPayload,
   NuevoRecordatorioPayload,
   NuevoFlushingPayload,
-  NuevaTransferenciaPayload,
   EstadoRecordatorio,
   TipoRecordatorio,
   RolReproductivo,
@@ -129,7 +129,8 @@ interface CrianzaState {
   actualizarFlushing: (id: string, payload: Partial<NuevoFlushingPayload>) => Promise<void>
 
   // Transferencias
-  crearTransferencia: (payload: NuevaTransferenciaPayload) => Promise<TransferenciaEmbrionaria>
+  /** Transferencia completa en una sola transacción (RPC). Ver crianzaService. */
+  registrarTransferencia: (payload: RegistrarTransferenciaPayload) => Promise<TransferenciaEmbrionaria>
 
   // Rol reproductivo
   actualizarRolReproductivo: (caballoId: string, rol: RolReproductivo) => Promise<void>
@@ -248,8 +249,8 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
   // ── Transferencias ────────────────────────────────────────────────────────
 
-  crearTransferencia: async (payload) => {
-    const transferencia = await crianzaService.crearTransferencia(payload)
+  registrarTransferencia: async (payload) => {
+    const transferencia = await crianzaService.registrarTransferenciaEmbrionaria(payload)
     set((s) => ({ transferencias: [transferencia, ...s.transferencias] }))
     return transferencia
   },

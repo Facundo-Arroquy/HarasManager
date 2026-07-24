@@ -504,6 +504,7 @@ CREATE TABLE lead (
 | `get_alertas_vet()` | Alertas de los próximos 30 días del vet autenticado |
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
+| `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Devuelve `jsonb` con los tres ids (migración `20260724000626`) |
 
 ### Triggers
 

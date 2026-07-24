@@ -233,6 +233,28 @@ export type NuevaTransferenciaPayload = Omit<
   'id' | 'created_at' | 'updated_at' | 'receptora' | 'donante' | 'padrillo' | 'veterinario' | 'embrion'
 >
 
+/**
+ * Payload de la RPC `registrar_transferencia_embrionaria`, que crea el registro
+ * clínico de la receptora, la transferencia y descuenta el embrión en una sola
+ * transacción. No lleva `veterinario_id`: la función lo toma de `auth.uid()`.
+ */
+export interface RegistrarTransferenciaPayload {
+  sociedad_id:          string
+  fecha:                string
+  caballo_receptora_id: string
+  caballo_donante_id:   string
+  embrion_id:           string
+  padrillo_id:          string | null
+  flushing_id:          string | null
+  ovario_izq:           string[]
+  ovario_der:           string[]
+  cl_calidad:           string | null
+  tono_uterino:         string | null
+  tono_cervical:        string | null
+  clasificacion:        'Fresco' | 'Congelado' | null
+  notas:                string | null
+}
+
 // ---------------------------------------------------------------------------
 // Vista unificada de caballo con datos reproductivos (para listas del módulo)
 // ---------------------------------------------------------------------------

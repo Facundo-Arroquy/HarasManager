@@ -49,7 +49,7 @@ export default function TransferenciaModal({
   onClose, onSuccess, flushing, flushingId, donantePredId, padrilloPreId, sociedadId,
 }: Props) {
   const { user, sociedadActiva } = useAuth()
-  const { crearRegistro, crearTransferencia, transferencias } = useCrianzaStore()
+  const { registrarTransferencia, transferencias } = useCrianzaStore()
 
   // Para el rol 'veterinario', sociedadActiva es null. Usar el prop sociedadId o el del flushing.
   const efectivaSociedadId = sociedadActiva?.id ?? flushing?.sociedad_id ?? sociedadId ?? ''
@@ -162,49 +162,24 @@ export default function TransferenciaModal({
 
     setSaving(true)
     try {
-      // 1. Crear registro clínico de la receptora con chip "Transferida"
-      const registro = await crearRegistro(
-        {
-          caballo_id:         receptoraId,
-          sociedad_id:        efectivaSociedadId,
-          fecha,
-          veterinario_id:     user.id,
-          ovario_izq:         ovIzq ? [ovIzq] : [],
-          ovario_der:         ovDer ? [ovDer] : [],
-          utero:              [],
-          obs_chips:          ['Transferida'],
-          padrillo_id:        null,
-          ov_dias:            null,
-          review_manana:      false,
-          review_manana_desc: null,
-          motivo:             null,
-          diagnostico:        null,
-          tratamiento:        null,
-          observaciones:      notas.trim() || null,
-        },
-        'Receptora'
-      )
-
-      // 2. Crear la transferencia vinculada
-      await crearTransferencia({
+      // Registro clínico + transferencia + embrión descontado, en una sola
+      // transacción. Si algo falla no queda nada a medias.
+      await registrarTransferencia({
         sociedad_id:          efectivaSociedadId,
         fecha,
-        veterinario_id:       user.id,
-        registro_id:          registro.id,
         caballo_receptora_id: receptoraId,
         caballo_donante_id:   donanteId,
+        embrion_id:           embrionId,
         padrillo_id:          padrilloId || null,
         flushing_id:          flushingId_ || null,
-        embrion_id:           embrionId || null,
+        ovario_izq:           ovIzq ? [ovIzq] : [],
+        ovario_der:           ovDer ? [ovDer] : [],
         cl_calidad:           clCalidad || null,
         tono_uterino:         tonoUterino || null,
         tono_cervical:        tonoCervical || null,
         clasificacion:        clasificacion || null,
         notas:                notas.trim() || null,
       })
-
-      // 3. Marcar el embrión como transferido — tira error si la RLS lo bloquea
-      await crianzaService.marcarEmbrionTransferido(embrionId)
 
       setExito(true)
       setTimeout(() => {
