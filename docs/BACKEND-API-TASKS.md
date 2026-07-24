@@ -1,0 +1,487 @@
+# Backend API — plan de implementación por bloques
+
+Plan para agregar un backend FastAPI a HarasManager, escrito para poder
+arrancarlo el día que se decida sin tener que re-investigar nada.
+
+**Estado: no iniciado.** Hoy el frontend habla directo con Supabase y no hay
+backend. Este documento no implica que la decisión esté tomada — ver Bloque 0.
+
+Cada bloque es independiente y tiene su criterio de terminado. Se pueden hacer
+de a uno, con el sistema funcionando en producción todo el tiempo.
+
+> **Convivencia, no reemplazo.** En ningún momento hay un "big bang". El
+> frontend puede hablar con Supabase y con la API a la vez, endpoint por
+> endpoint. Si un bloque sale mal, se revierte solo ese.
+
+---
+
+## Punto de partida (medido el 24/07/2026)
+
+| | |
+|---|---|
+| Tablas en `public` | 30 |
+| Policies RLS | 100 |
+| Funciones Postgres | 24 |
+| Triggers | 20 |
+| Buckets de Storage | 2 |
+| Services en el front | 15 archivos, ~3.100 líneas |
+| RPCs llamadas desde el front | 10 |
+
+Las 10 RPCs que hoy consume el frontend:
+
+```
+crear_caballo_veterinario          actualizar_caballo_veterinario
+toggle_prenada_veterinario         transferir_caballos_vet
+registrar_transferencia_embrionaria
+get_caballos_veterinario           get_veterinarios_plataforma
+get_alertas_vet                    get_consultas_recientes_vet
+get_sociedades_activas
+```
+
+Auth actual: Supabase Auth (`signInWithPassword`, `resetPasswordForEmail`,
+`updateUser`, `onAuthStateChange`) en `frontend/src/hooks/useAuth.ts`.
+
+---
+
+## Bloque 0 — Decidir si corresponde
+
+**No es una tarea de código.** Es el filtro que evita construir esto por gusto.
+
+Hoy la arquitectura sin backend funciona y el multi-tenant por `sociedad_id`
+con RLS es exactamente el caso donde RLS es más fuerte que cualquier check en
+código: ningún cliente puede saltearlo, ni siquiera uno futuro.
+
+**Disparadores reales para arrancar** (con que se cumpla uno, ya vale):
+
+- [ ] Necesitás secretos que no pueden vivir en el navegador: pagos, AFIP,
+      mails transaccionales, APIs de terceros con API key.
+- [ ] Hay que generar PDFs o reportes pesados server-side.
+- [ ] Hacen falta jobs programados (recalcular estados vencidos, avisos de parto).
+- [ ] La lógica de negocio en plpgsql se volvió el cuello de botella. Señal
+      concreta: más de ~10 funciones de negocio no triviales y debuggear plpgsql
+      seguido. Al 24/07/2026 hay 2 (`registrar_transferencia_embrionaria` y
+      `actualizar_caballo_veterinario`), así que este disparador **todavía no
+      se cumple**.
+- [ ] Un cliente que no es el navegador: app móvil nativa, integración de un
+      tercero, scripts de importación masiva.
+
+**Qué NO es un disparador:** "un backend es más prolijo", "así se hace
+normalmente", o un bug puntual de RLS. Los tres bugs de julio 2026 se
+resolvieron con una policy y una RPC, sin tocar la arquitectura.
+
+**Decisión que hay que tomar antes del Bloque 1** — es la más importante de
+todo el documento:
+
+| Modo | Cómo funciona | Consecuencia |
+|---|---|---|
+| **A — JWT del usuario** (recomendado para empezar) | El backend recibe el token del usuario y lo reenvía a Postgres. RLS **sigue aplicando** | Doble red de seguridad. Si te olvidás un check en Python, RLS te cubre. Más lento de optimizar (no podés hacer queries administrativas fáciles) |
+| **B — `service_role`** | El backend usa la key de servicio y bypassa RLS por completo | Toda la seguridad pasa a depender de tu código. Un endpoint sin filtro de `sociedad_id` = fuga entre haras. Más simple y rápido, mucho menos perdonador |
+
+**Recomendación: arrancar en modo A** y pasar a B solo por endpoint, cuando
+haya una razón medible. Las 100 policies ya escritas son un activo, no un
+lastre.
+
+---
+
+## Bloque 1 — Esqueleto del proyecto
+
+**Depende de:** Bloque 0.
+
+### Tareas
+
+- [ ] Crear `backend/` en la raíz del repo (monorepo, al lado de `frontend/`).
+- [ ] Python 3.12+, gestor de dependencias `uv` (o Poetry).
+- [ ] Dependencias base: `fastapi`, `uvicorn[standard]`, `sqlalchemy`,
+      `psycopg[binary]`, `pydantic-settings`, `pyjwt[crypto]`, `httpx`.
+- [ ] Estructura:
+
+```
+backend/
+├── pyproject.toml
+├── .env.example
+├── Dockerfile
+├── app/
+│   ├── main.py            # instancia FastAPI, CORS, routers
+│   ├── config.py          # Settings con pydantic-settings
+│   ├── db.py              # engine + session
+│   ├── auth.py            # validación del JWT (Bloque 3)
+│   ├── deps.py            # dependencies de autorización (Bloque 4)
+│   ├── models/            # SQLAlchemy
+│   ├── schemas/           # Pydantic (request/response)
+│   └── routers/           # un archivo por dominio
+└── tests/
+```
+
+- [ ] `config.py` con: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_JWT_SECRET`,
+      `SUPABASE_ANON_KEY`, `CORS_ORIGINS`. Nada hardcodeado.
+- [ ] `GET /health` que devuelva `{"status": "ok"}` y verifique la conexión a
+      la DB con un `SELECT 1`.
+- [ ] CORS habilitado solo para el dominio de Vercel y `localhost:5173`.
+- [ ] Agregar `backend/.env` al `.gitignore`.
+
+### Terminado cuando
+
+`uvicorn app.main:app --reload` levanta y `curl localhost:8000/health` responde
+`ok` con la DB conectada.
+
+---
+
+## Bloque 2 — Modelos sobre el schema existente
+
+**Depende de:** Bloque 1.
+
+⚠️ **El schema ya existe y tiene datos de producción.** No se genera desde los
+modelos. Los modelos se escriben *para calzar* con lo que ya hay.
+
+### Tareas
+
+- [ ] Generar los modelos iniciales con `sqlacodegen` contra la DB de prod y
+      después limpiarlos a mano. No escribirlos de cero.
+- [ ] Verificar tabla por tabla contra `docs/SKILL.md`.
+- [ ] Respetar las convenciones del proyecto: `snake_case` singular, catálogos
+      con prefijo `cat_`, PKs UUID, `TIMESTAMPTZ`.
+- [ ] Alembic configurado pero con una **migración inicial vacía marcada como
+      aplicada** (`alembic stamp head`), para que el historial arranque desde el
+      estado actual sin intentar recrear nada.
+- [ ] Decidir y documentar: ¿las migraciones futuras siguen yendo por el MCP de
+      Supabase (como hoy) o pasan a Alembic? **No pueden convivir las dos.**
+      Si pasa a Alembic, actualizar `CLAUDE.md`.
+
+### Terminado cuando
+
+Un script lee las 30 tablas vía SQLAlchemy y los conteos coinciden con los que
+devuelve el MCP.
+
+### Trampa conocida
+
+`supabase/migrations/` ya tiene drift respecto a producción — hay migraciones
+en el repo que nunca se aplicaron y cambios en prod hechos desde el SQL Editor.
+**La fuente de verdad es el schema vivo, no los archivos.** Antes de este bloque,
+conciliar ambos o al menos dejar documentado qué difiere.
+
+---
+
+## Bloque 3 — Autenticación
+
+**Depende de:** Bloque 2.
+
+⚠️ **No reimplementar login, signup ni reset de password.** Supabase Auth sigue
+siendo el proveedor de identidad. El frontend sigue autenticándose contra
+Supabase igual que hoy. El backend solo **valida** el JWT que ya existe.
+
+### Tareas
+
+- [ ] `app/auth.py`: dependency que extrae el `Authorization: Bearer <jwt>`,
+      lo valida y devuelve el usuario.
+- [ ] Validar la firma contra el JWT secret del proyecto (o vía JWKS si se
+      migra a claves asimétricas). Verificar `exp`, `aud` e `iss`.
+- [ ] El `sub` del token es el `usuario.id` — es el mismo valor que
+      `auth.uid()` usa en las policies.
+- [ ] Cargar el usuario de la tabla `usuario` y cachear por request.
+- [ ] Devolver `401` si el token falta o es inválido, `403` si el usuario está
+      inactivo.
+- [ ] **Modo A:** propagar el JWT a la sesión de Postgres para que RLS aplique:
+
+```python
+# Antes de cada query, en el mismo transaction scope
+db.execute(text("SET LOCAL role authenticated"))
+db.execute(
+    text("SELECT set_config('request.jwt.claims', :claims, true)"),
+    {"claims": json.dumps(claims)},
+)
+```
+
+- [ ] Test: un token vencido, uno de otro proyecto y uno sin firma dan 401.
+
+### Terminado cuando
+
+`GET /me` devuelve los datos del usuario logueado usando el mismo token que ya
+tiene el frontend, sin login nuevo.
+
+---
+
+## Bloque 4 — Autorización
+
+**Depende de:** Bloque 3. **Es el bloque más delicado de todos.**
+
+Hay 100 policies que codifican las reglas de acceso. Este bloque las expresa
+como dependencies de FastAPI. En modo A son una segunda capa; en modo B son la
+única.
+
+### Tareas
+
+- [ ] Portar los helpers de Postgres a dependencies. Los que están en
+      `docs/SKILL.md`:
+
+| Postgres | Dependency |
+|---|---|
+| `tiene_membresia(sociedad_id)` | `require_membresia(sociedad_id)` |
+| `es_admin(sociedad_id)` | `require_admin(sociedad_id)` |
+| `is_superadmin()` | `require_superadmin()` |
+| `vet_tiene_acceso(caballo_id)` | `require_acceso_caballo(caballo_id)` |
+| `puede_gestionar_campo(sociedad_id)` | `require_gestion_campo(sociedad_id)` |
+
+- [ ] **Regla no negociable:** ningún endpoint que devuelva datos de negocio
+      puede omitir el filtro por `sociedad_id`. Escribir un test que recorra
+      todos los routers y falle si alguno no lo aplica.
+- [ ] Caso especial del veterinario sin membresía: trabaja por `acceso_vet`, no
+      por `membresia`. Es el caso que rompió `embrion_select` en julio 2026 —
+      la policy se había olvidado del vet. **Todo endpoint del módulo de cría
+      tiene que contemplar los dos caminos.**
+- [ ] El historial clínico es inmutable: solo el vet que lo creó puede
+      editarlo. Replicar esa regla.
+- [ ] Documentar en `docs/SKILL.md` el mapa policy → endpoint.
+
+### Terminado cuando
+
+Existe una matriz de tests que, por cada rol (superadmin, admin, veterinario
+con membresía, veterinario sin membresía, usuario de otra sociedad), verifica
+qué endpoints puede tocar y cuáles le dan 403.
+
+---
+
+## Bloque 5 — Primer endpoint vertical: transferencia embrionaria
+
+**Depende de:** Bloque 4.
+
+Se migra **un solo flujo**, de punta a punta, para validar la arquitectura
+antes de escribir 30 endpoints. Es el candidato ideal porque ya es
+transaccional, ya tiene los permisos resueltos y su lógica está documentada.
+
+### Tareas
+
+- [ ] `POST /api/transferencias` que replique
+      `registrar_transferencia_embrionaria()`:
+  - valida acceso a la receptora y a la donante
+  - toma `SELECT ... FOR UPDATE` sobre el embrión (la carrera es real: sin el
+    lock, dos vets transfieren el mismo embrión)
+  - verifica que el embrión exista, sea de esa donante y siga disponible
+  - crea registro clínico + transferencia + descuenta el embrión, en una
+    transacción
+- [ ] Schemas Pydantic de entrada y salida.
+- [ ] Portar los tests de la RPC (ya están definidos, ver el commit `2c44f55`):
+      embrión ya transferido → error; embrión de otra donante → error;
+      receptora sin `acceso_vet` → error; caso feliz → 3 ids.
+- [ ] En el frontend, feature flag para elegir RPC o API:
+
+```ts
+// crianzaService.ts
+const USA_API = import.meta.env.VITE_API_URL != null
+return USA_API ? apiClient.post('/transferencias', payload)
+               : supabase.rpc('registrar_transferencia_embrionaria', {...})
+```
+
+- [ ] Probar los dos caminos contra la misma base y comparar el resultado.
+
+### Terminado cuando
+
+El flujo completo anda por la API con el flag prendido, y con el flag apagado
+sigue andando por la RPC. **La RPC no se borra** hasta el Bloque 11.
+
+### Por qué este primero
+
+Si algo de la arquitectura está mal pensado (auth, transacciones, permisos,
+CORS, latencia), aparece acá, con un solo endpoint escrito y no con treinta.
+
+---
+
+## Bloque 6 — Migrar el resto de los dominios
+
+**Depende de:** Bloque 5 estable en producción por al menos una semana.
+
+Un sub-bloque por dominio, en este orden (de menor a mayor riesgo):
+
+- [ ] **6.1 Catálogos** — `cat_raza`, `cat_pelaje`, `cat_rol`,
+      `cat_tipo_consulta`, `cat_parte_cuerpo`. Solo lectura, sin multi-tenant.
+      El más fácil, sirve para aceitar el flujo.
+- [ ] **6.2 Caballos** — `caballoService.ts` (473 líneas) + las RPCs
+      `crear_caballo_veterinario`, `actualizar_caballo_veterinario`,
+      `toggle_prenada_veterinario`.
+- [ ] **6.3 Campos** — `campoService.ts`.
+- [ ] **6.4 Centro de cría** — `crianzaService.ts` (821 líneas, el más grande).
+      Flushings, embriones, transferencias, ecografías, recordatorios.
+      **Ojo:** la generación automática de recordatorios hoy vive en el front
+      (`crianzaStore.ts`, función `reglasParaRegistro`). Es lógica de negocio en
+      un componente — al migrar, va al backend.
+- [ ] **6.5 Historial clínico** — `historialService.ts`. Recordar la
+      inmutabilidad.
+- [ ] **6.6 Admin y superadmin** — `adminService.ts`, `superAdminService.ts`.
+- [ ] **6.7 Resto** — alertas, leads, términos, fichas históricas, transferencia
+      entre empresas, acceso al centro de cría.
+
+Para cada uno: schemas Pydantic, router, tests de permisos por rol, feature flag
+en el service del front, y baja de la lógica equivalente cuando esté estable.
+
+### Terminado cuando
+
+Todos los services del front pueden funcionar contra la API con el flag
+prendido.
+
+---
+
+## Bloque 7 — Storage
+
+**Depende de:** Bloque 6.4.
+
+Hay 2 buckets. Los usan `fotoService.ts`, `historialService.ts` y
+`fichaHistoricaService.ts`.
+
+### Tareas
+
+- [ ] Decidir: ¿el upload sigue yendo directo del navegador a Supabase Storage
+      (más simple, menos carga) o pasa por la API (permite validar tamaño, tipo,
+      antivirus, y renombrar)?
+- [ ] **Recomendado:** el navegador sigue subiendo directo, pero pide a la API
+      una **signed URL** de corta duración. Así se valida permiso sin que el
+      archivo pase por el backend.
+- [ ] Endpoint `POST /api/uploads/signed-url` que valide el acceso al caballo
+      antes de firmar.
+- [ ] Revisar las policies de los buckets.
+
+### Terminado cuando
+
+Subir una foto de caballo y una ficha histórica funciona vía API, con permisos
+verificados.
+
+---
+
+## Bloque 8 — Jobs programados
+
+**Depende de:** Bloque 6.
+
+Esto es capacidad nueva: hoy no existe y es uno de los disparadores del
+Bloque 0.
+
+### Tareas
+
+- [ ] Elegir runner: APScheduler embebido (simple), Celery + Redis (si crece), o
+      un cron externo pegándole a un endpoint protegido (lo más simple de todo).
+- [ ] Job: recalcular estados reproductivos vencidos. Hoy lo hace
+      `sincronizarVencidos()` en el store del front — o sea, solo se recalcula
+      si alguien abre la app.
+- [ ] Job: avisos de parto probable (360 días desde la fecha de preñez).
+- [ ] Job: notificar recordatorios vencidos del centro de cría.
+- [ ] Endpoint de jobs protegido con un secreto compartido, nunca público.
+- [ ] Log de cada corrida, con resultado y duración.
+
+### Terminado cuando
+
+Los estados se recalculan sin que nadie abra la app.
+
+---
+
+## Bloque 9 — Testing
+
+**Transversal.** Empieza en el Bloque 3 y crece con cada bloque.
+
+### Tareas
+
+- [ ] `pytest` + `httpx.AsyncClient` para tests de endpoints.
+- [ ] Base de test: proyecto Supabase aparte o Postgres en Docker con el schema
+      restaurado. **Nunca contra producción.**
+- [ ] Fixtures: una sociedad, un admin, un vet con membresía, un vet sin
+      membresía (solo `acceso_vet`), un superadmin, y una segunda sociedad para
+      probar aislamiento.
+- [ ] **Test de aislamiento multi-tenant**: por cada endpoint que devuelve
+      datos, verificar que un usuario de la sociedad A no ve nada de la B. Este
+      es el test que justifica todo el bloque.
+- [ ] Cobertura mínima acordada antes de mergear (sugerido: 80% en `routers/` y
+      `deps.py`).
+- [ ] CI en GitHub Actions corriendo los tests en cada PR.
+
+---
+
+## Bloque 10 — Deploy y observabilidad
+
+**Depende de:** Bloque 5 (se puede desplegar con un solo endpoint).
+
+### Tareas
+
+- [ ] Elegir hosting. Vercel no corre FastAPI cómodamente en modo persistente;
+      opciones: Fly.io, Railway, Render, o un VPS. **Preferir la región más
+      cercana a la DB** (Haras Manager está en `us-west-1`) para no sumar
+      latencia entre API y Postgres.
+- [ ] Dockerfile multi-stage.
+- [ ] Variables de entorno por ambiente. `DATABASE_URL` con pooler
+      (Supavisor), no conexión directa.
+- [ ] Pool de conexiones dimensionado — Supabase free tiene límite bajo.
+- [ ] Logs estructurados en JSON.
+- [ ] Sentry o equivalente para errores.
+- [ ] Health check para el orquestador.
+- [ ] Deploy automático desde `main` y ambiente de preview por PR, en paralelo
+      al de Vercel.
+
+### Terminado cuando
+
+La API está en un dominio estable con HTTPS, monitoreada, y el frontend de
+producción le puede pegar.
+
+---
+
+## Bloque 11 — Cutover
+
+**Depende de:** todos los anteriores.
+
+### Tareas
+
+- [ ] Prender el flag por dominio en producción, uno por vez, con al menos
+      unos días entre cada uno.
+- [ ] Monitorear errores y latencia después de cada uno.
+- [ ] Cuando un dominio lleva 2 semanas estable: borrar el camino viejo del
+      service del front.
+- [ ] Recién ahí, evaluar si conviene dar de baja las RPCs equivalentes.
+      **Las funciones de Postgres pueden quedarse** — no molestan y sirven de
+      fallback.
+- [ ] Rotar la `anon key` si el frontend ya no habla con Supabase directo.
+- [ ] Actualizar `CLAUDE.md` y `docs/SKILL.md` con la arquitectura nueva.
+
+### Terminado cuando
+
+El frontend no tiene ninguna llamada directa a Supabase salvo auth y, si se
+eligió así, storage.
+
+---
+
+## Bloque 12 — Qué NO migrar
+
+Decisiones explícitas para no rediscutirlas cada vez.
+
+- **Supabase Auth se queda.** Reimplementar login, reset de password y manejo de
+  sesiones es semanas de trabajo y superficie de seguridad nueva sin ningún
+  beneficio.
+- **RLS se queda prendido.** Aunque el backend valide todo, dejar las policies
+  activas cuesta cero y es la red que evita que un olvido en Python se convierta
+  en una fuga entre haras. Solo desactivar una policy si se mide que es un
+  problema real de performance.
+- **Los triggers se quedan.** Los 20 triggers actuales (`updated_at`, auditoría)
+  no ganan nada en Python.
+- **Realtime**, si algún día se usa, va directo del navegador a Supabase.
+  Puentearlo por el backend es complejidad pura.
+
+---
+
+## Riesgos conocidos
+
+| Riesgo | Mitigación |
+|---|---|
+| Duplicar la lógica de permisos y que se desincronicen | Modo A (RLS sigue aplicando) + matriz de tests del Bloque 9 |
+| Un endpoint sin filtro de `sociedad_id` | Test automático que recorre los routers (Bloque 4) |
+| El drift de `supabase/migrations/` se agrava con Alembic | Bloque 2: conciliar antes, y una sola herramienta de migraciones |
+| Migración a medias que se abandona y deja dos arquitecturas | Feature flags por dominio y bloques chicos; cada bloque deja el sistema entero funcionando |
+| Latencia extra por el hop adicional | Desplegar en la región de la DB (Bloque 10) |
+| Costo de infra nuevo sobre un MVP | Bloque 0: no arrancar sin un disparador real |
+
+---
+
+## Registro de tasks pendientes de backend
+
+> **Esta sección se completa sola durante el desarrollo normal.** Cada vez que
+> se implementa algo en el frontend o en Postgres que el día de mañana tendrá
+> que existir en el backend, se anota acá con fecha y contexto. Ver la regla en
+> `CLAUDE.md`.
+
+| Fecha | Origen | Qué hay que implementar en el back |
+|---|---|---|
+| 2026-07-24 | `registrar_transferencia_embrionaria()` (migración `20260724000626`) | Endpoint `POST /api/transferencias`. La RPC ya resuelve atomicidad, lock del embrión y permisos — es la especificación del endpoint. Ver Bloque 5. |
+| 2026-07-24 | `crianzaStore.ts` → `reglasParaRegistro()` | La generación automática de recordatorios del centro de cría es lógica de negocio viviendo en el store del front. Al migrar tiene que pasar al backend. Ver Bloque 6.4. |
+| 2026-07-24 | `crianzaStore.ts` → `sincronizarVencidos()` | Los estados reproductivos vencidos solo se recalculan cuando alguien abre la app. Tiene que ser un job programado. Ver Bloque 8. |
