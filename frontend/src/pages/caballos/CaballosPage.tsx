@@ -6,6 +6,7 @@ import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
+import { textoBusquedaCaballo } from '../../utils/caballo'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
 import ImportarCaballosModal from '../../components/domain/ImportarCaballosModal'
@@ -223,7 +224,7 @@ export default function CaballosPage() {
   // ── Lista filtrada y ordenada A-Z ─────────────────────────────────────────
   const filtradosOrdenados = useMemo(() => {
     const base = caballos.filter((c) => {
-      const okNombre   = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
+      const okNombre   = textoBusquedaCaballo(c).includes(busqueda.toLowerCase())
       const okCat      = filtro === 'Todos' || c.categoria === filtro
       const okEmpresa  = filtroEmpresaIds.size === 0 || filtroEmpresaIds.has((c as any).sociedad_id ?? '')
       const okCampo    = filtroCamposIds.size === 0  || filtroCamposIds.has((c as any).campo_id ?? '')

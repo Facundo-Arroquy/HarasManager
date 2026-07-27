@@ -6,6 +6,7 @@ import { campoService, type Campo } from '../../services/campoService'
 import { crianzaService } from '../../services/crianzaService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
+import { textoBusquedaCaballo } from '../../utils/caballo'
 import EstadoReproductivoPipeline from '../../components/centro-cria/EstadoReproductivoPipeline'
 import Spinner from '../../components/ui/Spinner'
 import type { EstadoReproductivo } from '../../types/crianza'
@@ -83,7 +84,7 @@ export default function CaballosCentroPage() {
         const rolRepro = (c as any).rol_reproductivo as string | null
         const esReproductivo = rolRepro === 'Donante' || rolRepro === 'Receptora'
         if (!esReproductivo) return false
-        const okNombre = c.nombre.toLowerCase().includes(busqueda.toLowerCase())
+        const okNombre = textoBusquedaCaballo(c).includes(busqueda.toLowerCase())
         const okRol    = filtroRol === 'Todos' || rolRepro === filtroRol
         return okNombre && okRol
       })
