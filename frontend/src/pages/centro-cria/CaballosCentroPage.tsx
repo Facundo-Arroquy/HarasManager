@@ -7,6 +7,7 @@ import { crianzaService } from '../../services/crianzaService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
 import { textoBusquedaCaballo } from '../../utils/caballo'
+import { mensajeError } from '../../utils/error'
 import EstadoReproductivoPipeline from '../../components/centro-cria/EstadoReproductivoPipeline'
 import Spinner from '../../components/ui/Spinner'
 import type { EstadoReproductivo } from '../../types/crianza'
@@ -47,7 +48,7 @@ export default function CaballosCentroPage() {
         setCaballos(c); setCampos(f)
       }
     } catch (e: unknown) {
-      setError((e as any)?.message ?? (e instanceof Error ? e.message : String(e)))
+      setError(mensajeError(e))
     } finally {
       setLoading(false)
     }
@@ -59,9 +60,9 @@ export default function CaballosCentroPage() {
     caballo: Caballo,
     nuevoEstado: EstadoReproductivo,
   ) {
-    const sid = (caballo as any).sociedad_id as string | undefined
+    const sid = caballo.sociedad_id as string | undefined
     if (!sid || !userId) return
-    const estadoAnterior = (caballo as any).estado_reproductivo as EstadoReproductivo
+    const estadoAnterior = caballo.estado_reproductivo as EstadoReproductivo
     await crianzaService.actualizarEstadoReproductivo(
       caballo.id,
       sid,
@@ -72,7 +73,7 @@ export default function CaballosCentroPage() {
     // Actualizar localmente sin full-reload para mayor responsividad
     setCaballos((prev) =>
       prev.map((c) =>
-        c.id === caballo.id ? { ...c, estado_reproductivo: nuevoEstado } as any : c
+        c.id === caballo.id ? { ...c, estado_reproductivo: nuevoEstado } : c
       )
     )
   }
@@ -81,7 +82,7 @@ export default function CaballosCentroPage() {
   const filtrados = useMemo(() => {
     return caballos
       .filter((c) => {
-        const rolRepro = (c as any).rol_reproductivo as string | null
+        const rolRepro = c.rol_reproductivo as string | null
         const esReproductivo = rolRepro === 'Donante' || rolRepro === 'Receptora'
         if (!esReproductivo) return false
         const okNombre = textoBusquedaCaballo(c).includes(busqueda.toLowerCase())
@@ -95,7 +96,7 @@ export default function CaballosCentroPage() {
   const gruposPorCampo = useMemo(() => {
     const byCampo: Record<string, Caballo[]> = {}
     for (const c of filtrados) {
-      const key = (c as any).campo_id ?? '__sin_campo__'
+      const key = c.campo_id ?? '__sin_campo__'
       if (!byCampo[key]) byCampo[key] = []
       byCampo[key].push(c)
     }
@@ -105,8 +106,8 @@ export default function CaballosCentroPage() {
   const gruposPorEmpresa = useMemo(() => {
     const byEmpresa: Record<string, { nombre: string; caballos: Caballo[] }> = {}
     for (const c of filtrados) {
-      const id     = (c as any).empresa_id     ?? (c as any).sociedad_id ?? 'desconocida'
-      const nombre = (c as any).empresa_nombre ?? id
+      const id     = c.empresa_id     ?? c.sociedad_id ?? 'desconocida'
+      const nombre = c.empresa_nombre ?? id
       if (!byEmpresa[id]) byEmpresa[id] = { nombre, caballos: [] }
       byEmpresa[id].caballos.push(c)
     }
@@ -241,8 +242,8 @@ function GrupoSection({
       </div>
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
         {caballos.map((caballo) => {
-          const rolRepro    = (caballo as any).rol_reproductivo as 'Donante' | 'Receptora' | null
-          const estadoRepro = (caballo as any).estado_reproductivo as EstadoReproductivo
+          const rolRepro    = caballo.rol_reproductivo as 'Donante' | 'Receptora' | null
+          const estadoRepro = caballo.estado_reproductivo as EstadoReproductivo
           return (
             <div key={caballo.id} className="divide-y divide-slate-100">
               <CaballoCard caballo={caballo} onClick={() => onDetalle(caballo)} />

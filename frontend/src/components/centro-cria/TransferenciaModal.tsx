@@ -41,7 +41,7 @@ function labelEmbrion(e: Embrion, idx: number): string {
   if (e.estadio) partes.push(e.estadio)
   if (e.grado != null) partes.push(`G${e.grado}`)
   if (e.tamanio) partes.push(e.tamanio)
-  if ((e.donante as any)?.nombre) partes.push(`— ${(e.donante as any).nombre}`)
+  if (e.donante?.nombre) partes.push(`— ${e.donante.nombre}`)
   return partes.join(' · ')
 }
 

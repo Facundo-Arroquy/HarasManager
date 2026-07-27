@@ -3,6 +3,7 @@ import { ArrowRight, Building2, CheckSquare, Square } from 'lucide-react'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { transferEmpresaService, type SociedadItem } from '../../services/transferEmpresaService'
 import Spinner from '../../components/ui/Spinner'
+import { mensajeError } from '../../utils/error'
 
 export default function TransferirVetPage() {
   const [caballos, setCaballos]       = useState<Caballo[]>([])
@@ -22,11 +23,11 @@ export default function TransferirVetPage() {
     ])
       .then(([cabs, socs]) => {
         // Solo caballos sin organización (creados por el vet)
-        const propios = cabs.filter((c: any) => !c.sociedad_id || c.sociedad_id === null)
+        const propios = cabs.filter((c) => !c.sociedad_id || c.sociedad_id === null)
         setCaballos(propios as Caballo[])
         setSociedades(socs)
       })
-      .catch((e) => setError((e as any)?.message ?? 'Error al cargar datos'))
+      .catch((e) => setError(mensajeError(e, 'Error al cargar datos')))
       .finally(() => setLoading(false))
   }, [])
 
@@ -60,7 +61,7 @@ export default function TransferirVetPage() {
       setExito(true)
       setTimeout(() => setExito(false), 4000)
     } catch (e) {
-      setError((e as any)?.message ?? 'Error al transferir')
+      setError(mensajeError(e, 'Error al transferir'))
     } finally {
       setTransfiriendo(false)
     }

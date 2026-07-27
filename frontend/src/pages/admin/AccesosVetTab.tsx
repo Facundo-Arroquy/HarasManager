@@ -52,7 +52,8 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, vetError, on
   function toggleCaballo(id: string) {
     setSeleccionados((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -80,8 +81,9 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, vetError, on
     try {
       await otorgarAccesosBulk(vetId, Array.from(seleccionados), otorgadoPor)
       onSuccess()
-    } catch (err: any) {
-      const msg = err?.message ?? err?.error_description ?? JSON.stringify(err)
+    } catch (err: unknown) {
+      const e = err as { message?: string; error_description?: string }
+      const msg = e?.message ?? e?.error_description ?? JSON.stringify(err)
       setError(`Error: ${msg}`)
     } finally {
       setSaving(false)
@@ -267,8 +269,8 @@ export default function AccesosVetTab() {
     try {
       const vetsPlat = await getVeterinariosPlataforma()
       setVets(vetsPlat)
-    } catch (err: any) {
-      const msg = err?.message ?? JSON.stringify(err)
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? JSON.stringify(err)
       console.error('[AccesosVetTab] Error al cargar vets:', msg)
       setVetError(msg)
     }
@@ -282,7 +284,8 @@ export default function AccesosVetTab() {
   function toggleSeleccion(id: string) {
     setSeleccionados((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }

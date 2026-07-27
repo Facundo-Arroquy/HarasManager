@@ -48,7 +48,7 @@ export default function DashboardPage() {
     }).finally(() => setLoading(false))
   }, [sociedadId])
 
-  const sinCampo    = useMemo(() => caballos.filter((c) => !(c as any).campo_id).length, [caballos])
+  const sinCampo    = useMemo(() => caballos.filter((c) => !c.campo_id).length, [caballos])
   const sinChip     = useMemo(() => caballos.filter((c) => !c.numero_chip).length, [caballos])
   const maxAnimales = useMemo(() => Math.max(...campos.map((c) => c.caballos_count), 1), [campos])
 

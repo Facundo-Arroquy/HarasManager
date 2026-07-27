@@ -60,7 +60,10 @@ export const historialService = {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.rpc('get_consultas_recientes_vet', { p_limit: limit })
     if (error) throw error
-    return (data ?? []).map((h: any) => ({
+    return (data ?? []).map((h: {
+      id: string; fecha_consulta: string; proxima_consulta?: string | null
+      caballo_id: string; caballo_nombre?: string | null; tipo?: string | null; diagnostico?: string | null
+    }) => ({
       id:               h.id,
       fecha_consulta:   h.fecha_consulta,
       proxima_consulta: h.proxima_consulta ?? null,
@@ -86,7 +89,7 @@ export const historialService = {
       for (const [caballoId, consultas] of Object.entries(MOCK_HISTORIAL)) {
         const caballo = MOCK_CABALLOS.find((c) => c.id === caballoId)
         if (!caballo) continue
-        for (const c of consultas as any[]) {
+        for (const c of consultas as Array<{ id: string; fecha_consulta: string; proxima_consulta?: string | null; cat_tipo_consulta?: { nombre?: string } | null; diagnostico?: string | null }>) {
           entries.push({
             id: c.id,
             fecha_consulta:   c.fecha_consulta,
@@ -118,7 +121,10 @@ export const historialService = {
       .limit(limit)
     if (error) throw error
 
-    return (data ?? []).map((h: any) => ({
+    return ((data ?? []) as unknown as {
+      id: string; fecha_consulta: string; proxima_consulta?: string | null; caballo_id: string
+      caballo?: { nombre?: string } | null; cat_tipo_consulta?: { nombre?: string } | null; diagnostico?: string | null
+    }[]).map((h) => ({
       id:               h.id,
       fecha_consulta:   h.fecha_consulta,
       proxima_consulta: h.proxima_consulta ?? null,
@@ -170,7 +176,7 @@ export const historialService = {
     if (isMockMode()) {
       const { MOCK_TIPOS_CONSULTA } = await import('../dev/mockData')
       const tipo = MOCK_TIPOS_CONSULTA.find((t) => t.id === payload.tipoConsultaId)
-      const entries = MOCK_HISTORIAL[caballoId] as any[]
+      const entries = MOCK_HISTORIAL[caballoId] as Array<{ id: string }>
       if (!entries) return
       const idx = entries.findIndex((e) => e.id === historialId)
       if (idx === -1) return

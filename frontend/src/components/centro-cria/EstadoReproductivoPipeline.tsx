@@ -18,7 +18,7 @@ interface Props {
 export default function EstadoReproductivoPipeline({ rol, estado, canEdit, onCambiar }: Props) {
   const pasos     = rol === 'Donante' ? PASOS_DONANTE : PASOS_RECEPTORA
   const estaVacia = estado === 'vacia'
-  const idxActual = estado && !estaVacia ? pasos.indexOf(estado as any) : -1
+  const idxActual = estado && !estaVacia ? (pasos as readonly string[]).indexOf(estado) : -1
 
   const siguientes  = canEdit ? getTransiciones(rol, estado) : []
   const [open,      setOpen]    = useState(false)

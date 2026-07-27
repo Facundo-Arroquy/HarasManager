@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { crianzaService } from '../services/crianzaService'
 import { getCriaConfig } from '../utils/criaConfig'
+import { mensajeError } from '../utils/error'
 import type {
   RegistroClinicoCria,
   RecordatorioCria,
@@ -161,7 +162,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const lbl = <T,>(name: string, p: Promise<T>): Promise<T> =>
-        p.catch((e: any) => { throw new Error(`[${name}] ${e?.message ?? String(e)}`) }) as Promise<T>
+        p.catch((e: unknown) => { throw new Error(`[${name}] ${mensajeError(e)}`) }) as Promise<T>
       const [registros, recordatorios, flushings, transferencias, ecografias] = await Promise.all([
         lbl('registros',      crianzaService.listarRegistros(sociedadId)),
         lbl('recordatorios',  crianzaService.listarRecordatorios(sociedadId)),
@@ -172,8 +173,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
       set({ registros, recordatorios, flushings, transferencias, ecografias })
       get().sincronizarVencidos()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : (err as any)?.message ?? 'Error al cargar datos'
-      set({ error: msg })
+      set({ error: mensajeError(err, 'Error al cargar datos') })
     } finally {
       set({ loading: false })
     }
@@ -192,8 +192,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
       set({ registros, recordatorios, flushings, transferencias, ecografias })
       get().sincronizarVencidos()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : (err as any)?.message ?? 'Error al cargar datos'
-      set({ error: msg })
+      set({ error: mensajeError(err, 'Error al cargar datos') })
     } finally {
       set({ loading: false })
     }

@@ -156,7 +156,8 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
           throw new Error(
             `El flushing se guardó, pero no se pudieron crear los ${n} embriones: ` +
             `${errEmb instanceof Error ? errEmb.message : 'error desconocido'}. ` +
-            'Revisá los permisos sobre la donante y volvé a cargarlos.'
+            'Revisá los permisos sobre la donante y volvé a cargarlos.',
+            { cause: errEmb }
           )
         }
       }

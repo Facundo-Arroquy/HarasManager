@@ -73,7 +73,7 @@ export default function ProgramaSemanalPage() {
       if (registros.length === 0) cargar(sociedadId)
       crianzaService.listarAnimalesReproductivos(sociedadId)
         .then((data) => {
-          setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+          setAnimales(data.filter((a: { categoria: string }) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
         })
         .catch((err) => console.error('[ProgramaSemanal] listarAnimalesReproductivos:', err))
         .finally(() => setCargandoAnim(false))
@@ -81,7 +81,7 @@ export default function ProgramaSemanalPage() {
       if (registros.length === 0) cargarParaVet()
       crianzaService.listarAnimalesReproductivosVet()
         .then((data) => {
-          setAnimales(data.filter((a: any) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+          setAnimales(data.filter((a: { categoria: string }) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
         })
         .catch((err) => console.error('[ProgramaSemanal] listarAnimalesReproductivosVet:', err))
         .finally(() => setCargandoAnim(false))

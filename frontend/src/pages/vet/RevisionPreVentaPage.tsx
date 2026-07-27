@@ -54,13 +54,13 @@ function makeDefaultItems(): ItemRevision[] {
   }))
 }
 
-function getVetNombre(user: { email?: string | null } | null): string {
+function getVetNombre(user: { email?: string | null; user_metadata?: { full_name?: string; nombre?: string } } | null): string {
   if (isMockMode()) {
     const mu = getMockUser(getMockUserId())
     return `${mu.nombre} ${mu.apellido}`.trim()
   }
-  return (user as any)?.user_metadata?.full_name
-    ?? (user as any)?.user_metadata?.nombre
+  return user?.user_metadata?.full_name
+    ?? user?.user_metadata?.nombre
     ?? user?.email
     ?? ''
 }
@@ -111,7 +111,7 @@ export default function RevisionPreVentaPage() {
     const caballo = caballos.find((c) => c.id === caballoId)
     if (!caballo) return
     imprimirRevision({
-      caballo: caballo as any,
+      caballo,
       fecha,
       firmante: firmante || getVetNombre(user),
       email: user?.email ?? '',
@@ -177,11 +177,11 @@ export default function RevisionPreVentaPage() {
           <div className="mt-3 flex items-center gap-3 rounded-lg bg-slate-100/60 px-3 py-2 text-xs text-slate-500 flex-wrap">
             <span className="font-medium text-slate-600">{caballo.nombre}</span>
             {caballo.categoria && <span>· {caballo.categoria}</span>}
-            {(caballo as any).cat_raza && <span>· {(caballo as any).cat_raza.nombre}</span>}
-            {(caballo as any).cat_pelaje && <span>· {(caballo as any).cat_pelaje.nombre}</span>}
-            {(caballo as any).numero_chip && (
+            {caballo.cat_raza && <span>· {caballo.cat_raza.nombre}</span>}
+            {caballo.cat_pelaje && <span>· {caballo.cat_pelaje.nombre}</span>}
+            {caballo.numero_chip && (
               <span className="font-mono text-slate-400">
-                Chip: {(caballo as any).numero_chip}
+                Chip: {caballo.numero_chip}
               </span>
             )}
           </div>

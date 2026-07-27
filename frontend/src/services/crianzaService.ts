@@ -702,9 +702,9 @@ export const crianzaService = {
           id:               c.id,
           nombre:           c.nombre,
           categoria:        c.categoria,
-          rol_reproductivo: (c as any).rol_reproductivo ?? null as RolReproductivo,
-          campo:            c.campo ? { nombre: (c.campo as any).nombre } : null,
-          marca:            c.marca ? { nombre: (c.marca as any).nombre } : null,
+          rol_reproductivo: (c.rol_reproductivo ?? null) as RolReproductivo,
+          campo:            c.campo ? { nombre: c.campo.nombre } : null,
+          marca:            null as { nombre: string } | null,
         }))
     }
     const supabase = getSupabaseClient()
@@ -822,8 +822,8 @@ export const crianzaService = {
       const { MOCK_CABALLOS } = await import('../dev/mockData')
       const cab = MOCK_CABALLOS.find((c) => c.id === payload.caballo_receptora_id)
       if (cab) {
-        if (payload.resultado === 'abortada')      (cab as any).estado_reproductivo = 'vacia'
-        else if (payload.resultado === 'prenada')  (cab as any).estado_reproductivo = 'prenada'
+        if (payload.resultado === 'abortada')      cab.estado_reproductivo = 'vacia'
+        else if (payload.resultado === 'prenada')  cab.estado_reproductivo = 'prenada'
       }
       return nueva
     }
@@ -874,7 +874,7 @@ export const crianzaService = {
     if (isMockMode()) {
       const { MOCK_CABALLOS } = await import('../dev/mockData')
       const cab = MOCK_CABALLOS.find((c) => c.id === caballoId)
-      if (cab) (cab as any).rol_reproductivo = rol
+      if (cab) cab.rol_reproductivo = rol
       return
     }
     const supabase = getSupabaseClient()
@@ -896,7 +896,7 @@ export const crianzaService = {
     if (isMockMode()) {
       const { MOCK_CABALLOS } = await import('../dev/mockData')
       const cab = MOCK_CABALLOS.find((c) => c.id === caballoId)
-      if (cab) (cab as any).estado_reproductivo = estadoNuevo
+      if (cab) cab.estado_reproductivo = estadoNuevo
       return
     }
     const supabase = getSupabaseClient()

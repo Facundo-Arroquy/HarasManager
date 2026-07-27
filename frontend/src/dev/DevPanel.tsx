@@ -21,14 +21,15 @@ const USER_LABEL: Record<string, string> = {
 
 // Solo se renderiza en desarrollo
 export default function DevPanel() {
-  if (!import.meta.env.DEV) return null
-
   const [open, setOpen] = useState(false)
   const [mockOn, setMockOn] = useState(isMockMode)
   const [activeId, setActiveId] = useState(getMockUserId)
   const setSociedadActiva = useAuthStore((s) => s.setSociedadActiva)
   const setSession = useAuthStore((s) => s.setSession)
   const clear = useAuthStore((s) => s.clear)
+
+  // Los hooks deben llamarse siempre; recién después descartamos en producción.
+  if (!import.meta.env.DEV) return null
 
   function toggleMock() {
     if (mockOn) {

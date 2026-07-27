@@ -4,6 +4,7 @@ import { LayoutGrid, AlertTriangle, ClipboardList, ChevronRight, Clock } from 'l
 import { useAuthStore } from '../../store/authStore'
 import { caballoService } from '../../services/caballoService'
 import { historialService, type AlertaVet } from '../../services/historialService'
+import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
 
 type HistorialResumen = Awaited<ReturnType<typeof historialService.listarRecientesVet>>[number]
@@ -41,15 +42,16 @@ export default function PanelVetPage() {
     ]).then((results) => {
       const err = results.find((r) => r.status === 'rejected')
       if (err && err.status === 'rejected') {
-        setError((err.reason as any)?.message ?? 'Error al cargar el panel')
+        setError(mensajeError(err.reason, 'Error al cargar el panel'))
       }
     }).finally(() => setLoading(false))
   }, [userId])
 
   if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
 
-  const nombre = (user as any)?.user_metadata?.nombre
-    ?? (user as any)?.user_metadata?.full_name
+  const meta = (user as { user_metadata?: { nombre?: string; full_name?: string } } | null)?.user_metadata
+  const nombre = meta?.nombre
+    ?? meta?.full_name
     ?? user?.email
     ?? 'Veterinario'
 

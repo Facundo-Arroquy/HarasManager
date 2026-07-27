@@ -66,7 +66,10 @@ export async function listarAccesosCentroCria(sociedadId: string): Promise<UserA
     .eq('sociedad_id', sociedadId)
     .eq('activa', true)
   if (error) throw error
-  return (data ?? []).map((m: any) => ({
+  return ((data ?? []) as unknown as {
+    usuario: { id: string; nombre: string; apellido: string; email: string }
+    cat_rol: { nombre: string }; acceso_centro_cria?: boolean | null
+  }[]).map((m) => ({
     id: m.usuario.id,
     nombre: m.usuario.nombre,
     apellido: m.usuario.apellido,

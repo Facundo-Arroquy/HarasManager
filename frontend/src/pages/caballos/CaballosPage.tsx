@@ -7,6 +7,7 @@ import { campoService, type Campo } from '../../services/campoService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
 import { textoBusquedaCaballo } from '../../utils/caballo'
+import { mensajeError } from '../../utils/error'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
 import ImportarCaballosModal from '../../components/domain/ImportarCaballosModal'
@@ -119,8 +120,7 @@ export default function CaballosPage() {
         setCampos(f)
       }
     } catch (e: unknown) {
-      const msg = (e as any)?.message ?? (e instanceof Error ? e.message : String(e))
-      setError(msg)
+      setError(mensajeError(e))
     } finally {
       setLoading(false)
     }
@@ -171,8 +171,8 @@ export default function CaballosPage() {
     const mapa: Record<string, string> = {}
     for (const c of caballos) {
       // El RPC get_caballos_veterinario devuelve sociedad_id como ID de empresa
-      const id     = (c as any).sociedad_id    as string | null
-      const nombre = (c as any).empresa_nombre as string | null
+      const id     = c.sociedad_id    as string | null
+      const nombre = c.empresa_nombre as string | null
       if (id && nombre && !mapa[id]) mapa[id] = nombre
     }
     return Object.entries(mapa)
@@ -186,8 +186,8 @@ export default function CaballosPage() {
     setFiltroCamposIds((prev) => {
       const camposValidos = new Set(
         caballos
-          .filter((c) => filtroEmpresaIds.size === 0 || filtroEmpresaIds.has((c as any).sociedad_id ?? ''))
-          .map((c) => (c as any).campo_id as string | null)
+          .filter((c) => filtroEmpresaIds.size === 0 || filtroEmpresaIds.has(c.sociedad_id ?? ''))
+          .map((c) => c.campo_id as string | null)
           .filter(Boolean)
       )
       const next = new Set([...prev].filter((id) => camposValidos.has(id)))
@@ -199,11 +199,11 @@ export default function CaballosPage() {
     const mapa: Record<string, string> = {}
     // Para vets con empresa seleccionada, mostrar solo campos de esas empresas
     const base = esVet && filtroEmpresaIds.size > 0
-      ? caballos.filter((c) => filtroEmpresaIds.has((c as any).sociedad_id ?? ''))
+      ? caballos.filter((c) => filtroEmpresaIds.has(c.sociedad_id ?? ''))
       : caballos
     for (const c of base) {
-      const id     = (c as any).campo_id as string | null
-      const nombre = (c as any).campo?.nombre as string | undefined
+      const id     = c.campo_id as string | null
+      const nombre = c.campo?.nombre as string | undefined
                   ?? campos.find((f) => f.id === id)?.nombre
       if (id && nombre && !mapa[id]) mapa[id] = nombre
     }
@@ -215,7 +215,7 @@ export default function CaballosPage() {
   const camadasDisponibles = useMemo(() => {
     const set = new Set<string>()
     for (const c of caballos) {
-      const camada = getCamada((c as any).fecha_nacimiento)
+      const camada = getCamada(c.fecha_nacimiento)
       if (camada) set.add(camada)
     }
     return Array.from(set).sort().reverse()
@@ -226,19 +226,19 @@ export default function CaballosPage() {
     const base = caballos.filter((c) => {
       const okNombre   = textoBusquedaCaballo(c).includes(busqueda.toLowerCase())
       const okCat      = filtro === 'Todos' || c.categoria === filtro
-      const okEmpresa  = filtroEmpresaIds.size === 0 || filtroEmpresaIds.has((c as any).sociedad_id ?? '')
-      const okCampo    = filtroCamposIds.size === 0  || filtroCamposIds.has((c as any).campo_id ?? '')
+      const okEmpresa  = filtroEmpresaIds.size === 0 || filtroEmpresaIds.has(c.sociedad_id ?? '')
+      const okCampo    = filtroCamposIds.size === 0  || filtroCamposIds.has(c.campo_id ?? '')
       const okCamada   = filtroCamadas.size === 0    || (() => {
-        const camada = getCamada((c as any).fecha_nacimiento)
+        const camada = getCamada(c.fecha_nacimiento)
         return camada !== null && filtroCamadas.has(camada)
       })()
-      const okPrenadas = !soloPreñadas || ((c as any).prenada === true && c.categoria === 'Yegua')
+      const okPrenadas = !soloPreñadas || (c.prenada === true && c.categoria === 'Yegua')
       // Las yeguas receptoras se gestionan desde "Caballos Centro" (Centro de Embriones)
-      const okRol      = !(c.categoria === 'Yegua' && (c as any).rol_reproductivo === 'Receptora')
+      const okRol      = !(c.categoria === 'Yegua' && c.rol_reproductivo === 'Receptora')
       return okNombre && okCat && okEmpresa && okCampo && okCamada && okPrenadas && okRol
     })
     return base.sort((a, b) => a.nombre.localeCompare(b.nombre))
-  }, [caballos, busqueda, filtro, filtroEmpresaIds, filtroCamposIds, filtroCamadas, soloPreñadas]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [caballos, busqueda, filtro, filtroEmpresaIds, filtroCamposIds, filtroCamadas, soloPreñadas])
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto pb-32">
@@ -480,7 +480,7 @@ export default function CaballosPage() {
                 onClick={() => navigate(`/caballos/${caballo.id}/historial`)}
                 seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
                 onToggle={modoSeleccion ? () => toggleSeleccion(caballo.id) : undefined}
-                empresaNombre={esVet ? (caballo as any).empresa_nombre : undefined}
+                empresaNombre={esVet ? caballo.empresa_nombre ?? undefined : undefined}
               />
             ))}
           </div>

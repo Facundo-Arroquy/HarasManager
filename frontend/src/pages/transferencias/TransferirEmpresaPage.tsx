@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ArrowLeftRight, CheckSquare, Square, AlertTriangle, CheckCircle2, FileText, Trash2, ExternalLink } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { caballoService } from '../../services/caballoService'
+import { caballoService, type Caballo } from '../../services/caballoService'
+import type { HistorialEntry } from '../../components/domain/HistorialCard'
 import {
   transferEmpresaService,
   type SociedadItem,
@@ -13,13 +14,14 @@ import { generarFichaHtml } from '../../utils/exportarFichaCaballo'
 import { fichaHistoricaService, type FichaHistorica } from '../../services/fichaHistoricaService'
 import { useAuthStore } from '../../store/authStore'
 import { formatFecha } from '../../utils/fecha'
+import { mensajeError } from '../../utils/error'
 
 export default function TransferirEmpresaPage() {
   const { sociedadActiva } = useAuth()
   const rol = useAuthStore((s) => s.rol)
   const sociedadId = sociedadActiva?.id ?? ''
 
-  const [caballos, setCaballos] = useState<any[]>([])
+  const [caballos, setCaballos] = useState<Caballo[]>([])
   const [sociedades, setSociedades] = useState<SociedadItem[]>([])
   const [historial, setHistorial] = useState<TransferenciaEmpresa[]>([])
   const [fichasHistoricas, setFichasHistoricas] = useState<FichaHistorica[]>([])
@@ -96,7 +98,7 @@ export default function TransferirEmpresaPage() {
 
             const html = await generarFichaHtml({
               caballo,
-              historial: hist as any[],
+              historial: hist as unknown as HistorialEntry[],
               caballos,   // todos los caballos para resolver genealogía
               registrosCria: regs,
               flushings: flush,
@@ -138,8 +140,8 @@ export default function TransferirEmpresaPage() {
       setSociedadDestinoId('')
       setEntidadNombre('')
       await cargarDatos()
-    } catch (e: any) {
-      setError(e?.message ?? 'Error al transferir')
+    } catch (e: unknown) {
+      setError(mensajeError(e, 'Error al transferir'))
     } finally {
       setSaving(false)
       setSavingStep(null)
@@ -152,8 +154,8 @@ export default function TransferirEmpresaPage() {
     try {
       await fichaHistoricaService.eliminar(ficha)
       setFichasHistoricas((prev) => prev.filter((f) => f.id !== ficha.id))
-    } catch (e: any) {
-      alert(`Error al eliminar: ${e?.message}`)
+    } catch (e: unknown) {
+      alert(`Error al eliminar: ${mensajeError(e)}`)
     } finally {
       setEliminando(null)
     }

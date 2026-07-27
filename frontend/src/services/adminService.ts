@@ -76,7 +76,10 @@ export async function getUsuarios(_sociedadId: string): Promise<UsuarioAdmin[]> 
     .eq('activa', true)
   if (error) throw error
 
-  return (data ?? []).map((m: any) => {
+  return ((data ?? []) as unknown as {
+    cat_rol?: { nombre: string } | { nombre: string }[] | null
+    usuario: { id: string; nombre: string; apellido: string; email: string; telefono?: string | null; activo: boolean }
+  }[]).map((m) => {
     // cat_rol puede venir como objeto o array según la versión de PostgREST
     const catRol = Array.isArray(m.cat_rol) ? m.cat_rol[0] : m.cat_rol
     return {
@@ -84,7 +87,7 @@ export async function getUsuarios(_sociedadId: string): Promise<UsuarioAdmin[]> 
       nombre: m.usuario.nombre,
       apellido: m.usuario.apellido,
       email: m.usuario.email,
-      telefono: m.usuario.telefono,
+      telefono: m.usuario.telefono ?? undefined,
       rol: catRol?.nombre ?? '',
       activo: m.usuario.activo,
     }
@@ -100,7 +103,7 @@ export async function getAccesosVet(_sociedadId: string): Promise<AccesoVet[]> {
       return {
         ...a,
         caballo: cab
-          ? { nombre: cab.nombre, numero_registro: cab.numero_registro, fecha_nacimiento: cab.fecha_nacimiento }
+          ? { nombre: cab.nombre, numero_registro: cab.numero_registro, fecha_nacimiento: cab.fecha_nacimiento ?? undefined }
           : a.caballo,
       }
     })
@@ -117,7 +120,10 @@ export async function getAccesosVet(_sociedadId: string): Promise<AccesoVet[]> {
     .eq('activo', true)
   if (error) throw error
 
-  return (data ?? []).map((a: any) => ({
+  return ((data ?? []) as unknown as {
+    id: string; vet_id: string; usuario: AccesoVet['vet']
+    caballo_id: string | null; caballo: AccesoVet['caballo']; activo: boolean
+  }[]).map((a) => ({
     id: a.id,
     vet_id: a.vet_id,
     vet: a.usuario,

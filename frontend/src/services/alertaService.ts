@@ -31,16 +31,19 @@ export const alertaService = {
     const { data, error } = await query
     if (error) throw error
 
-    return (data ?? []).map((a: any) => ({
+    return ((data ?? []) as unknown as {
+      id: string; motivo: string; fecha_alerta: string; activo: boolean; creado_en: string
+      alerta_caballo?: { caballo?: { id?: string; nombre?: string } | null }[] | null
+    }[]).map((a) => ({
       id:           a.id,
       motivo:       a.motivo,
       fecha_alerta: a.fecha_alerta,
       activo:       a.activo,
       creado_en:    a.creado_en,
-      caballos:     (a.alerta_caballo ?? []).map((ac: any) => ({
-        id:     ac.caballo?.id,
+      caballos:     (a.alerta_caballo ?? []).map((ac) => ({
+        id:     ac.caballo?.id ?? '',
         nombre: ac.caballo?.nombre ?? '—',
-      })).filter((c: any) => c.id),
+      })).filter((c) => c.id !== ''),
     }))
   },
 
