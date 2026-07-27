@@ -11,7 +11,7 @@ import type {
   Embrion,
   NuevoEmbrionPayload,
   TransferenciaEmbrionaria,
-  NuevaTransferenciaPayload,
+  RegistrarTransferenciaPayload,
   RolReproductivo,
   EstadoReproductivo,
 } from '../types/crianza'
@@ -500,27 +500,33 @@ export const crianzaService = {
     return data as Embrion[]
   },
 
+  async listarTodosEmbrionesVet(): Promise<Embrion[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('embrion')
+      .select(`
+        *,
+        donante:caballo_donante_id(nombre),
+        padrillo:padrillo_id(nombre),
+        cria_transferencia!embrion_id(fecha, receptora:caballo_receptora_id(nombre))
+      `)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return data as Embrion[]
+  },
+
   async listarEmbrionesDisponibles(sociedadId: string, donanteId?: string): Promise<Embrion[]> {
     const supabase = getSupabaseClient()
     let q = supabase
       .from('embrion')
       .select(`*, donante:caballo_donante_id(nombre), padrillo:padrillo_id(nombre)`)
       .eq('sociedad_id', sociedadId)
-      .eq('estado', 'disponible')
+      .in('estado', ['disponible', 'congelado'])
       .order('created_at', { ascending: false })
     if (donanteId) q = q.eq('caballo_donante_id', donanteId)
     const { data, error } = await q
     if (error) throw error
     return data as Embrion[]
-  },
-
-  async marcarEmbrionTransferido(embrionId: string): Promise<void> {
-    const supabase = getSupabaseClient()
-    const { error } = await supabase
-      .from('embrion')
-      .update({ estado: 'transferido' })
-      .eq('id', embrionId)
-    if (error) throw error
   },
 
   async actualizarFlushing(id: string, payload: Partial<NuevoFlushingPayload>): Promise<void> {
@@ -557,21 +563,40 @@ export const crianzaService = {
     return data as TransferenciaEmbrionaria[]
   },
 
-  async crearTransferencia(payload: NuevaTransferenciaPayload): Promise<TransferenciaEmbrionaria> {
-    if (isMockMode()) {
-      const nuevo: TransferenciaEmbrionaria = {
-        ...payload,
-        id: `transf-${Date.now()}`,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-      MOCK_TRANSFERENCIAS.unshift(nuevo)
-      return nuevo
-    }
+  /**
+   * Registra la transferencia completa en una sola transacción: registro clínico
+   * de la receptora con chip "Transferida", fila en cria_transferencia y embrión
+   * descontado a 'transferido'.
+   *
+   * Reemplaza la secuencia de tres llamadas sueltas que podía dejar la
+   * transferencia creada con el embrión todavía disponible. La RPC además toma
+   * un lock sobre el embrión, así que dos vets no pueden transferir el mismo.
+   */
+  async registrarTransferenciaEmbrionaria(
+    payload: RegistrarTransferenciaPayload
+  ): Promise<TransferenciaEmbrionaria> {
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase
+    const { data, error } = await supabase.rpc('registrar_transferencia_embrionaria', {
+      p_sociedad_id:          payload.sociedad_id,
+      p_fecha:                payload.fecha,
+      p_caballo_receptora_id: payload.caballo_receptora_id,
+      p_caballo_donante_id:   payload.caballo_donante_id,
+      p_embrion_id:           payload.embrion_id,
+      p_padrillo_id:          payload.padrillo_id,
+      p_flushing_id:          payload.flushing_id,
+      p_ovario_izq:           payload.ovario_izq,
+      p_ovario_der:           payload.ovario_der,
+      p_cl_calidad:           payload.cl_calidad,
+      p_tono_uterino:         payload.tono_uterino,
+      p_tono_cervical:        payload.tono_cervical,
+      p_clasificacion:        payload.clasificacion,
+      p_notas:                payload.notas,
+    })
+    if (error) throw error
+
+    const ids = data as { transferencia_id: string }
+    const { data: transferencia, error: errorFetch } = await supabase
       .from('cria_transferencia')
-      .insert(payload)
       .select(`
         *,
         receptora:caballo_receptora_id(nombre),
@@ -579,9 +604,10 @@ export const crianzaService = {
         padrillo:padrillo_id(nombre),
         veterinario:veterinario_id(nombre, apellido)
       `)
+      .eq('id', ids.transferencia_id)
       .single()
-    if (error) throw error
-    return data as TransferenciaEmbrionaria
+    if (errorFetch) throw errorFetch
+    return transferencia as TransferenciaEmbrionaria
   },
 
   // ── Métodos sin filtro de sociedad — para veterinarios sin membresía ─────

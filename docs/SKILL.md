@@ -485,7 +485,7 @@ CREATE TABLE lead (
 | `es_veterinario(sociedad_id)` | Tiene rol 'veterinario' en membresia **o** `usuario.rol = 'veterinario'` |
 | `is_superadmin()` | `usuario.rol = 'superadmin' AND activo = true` |
 | `puede_gestionar_campo(sociedad_id)` | Tiene rol admin, jugador o piloto activo en esa sociedad |
-| `vet_tiene_acceso(caballo_id)` | Solo verifica que el auth sea veterinario activo (no revisa `acceso_vet`); usado en políticas de centro de embriones |
+| `vet_tiene_acceso(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo **y** que el usuario sea veterinario activo; usado en políticas de centro de embriones (corregida en `20260611155651` — antes ignoraba el parámetro) |
 | `vet_tiene_acceso_caballo(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo específico |
 
 ### Funciones de negocio (SECURITY DEFINER, llamadas desde frontend)
@@ -504,6 +504,7 @@ CREATE TABLE lead (
 | `get_alertas_vet()` | Alertas de los próximos 30 días del vet autenticado |
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
+| `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Devuelve `jsonb` con los tres ids (migración `20260724000626`) |
 
 ### Triggers
 
@@ -584,7 +585,7 @@ CREATE TABLE lead (
 - UPDATE: `veterinario_id = auth.uid()` o `es_admin(sociedad_id)` (en recordatorio)
 
 **`embrion`**
-- SELECT: `tiene_membresia(sociedad_id)` o `is_superadmin()`
+- SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_donante_id)` o `is_superadmin()` (migración `20260723231443`)
 - INSERT: `vet_tiene_acceso(caballo_donante_id)`
 - UPDATE: `vet_tiene_acceso(caballo_donante_id)` o `es_admin(sociedad_id)` o `is_superadmin()`
 

@@ -33,13 +33,16 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 export default function BottomNav() {
-  const { rol, signOut, accesosCentroC } = useAuth()
+  const { rol, signOut, accesosCentroC, accesosCentroCOrg } = useAuth()
   const location = useLocation()
 
   if (rol === 'superadmin') return null
 
   const visibleItems = NAV_ITEMS.filter((item) => {
-    if (item.requiresAccesoCentro) return rol === 'admin' || accesosCentroC
+    if (item.requiresAccesoCentro) {
+      if (rol === 'veterinario') return accesosCentroC
+      return accesosCentroCOrg && (rol === 'admin' || accesosCentroC)
+    }
     return !item.roles || (rol && item.roles.includes(rol))
   })
 

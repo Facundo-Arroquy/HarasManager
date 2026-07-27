@@ -77,8 +77,25 @@ HarasManager/
 - El historial clínico es inmutable: solo el vet que lo creó puede editarlo
 - No saltear RLS — toda consulta respeta el modelo de permisos
 
+**Backend futuro**
+
+Hoy no hay backend: el frontend habla directo con Supabase. El plan para
+agregar una API FastAPI está en `docs/BACKEND-API-TASKS.md`, dividido en
+bloques implementables de a uno.
+
+- **Si implementás algo que el día de mañana tendrá que existir en el backend,
+  anotalo en la tabla "Registro de tasks pendientes de backend" al final de ese
+  documento**, en el mismo PR. Una fila con fecha, de dónde salió, y qué habría
+  que implementar. Esto evita tener que redescubrirlo el día que se arranque.
+- Aplica sobre todo a: funciones plpgsql de negocio (son la especificación del
+  endpoint equivalente), lógica de negocio que quede en stores o components del
+  front, y cualquier cosa que debería ser un job programado pero hoy se dispara
+  cuando el usuario abre la app.
+- No hace falta anotar CRUD común ni cambios de UI.
+
 **Lo que NO hacer**
 - No crear un backend Express (no está en el plan del MVP)
+- No arrancar el backend FastAPI sin que se cumpla alguno de los disparadores del Bloque 0 de `docs/BACKEND-API-TASKS.md`
 - No hardcodear `sociedad_id` ni `usuario_id`
 - No agregar dependencias sin verificar que Supabase no lo resuelve ya
 - **No agregar sección de "Transferencias" en la página de Caballos** — fue eliminada intencionalmente. La transferencia de embriones se gestiona exclusivamente desde "Centro de Cría".

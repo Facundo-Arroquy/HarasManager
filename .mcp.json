@@ -5,6 +5,7 @@
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@latest",
+        "--project-ref=cbllmyboxyoumnhakvyj",
         "--access-token",
         "${SUPABASE_ACCESS_TOKEN}"
       ]

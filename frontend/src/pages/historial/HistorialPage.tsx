@@ -265,6 +265,20 @@ export default function HistorialPage() {
                 onChange={(e) => { setFechaPrenez(e.target.value); setPrenOk(false) }}
                 className="w-full rounded-md border border-emerald-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-400"
               />
+              {fechaPrenez && (() => {
+                const inicio = new Date(`${fechaPrenez}T00:00:00`)
+                const diasDePrenada = Math.floor((Date.now() - inicio.getTime()) / 86400000)
+                const partoProbable = new Date(inicio.getTime() + 360 * 86400000)
+                const fechaPartoStr = `${partoProbable.getFullYear()}-${String(partoProbable.getMonth() + 1).padStart(2, '0')}-${String(partoProbable.getDate()).padStart(2, '0')}`
+                return (
+                  <div className="mt-2 flex items-center gap-2 text-xs">
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
+                      {diasDePrenada} días de preñada
+                    </span>
+                    <span className="text-emerald-600">Parto probable: {formatFecha(fechaPartoStr)}</span>
+                  </div>
+                )
+              })()}
             </div>
           )}
           {prenOk && !cambiosPren && (
