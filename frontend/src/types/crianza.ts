@@ -273,7 +273,7 @@ export interface Ecografia {
   transferencia_id:     string
   caballo_receptora_id: string
   veterinario_id:       string
-  numero:               1 | 2 | 3
+  numero:               number          // habitualmente 1..3, pero puede haber más
   fecha:                string          // YYYY-MM-DD
   resultado:            ResultadoEcografia
   ovario_izq:           string[]

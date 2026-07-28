@@ -28,10 +28,12 @@ export default function EcografiaModal({ transferencia, ecografiasExistentes, on
   const { user, sociedadActiva } = useAuth()
   const registrarEcografia = useCrianzaStore((s) => s.registrarEcografia)
 
-  // Sugerir el próximo número de eco (1..3) según las ya registradas
-  const proximoNumero = Math.min(3, ecografiasExistentes.length + 1) as 1 | 2 | 3
+  // Sugerir el próximo número de eco según las ya registradas (habitualmente
+  // son 3, pero puede haber más).
+  const maxExistente = ecografiasExistentes.reduce((m, e) => Math.max(m, e.numero), 0)
+  const proximoNumero = maxExistente + 1
 
-  const [numero,     setNumero]     = useState<1 | 2 | 3>(proximoNumero)
+  const [numero,     setNumero]     = useState<number>(proximoNumero)
   const [fecha,      setFecha]      = useState(HOY)
   const [resultado,  setResultado]  = useState<ResultadoEcografia>('pendiente')
   const [ovarioIzq,  setOvarioIzq]  = useState<string[]>([])
@@ -113,15 +115,14 @@ export default function EcografiaModal({ transferencia, ecografiasExistentes, on
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-500">Ecografía N°</label>
-              <select
+              <input
+                type="number"
+                min={1}
                 value={numero}
-                onChange={(e) => setNumero(Number(e.target.value) as 1 | 2 | 3)}
+                onChange={(e) => setNumero(Math.max(1, Number(e.target.value) || 1))}
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              >
-                <option value={1}>Eco 1</option>
-                <option value={2}>Eco 2</option>
-                <option value={3}>Eco 3</option>
-              </select>
+              />
+              <p className="text-[10px] text-slate-400">Habitualmente 3; se pueden agregar más.</p>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-500">Fecha *</label>

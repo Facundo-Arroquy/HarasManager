@@ -105,7 +105,7 @@ export default function TransferenciasPage() {
 
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
                     <span className="text-xs text-slate-400">{formatFecha(t.fecha)}</span>
-                    {esVet && ecos.length < 3 && (
+                    {esVet && (
                       <button
                         onClick={() => setModalTransferencia(t)}
                         className="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-[11px] font-medium text-slate-600 hover:border-brand-400 hover:text-brand-600 transition-colors"

@@ -375,7 +375,7 @@ CREATE TABLE cria_ecografia (
   transferencia_id UUID NOT NULL REFERENCES cria_transferencia(id),
   caballo_receptora_id UUID NOT NULL REFERENCES caballo(id),
   veterinario_id UUID NOT NULL REFERENCES usuario(id),
-  numero SMALLINT NOT NULL CHECK (numero IN (1,2,3)),
+  numero SMALLINT NOT NULL CHECK (numero >= 1),   -- habitualmente 1..3; migración 20260728232404 relajó el IN (1,2,3)
   fecha DATE NOT NULL,
   resultado TEXT NOT NULL CHECK (resultado IN ('prenada','abortada','pendiente')),
   ovario_izq TEXT[] NOT NULL DEFAULT '{}',
