@@ -188,3 +188,8 @@ BEGIN
   RETURN v_count;
 END;
 $$;
+
+-- Solo usuarios autenticados pueden invocar la RPC (misma convención que
+-- registrar_transferencia_embrionaria); el anon no debe poder ejecutarla.
+REVOKE EXECUTE ON FUNCTION completar_trabajo_sanitario(uuid) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION completar_trabajo_sanitario(uuid) TO authenticated;
