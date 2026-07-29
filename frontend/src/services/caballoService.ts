@@ -167,6 +167,29 @@ export const caballoService = {
     return data as unknown as Caballo[]
   },
 
+  /** Caballos dados de baja (inactivos) de la sociedad. */
+  async listarDadosDeBaja(sociedadId: string): Promise<Caballo[]> {
+    if (isMockMode()) {
+      return MOCK_CABALLOS.filter((c) => c.sociedad_id === sociedadId && !c.activo)
+    }
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('caballo')
+      .select(`
+        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
+        raza_id, pelaje_id, numero_chip, numero_registro, activo,
+        padre_id, padre_nombre, madre_id, madre_nombre,
+        cat_raza(nombre),
+        cat_pelaje(nombre),
+        campo(nombre)
+      `)
+      .eq('sociedad_id', sociedadId)
+      .eq('activo', false)
+      .order('nombre')
+    if (error) throw error
+    return data as unknown as Caballo[]
+  },
+
   async obtener(id: string) {
     if (isMockMode()) {
       const caballo = MOCK_CABALLOS.find((c) => c.id === id)
