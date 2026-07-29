@@ -622,13 +622,13 @@ CREATE TABLE lead (
 - SELECT: `sociedad_id IS NULL` (globales) o `tiene_membresia(sociedad_id)` o `is_superadmin()`
 - INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` para los propios; globales solo `is_superadmin()`
 
-**`trabajo_sanitario`**
-- SELECT/UPDATE: `tiene_membresia(sociedad_id)` o `is_superadmin()`
-- INSERT: `tiene_membresia(sociedad_id) AND creado_por = auth.uid()`
+**`trabajo_sanitario`** (migración `20260729150553` sumó acceso de veterinarios)
+- SELECT/UPDATE: `tiene_membresia(sociedad_id)` o `is_superadmin()` o `creado_por = auth.uid()`
+- INSERT: `creado_por = auth.uid()` **y** (`tiene_membresia(sociedad_id)` o el vet tiene un `acceso_vet` activo sobre algún caballo de esa sociedad)
 - DELETE: `es_admin(sociedad_id)` o `is_superadmin()`
 
 **`trabajo_sanitario_caballo`**
-- ALL: heredado del `trabajo_sanitario` padre (`tiene_membresia(t.sociedad_id)` o `is_superadmin()`)
+- ALL: `vet_tiene_acceso(caballo_id)` o (vía `trabajo_sanitario` padre) `tiene_membresia(t.sociedad_id)` / `is_superadmin()` / `t.creado_por = auth.uid()`
 
 **`cria_registro_clinico` / `cria_recordatorio` / `cria_flushing` / `cria_transferencia`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_id)`

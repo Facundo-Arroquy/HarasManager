@@ -42,6 +42,43 @@ export const sanidadService = {
     return data as CatTrabajoSanitario[]
   },
 
+  /** Catálogo global (para veterinarios, que no tienen sociedad fija). */
+  async listarCatalogoGlobales(): Promise<CatTrabajoSanitario[]> {
+    if (isMockMode()) {
+      return MOCK_CATALOGO.filter((c) => c.activo && c.sociedad_id === null)
+        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+    }
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cat_trabajo_sanitario')
+      .select('*')
+      .eq('activo', true)
+      .is('sociedad_id', null)
+      .order('nombre')
+    if (error) throw error
+    return data as CatTrabajoSanitario[]
+  },
+
+  /** Trabajos del veterinario autenticado (los que creó — vía RLS). */
+  async listarTrabajosVet(): Promise<TrabajoSanitario[]> {
+    if (isMockMode()) {
+      return [...MOCK_TRABAJOS].sort((a, b) => b.fecha_programada.localeCompare(a.fecha_programada))
+    }
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('trabajo_sanitario')
+      .select(`
+        *,
+        caballos:trabajo_sanitario_caballo(
+          id, trabajo_id, caballo_id, excluido, historial_id,
+          caballo:caballo_id(nombre, numero_registro)
+        )
+      `)
+      .order('fecha_programada', { ascending: false })
+    if (error) throw error
+    return data as TrabajoSanitario[]
+  },
+
   /** Trabajos de la sociedad con su lista de caballos. */
   async listarTrabajos(sociedadId: string): Promise<TrabajoSanitario[]> {
     if (isMockMode()) {
