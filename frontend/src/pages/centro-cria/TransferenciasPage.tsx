@@ -57,6 +57,8 @@ export default function TransferenciasPage() {
         <div className="rounded-lg border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
           {transferencias.map((t) => {
             const ecos = ecosPorTransferencia[t.id] ?? []
+            // Si una eco dio "abortada", el ciclo terminó: no se agregan más ecos.
+            const abortada = ecos.some((e) => e.resultado === 'abortada')
             return (
               <div key={t.id} className="px-4 py-3 text-sm">
                 <div className="flex items-start gap-2 flex-wrap">
@@ -105,7 +107,7 @@ export default function TransferenciasPage() {
 
                   <div className="flex flex-col items-end gap-1.5 shrink-0">
                     <span className="text-xs text-slate-400">{formatFecha(t.fecha)}</span>
-                    {esVet && (
+                    {esVet && !abortada && (
                       <button
                         onClick={() => setModalTransferencia(t)}
                         className="flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-[11px] font-medium text-slate-600 hover:border-brand-400 hover:text-brand-600 transition-colors"
