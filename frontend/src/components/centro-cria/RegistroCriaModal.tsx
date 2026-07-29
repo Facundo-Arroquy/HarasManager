@@ -68,12 +68,12 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   useEffect(() => {
     if (sociedadActiva) {
       crianzaService.listarAnimalesReproductivos(sociedadActiva.id).then((data) => {
-        setAnimales(data.filter((a) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+        setAnimales(data.filter((a: { categoria: string }) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
         setCargandoAnimales(false)
       })
     } else if (rol === 'veterinario') {
       crianzaService.listarAnimalesReproductivosVet().then((data) => {
-        setAnimales(data.filter((a: any) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
+        setAnimales(data.filter((a: { categoria: string }) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
         setCargandoAnimales(false)
       })
     }

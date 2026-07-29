@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Stethoscope, AlertCircle, Calendar, Tag, Bell } from 'lucide-react'
+import { MapPin, Stethoscope, AlertCircle, Calendar, Tag, Bell, Syringe } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type CampoConConteo } from '../../services/campoService'
 import { historialService } from '../../services/historialService'
 import { alertaService, type Alerta } from '../../services/alertaService'
+import { sanidadService } from '../../services/sanidadService'
+import type { TrabajoSanitario } from '../../types/sanidad'
 import Spinner from '../../components/ui/Spinner'
 import { hoyAR, formatFechaCorta } from '../../utils/fecha'
 
@@ -30,6 +32,7 @@ export default function DashboardPage() {
   const [campos,    setCampos]    = useState<CampoConConteo[]>([])
   const [historial, setHistorial] = useState<HistResumen[]>([])
   const [alertas,   setAlertas]   = useState<Alerta[]>([])
+  const [trabajos,  setTrabajos]  = useState<TrabajoSanitario[]>([])
   const [loading,   setLoading]   = useState(true)
 
   useEffect(() => {
@@ -40,15 +43,17 @@ export default function DashboardPage() {
       campoService.listarConConteo(sociedadId),
       historialService.listarRecientesTodos(sociedadId, 10),
       alertaService.listar({ sociedadId, esVet: false }).catch(() => [] as Alerta[]),
-    ]).then(([c, f, h, a]) => {
+      sanidadService.listarTrabajos(sociedadId).catch(() => [] as TrabajoSanitario[]),
+    ]).then(([c, f, h, a, t]) => {
       setCaballos(c)
       setCampos(f)
       setHistorial(h)
       setAlertas(a)
+      setTrabajos(t)
     }).finally(() => setLoading(false))
   }, [sociedadId])
 
-  const sinCampo    = useMemo(() => caballos.filter((c) => !(c as any).campo_id).length, [caballos])
+  const sinCampo    = useMemo(() => caballos.filter((c) => !c.campo_id).length, [caballos])
   const sinChip     = useMemo(() => caballos.filter((c) => !c.numero_chip).length, [caballos])
   const maxAnimales = useMemo(() => Math.max(...campos.map((c) => c.caballos_count), 1), [campos])
 
@@ -68,6 +73,13 @@ export default function DashboardPage() {
       })
       .slice(0, 5)
   }, [alertas])
+
+  const proximasAplicaciones = useMemo(() =>
+    trabajos
+      .filter((t) => t.estado === 'pendiente')
+      .sort((a, b) => a.fecha_programada.localeCompare(b.fecha_programada))
+      .slice(0, 5),
+    [trabajos])
 
   const hoy = hoyAR()   // fecha actual en America/Argentina/Buenos_Aires
   const ultimasConsultas  = historial.slice(0, 5)
@@ -203,6 +215,26 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Próximas aplicaciones (sanidad) */}
+      {proximasAplicaciones.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-slate-600">Próximas aplicaciones</h2>
+            <button
+              onClick={() => navigate('/sanidad')}
+              className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+            >
+              Ver todas →
+            </button>
+          </div>
+          <div className="space-y-1">
+            {proximasAplicaciones.map((t) => (
+              <TrabajoWidget key={t.id} trabajo={t} onClick={() => navigate('/sanidad')} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Últimas + Próximas consultas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Últimas consultas */}
@@ -304,6 +336,40 @@ function AlertaWidget({ alerta, onClick }: { alerta: Alerta; onClick: () => void
             {alerta.caballos.map((c) => c.nombre).join(', ')}
           </p>
         )}
+      </div>
+      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${badge.cls}`}>
+        {badge.label}
+      </span>
+    </button>
+  )
+}
+
+// ── Trabajo sanitario Widget ──────────────────────────────────────────────────
+
+function TrabajoWidget({ trabajo, onClick }: { trabajo: TrabajoSanitario; onClick: () => void }) {
+  const hoyDate = new Date(); hoyDate.setHours(0, 0, 0, 0)
+  const fecha   = new Date(trabajo.fecha_programada + 'T00:00:00')
+  const dias    = Math.round((fecha.getTime() - hoyDate.getTime()) / 86400000)
+  const total   = trabajo.caballos?.length ?? 0
+
+  const badge =
+    dias < 0   ? { label: 'Vencido',  cls: 'bg-red-100 text-red-700' } :
+    dias === 0 ? { label: 'Hoy',      cls: 'bg-orange-100 text-orange-700' } :
+                 { label: `En ${dias} día${dias !== 1 ? 's' : ''}`, cls: 'bg-brand-100 text-brand-700' }
+
+  const iconColor = dias < 0 ? 'text-red-500' : dias === 0 ? 'text-orange-500' : 'text-brand-500'
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-slate-50 transition-colors"
+    >
+      <Syringe size={13} className={`${iconColor} shrink-0`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-slate-700 truncate">{trabajo.nombre}</p>
+        <p className="text-[11px] text-slate-400 truncate">
+          {total} caballo{total !== 1 ? 's' : ''}
+        </p>
       </div>
       <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${badge.cls}`}>
         {badge.label}

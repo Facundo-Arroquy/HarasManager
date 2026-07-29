@@ -1,6 +1,9 @@
 // Datos de demo realistas para el haras argentino.
 // Se usan cuando isMockMode() === true en los servicios.
 
+import type { Caballo } from '../services/caballoService'
+import type { Campo } from '../services/campoService'
+
 // ── Catálogos ────────────────────────────────────────────────────────────────
 
 export const MOCK_RAZAS = [
@@ -26,7 +29,7 @@ export const MOCK_TIPOS_CONSULTA = [
 
 // ── Campos / Caballerizas ────────────────────────────────────────────────────
 
-export const MOCK_CAMPOS = [
+export const MOCK_CAMPOS: Campo[] = [
   { id: 'camp-001', sociedad_id: 'mock-sociedad-001', nombre: 'Potrero Norte',    descripcion: 'Potrero principal de entrenamiento' },
   { id: 'camp-002', sociedad_id: 'mock-sociedad-001', nombre: 'Caballeriza Sur',  descripcion: 'Boxes cubiertos, 12 animales' },
   { id: 'camp-003', sociedad_id: 'mock-sociedad-001', nombre: 'Potrero de Cría',  descripcion: 'Yeguas y potrancas en gestación' },
@@ -37,7 +40,7 @@ export const MOCK_CAMPOS = [
 
 // ── Caballos ─────────────────────────────────────────────────────────────────
 
-export const MOCK_CABALLOS: any[] = [
+export const MOCK_CABALLOS: Caballo[] = [
   {
     id: 'cab-001',
     nombre: 'Compadre',
@@ -237,7 +240,15 @@ export const MOCK_CABALLOS: any[] = [
 
 // ── Accesos veterinario ──────────────────────────────────────────────────────
 
-export const MOCK_ACCESOS_VET: any[] = [
+export const MOCK_ACCESOS_VET: {
+  id: string
+  vet_id: string
+  vet: { nombre: string; apellido: string; email: string }
+  caballo_id: string
+  caballo: { nombre: string } | null
+  activo: boolean
+  otorgado_por: string
+}[] = [
   {
     id: 'av-001',
     vet_id: 'mock-veterinario',

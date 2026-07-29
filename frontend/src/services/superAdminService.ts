@@ -168,7 +168,11 @@ export const superAdminService = {
       .eq('sociedad_id', sociedadId)
     if (error) throw error
 
-    return (data ?? []).map((m: any) => ({
+    return ((data ?? []) as unknown as {
+      id: string; usuario_id: string
+      usuario: { nombre: string; apellido: string; email: string }
+      cat_rol: { nombre: string }; activa: boolean; acceso_centro_cria?: boolean | null
+    }[]).map((m) => ({
       id: m.id,
       usuario_id: m.usuario_id,
       nombre: m.usuario.nombre,
@@ -313,7 +317,10 @@ export const superAdminService = {
       .order('nombre')
     if (error) throw error
 
-    return (data ?? []).map((u: any) => ({
+    return ((data ?? []) as unknown as {
+      id: string; nombre: string; apellido: string; email: string
+      activo: boolean; acceso_centro_cria?: boolean | null
+    }[]).map((u) => ({
       id: u.id,
       nombre: u.nombre,
       apellido: u.apellido,

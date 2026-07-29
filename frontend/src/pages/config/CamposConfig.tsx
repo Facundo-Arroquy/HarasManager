@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pencil, Trash2, Check, X, Plus, MapPin } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { campoService, type CampoConConteo } from '../../services/campoService'
+import { mensajeError } from '../../utils/error'
 
 export default function CamposConfig() {
   const { sociedadActiva } = useAuth()
@@ -51,7 +52,7 @@ export default function CamposConfig() {
       await cargar()
       cancelEdit()
     } catch (err: unknown) {
-      setError((err as any)?.message ?? 'Error al actualizar el campo.')
+      setError(mensajeError(err, 'Error al actualizar el campo.'))
     } finally {
       setSaving(false)
     }
@@ -65,7 +66,7 @@ export default function CamposConfig() {
       await cargar()
       setConfirmDel(null)
     } catch (err: unknown) {
-      setError((err as any)?.message ?? 'Error al eliminar el campo.')
+      setError(mensajeError(err, 'Error al eliminar el campo.'))
     } finally {
       setSaving(false)
     }
@@ -83,7 +84,7 @@ export default function CamposConfig() {
       setNewDesc('')
       setShowForm(false)
     } catch (err: unknown) {
-      setError((err as any)?.message ?? 'Error al crear el campo.')
+      setError(mensajeError(err, 'Error al crear el campo.'))
     } finally {
       setSaving(false)
     }

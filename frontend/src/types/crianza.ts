@@ -256,6 +256,42 @@ export interface RegistrarTransferenciaPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Ecografía post-transferencia (Eco 1 / 2 / 3)
+// ---------------------------------------------------------------------------
+
+export type ResultadoEcografia = 'prenada' | 'abortada' | 'pendiente'
+
+export const LABEL_RESULTADO_ECO: Record<ResultadoEcografia, string> = {
+  prenada:   'Preñada',
+  abortada:  'Abortada',
+  pendiente: 'Revisar',
+}
+
+export interface Ecografia {
+  id:                   string
+  sociedad_id:          string
+  transferencia_id:     string
+  caballo_receptora_id: string
+  veterinario_id:       string
+  numero:               number          // habitualmente 1..3, pero puede haber más
+  fecha:                string          // YYYY-MM-DD
+  resultado:            ResultadoEcografia
+  ovario_izq:           string[]
+  ovario_der:           string[]
+  notas:                string | null
+  created_at:           string
+  updated_at:           string
+  // joins opcionales
+  receptora?:           { nombre: string }
+  veterinario?:         { nombre: string; apellido: string }
+}
+
+export type NuevaEcografiaPayload = Omit<
+  Ecografia,
+  'id' | 'created_at' | 'updated_at' | 'receptora' | 'veterinario'
+>
+
+// ---------------------------------------------------------------------------
 // Vista unificada de caballo con datos reproductivos (para listas del módulo)
 // ---------------------------------------------------------------------------
 

@@ -1,12 +1,15 @@
 import { create } from 'zustand'
 import { crianzaService } from '../services/crianzaService'
 import { getCriaConfig } from '../utils/criaConfig'
+import { mensajeError } from '../utils/error'
 import type {
   RegistroClinicoCria,
   RecordatorioCria,
   Flushing,
   TransferenciaEmbrionaria,
   RegistrarTransferenciaPayload,
+  Ecografia,
+  NuevaEcografiaPayload,
   NuevoRegistroCriaPayload,
   NuevoRecordatorioPayload,
   NuevoFlushingPayload,
@@ -105,6 +108,7 @@ interface CrianzaState {
   recordatorios:  RecordatorioCria[]
   flushings:      Flushing[]
   transferencias: TransferenciaEmbrionaria[]
+  ecografias:     Ecografia[]
   loading:        boolean
   error:          string | null
 
@@ -132,6 +136,10 @@ interface CrianzaState {
   /** Transferencia completa en una sola transacción (RPC). Ver crianzaService. */
   registrarTransferencia: (payload: RegistrarTransferenciaPayload) => Promise<TransferenciaEmbrionaria>
 
+  // Ecografías
+  /** Registra una ecografía y sincroniza el estado reproductivo de la receptora. */
+  registrarEcografia: (payload: NuevaEcografiaPayload) => Promise<Ecografia>
+
   // Rol reproductivo
   actualizarRolReproductivo: (caballoId: string, rol: RolReproductivo) => Promise<void>
 
@@ -144,6 +152,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   recordatorios:  [],
   flushings:      [],
   transferencias: [],
+  ecografias:     [],
   loading:        false,
   error:          null,
 
@@ -153,18 +162,18 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const lbl = <T,>(name: string, p: Promise<T>): Promise<T> =>
-        p.catch((e: any) => { throw new Error(`[${name}] ${e?.message ?? String(e)}`) }) as Promise<T>
-      const [registros, recordatorios, flushings, transferencias] = await Promise.all([
+        p.catch((e: unknown) => { throw new Error(`[${name}] ${mensajeError(e)}`) }) as Promise<T>
+      const [registros, recordatorios, flushings, transferencias, ecografias] = await Promise.all([
         lbl('registros',      crianzaService.listarRegistros(sociedadId)),
         lbl('recordatorios',  crianzaService.listarRecordatorios(sociedadId)),
         lbl('flushings',      crianzaService.listarFlushings(sociedadId)),
         lbl('transferencias', crianzaService.listarTransferencias(sociedadId)),
+        lbl('ecografias',     crianzaService.listarEcografias(sociedadId)),
       ])
-      set({ registros, recordatorios, flushings, transferencias })
+      set({ registros, recordatorios, flushings, transferencias, ecografias })
       get().sincronizarVencidos()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : (err as any)?.message ?? 'Error al cargar datos'
-      set({ error: msg })
+      set({ error: mensajeError(err, 'Error al cargar datos') })
     } finally {
       set({ loading: false })
     }
@@ -173,17 +182,17 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   cargarParaVet: async () => {
     set({ loading: true, error: null })
     try {
-      const [registros, recordatorios, flushings, transferencias] = await Promise.all([
+      const [registros, recordatorios, flushings, transferencias, ecografias] = await Promise.all([
         crianzaService.listarRegistrosVet(),
         crianzaService.listarRecordatoriosVet(),
         crianzaService.listarFlushingsVet(),
         crianzaService.listarTransferenciasVet(),
+        crianzaService.listarEcografiasVet(),
       ])
-      set({ registros, recordatorios, flushings, transferencias })
+      set({ registros, recordatorios, flushings, transferencias, ecografias })
       get().sincronizarVencidos()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : (err as any)?.message ?? 'Error al cargar datos'
-      set({ error: msg })
+      set({ error: mensajeError(err, 'Error al cargar datos') })
     } finally {
       set({ loading: false })
     }
@@ -253,6 +262,14 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     const transferencia = await crianzaService.registrarTransferenciaEmbrionaria(payload)
     set((s) => ({ transferencias: [transferencia, ...s.transferencias] }))
     return transferencia
+  },
+
+  // ── Ecografías ────────────────────────────────────────────────────────────
+
+  registrarEcografia: async (payload) => {
+    const ecografia = await crianzaService.registrarEcografia(payload)
+    set((s) => ({ ecografias: [ecografia, ...s.ecografias] }))
+    return ecografia
   },
 
   // ── Rol reproductivo ──────────────────────────────────────────────────────

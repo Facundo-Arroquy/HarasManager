@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { X, Plus, Trash2, ImageIcon } from 'lucide-react'
 import { caballoService } from '../../services/caballoService'
+import { nombreCaballo } from '../../utils/caballo'
+import { mensajeError } from '../../utils/error'
 import { catalogoService } from '../../services/catalogoService'
 import { historialService } from '../../services/historialService'
 import { useAuthStore } from '../../store/authStore'
@@ -105,15 +107,15 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
     const cargarCaballos = caballoId
       ? Promise.resolve([] as { id: string; nombre: string; marca_nombre?: string }[])
       : rol === 'veterinario' && user?.id
-        ? caballoService.listarDelVeterinario(user.id).then((data: any[]) =>
-            [...data]
+        ? caballoService.listarDelVeterinario(user.id).then((data) =>
+            data
+              .map((c) => ({ id: c.id, nombre: nombreCaballo(c), marca_nombre: c.empresa_nombre ?? c.propietario_nombre ?? 'Desconocido' }))
               .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-              .map((c) => ({ id: c.id, nombre: c.nombre, marca_nombre: c.empresa_nombre ?? c.propietario_nombre ?? 'Desconocido' }))
           )
-        : caballoService.listar(sociedad?.id ?? '').then((data: any[]) =>
-            [...data]
+        : caballoService.listar(sociedad?.id ?? '').then((data) =>
+            data
+              .map((c) => ({ id: c.id, nombre: nombreCaballo(c), marca_nombre: c.propietario_nombre ?? 'Desconocido' }))
               .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-              .map((c) => ({ id: c.id, nombre: c.nombre, marca_nombre: c.marca?.nombre ?? 'Desconocido' }))
           )
 
     Promise.all([
@@ -230,8 +232,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
       onSuccess()
       onClose()
     } catch (err) {
-      const msg = (err as any)?.message ?? (err instanceof Error ? err.message : null)
-      setError(msg ?? 'Error al guardar.')
+      setError(mensajeError(err, 'Error al guardar.'))
     } finally {
       setSubmitting(false)
     }

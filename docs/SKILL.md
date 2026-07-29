@@ -236,6 +236,43 @@ CREATE TABLE historial_medicamento (
   dosis VARCHAR(100), via_administracion VARCHAR(100),
   duracion_dias INTEGER CHECK (duracion_dias > 0)
 );
+
+-- Trabajos sanitarios multi-caballo (migración 20260728181738)
+-- Un trabajo (ej: desparasitar) se arma como una lista de caballos programada
+-- para un día; al completarlo se escribe una fila en el historial_clinico de
+-- cada caballo no excluido.
+CREATE TABLE cat_trabajo_sanitario (           -- catálogo editable (NULL = global)
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sociedad_id UUID REFERENCES sociedad(id),    -- NULL = trabajo global
+  nombre TEXT NOT NULL,
+  activo BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE NULLS NOT DISTINCT (sociedad_id, nombre)
+);
+-- Globales pre-cargados: Desparasitación, Vacunación, Herrado,
+--   Control odontológico, Extracción de sangre.
+
+CREATE TABLE trabajo_sanitario (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  nombre TEXT NOT NULL,
+  fecha_programada DATE NOT NULL,
+  estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','realizado','cancelado')),
+  tratamiento TEXT, observaciones TEXT,
+  fecha_realizado DATE,
+  creado_por UUID NOT NULL REFERENCES usuario(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE trabajo_sanitario_caballo (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  trabajo_id UUID NOT NULL REFERENCES trabajo_sanitario(id) ON DELETE CASCADE,
+  caballo_id UUID NOT NULL REFERENCES caballo(id),
+  excluido BOOLEAN NOT NULL DEFAULT false,       -- checkbox de exclusión al completar
+  historial_id UUID REFERENCES historial_clinico(id),  -- fila creada al completar
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (trabajo_id, caballo_id)
+);
 ```
 
 ### Centro de Embriones (crianza)
@@ -338,7 +375,7 @@ CREATE TABLE cria_ecografia (
   transferencia_id UUID NOT NULL REFERENCES cria_transferencia(id),
   caballo_receptora_id UUID NOT NULL REFERENCES caballo(id),
   veterinario_id UUID NOT NULL REFERENCES usuario(id),
-  numero SMALLINT NOT NULL CHECK (numero IN (1,2,3)),
+  numero SMALLINT NOT NULL CHECK (numero >= 1),   -- habitualmente 1..3; migración 20260728232404 relajó el IN (1,2,3)
   fecha DATE NOT NULL,
   resultado TEXT NOT NULL CHECK (resultado IN ('prenada','abortada','pendiente')),
   ovario_izq TEXT[] NOT NULL DEFAULT '{}',
@@ -505,6 +542,7 @@ CREATE TABLE lead (
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
 | `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Devuelve `jsonb` con los tres ids (migración `20260724000626`) |
+| `completar_trabajo_sanitario(p_trabajo_id)` | Marca un `trabajo_sanitario` como realizado e inserta una fila en `historial_clinico` por cada caballo no excluido (asegura el `cat_tipo_consulta` con el nombre del trabajo). Valida `tiene_membresia`. Solo `authenticated`. Devuelve la cantidad cargada (migración `20260728181738`) |
 
 ### Triggers
 
@@ -578,6 +616,18 @@ CREATE TABLE lead (
 **`historial_parte_afectada` / `historial_medicamento`**
 - SELECT: `tiene_membresia` (vía caballo)
 - INSERT/UPDATE: `creado_por` del historial = `auth.uid()`
+
+**`cat_trabajo_sanitario`**
+- SELECT: `sociedad_id IS NULL` (globales) o `tiene_membresia(sociedad_id)` o `is_superadmin()`
+- INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` para los propios; globales solo `is_superadmin()`
+
+**`trabajo_sanitario`**
+- SELECT/UPDATE: `tiene_membresia(sociedad_id)` o `is_superadmin()`
+- INSERT: `tiene_membresia(sociedad_id) AND creado_por = auth.uid()`
+- DELETE: `es_admin(sociedad_id)` o `is_superadmin()`
+
+**`trabajo_sanitario_caballo`**
+- ALL: heredado del `trabajo_sanitario` padre (`tiene_membresia(t.sociedad_id)` o `is_superadmin()`)
 
 **`cria_registro_clinico` / `cria_recordatorio` / `cria_flushing` / `cria_transferencia`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_id)`

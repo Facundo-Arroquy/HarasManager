@@ -34,6 +34,7 @@ import EmbrionesPage from './pages/centro-cria/EmbrionesPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 import TransferirVetPage from './pages/vet/TransferirVetPage'
 import AlertasPage from './pages/alertas/AlertasPage'
+import SanidadPage from './pages/sanidad/SanidadPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 function RootRedirect() {
@@ -161,6 +162,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
+          <Route path="/sanidad" element={<SanidadPage />} />
           <Route path="/panel-vet" element={<PanelVetPage />} />
           <Route path="/revision-preventa" element={<RevisionPreVentaPage />} />
           <Route path="/admin" element={<AdminPage />} />

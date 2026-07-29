@@ -42,16 +42,17 @@ async function cargarPerfilProd(
       .single()
 
     // PostgREST puede devolver cat_rol como objeto o array según la versión
-    const catRol = Array.isArray((memb as any)?.cat_rol)
-      ? (memb as any).cat_rol[0]
-      : (memb as any)?.cat_rol
+    type SociedadRow = { id: string; nombre: string; activa: boolean; acceso_centro_cria: boolean }
+    type CatRol = { nombre: string }
+    const m = memb as { cat_rol?: CatRol | CatRol[] | null; sociedad?: SociedadRow | null } | null
+    const catRol = Array.isArray(m?.cat_rol) ? m?.cat_rol[0] : m?.cat_rol
 
     // Esperar el check de acceso antes de marcar el perfil como cargado,
     // para que RequireCentroCria no redirija prematuramente.
     const accesosCria = await tieneAccesoCentroCria(userId).catch(() => false)
     store.setAccesosCentroC(accesosCria)
     store.setSociedadActiva(
-      (memb as any)?.sociedad ?? null,
+      m?.sociedad ?? null,
       catRol?.nombre ?? null
     )
     store.setLoading(false)

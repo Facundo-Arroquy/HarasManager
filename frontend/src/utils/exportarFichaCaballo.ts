@@ -60,9 +60,9 @@ export async function generarFichaHtml(data: FichaCaballoData, { autoPrint = fal
   let { caballos = [] } = data
 
   // Auto-cargar caballos de la sociedad si no se pasaron (necesario para genealogía)
-  if (caballos.length === 0 && (caballo as any).sociedad_id) {
+  if (caballos.length === 0 && caballo.sociedad_id) {
     try {
-      caballos = await caballoService.listar((caballo as any).sociedad_id)
+      caballos = await caballoService.listar(caballo.sociedad_id)
     } catch { /* sin genealogía */ }
   }
 
@@ -399,7 +399,7 @@ export async function generarFichaHtml(data: FichaCaballoData, { autoPrint = fal
   <div class="id-section">
     <div class="igrid">
       <div class="irow"><span class="ilbl">Nombre:</span><span class="ival">${caballo.nombre}</span></div>
-      <div class="irow"><span class="ilbl">Categoría:</span><span class="ival">${caballo.categoria ?? '—'}${(caballo as any).rol_reproductivo ? ` · ${(caballo as any).rol_reproductivo}` : ''}</span></div>
+      <div class="irow"><span class="ilbl">Categoría:</span><span class="ival">${caballo.categoria ?? '—'}${caballo.rol_reproductivo ? ` · ${caballo.rol_reproductivo}` : ''}</span></div>
       <div class="irow"><span class="ilbl">Raza:</span><span class="ival">${caballo.cat_raza?.nombre ?? '—'}</span></div>
       <div class="irow"><span class="ilbl">Pelaje:</span><span class="ival">${caballo.cat_pelaje?.nombre ?? '—'}</span></div>
       ${caballo.fecha_nacimiento ? `<div class="irow"><span class="ilbl">Nacimiento:</span><span class="ival">${fmtFecha(caballo.fecha_nacimiento)}${edad ? ` (${edad})` : ''}</span></div>` : ''}

@@ -12,6 +12,8 @@ import type {
   NuevoEmbrionPayload,
   TransferenciaEmbrionaria,
   RegistrarTransferenciaPayload,
+  Ecografia,
+  NuevaEcografiaPayload,
   RolReproductivo,
   EstadoReproductivo,
 } from '../types/crianza'
@@ -238,6 +240,8 @@ const MOCK_TRANSFERENCIAS: TransferenciaEmbrionaria[] = [
     veterinario: { nombre: 'Valentina', apellido: 'Ríos' },
   },
 ]
+
+const MOCK_ECOGRAFIAS: Ecografia[] = []
 
 // =============================================================================
 // Service
@@ -698,9 +702,9 @@ export const crianzaService = {
           id:               c.id,
           nombre:           c.nombre,
           categoria:        c.categoria,
-          rol_reproductivo: (c as any).rol_reproductivo ?? null as RolReproductivo,
-          campo:            c.campo ? { nombre: (c.campo as any).nombre } : null,
-          marca:            c.marca ? { nombre: (c.marca as any).nombre } : null,
+          rol_reproductivo: (c.rol_reproductivo ?? null) as RolReproductivo,
+          campo:            c.campo ? { nombre: c.campo.nombre } : null,
+          marca:            null as { nombre: string } | null,
         }))
     }
     const supabase = getSupabaseClient()
@@ -764,6 +768,105 @@ export const crianzaService = {
     return data as TransferenciaEmbrionaria[]
   },
 
+  // ── Ecografías post-transferencia ────────────────────────────────────────
+
+  async listarEcografias(sociedadId: string): Promise<Ecografia[]> {
+    if (isMockMode()) {
+      return MOCK_ECOGRAFIAS.filter((e) => e.sociedad_id === sociedadId)
+        .sort((a, b) => b.fecha.localeCompare(a.fecha))
+    }
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_ecografia')
+      .select(`
+        *,
+        receptora:caballo_receptora_id(nombre),
+        veterinario:veterinario_id(nombre, apellido)
+      `)
+      .eq('sociedad_id', sociedadId)
+      .order('fecha', { ascending: false })
+    if (error) throw error
+    return data as Ecografia[]
+  },
+
+  async listarEcografiasVet(): Promise<Ecografia[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_ecografia')
+      .select(`
+        *,
+        receptora:caballo_receptora_id(nombre),
+        veterinario:veterinario_id(nombre, apellido)
+      `)
+      .order('fecha', { ascending: false })
+    if (error) throw error
+    return data as Ecografia[]
+  },
+
+  /**
+   * Registra una ecografía post-transferencia y sincroniza el estado
+   * reproductivo de la receptora según el resultado:
+   *   - 'abortada'  → la yegua pasa a 'vacia' y vuelve al circuito de revisión
+   *   - 'prenada'   → la yegua pasa a 'prenada'
+   *   - 'pendiente' → sin cambio de estado (se la vuelve a revisar)
+   */
+  async registrarEcografia(payload: NuevaEcografiaPayload): Promise<Ecografia> {
+    if (isMockMode()) {
+      const nueva: Ecografia = {
+        ...payload,
+        id: `eco-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      MOCK_ECOGRAFIAS.push(nueva)
+      const { MOCK_CABALLOS } = await import('../dev/mockData')
+      const cab = MOCK_CABALLOS.find((c) => c.id === payload.caballo_receptora_id)
+      if (cab) {
+        if (payload.resultado === 'abortada')      cab.estado_reproductivo = 'vacia'
+        else if (payload.resultado === 'prenada')  cab.estado_reproductivo = 'prenada'
+      }
+      return nueva
+    }
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_ecografia')
+      .insert(payload)
+      .select(`
+        *,
+        receptora:caballo_receptora_id(nombre),
+        veterinario:veterinario_id(nombre, apellido)
+      `)
+      .single()
+    if (error) throw error
+
+    // Sincronizar el estado reproductivo de la receptora
+    const nuevoEstado: EstadoReproductivo =
+      payload.resultado === 'abortada' ? 'vacia'
+      : payload.resultado === 'prenada' ? 'prenada'
+      : null
+
+    if (nuevoEstado) {
+      const { data: cab } = await supabase
+        .from('caballo')
+        .select('estado_reproductivo')
+        .eq('id', payload.caballo_receptora_id)
+        .single()
+      const estadoAnterior = (cab?.estado_reproductivo ?? null) as EstadoReproductivo
+      if (estadoAnterior !== nuevoEstado) {
+        await crianzaService.actualizarEstadoReproductivo(
+          payload.caballo_receptora_id,
+          payload.sociedad_id,
+          estadoAnterior,
+          nuevoEstado,
+          payload.veterinario_id,
+          `Ecografía ${payload.numero}: ${payload.resultado}`,
+        )
+      }
+    }
+
+    return data as Ecografia
+  },
+
   async actualizarRolReproductivo(
     caballoId: string,
     rol: RolReproductivo
@@ -771,7 +874,7 @@ export const crianzaService = {
     if (isMockMode()) {
       const { MOCK_CABALLOS } = await import('../dev/mockData')
       const cab = MOCK_CABALLOS.find((c) => c.id === caballoId)
-      if (cab) (cab as any).rol_reproductivo = rol
+      if (cab) cab.rol_reproductivo = rol
       return
     }
     const supabase = getSupabaseClient()
@@ -793,7 +896,7 @@ export const crianzaService = {
     if (isMockMode()) {
       const { MOCK_CABALLOS } = await import('../dev/mockData')
       const cab = MOCK_CABALLOS.find((c) => c.id === caballoId)
-      if (cab) (cab as any).estado_reproductivo = estadoNuevo
+      if (cab) cab.estado_reproductivo = estadoNuevo
       return
     }
     const supabase = getSupabaseClient()

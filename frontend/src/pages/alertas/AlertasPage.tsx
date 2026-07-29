@@ -78,7 +78,7 @@ export default function AlertasPage() {
           : caballoService.listar(sociedadId!),
       ])
       setAlertas(a)
-      setCaballos(c.map((cab: any) => ({ id: cab.id, nombre: cab.nombre, categoria: cab.categoria })))
+      setCaballos(c.map((cab) => ({ id: cab.id, nombre: cab.nombre, categoria: cab.categoria })))
     } catch (e: unknown) {
       setError((e instanceof Error ? e.message : 'Error al cargar alertas.'))
     } finally {

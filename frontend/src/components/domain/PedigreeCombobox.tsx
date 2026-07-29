@@ -57,7 +57,7 @@ export default function PedigreeCombobox({ label, placeholder, value, onChange, 
     setOpen(false)
   }
 
-  function useFreeName() {
+  function usarNombreLibre() {
     const name = query.trim()
     if (!name) return
     onChange({ id: null, nombre: name })
@@ -109,7 +109,7 @@ export default function PedigreeCombobox({ label, placeholder, value, onChange, 
                   if (e.key === 'Enter') {
                     e.preventDefault()
                     if (filtered.length === 1) selectHorse(filtered[0])
-                    else if (query.trim()) useFreeName()
+                    else if (query.trim()) usarNombreLibre()
                   }
                   if (e.key === 'Escape') setOpen(false)
                 }}
@@ -143,7 +143,7 @@ export default function PedigreeCombobox({ label, placeholder, value, onChange, 
               {query.trim() && (
                 <button
                   type="button"
-                  onMouseDown={useFreeName}
+                  onMouseDown={usarNombreLibre}
                   className="w-full flex items-center gap-1.5 px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 transition-colors text-left"
                 >
                   <Link2Off size={12} className="text-slate-400 shrink-0" />

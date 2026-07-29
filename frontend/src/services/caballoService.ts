@@ -16,14 +16,14 @@ export type Subcategoria = 'Donante' | 'Receptora'
 export interface Caballo {
   id: string
   nombre: string
-  fecha_nacimiento: string
+  fecha_nacimiento: string | null
   categoria: string
   rol_reproductivo?: string | null
   estado_reproductivo?: string | null
   prenada?: boolean
   fecha_prenez?: string | null
-  raza_id: number
-  pelaje_id: number
+  raza_id: number | null
+  pelaje_id: number | null
   numero_chip?: string
   numero_registro?: string
   sociedad_id: string
@@ -37,6 +37,21 @@ export interface Caballo {
   madre_id?: string | null
   madre_nombre?: string | null
   propietario_nombre?: string | null
+  // Presentes solo cuando el listado viene del veterinario (multi-empresa)
+  empresa_id?: string | null
+  empresa_nombre?: string | null
+}
+
+/** Fila cruda que devuelve la RPC `get_caballos_veterinario`. */
+interface CaballoVetRow {
+  id: string
+  raza_nombre?: string | null
+  pelaje_nombre?: string | null
+  campo_nombre?: string | null
+  propietario_nombre?: string | null
+  prenada?: boolean | null
+  fecha_prenez?: string | null
+  [key: string]: unknown
 }
 
 export interface ActualizarCaballoPayload {
@@ -75,7 +90,7 @@ export interface NuevoCaballoPayload {
 
 export const caballoService = {
   /** Todos los caballos del vet, a través de todas las empresas en que tiene acceso */
-  async listarDelVeterinario(vetId: string) {
+  async listarDelVeterinario(vetId: string): Promise<Caballo[]> {
     if (isMockMode()) {
       const accesos = MOCK_ACCESOS_VET.filter((a) => a.vet_id === vetId && a.activo)
       const ids     = new Set(accesos.map((a) => a.caballo_id))
@@ -95,17 +110,19 @@ export const caballoService = {
 
     // get_caballos_veterinario puede no devolver prenada/fecha_prenez si fue
     // creado antes de esas columnas. Las obtenemos con una query directa.
-    const ids = rows.map((c: any) => c.id as string)
-    let prenMap = new Map<string, { prenada: boolean; fecha_prenez: string | null }>()
+    const typedRows = rows as CaballoVetRow[]
+    const ids = typedRows.map((c) => c.id)
+    const prenMap = new Map<string, { prenada: boolean; fecha_prenez: string | null }>()
     if (ids.length > 0) {
       const { data: prenData } = await supabase
         .from('caballo')
         .select('id, prenada, fecha_prenez')
         .in('id', ids)
-      ;(prenData ?? []).forEach((p: any) => prenMap.set(p.id, { prenada: p.prenada ?? false, fecha_prenez: p.fecha_prenez ?? null }))
+      ;((prenData ?? []) as { id: string; prenada: boolean | null; fecha_prenez: string | null }[])
+        .forEach((p) => prenMap.set(p.id, { prenada: p.prenada ?? false, fecha_prenez: p.fecha_prenez ?? null }))
     }
 
-    return rows.map((c: any) => ({
+    return typedRows.map((c) => ({
       ...c,
       prenada:           prenMap.get(c.id)?.prenada      ?? c.prenada      ?? false,
       fecha_prenez:      prenMap.get(c.id)?.fecha_prenez ?? c.fecha_prenez ?? null,
@@ -113,10 +130,10 @@ export const caballoService = {
       cat_pelaje:        c.pelaje_nombre      ? { nombre: c.pelaje_nombre }      : null,
       campo:             c.campo_nombre       ? { nombre: c.campo_nombre }       : null,
       propietario_nombre: c.propietario_nombre ?? null,
-    }))
+    })) as unknown as Caballo[]
   },
 
-  async listar(sociedadId: string) {
+  async listar(sociedadId: string): Promise<Caballo[]> {
     if (isMockMode()) {
       const mockUser = getMockUser(getMockUserId())
       let all = MOCK_CABALLOS.filter((c) => c.sociedad_id === sociedadId && c.activo)
@@ -147,7 +164,7 @@ export const caballoService = {
       .eq('activo', true)
       .order('nombre')
     if (error) throw error
-    return data as any
+    return data as unknown as Caballo[]
   },
 
   async obtener(id: string) {
@@ -212,11 +229,11 @@ export const caballoService = {
       const nuevo = {
         id: `cab-${Date.now()}`,
         nombre: payload.nombre,
-        fecha_nacimiento: payload.fecha_nacimiento,
+        fecha_nacimiento: payload.fecha_nacimiento ?? null,
         categoria: payload.categoria,
         rol_reproductivo: payload.rol_reproductivo ?? null,
-        raza_id: payload.raza_id,
-        pelaje_id: payload.pelaje_id,
+        raza_id: payload.raza_id ?? null,
+        pelaje_id: payload.pelaje_id ?? null,
         numero_chip: payload.numero_chip ?? '',
         numero_registro: payload.numero_registro ?? '',
         sociedad_id: sociedadId,
@@ -322,7 +339,7 @@ export const caballoService = {
         if (!caballo) continue
         if ('campo_id' in cambios) {
           const campo = cambios.campo_id
-            ? MOCK_CAMPOS.find((c: any) => c.id === cambios.campo_id)
+            ? MOCK_CAMPOS.find((c) => c.id === cambios.campo_id)
             : null
           caballo.campo_id = cambios.campo_id ?? null
           caballo.campo = campo ? { nombre: campo.nombre } : null

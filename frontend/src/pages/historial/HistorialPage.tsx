@@ -47,6 +47,8 @@ export default function HistorialPage() {
   const [prenSaving,    setPrenSaving]    = useState(false)
   const [prenError,     setPrenError]     = useState('')
   const [prenOk,        setPrenOk]        = useState(false)
+  // "Ahora" capturado una vez por montaje: usar Date.now() en render no es puro.
+  const [ahoraMs] = useState(() => Date.now())
   const cambiosPren = prenada !== baselinePren || fechaPrenez !== baselineFecha
 
   const [tab, setTab] = useState<'clinico' | 'reproductivo' | 'genealogia' | 'foto'>('clinico')
@@ -108,8 +110,9 @@ export default function HistorialPage() {
         setCaballo(cab)
         setHistorial(hist as object[])
         // Inicializar estados de preñada desde los datos del caballo
-        const p = (cab as any).prenada ?? false
-        const f = (cab as any).fecha_prenez ?? ''
+        const datosPren = cab as { prenada?: boolean | null; fecha_prenez?: string | null }
+        const p = datosPren.prenada ?? false
+        const f = datosPren.fecha_prenez ?? ''
         setPrenada(p); setBaselinePren(p)
         setFechaPrenez(f); setBaselineFecha(f)
       })
@@ -267,7 +270,7 @@ export default function HistorialPage() {
               />
               {fechaPrenez && (() => {
                 const inicio = new Date(`${fechaPrenez}T00:00:00`)
-                const diasDePrenada = Math.floor((Date.now() - inicio.getTime()) / 86400000)
+                const diasDePrenada = Math.floor((ahoraMs - inicio.getTime()) / 86400000)
                 const partoProbable = new Date(inicio.getTime() + 360 * 86400000)
                 const fechaPartoStr = `${partoProbable.getFullYear()}-${String(partoProbable.getMonth() + 1).padStart(2, '0')}-${String(partoProbable.getDate()).padStart(2, '0')}`
                 return (

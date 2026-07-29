@@ -1,5 +1,6 @@
 import { ChevronRight, CheckSquare, Square } from 'lucide-react'
 import { calcularEdadDetallada } from '../../utils/fecha'
+import { nombreCaballo } from '../../utils/caballo'
 import FotoCaballo from './FotoCaballo'
 
 interface CaballoCardProps {
@@ -38,6 +39,7 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
   const badgeClass      = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
   const subBadgeClass   = caballo.rol_reproductivo ? SUBCATEGORIA_STYLE[caballo.rol_reproductivo] : undefined
   const edad            = calcularEdadDetallada(caballo.fecha_nacimiento)
+  const nombreMostrado  = nombreCaballo(caballo)
 
   function handleClick() {
     if (enModoSeleccion) onToggle()
@@ -67,7 +69,7 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
       <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
         <FotoCaballo
           caballoId={caballo.id}
-          nombre={caballo.nombre}
+          nombre={nombreMostrado}
           canEdit={false}
           size={36}
         />
@@ -75,15 +77,15 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
 
       {/* Nombre + edad */}
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-medium text-slate-900 truncate">{caballo.nombre}</span>
+        <span className="block text-sm font-medium text-slate-900 truncate">{nombreMostrado}</span>
         <span className="block text-xs text-slate-400">
           {edad}
           {empresaNombre && <span className="ml-1.5 text-slate-400">· {empresaNombre}</span>}
         </span>
       </span>
 
-      {/* Nro. Registro */}
-      {caballo.numero_registro && (
+      {/* Nro. Registro — solo si además tiene nombre (si no, ya se muestra como RP) */}
+      {caballo.numero_registro && caballo.nombre?.trim() && (
         <span className="hidden sm:block text-xs text-slate-400 font-mono shrink-0">
           {caballo.numero_registro}
         </span>

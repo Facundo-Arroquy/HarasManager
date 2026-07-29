@@ -6,6 +6,7 @@ import { caballoService, type NuevoCaballoPayload, type Caballo } from '../../se
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { fotoService } from '../../services/fotoService'
+import { mensajeError } from '../../utils/error'
 import PedigreeCombobox, { type HorseRef } from './PedigreeCombobox'
 
 interface Props {
@@ -124,8 +125,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       }
       onSuccess()
     } catch (err: unknown) {
-      const msg = (err as any)?.message ?? (err instanceof Error ? err.message : String(err))
-      setError(msg)
+      setError(mensajeError(err))
     } finally {
       setSaving(false)
     }
