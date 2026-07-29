@@ -230,7 +230,14 @@ export default function CaballosPage() {
     // En "Dados de baja" mostramos todos los inactivos (sin las exclusiones de
     // preñadas ni de receptoras, que aplican al listado activo).
     const fuente = verBaja ? caballosBaja : caballos
+    // Guarda: nunca listar el mismo caballo dos veces (por si la query devuelve
+    // filas repetidas).
+    const vistos = new Set<string>()
     const base = fuente.filter((c) => {
+      if (vistos.has(c.id)) return false
+      vistos.add(c.id)
+      return true
+    }).filter((c) => {
       const okNombre   = textoBusquedaCaballo(c).includes(busqueda.toLowerCase())
       const okCat      = filtro === 'Todos' || c.categoria === filtro
       const okEmpresa  = filtroEmpresaIds.size === 0 || filtroEmpresaIds.has(c.sociedad_id ?? '')
