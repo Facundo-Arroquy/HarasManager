@@ -450,12 +450,44 @@ export const caballoService = {
   async importarMasivo(
     payloads: BulkCaballoPayload[],
     sociedadId: string,
-  ): Promise<{ insertados: number; errores: { index: number; message: string }[] }> {
+  ): Promise<{ insertados: number; errores: { index: number; message: string }[]; omitidos: number }> {
+    // Filtro anti-duplicados: se omite un caballo si ya existe uno activo con el
+    // mismo RP (numero_registro); si no tiene RP, se compara por nombre. También
+    // deduplica dentro del propio Excel.
+    const filtrarNuevos = (
+      existentesRp: Set<string>,
+      existentesNombreSinRp: Set<string>,
+    ): { nuevos: BulkCaballoPayload[]; omitidos: number } => {
+      let omitidos = 0
+      const rpBatch = new Set<string>()
+      const nombreBatch = new Set<string>()
+      const nuevos = payloads.filter((p) => {
+        const rp  = p.numero_registro?.trim().toLowerCase()
+        const nom = p.nombre.trim().toLowerCase()
+        const dup = rp
+          ? (existentesRp.has(rp) || rpBatch.has(rp))
+          : (existentesNombreSinRp.has(nom) || nombreBatch.has(nom))
+        if (dup) { omitidos++; return false }
+        if (rp) rpBatch.add(rp)
+        else nombreBatch.add(nom)
+        return true
+      })
+      return { nuevos, omitidos }
+    }
+
     if (isMockMode()) {
       const { MOCK_CAMPOS } = await import('../dev/mockData')
+      const rpExist = new Set<string>()
+      const nomExist = new Set<string>()
+      for (const c of MOCK_CABALLOS.filter((c) => c.sociedad_id === sociedadId && c.activo)) {
+        const rp = c.numero_registro?.trim().toLowerCase()
+        if (rp) rpExist.add(rp)
+        else nomExist.add(c.nombre.trim().toLowerCase())
+      }
+      const { nuevos, omitidos } = filtrarNuevos(rpExist, nomExist)
       let insertados = 0
-      for (let i = 0; i < payloads.length; i++) {
-        const p = payloads[i]
+      for (let i = 0; i < nuevos.length; i++) {
+        const p = nuevos[i]
         const raza   = MOCK_RAZAS.find((r) => r.id === p.raza_id)
         const pelaje = MOCK_PELAJES.find((pl) => pl.id === p.pelaje_id)
         const campo  = p.campo_id ? MOCK_CAMPOS.find((c) => c.id === p.campo_id) : null
@@ -478,11 +510,28 @@ export const caballoService = {
         })
         insertados++
       }
-      return { insertados, errores: [] }
+      return { insertados, errores: [], omitidos }
     }
 
     const supabase = getSupabaseClient()
-    const rows = payloads.map((p) => ({
+
+    // Traer los existentes activos de la sociedad para el chequeo de duplicados
+    const { data: existentes } = await supabase
+      .from('caballo')
+      .select('nombre, numero_registro')
+      .eq('sociedad_id', sociedadId)
+      .eq('activo', true)
+    const rpExist = new Set<string>()
+    const nomExist = new Set<string>()
+    for (const e of (existentes ?? []) as { nombre: string; numero_registro: string | null }[]) {
+      const rp = e.numero_registro?.trim().toLowerCase()
+      if (rp) rpExist.add(rp)
+      else nomExist.add(e.nombre.trim().toLowerCase())
+    }
+    const { nuevos, omitidos } = filtrarNuevos(rpExist, nomExist)
+    if (nuevos.length === 0) return { insertados: 0, errores: [], omitidos }
+
+    const rows = nuevos.map((p) => ({
       nombre:           p.nombre,
       fecha_nacimiento: p.fecha_nacimiento,
       categoria:        p.categoria,
@@ -498,7 +547,7 @@ export const caballoService = {
     }))
 
     const { error: bulkError } = await supabase.from('caballo').insert(rows)
-    if (!bulkError) return { insertados: payloads.length, errores: [] }
+    if (!bulkError) return { insertados: rows.length, errores: [], omitidos }
 
     // Fallback: inserción individual para aislar errores
     let insertados = 0
@@ -508,6 +557,6 @@ export const caballoService = {
       if (error) errores.push({ index: i + 1, message: error.message })
       else insertados++
     }
-    return { insertados, errores }
+    return { insertados, errores, omitidos }
   },
 }
