@@ -3,7 +3,7 @@ import { X, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
-import { CHIPS_OI_OD, CHIPS_UTERO, CHIPS_OBS } from '../../types/crianza'
+import { CHIPS_OI_OD, CHIPS_UTERO } from '../../types/crianza'
 import type { RolReproductivo } from '../../types/crianza'
 import { getCriaConfig } from '../../utils/criaConfig'
 import ChipSelector from './ChipSelector'
@@ -32,6 +32,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
   const [animales, setAnimales] = useState<AnimalItem[]>([])
   const [cargandoAnimales, setCargandoAnimales] = useState(true)
+  const [chipsObs, setChipsObs] = useState<string[]>([])
 
   // ── Form state ────────────────────────────────────────────────────────────
   const [caballoId,     setCaballoId]     = useState(caballoIdInicial ?? '')
@@ -78,6 +79,14 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       })
     }
   }, [sociedadActiva, rol])
+
+  // ── Carga del catálogo de acciones/tratamientos ───────────────────────────
+  useEffect(() => {
+    const promesa = sociedadActiva
+      ? crianzaService.listarCatalogoChips(sociedadActiva.id)
+      : crianzaService.listarCatalogoChipsGlobales()
+    promesa.then((data) => setChipsObs(data.map((c) => c.nombre)))
+  }, [sociedadActiva])
 
   // Si abre con un animal pre-seleccionado, derivar su sociedad apenas se cargan los animales.
   // El select onChange no se dispara en ese caso → sin esto el vet sin sociedadActiva pega
@@ -290,7 +299,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           {/* Observaciones / chips de acciones */}
           <ChipSelector
             label="Acciones / tratamientos"
-            options={CHIPS_OBS}
+            options={chipsObs}
             selected={obsChips}
             onChange={setObsChips}
             colorSelected="bg-violet-100 text-violet-700 border-violet-300"

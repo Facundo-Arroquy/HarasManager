@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Settings2, RotateCcw, Check } from 'lucide-react'
+import { Settings2, RotateCcw, Check, Plus, X, Lock } from 'lucide-react'
 import {
   getCriaConfig,
   saveCriaConfig,
@@ -7,10 +7,15 @@ import {
   CRIA_CONFIG_DEFAULTS,
   type CriaConfigData,
 } from '../../utils/criaConfig'
+import { useAuth } from '../../hooks/useAuth'
+import { crianzaService } from '../../services/crianzaService'
+import { mensajeError } from '../../utils/error'
+import type { CatChipObs } from '../../types/crianza'
 
 export default function ConfigCriaPage() {
   const [config, setConfig] = useState<CriaConfigData>(getCriaConfig)
   const [guardado, setGuardado] = useState(false)
+  const { sociedadActiva } = useAuth()
 
   function setField(key: keyof CriaConfigData, value: number) {
     setConfig((prev) => ({ ...prev, [key]: value }))
@@ -30,6 +35,25 @@ export default function ConfigCriaPage() {
 
   return (
     <div className="space-y-6 p-1 max-w-lg">
+      <ConfigGeneral config={config} setField={setField} onGuardar={handleGuardar} onReset={handleReset} guardado={guardado} />
+      {sociedadActiva && <CatalogoChips sociedadId={sociedadActiva.id} />}
+    </div>
+  )
+}
+
+// ── Sección: plazos configurables ────────────────────────────────────────────
+
+function ConfigGeneral({
+  config, setField, onGuardar, onReset, guardado,
+}: {
+  config: CriaConfigData
+  setField: (key: keyof CriaConfigData, value: number) => void
+  onGuardar: () => void
+  onReset: () => void
+  guardado: boolean
+}) {
+  return (
+    <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Configuración del centro</h1>
         <p className="text-sm text-slate-500 mt-0.5">
@@ -95,14 +119,14 @@ export default function ConfigCriaPage() {
       {/* Acciones */}
       <div className="flex items-center gap-3">
         <button
-          onClick={handleGuardar}
+          onClick={onGuardar}
           className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-brand-500 hover:bg-brand-400 text-sm font-medium text-white transition-colors"
         >
           {guardado ? <Check size={14} /> : null}
           {guardado ? 'Guardado' : 'Guardar cambios'}
         </button>
         <button
-          onClick={handleReset}
+          onClick={onReset}
           className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
         >
           <RotateCcw size={13} />
@@ -187,6 +211,119 @@ function Regla({
           />
           <span className="text-xs text-slate-400">días</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Sección: catálogo de acciones/tratamientos (obs_chips) ─────────────────
+
+function CatalogoChips({ sociedadId }: { sociedadId: string }) {
+  const [chips, setChips] = useState<CatChipObs[]>([])
+  const [loading, setLoading] = useState(true)
+  const [nuevoNombre, setNuevoNombre] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+
+  function recargar() {
+    setLoading(true)
+    crianzaService.listarCatalogoChipsAdmin(sociedadId)
+      .then(setChips)
+      .catch((e) => setError(mensajeError(e)))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(recargar, [sociedadId])
+
+  async function handleAgregar(e: React.FormEvent) {
+    e.preventDefault()
+    const nombre = nuevoNombre.trim()
+    if (!nombre) return
+    setError('')
+    setGuardando(true)
+    try {
+      await crianzaService.crearChipObs({ sociedad_id: sociedadId, nombre })
+      setNuevoNombre('')
+      recargar()
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo agregar la acción.'))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  async function handleToggle(chip: CatChipObs) {
+    setError('')
+    try {
+      await crianzaService.actualizarChipObs(chip.id, !chip.activo)
+      recargar()
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo actualizar la acción.'))
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wider">
+        <Settings2 size={14} />
+        Acciones del centro
+      </div>
+
+      <div className="p-4 space-y-3">
+        <p className="text-xs text-slate-400">
+          Chips disponibles al registrar (Strelin, IN, PG…). Los marcados con <Lock size={10} className="inline -mt-0.5" /> disparan recordatorios automáticos y no se pueden desactivar.
+        </p>
+
+        {loading ? (
+          <p className="text-xs text-slate-400">Cargando…</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {chips.map((chip) => (
+              <li key={chip.id} className="flex items-center justify-between gap-3 py-2">
+                <span className={`text-sm flex items-center gap-1.5 ${chip.activo ? 'text-slate-700' : 'text-slate-400 line-through'}`}>
+                  {chip.nombre}
+                  {chip.protegido && <Lock size={11} className="text-slate-400" />}
+                  {chip.sociedad_id === null && (
+                    <span className="text-[10px] text-slate-400 border border-slate-300 rounded px-1 py-0.5">global</span>
+                  )}
+                </span>
+                {chip.sociedad_id !== null && !chip.protegido && (
+                  <button
+                    onClick={() => handleToggle(chip)}
+                    className="text-xs text-brand-600 hover:text-brand-500 transition-colors"
+                  >
+                    {chip.activo ? 'Desactivar' : 'Activar'}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form onSubmit={handleAgregar} className="flex items-center gap-2 pt-2">
+          <input
+            type="text"
+            value={nuevoNombre}
+            onChange={(e) => setNuevoNombre(e.target.value)}
+            placeholder="Nueva acción (ej: Doble PG)"
+            className="flex-1 rounded-md border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
+          <button
+            type="submit"
+            disabled={guardando || !nuevoNombre.trim()}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-brand-500 hover:bg-brand-400 text-xs font-medium text-white transition-colors disabled:opacity-50"
+          >
+            <Plus size={13} />
+            Agregar
+          </button>
+        </form>
+
+        {error && (
+          <p className="flex items-center gap-1.5 text-xs text-red-600">
+            <X size={12} />
+            {error}
+          </p>
+        )}
       </div>
     </div>
   )

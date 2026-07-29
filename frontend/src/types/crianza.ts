@@ -10,13 +10,24 @@
 
 export const CHIPS_OI_OD = ['Chico', 'Mediano', 'CLV', '25', '30', '35', '40', '45', 'OV'] as const
 export const CHIPS_UTERO = ['C/T', 'Ed-1', 'Ed-2', 'Ed-3', 'Liq+', 'Liq++', 'Liq+++'] as const
-export const CHIPS_OBS   = [
-  'Strelin', 'IN', 'OXI', 'PG', '1PG', 'Flushing', 'Revisar mañana', 'Transferida',
-] as const
 
 export type ChipOvario = typeof CHIPS_OI_OD[number]
 export type ChipUtero  = typeof CHIPS_UTERO[number]
-export type ChipObs    = typeof CHIPS_OBS[number]
+
+// ---------------------------------------------------------------------------
+// Catálogo editable de acciones/tratamientos (antes CHIPS_OBS hardcodeado)
+// Migración 20260729161500 — cat_chip_obs
+// ---------------------------------------------------------------------------
+
+export interface CatChipObs {
+  id:          string
+  sociedad_id: string | null   // null = chip global (pre-cargado)
+  nombre:      string
+  protegido:   boolean         // ligado a reglasParaRegistro (crianzaStore); no se puede renombrar/desactivar
+  activo:      boolean
+}
+
+export type NuevoCatChipObsPayload = Pick<CatChipObs, 'sociedad_id' | 'nombre'>
 
 // ---------------------------------------------------------------------------
 // Rol reproductivo (columna en caballo)

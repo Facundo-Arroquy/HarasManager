@@ -16,6 +16,8 @@ import type {
   NuevaEcografiaPayload,
   RolReproductivo,
   EstadoReproductivo,
+  CatChipObs,
+  NuevoCatChipObsPayload,
 } from '../types/crianza'
 
 // =============================================================================
@@ -920,5 +922,66 @@ export const crianzaService = {
         creado_por:     creadoPor,
       })
     if (errAudit) throw errAudit
+  },
+
+  // ── Catálogo de acciones/tratamientos (obs_chips) ─────────────────────────
+
+  /** Chips activos: globales + los propios de la sociedad. Para el selector del registro. */
+  async listarCatalogoChips(sociedadId: string): Promise<CatChipObs[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cat_chip_obs')
+      .select('*')
+      .eq('activo', true)
+      .or(`sociedad_id.is.null,sociedad_id.eq.${sociedadId}`)
+      .order('nombre')
+    if (error) throw error
+    return data as CatChipObs[]
+  },
+
+  /** Chips globales activos (para veterinarios sin sociedad fija). */
+  async listarCatalogoChipsGlobales(): Promise<CatChipObs[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cat_chip_obs')
+      .select('*')
+      .eq('activo', true)
+      .is('sociedad_id', null)
+      .order('nombre')
+    if (error) throw error
+    return data as CatChipObs[]
+  },
+
+  /** Globales + propios de la sociedad, incluidos los inactivos (pantalla de configuración). */
+  async listarCatalogoChipsAdmin(sociedadId: string): Promise<CatChipObs[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cat_chip_obs')
+      .select('*')
+      .or(`sociedad_id.is.null,sociedad_id.eq.${sociedadId}`)
+      .order('nombre')
+    if (error) throw error
+    return data as CatChipObs[]
+  },
+
+  async crearChipObs(payload: NuevoCatChipObsPayload): Promise<CatChipObs> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cat_chip_obs')
+      .insert(payload)
+      .select('*')
+      .single()
+    if (error) throw error
+    return data as CatChipObs
+  },
+
+  /** Activa/desactiva un chip propio. Los protegidos (ligados a la automatización) los bloquea el trigger. */
+  async actualizarChipObs(id: string, activo: boolean): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('cat_chip_obs')
+      .update({ activo })
+      .eq('id', id)
+    if (error) throw error
   },
 }

@@ -400,6 +400,21 @@ CREATE TABLE cria_parametro (
 --   dias_flushing_alerta, dias_espera_ciclo, horas_strelling_receptora, horas_ovusynch_receptora,
 --   dias_ov_eco1, dias_eco1_eco2, dias_eco2_eco3
 
+-- Catálogo editable de acciones/tratamientos del registro (obs_chips) — antes
+-- hardcodeado como CHIPS_OBS en el frontend (migración 20260729161500)
+CREATE TABLE cat_chip_obs (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sociedad_id UUID REFERENCES sociedad(id),   -- NULL = chip global (pre-cargado)
+  nombre      TEXT NOT NULL,
+  protegido   BOOLEAN NOT NULL DEFAULT false, -- ligado a reglas automáticas de recordatorios; no editable desde la UI
+  activo      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE NULLS NOT DISTINCT (sociedad_id, nombre)
+);
+-- Globales pre-cargados: Strelin*, IN*, OXI, PG*, 1PG, Flushing*, Revisar mañana, Transferida*
+--   (* = protegido, referenciado literalmente en crianzaStore.ts → reglasParaRegistro)
+-- Trigger trg_proteger_chip_obs bloquea renombrar/desactivar/eliminar filas protegido=true
+
 -- Auditoría inmutable de cambios de estado_reproductivo (solo INSERT)
 CREATE TABLE cria_estado_transicion (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -653,6 +668,11 @@ CREATE TABLE lead (
 - SELECT: `tiene_membresia(sociedad_id)` o `is_superadmin()`
 - INSERT: `vet_tiene_acceso(caballo_id)` o `es_admin(sociedad_id)` o `is_superadmin()`
 - Sin UPDATE/DELETE (tabla append-only)
+
+**`cat_chip_obs`**
+- SELECT: `sociedad_id IS NULL` (globales) o `tiene_membresia(sociedad_id)` o `is_superadmin()`
+- INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` para los propios; globales solo `is_superadmin()`
+- Filas `protegido = true` no se pueden renombrar/desactivar/eliminar (trigger `trg_proteger_chip_obs`)
 
 **`venta_caballo`**
 - SELECT: miembro de sociedad vendedora o compradora
