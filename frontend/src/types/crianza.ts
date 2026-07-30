@@ -16,18 +16,63 @@ export type ChipUtero  = typeof CHIPS_UTERO[number]
 
 // ---------------------------------------------------------------------------
 // Catálogo editable de acciones/tratamientos (antes CHIPS_OBS hardcodeado)
-// Migración 20260729161500 — cat_chip_obs
+// Migración 20260730120000 — cat_chip_obs, una lista por veterinario.
+// Definición de Gero: la lista la define cada vet y viaja con él a todos los
+// establecimientos donde trabaja.
 // ---------------------------------------------------------------------------
 
 export interface CatChipObs {
-  id:          string
-  sociedad_id: string | null   // null = chip global (pre-cargado)
-  nombre:      string
-  protegido:   boolean         // ligado a reglasParaRegistro (crianzaStore); no se puede renombrar/desactivar
-  activo:      boolean
+  id:             string
+  veterinario_id: string
+  nombre:         string
+  activo:         boolean
 }
 
-export type NuevoCatChipObsPayload = Pick<CatChipObs, 'sociedad_id' | 'nombre'>
+export type NuevoCatChipObsPayload = Pick<CatChipObs, 'veterinario_id' | 'nombre'>
+
+/**
+ * Chips que `reglasParaRegistro` (crianzaStore) interpreta para generar
+ * recordatorios automáticos. No están protegidos —el vet puede sacarlos— pero
+ * la UI los marca para que sea una decisión informada: sin el chip no hay
+ * recordatorio.
+ *
+ * Vive acá y no en la DB para que sea una sola fuente de verdad junto a las
+ * reglas que los leen.
+ */
+export const CHIPS_CON_RECORDATORIO = [
+  'Strelin', 'IN', 'OV', 'PG', 'Flushing', 'Transferida',
+] as const
+
+/** Sugerencias para el vet que arranca con la lista vacía. */
+export const CHIPS_OBS_SUGERIDOS = [
+  'Strelin', 'IN', 'OXI', 'PG', '1PG', 'Flushing', 'Revisar mañana', 'Transferida',
+] as const
+
+// ---------------------------------------------------------------------------
+// Plazos de recordatorios, por veterinario (migración 20260730120000)
+// Antes vivían en localStorage → el plazo aplicado era el del navegador y no
+// el del vet, incumpliendo "debe cumplir el plazo del vet que hace el registro".
+// ---------------------------------------------------------------------------
+
+export interface PlazosVet {
+  donante_strelin_a_in:        number
+  donante_in_a_oxi:            number
+  donante_ov_a_flushing:       number
+  donante_pg_a_revision_pg:    number
+  donante_flushing_a_revision: number
+  receptora_pg_a_revision_pg:  number
+  receptora_ov_a_dar_pg:       number
+}
+
+export const PLAZOS_VET_DEFAULTS: PlazosVet = {
+  donante_strelin_a_in:        1,
+  donante_in_a_oxi:            1,
+  donante_ov_a_flushing:       6,
+  donante_pg_a_revision_pg:    3,
+  donante_flushing_a_revision: 4,
+  receptora_pg_a_revision_pg:  4,
+  receptora_ov_a_dar_pg:       3,
+}
 
 // ---------------------------------------------------------------------------
 // Rol reproductivo (columna en caballo)

@@ -401,19 +401,41 @@ CREATE TABLE cria_parametro (
 --   dias_ov_eco1, dias_eco1_eco2, dias_eco2_eco3
 
 -- Catálogo editable de acciones/tratamientos del registro (obs_chips) — antes
--- hardcodeado como CHIPS_OBS en el frontend (migración 20260729161500)
+-- hardcodeado como CHIPS_OBS en el frontend.
+-- Migración 20260730120000: la lista es de cada VETERINARIO, no de la sociedad
+-- (definición de Gero: "la lista la define cada veterinario"). Reemplaza el
+-- modelo por sociedad de 20260729161500, donde el vet no veía los chips porque
+-- no tiene membresía. Cada vet arranca con la lista vacía y la arma él.
 CREATE TABLE cat_chip_obs (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  sociedad_id UUID REFERENCES sociedad(id),   -- NULL = chip global (pre-cargado)
-  nombre      TEXT NOT NULL,
-  protegido   BOOLEAN NOT NULL DEFAULT false, -- ligado a reglas automáticas de recordatorios; no editable desde la UI
-  activo      BOOLEAN NOT NULL DEFAULT true,
-  created_at  TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE NULLS NOT DISTINCT (sociedad_id, nombre)
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  veterinario_id UUID NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+  nombre         TEXT NOT NULL,
+  activo         BOOLEAN NOT NULL DEFAULT true,
+  created_at     TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (veterinario_id, nombre)
 );
--- Globales pre-cargados: Strelin*, IN*, OXI, PG*, 1PG, Flushing*, Revisar mañana, Transferida*
---   (* = protegido, referenciado literalmente en crianzaStore.ts → reglasParaRegistro)
--- Trigger trg_proteger_chip_obs bloquea renombrar/desactivar/eliminar filas protegido=true
+-- Sin filas pre-cargadas. Los nombres que disparan recordatorios automáticos
+-- (Strelin, IN, OV, PG, Flushing, Transferida) NO están protegidos: el vet
+-- puede sacarlos y la UI se lo avisa. Esa lista vive en el frontend
+-- (CHIPS_CON_RECORDATORIO en types/crianza.ts), junto a las reglas que la leen.
+
+-- Plazos de recordatorios por veterinario (migración 20260730120000).
+-- Antes vivían en localStorage, con lo cual el plazo aplicado era el del
+-- navegador y no el del vet. Si no hay fila, el frontend usa los defaults.
+CREATE TABLE cria_plazo_vet (
+  veterinario_id              UUID PRIMARY KEY REFERENCES usuario(id) ON DELETE CASCADE,
+  donante_strelin_a_in        SMALLINT NOT NULL DEFAULT 1,
+  donante_in_a_oxi            SMALLINT NOT NULL DEFAULT 1,
+  donante_ov_a_flushing       SMALLINT NOT NULL DEFAULT 6,
+  donante_pg_a_revision_pg    SMALLINT NOT NULL DEFAULT 3,
+  donante_flushing_a_revision SMALLINT NOT NULL DEFAULT 4,
+  receptora_pg_a_revision_pg  SMALLINT NOT NULL DEFAULT 4,
+  receptora_ov_a_dar_pg       SMALLINT NOT NULL DEFAULT 3,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT cria_plazo_vet_rangos CHECK (todos los valores BETWEEN 1 AND 30)
+);
+-- NOTA: `cria_parametro` (por sociedad, clave/valor) sigue existiendo pero
+-- nunca se conectó al frontend. Los plazos del centro son `cria_plazo_vet`.
 
 -- Auditoría inmutable de cambios de estado_reproductivo (solo INSERT)
 CREATE TABLE cria_estado_transicion (
@@ -669,10 +691,14 @@ CREATE TABLE lead (
 - INSERT: `vet_tiene_acceso(caballo_id)` o `es_admin(sociedad_id)` o `is_superadmin()`
 - Sin UPDATE/DELETE (tabla append-only)
 
-**`cat_chip_obs`**
-- SELECT: `sociedad_id IS NULL` (globales) o `tiene_membresia(sociedad_id)` o `is_superadmin()`
-- INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` para los propios; globales solo `is_superadmin()`
-- Filas `protegido = true` no se pueden renombrar/desactivar/eliminar (trigger `trg_proteger_chip_obs`)
+**`cat_chip_obs`** (migración `20260730120000` — pasó de por-sociedad a por-veterinario)
+- SELECT: `veterinario_id = auth.uid()` o `is_superadmin()`
+- INSERT/UPDATE/DELETE: `veterinario_id = auth.uid()` (cada vet solo su propia lista)
+
+**`cria_plazo_vet`**
+- SELECT: `veterinario_id = auth.uid()` o `is_superadmin()`
+- INSERT/UPDATE: `veterinario_id = auth.uid()`
+- Sin DELETE
 
 **`venta_caballo`**
 - SELECT: miembro de sociedad vendedora o compradora

@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { crianzaService } from '../services/crianzaService'
-import { getCriaConfig } from '../utils/criaConfig'
 import { mensajeError } from '../utils/error'
+import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
 import type {
+  PlazosVet,
   RegistroClinicoCria,
   RecordatorioCria,
   Flushing,
@@ -21,12 +22,15 @@ import type {
 // =============================================================================
 // Auto-generación de recordatorios según chips seleccionados
 //
-// Tabla de reglas (fuente: lógica de negocio EquiVet):
+// Tabla de reglas (fuente: lógica de negocio EquiVet). Los días son los plazos
+// del veterinario que hace el registro (tabla cria_plazo_vet, cargados en el
+// store) — definición de Gero: "debe cumplir el plazo del vet que hace el
+// registro". Los valores entre paréntesis son los defaults.
 //
 // Donante:
 //   Strelin → IN           +1 día
 //   IN      → OXI          +1 día
-//   OV      → Flushing     +6 días (configurable: ovDias)
+//   OV      → Flushing     +6 días
 //   PG      → Revisión PG  +3 días
 //   Flushing→ Rev.Flushing +4 días
 //
@@ -62,12 +66,12 @@ interface ReglaRecordatorio {
 
 function reglasParaRegistro(
   registro: NuevoRegistroCriaPayload,
-  rolReproductivo: RolReproductivo
+  rolReproductivo: RolReproductivo,
+  cfg: PlazosVet
 ): ReglaRecordatorio[] {
   const chips = registro.obs_chips
   const reglas: ReglaRecordatorio[] = []
   const base = registro.fecha
-  const cfg = getCriaConfig()
 
   if (rolReproductivo === 'Donante') {
     if (chips.includes('Strelin'))
@@ -109,11 +113,17 @@ interface CrianzaState {
   flushings:      Flushing[]
   transferencias: TransferenciaEmbrionaria[]
   ecografias:     Ecografia[]
+  /** Plazos del vet autenticado. Los usa reglasParaRegistro al crear recordatorios. */
+  plazos:         PlazosVet
   loading:        boolean
   error:          string | null
 
   cargar: (sociedadId: string) => Promise<void>
   cargarParaVet: () => Promise<void>
+
+  /** Recarga los plazos del vet (tras guardarlos en configuración). */
+  cargarPlazos: () => Promise<void>
+  guardarPlazos: (veterinarioId: string, plazos: PlazosVet) => Promise<void>
 
   // Registros clínicos
   crearRegistro: (
@@ -153,6 +163,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   flushings:      [],
   transferencias: [],
   ecografias:     [],
+  plazos:         PLAZOS_VET_DEFAULTS,
   loading:        false,
   error:          null,
 
@@ -163,14 +174,15 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     try {
       const lbl = <T,>(name: string, p: Promise<T>): Promise<T> =>
         p.catch((e: unknown) => { throw new Error(`[${name}] ${mensajeError(e)}`) }) as Promise<T>
-      const [registros, recordatorios, flushings, transferencias, ecografias] = await Promise.all([
+      const [registros, recordatorios, flushings, transferencias, ecografias, plazos] = await Promise.all([
         lbl('registros',      crianzaService.listarRegistros(sociedadId)),
         lbl('recordatorios',  crianzaService.listarRecordatorios(sociedadId)),
         lbl('flushings',      crianzaService.listarFlushings(sociedadId)),
         lbl('transferencias', crianzaService.listarTransferencias(sociedadId)),
         lbl('ecografias',     crianzaService.listarEcografias(sociedadId)),
+        lbl('plazos',         crianzaService.getMisPlazos()),
       ])
-      set({ registros, recordatorios, flushings, transferencias, ecografias })
+      set({ registros, recordatorios, flushings, transferencias, ecografias, plazos })
       get().sincronizarVencidos()
     } catch (err) {
       set({ error: mensajeError(err, 'Error al cargar datos') })
@@ -182,14 +194,15 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   cargarParaVet: async () => {
     set({ loading: true, error: null })
     try {
-      const [registros, recordatorios, flushings, transferencias, ecografias] = await Promise.all([
+      const [registros, recordatorios, flushings, transferencias, ecografias, plazos] = await Promise.all([
         crianzaService.listarRegistrosVet(),
         crianzaService.listarRecordatoriosVet(),
         crianzaService.listarFlushingsVet(),
         crianzaService.listarTransferenciasVet(),
         crianzaService.listarEcografiasVet(),
+        crianzaService.getMisPlazos(),
       ])
-      set({ registros, recordatorios, flushings, transferencias, ecografias })
+      set({ registros, recordatorios, flushings, transferencias, ecografias, plazos })
       get().sincronizarVencidos()
     } catch (err) {
       set({ error: mensajeError(err, 'Error al cargar datos') })
@@ -198,14 +211,27 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     }
   },
 
+  // ── Plazos del veterinario ────────────────────────────────────────────────
+
+  cargarPlazos: async () => {
+    const plazos = await crianzaService.getMisPlazos()
+    set({ plazos })
+  },
+
+  guardarPlazos: async (veterinarioId, plazos) => {
+    await crianzaService.guardarMisPlazos(veterinarioId, plazos)
+    set({ plazos })
+  },
+
   // ── Registros clínicos ────────────────────────────────────────────────────
 
   crearRegistro: async (payload, rolReproductivo) => {
     const registro = await crianzaService.crearRegistro(payload)
     set((s) => ({ registros: [registro, ...s.registros] }))
 
-    // Auto-generar recordatorios según chips (insert batch para evitar N+1)
-    const reglas = reglasParaRegistro(payload, rolReproductivo)
+    // Auto-generar recordatorios según chips (insert batch para evitar N+1).
+    // Los plazos son los del vet autenticado = el que hace el registro.
+    const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos)
     if (reglas.length > 0) {
       const recPayloads: NuevoRecordatorioPayload[] = reglas.map((regla) => ({
         caballo_id:         payload.caballo_id,

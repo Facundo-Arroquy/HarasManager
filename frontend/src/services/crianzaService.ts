@@ -18,7 +18,9 @@ import type {
   EstadoReproductivo,
   CatChipObs,
   NuevoCatChipObsPayload,
+  PlazosVet,
 } from '../types/crianza'
+import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
 
 // =============================================================================
 // Mock data — cargada lazy para no contaminar el bundle en producción
@@ -924,41 +926,28 @@ export const crianzaService = {
     if (errAudit) throw errAudit
   },
 
-  // ── Catálogo de acciones/tratamientos (obs_chips) ─────────────────────────
+  // ── Catálogo de acciones/tratamientos (obs_chips) — por veterinario ────────
+  // El RLS ya filtra por veterinario_id = auth.uid(), así que no hace falta
+  // pasar el id: cada vet solo ve y edita su propia lista.
 
-  /** Chips activos: globales + los propios de la sociedad. Para el selector del registro. */
-  async listarCatalogoChips(sociedadId: string): Promise<CatChipObs[]> {
+  /** Chips activos del vet autenticado. Para el selector del registro. */
+  async listarMisChips(): Promise<CatChipObs[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('cat_chip_obs')
       .select('*')
       .eq('activo', true)
-      .or(`sociedad_id.is.null,sociedad_id.eq.${sociedadId}`)
       .order('nombre')
     if (error) throw error
     return data as CatChipObs[]
   },
 
-  /** Chips globales activos (para veterinarios sin sociedad fija). */
-  async listarCatalogoChipsGlobales(): Promise<CatChipObs[]> {
+  /** Todos los chips del vet autenticado, incluidos los sacados (configuración). */
+  async listarMisChipsConInactivos(): Promise<CatChipObs[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('cat_chip_obs')
       .select('*')
-      .eq('activo', true)
-      .is('sociedad_id', null)
-      .order('nombre')
-    if (error) throw error
-    return data as CatChipObs[]
-  },
-
-  /** Globales + propios de la sociedad, incluidos los inactivos (pantalla de configuración). */
-  async listarCatalogoChipsAdmin(sociedadId: string): Promise<CatChipObs[]> {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('cat_chip_obs')
-      .select('*')
-      .or(`sociedad_id.is.null,sociedad_id.eq.${sociedadId}`)
       .order('nombre')
     if (error) throw error
     return data as CatChipObs[]
@@ -975,13 +964,40 @@ export const crianzaService = {
     return data as CatChipObs
   },
 
-  /** Activa/desactiva un chip propio. Los protegidos (ligados a la automatización) los bloquea el trigger. */
+  /** Saca o vuelve a poner un chip en la lista del vet (soft, reversible). */
   async actualizarChipObs(id: string, activo: boolean): Promise<void> {
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from('cat_chip_obs')
       .update({ activo })
       .eq('id', id)
+    if (error) throw error
+  },
+
+  // ── Plazos de recordatorios — por veterinario ──────────────────────────────
+
+  /** Plazos del vet autenticado. Si todavía no configuró, devuelve los defaults. */
+  async getMisPlazos(): Promise<PlazosVet> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_plazo_vet')
+      .select('*')
+      .maybeSingle()
+    if (error) throw error
+    if (!data) return PLAZOS_VET_DEFAULTS
+    const fila = data as PlazosVet
+    // Solo las claves de PlazosVet: la fila trae además veterinario_id y timestamps.
+    return Object.fromEntries(
+      Object.keys(PLAZOS_VET_DEFAULTS).map((k) => [k, fila[k as keyof PlazosVet]])
+    ) as unknown as PlazosVet
+  },
+
+  /** Guarda los plazos del vet autenticado (crea la fila la primera vez). */
+  async guardarMisPlazos(veterinarioId: string, plazos: PlazosVet): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('cria_plazo_vet')
+      .upsert({ veterinario_id: veterinarioId, ...plazos }, { onConflict: 'veterinario_id' })
     if (error) throw error
   },
 }

@@ -46,7 +46,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/centro-cria/flushings',      label: 'Flushings',                   icon: <Droplets size={18} /> },
       { to: '/centro-cria/embriones',      label: 'Embriones',                   icon: <FlaskConical size={18} /> },
       { to: '/centro-cria/transferencias', label: 'Transferencias de embriones', icon: <ArrowLeftRight size={18} /> },
-      { to: '/centro-cria/config',         label: 'Configuración',               icon: <Settings2 size={18} /> },
+      // Las acciones y los plazos son propios de cada veterinario (no hay
+      // configuración por sociedad), así que el resto no tiene nada que ver acá.
+      { to: '/centro-cria/config',         label: 'Configuración',               icon: <Settings2 size={18} />, roles: ['veterinario'] },
     ],
   },
 ]
