@@ -400,6 +400,43 @@ CREATE TABLE cria_parametro (
 --   dias_flushing_alerta, dias_espera_ciclo, horas_strelling_receptora, horas_ovusynch_receptora,
 --   dias_ov_eco1, dias_eco1_eco2, dias_eco2_eco3
 
+-- Catálogo editable de acciones/tratamientos del registro (obs_chips) — antes
+-- hardcodeado como CHIPS_OBS en el frontend.
+-- Migración 20260730120000: la lista es de cada VETERINARIO, no de la sociedad
+-- (definición de Gero: "la lista la define cada veterinario"). Reemplaza el
+-- modelo por sociedad de 20260729161500, donde el vet no veía los chips porque
+-- no tiene membresía. Cada vet arranca con la lista vacía y la arma él.
+CREATE TABLE cat_chip_obs (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  veterinario_id UUID NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+  nombre         TEXT NOT NULL,
+  activo         BOOLEAN NOT NULL DEFAULT true,
+  created_at     TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (veterinario_id, nombre)
+);
+-- Sin filas pre-cargadas. Los nombres que disparan recordatorios automáticos
+-- (Strelin, IN, OV, PG, Flushing, Transferida) NO están protegidos: el vet
+-- puede sacarlos y la UI se lo avisa. Esa lista vive en el frontend
+-- (CHIPS_CON_RECORDATORIO en types/crianza.ts), junto a las reglas que la leen.
+
+-- Plazos de recordatorios por veterinario (migración 20260730120000).
+-- Antes vivían en localStorage, con lo cual el plazo aplicado era el del
+-- navegador y no el del vet. Si no hay fila, el frontend usa los defaults.
+CREATE TABLE cria_plazo_vet (
+  veterinario_id              UUID PRIMARY KEY REFERENCES usuario(id) ON DELETE CASCADE,
+  donante_strelin_a_in        SMALLINT NOT NULL DEFAULT 1,
+  donante_in_a_oxi            SMALLINT NOT NULL DEFAULT 1,
+  donante_ov_a_flushing       SMALLINT NOT NULL DEFAULT 6,
+  donante_pg_a_revision_pg    SMALLINT NOT NULL DEFAULT 3,
+  donante_flushing_a_revision SMALLINT NOT NULL DEFAULT 4,
+  receptora_pg_a_revision_pg  SMALLINT NOT NULL DEFAULT 4,
+  receptora_ov_a_dar_pg       SMALLINT NOT NULL DEFAULT 3,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT cria_plazo_vet_rangos CHECK (todos los valores BETWEEN 1 AND 30)
+);
+-- NOTA: `cria_parametro` (por sociedad, clave/valor) sigue existiendo pero
+-- nunca se conectó al frontend. Los plazos del centro son `cria_plazo_vet`.
+
 -- Auditoría inmutable de cambios de estado_reproductivo (solo INSERT)
 CREATE TABLE cria_estado_transicion (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -551,6 +588,7 @@ CREATE TABLE lead (
 | `on_auth_user_created` | `handle_new_auth_user()` | AFTER INSERT en `auth.users` → crea fila en `usuario` |
 | `bloquear_self_escalation_trigger` | `bloquear_self_escalation()` | BEFORE UPDATE en `usuario` → impide auto-escalación de rol/activo/acceso_centro_cria/email |
 | `set_updated_at` | `trigger_set_updated_at()` | BEFORE UPDATE en tablas con `updated_at` |
+| `trg_cancelar_pendientes_baja` | `cancelar_pendientes_por_baja()` | AFTER UPDATE OF activo en `caballo` (cuando `activo` → false) → cancela `cria_recordatorio` pendientes/vencidos y excluye al caballo de `trabajo_sanitario` pendientes. Conserva el historial (migración `20260729144522`) |
 
 ### Quién ve qué
 
@@ -621,13 +659,13 @@ CREATE TABLE lead (
 - SELECT: `sociedad_id IS NULL` (globales) o `tiene_membresia(sociedad_id)` o `is_superadmin()`
 - INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` para los propios; globales solo `is_superadmin()`
 
-**`trabajo_sanitario`**
-- SELECT/UPDATE: `tiene_membresia(sociedad_id)` o `is_superadmin()`
-- INSERT: `tiene_membresia(sociedad_id) AND creado_por = auth.uid()`
+**`trabajo_sanitario`** (migración `20260729150553` sumó acceso de veterinarios)
+- SELECT/UPDATE: `tiene_membresia(sociedad_id)` o `is_superadmin()` o `creado_por = auth.uid()`
+- INSERT: `creado_por = auth.uid()` **y** (`tiene_membresia(sociedad_id)` o el vet tiene un `acceso_vet` activo sobre algún caballo de esa sociedad)
 - DELETE: `es_admin(sociedad_id)` o `is_superadmin()`
 
 **`trabajo_sanitario_caballo`**
-- ALL: heredado del `trabajo_sanitario` padre (`tiene_membresia(t.sociedad_id)` o `is_superadmin()`)
+- ALL: `vet_tiene_acceso(caballo_id)` o (vía `trabajo_sanitario` padre) `tiene_membresia(t.sociedad_id)` / `is_superadmin()` / `t.creado_por = auth.uid()`
 
 **`cria_registro_clinico` / `cria_recordatorio` / `cria_flushing` / `cria_transferencia`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_id)`
@@ -652,6 +690,15 @@ CREATE TABLE lead (
 - SELECT: `tiene_membresia(sociedad_id)` o `is_superadmin()`
 - INSERT: `vet_tiene_acceso(caballo_id)` o `es_admin(sociedad_id)` o `is_superadmin()`
 - Sin UPDATE/DELETE (tabla append-only)
+
+**`cat_chip_obs`** (migración `20260730120000` — pasó de por-sociedad a por-veterinario)
+- SELECT: `veterinario_id = auth.uid()` o `is_superadmin()`
+- INSERT/UPDATE/DELETE: `veterinario_id = auth.uid()` (cada vet solo su propia lista)
+
+**`cria_plazo_vet`**
+- SELECT: `veterinario_id = auth.uid()` o `is_superadmin()`
+- INSERT/UPDATE: `veterinario_id = auth.uid()`
+- Sin DELETE
 
 **`venta_caballo`**
 - SELECT: miembro de sociedad vendedora o compradora

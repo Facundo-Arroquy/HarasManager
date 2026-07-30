@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X, AlertCircle, Syringe, Search, MapPin } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { useAuthStore } from '../../store/authStore'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { sanidadService } from '../../services/sanidadService'
@@ -19,6 +20,8 @@ const OTRO = '__otro__'
 
 export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props) {
   const { user, sociedadActiva } = useAuth()
+  const rol   = useAuthStore((s) => s.rol)
+  const esVet = rol === 'veterinario'
   const sociedadId = sociedadActiva?.id ?? ''
 
   const [catalogo, setCatalogo] = useState<CatTrabajoSanitario[]>([])
@@ -39,6 +42,17 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
   const [error,  setError]  = useState('')
 
   useEffect(() => {
+    if (esVet) {
+      if (!user?.id) return
+      Promise.all([
+        sanidadService.listarCatalogoGlobales(),
+        caballoService.listarDelVeterinario(user.id),
+      ])
+        .then(([cat, cabs]) => { setCatalogo(cat); setCaballos(cabs); setCampos([]) })
+        .catch((e) => setError(mensajeError(e, 'Error al cargar datos')))
+        .finally(() => setCargando(false))
+      return
+    }
     if (!sociedadId) return
     Promise.all([
       sanidadService.listarCatalogo(sociedadId),
@@ -48,7 +62,7 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
       .then(([cat, cabs, camps]) => { setCatalogo(cat); setCaballos(cabs); setCampos(camps) })
       .catch((e) => setError(mensajeError(e, 'Error al cargar datos')))
       .finally(() => setCargando(false))
-  }, [sociedadId])
+  }, [sociedadId, esVet, user?.id])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -109,13 +123,25 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
     if (!nombreTrabajo)          return setError('Elegí o escribí el tipo de trabajo.')
     if (!fecha)                  return setError('La fecha es requerida.')
     if (seleccionados.size === 0) return setError('Seleccioná al menos un caballo.')
-    if (!user?.id || !sociedadId) return
+    if (!user?.id) return
+
+    // La sociedad del trabajo: para la empresa es la activa; para el vet se
+    // deriva de los caballos elegidos (deben ser todos de la misma empresa).
+    let sociedadTrabajo = sociedadId
+    if (esVet) {
+      const socs = new Set(
+        caballos.filter((c) => seleccionados.has(c.id)).map((c) => c.sociedad_id),
+      )
+      if (socs.size > 1) return setError('Seleccioná caballos de una sola empresa por trabajo.')
+      sociedadTrabajo = [...socs][0] ?? ''
+    }
+    if (!sociedadTrabajo) return setError('No se pudo determinar la empresa del trabajo.')
 
     setSaving(true)
     try {
       await sanidadService.crearTrabajo(
         {
-          sociedad_id:      sociedadId,
+          sociedad_id:      sociedadTrabajo,
           nombre:           nombreTrabajo,
           fecha_programada: fecha,
           tratamiento:      tratamiento.trim() || null,
@@ -227,6 +253,11 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
                     ? 'Deseleccionar visibles' : 'Seleccionar visibles'}
                 </button>
               </div>
+              {esVet && (
+                <p className="text-[11px] text-slate-400">
+                  Los caballos deben ser todos de la misma empresa.
+                </p>
+              )}
 
               {/* Campos completos */}
               {camposConCaballos.length > 0 && (
@@ -277,7 +308,10 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
                       className="rounded border-slate-300 text-brand-500 focus:ring-brand-500"
                     />
                     <span className="text-slate-700">{nombreCaballo(c)}</span>
-                    {c.categoria && <span className="ml-auto text-[11px] text-slate-400">{c.categoria}</span>}
+                    {esVet && c.empresa_nombre && (
+                      <span className="ml-auto text-[11px] text-slate-400 truncate max-w-[45%]">{c.empresa_nombre}</span>
+                    )}
+                    {!esVet && c.categoria && <span className="ml-auto text-[11px] text-slate-400">{c.categoria}</span>}
                   </label>
                 ))}
               </div>

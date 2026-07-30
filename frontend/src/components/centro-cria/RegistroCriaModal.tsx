@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { X, AlertCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { X, AlertCircle, Settings2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
-import { CHIPS_OI_OD, CHIPS_UTERO, CHIPS_OBS } from '../../types/crianza'
-import type { RolReproductivo } from '../../types/crianza'
-import { getCriaConfig } from '../../utils/criaConfig'
+import { CHIPS_OI_OD, CHIPS_UTERO } from '../../types/crianza'
+import type { RolReproductivo, PlazosVet } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 
 interface Props {
@@ -28,10 +28,12 @@ const HOY = new Date().toISOString().split('T')[0]
 
 export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial }: Props) {
   const { user, sociedadActiva, rol } = useAuth()
-  const { crearRegistro } = useCrianzaStore()
+  const { crearRegistro, plazos } = useCrianzaStore()
 
   const [animales, setAnimales] = useState<AnimalItem[]>([])
   const [cargandoAnimales, setCargandoAnimales] = useState(true)
+  const [chipsObs, setChipsObs] = useState<string[]>([])
+  const [cargandoChips, setCargandoChips] = useState(true)
 
   // ── Form state ────────────────────────────────────────────────────────────
   const [caballoId,     setCaballoId]     = useState(caballoIdInicial ?? '')
@@ -78,6 +80,16 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       })
     }
   }, [sociedadActiva, rol])
+
+  // ── Carga del catálogo de acciones del vet autenticado ────────────────────
+  // La lista es propia de cada veterinario (RLS filtra por auth.uid()) y viaja
+  // con él a todos los establecimientos donde trabaja.
+  useEffect(() => {
+    crianzaService.listarMisChips()
+      .then((data) => setChipsObs(data.map((c) => c.nombre)))
+      .catch(() => setChipsObs([]))
+      .finally(() => setCargandoChips(false))
+  }, [])
 
   // Si abre con un animal pre-seleccionado, derivar su sociedad apenas se cargan los animales.
   // El select onChange no se dispara en ese caso → sin esto el vet sin sociedadActiva pega
@@ -288,13 +300,32 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           />
 
           {/* Observaciones / chips de acciones */}
-          <ChipSelector
-            label="Acciones / tratamientos"
-            options={CHIPS_OBS}
-            selected={obsChips}
-            onChange={setObsChips}
-            colorSelected="bg-violet-100 text-violet-700 border-violet-300"
-          />
+          {!cargandoChips && chipsObs.length === 0 ? (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-500">Acciones / tratamientos</label>
+              <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-xs text-slate-500">
+                Todavía no configuraste tus acciones (Strelin, PG, Flushing…). Sin
+                ellas se puede guardar el registro, pero no se generan
+                recordatorios automáticos.
+                <Link
+                  to="/centro-cria/config"
+                  onClick={onClose}
+                  className="mt-2 flex items-center gap-1 text-brand-600 hover:text-brand-500 font-medium"
+                >
+                  <Settings2 size={12} />
+                  Configurar mis acciones
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <ChipSelector
+              label="Acciones / tratamientos"
+              options={chipsObs}
+              selected={obsChips}
+              onChange={setObsChips}
+              colorSelected="bg-violet-100 text-violet-700 border-violet-300"
+            />
+          )}
 
           {/* Padrillo — visible cuando se marcó IN */}
           {mostrarPadrillo && (
@@ -356,6 +387,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               fecha={fecha}
               rol={rolEfectivo}
               reviewManana={reviewManana}
+              cfg={plazos}
             />
           )}
 
@@ -393,7 +425,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 // ── Preview de recordatorios automáticos ──────────────────────────────────────
 
 function RecordatoriosPreview({
-  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewManana,
+  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewManana, cfg,
 }: {
   obsChips: string[]
   ovarioIzq: string[]
@@ -401,9 +433,10 @@ function RecordatoriosPreview({
   fecha: string
   rol: RolReproductivo
   reviewManana: boolean
+  /** Plazos del vet autenticado (los mismos que usará reglasParaRegistro). */
+  cfg: PlazosVet
 }) {
   const items: { tipo: string; fecha: string }[] = []
-  const cfg = getCriaConfig()
 
   const tieneOV = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
 

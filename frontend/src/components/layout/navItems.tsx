@@ -26,7 +26,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/dashboard',  label: 'Panel', icon: <LayoutDashboard size={18} />, roles: ['admin', 'jugador', 'piloto', 'peticero'] },
       { to: '/panel-vet', label: 'Panel', icon: <LayoutDashboard size={18} />, roles: ['veterinario'] },
       { to: '/caballos',          label: 'Caballos',           icon: <LayoutGrid size={18} /> },
-      { to: '/sanidad',           label: 'Sanidad',            icon: <Syringe size={18} />,           roles: ['admin', 'jugador', 'piloto'] },
+      { to: '/sanidad',           label: 'Sanidad',            icon: <Syringe size={18} />,           roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
       { to: '/revision-preventa', label: 'Revisión pre-venta', icon: <ClipboardList size={18} />, roles: ['veterinario'] },
       { to: '/transferir-vet',    label: 'Transferencias',     icon: <ArrowLeftRight size={18} />, roles: ['veterinario'] },
       { to: '/transferencias',    label: 'Transferencias',     icon: <ArrowLeftRight size={18} />, roles: ['admin'] },
@@ -46,7 +46,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/centro-cria/flushings',      label: 'Flushings',                   icon: <Droplets size={18} /> },
       { to: '/centro-cria/embriones',      label: 'Embriones',                   icon: <FlaskConical size={18} /> },
       { to: '/centro-cria/transferencias', label: 'Transferencias de embriones', icon: <ArrowLeftRight size={18} /> },
-      { to: '/centro-cria/config',         label: 'Configuración',               icon: <Settings2 size={18} /> },
+      // Las acciones y los plazos son propios de cada veterinario (no hay
+      // configuración por sociedad), así que el resto no tiene nada que ver acá.
+      { to: '/centro-cria/config',         label: 'Configuración',               icon: <Settings2 size={18} />, roles: ['veterinario'] },
     ],
   },
 ]

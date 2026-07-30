@@ -42,6 +42,7 @@ export default function CaballosPage() {
   const esVet = rol === 'veterinario'
 
   const [caballos, setCaballos] = useState<Caballo[]>([])
+  const [caballosBaja, setCaballosBaja] = useState<Caballo[]>([])
   const [campos,   setCampos]   = useState<Campo[]>([])
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState<string | null>(null)
@@ -49,6 +50,7 @@ export default function CaballosPage() {
   const [busqueda,         setBusqueda]         = useState('')
   const [filtro,           setFiltro]           = useState('Todos')
   const [soloPreñadas,     setSoloPreñadas]     = useState(false)
+  const [verBaja,          setVerBaja]          = useState(false)
 
   const [filtroEmpresaIds, setFiltroEmpresaIds] = useState<Set<string>>(new Set())
   const [showEmpresaDD,    setShowEmpresaDD]    = useState(false)
@@ -112,12 +114,14 @@ export default function CaballosPage() {
         setCampos([])
       } else {
         if (!sociedadId) return
-        const [c, f] = await Promise.all([
+        const [c, f, baja] = await Promise.all([
           caballoService.listar(sociedadId),
           campoService.listar(sociedadId),
+          caballoService.listarDadosDeBaja(sociedadId).catch(() => [] as Caballo[]),
         ])
         setCaballos(c)
         setCampos(f)
+        setCaballosBaja(baja)
       }
     } catch (e: unknown) {
       setError(mensajeError(e))
@@ -223,7 +227,17 @@ export default function CaballosPage() {
 
   // ── Lista filtrada y ordenada A-Z ─────────────────────────────────────────
   const filtradosOrdenados = useMemo(() => {
-    const base = caballos.filter((c) => {
+    // En "Dados de baja" mostramos todos los inactivos (sin las exclusiones de
+    // preñadas ni de receptoras, que aplican al listado activo).
+    const fuente = verBaja ? caballosBaja : caballos
+    // Guarda: nunca listar el mismo caballo dos veces (por si la query devuelve
+    // filas repetidas).
+    const vistos = new Set<string>()
+    const base = fuente.filter((c) => {
+      if (vistos.has(c.id)) return false
+      vistos.add(c.id)
+      return true
+    }).filter((c) => {
       const okNombre   = textoBusquedaCaballo(c).includes(busqueda.toLowerCase())
       const okCat      = filtro === 'Todos' || c.categoria === filtro
       const okEmpresa  = filtroEmpresaIds.size === 0 || filtroEmpresaIds.has(c.sociedad_id ?? '')
@@ -232,28 +246,34 @@ export default function CaballosPage() {
         const camada = getCamada(c.fecha_nacimiento)
         return camada !== null && filtroCamadas.has(camada)
       })()
-      const okPrenadas = !soloPreñadas || (c.prenada === true && c.categoria === 'Yegua')
+      const okPrenadas = verBaja || !soloPreñadas || (c.prenada === true && c.categoria === 'Yegua')
       // Las yeguas receptoras se gestionan desde "Caballos Centro" (Centro de Embriones)
-      const okRol      = !(c.categoria === 'Yegua' && c.rol_reproductivo === 'Receptora')
+      const okRol      = verBaja || !(c.categoria === 'Yegua' && c.rol_reproductivo === 'Receptora')
       return okNombre && okCat && okEmpresa && okCampo && okCamada && okPrenadas && okRol
     })
     return base.sort((a, b) => a.nombre.localeCompare(b.nombre))
-  }, [caballos, busqueda, filtro, filtroEmpresaIds, filtroCamposIds, filtroCamadas, soloPreñadas])
+  }, [caballos, caballosBaja, verBaja, busqueda, filtro, filtroEmpresaIds, filtroCamposIds, filtroCamadas, soloPreñadas])
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto pb-32">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Caballos</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+            {verBaja ? 'Caballos · Dados de baja' : 'Caballos'}
+          </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-            {loading ? '…' : `${caballos.length} animales`}
+            {loading
+              ? '…'
+              : verBaja
+                ? `${caballosBaja.length} dado${caballosBaja.length !== 1 ? 's' : ''} de baja`
+                : `${caballos.length} animales`}
           </p>
         </div>
 
         {/* Acciones */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {rol === 'veterinario' && !modoSeleccion && (
+          {rol === 'veterinario' && !modoSeleccion && !verBaja && (
             <>
               <button
                 onClick={() => setShowConsulta(true)}
@@ -271,7 +291,7 @@ export default function CaballosPage() {
               </button>
             </>
           )}
-          {canManageCampos(rol) && !modoSeleccion && (
+          {canManageCampos(rol) && !modoSeleccion && !verBaja && (
             <button
               onClick={() => setShowNuevo(true)}
               className="flex items-center gap-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 px-3 py-2 text-sm font-medium text-slate-900 transition-colors"
@@ -281,7 +301,7 @@ export default function CaballosPage() {
               <span className="hidden sm:inline">Nuevo caballo</span>
             </button>
           )}
-          {canManageCampos(rol) && !modoSeleccion && (
+          {canManageCampos(rol) && !modoSeleccion && !verBaja && (
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setModoSeleccion(true)}
@@ -293,7 +313,7 @@ export default function CaballosPage() {
               <Tooltip text="Seleccioná varios caballos y aplicá el mismo campo, categoría o rol reproductivo a todos en un solo paso." />
             </div>
           )}
-          {rol === 'admin' && !modoSeleccion && (
+          {rol === 'admin' && !modoSeleccion && !verBaja && (
             <button
               onClick={() => setShowImportar(true)}
               className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors"
@@ -361,20 +381,35 @@ export default function CaballosPage() {
           </div>
         )}
 
-        {/* Filtro preñadas */}
+        {/* Filtro preñadas + Dados de baja */}
         {!modoSeleccion && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSoloPreñadas((v) => !v)}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border ${
-                soloPreñadas
-                  ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                  : 'text-slate-500 border-slate-300 hover:bg-slate-100 hover:text-slate-700'
-              }`}
-            >
-              <span className={`inline-block w-2 h-2 rounded-full ${soloPreñadas ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-              Solo preñadas
-            </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {!verBaja && (
+              <button
+                onClick={() => setSoloPreñadas((v) => !v)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border ${
+                  soloPreñadas
+                    ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                    : 'text-slate-500 border-slate-300 hover:bg-slate-100 hover:text-slate-700'
+                }`}
+              >
+                <span className={`inline-block w-2 h-2 rounded-full ${soloPreñadas ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                Solo preñadas
+              </button>
+            )}
+            {!esVet && (
+              <button
+                onClick={() => { setVerBaja((v) => !v); setSoloPreñadas(false) }}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border ${
+                  verBaja
+                    ? 'bg-rose-100 text-rose-700 border-rose-300'
+                    : 'text-slate-500 border-slate-300 hover:bg-slate-100 hover:text-slate-700'
+                }`}
+              >
+                <span className={`inline-block w-2 h-2 rounded-full ${verBaja ? 'bg-rose-500' : 'bg-slate-300'}`} />
+                Dados de baja
+              </button>
+            )}
           </div>
         )}
 

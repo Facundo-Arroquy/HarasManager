@@ -45,7 +45,7 @@ export default function ImportarCaballosModal({ onClose, onSuccess }: Props) {
   const [parsedRows,   setParsedRows]   = useState<ParsedRow[]>([])
   const [parseError,   setParseError]   = useState<string | null>(null)
   const [dragOver,     setDragOver]     = useState(false)
-  const [importResult, setImportResult] = useState<{ insertados: number; errores: { index: number; message: string }[] } | null>(null)
+  const [importResult, setImportResult] = useState<{ insertados: number; errores: { index: number; message: string }[]; omitidos: number } | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -370,6 +370,11 @@ export default function ImportarCaballosModal({ onClose, onSuccess }: Props) {
                     <p className="text-sm text-slate-500 mt-0.5">
                       {importResult.errores.length} fila{importResult.errores.length !== 1 ? 's' : ''} no se{' '}
                       {importResult.errores.length !== 1 ? 'pudieron' : 'pudo'} importar.
+                    </p>
+                  )}
+                  {importResult.omitidos > 0 && (
+                    <p className="text-sm text-amber-600 mt-0.5">
+                      {importResult.omitidos} ya existía{importResult.omitidos !== 1 ? 'n' : ''} y se omiti{importResult.omitidos !== 1 ? 'eron' : 'ó'} (mismo RP o nombre).
                     </p>
                   )}
                 </div>

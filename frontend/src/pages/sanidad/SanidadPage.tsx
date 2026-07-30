@@ -21,6 +21,8 @@ function formatFecha(fecha: string): string {
 
 export default function SanidadPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
+  const rol        = useAuthStore((s) => s.rol)
+  const esVet      = rol === 'veterinario'
 
   const [trabajos, setTrabajos] = useState<TrabajoSanitario[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -29,17 +31,19 @@ export default function SanidadPage() {
   const [completar, setCompletar] = useState<TrabajoSanitario | null>(null)
 
   const cargar = useCallback(async () => {
-    if (!sociedadId) return
+    if (!esVet && !sociedadId) return
     setLoading(true)
     setError(null)
     try {
-      setTrabajos(await sanidadService.listarTrabajos(sociedadId))
+      setTrabajos(esVet
+        ? await sanidadService.listarTrabajosVet()
+        : await sanidadService.listarTrabajos(sociedadId!))
     } catch (e) {
       setError(mensajeError(e))
     } finally {
       setLoading(false)
     }
-  }, [sociedadId])
+  }, [sociedadId, esVet])
 
   useEffect(() => { cargar() }, [cargar])
 
