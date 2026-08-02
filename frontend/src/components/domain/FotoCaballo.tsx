@@ -6,11 +6,25 @@ interface Props {
   caballoId: string
   nombre: string
   canEdit?: boolean
-  /** Diámetro en píxeles (default 72) */
+  /** Diámetro en píxeles (default 72). Solo aplica con shape="circle". */
   size?: number
+  /**
+   * "circle" → avatar redondo (listados en fila, fichas).
+   * "rect"   → foto apaisada a todo el ancho del contenedor (tarjetas de grilla).
+   */
+  shape?: 'circle' | 'rect'
+  /** Alto en píxeles de la foto apaisada (default 176). Solo aplica con shape="rect". */
+  height?: number
 }
 
-export default function FotoCaballo({ caballoId, nombre, canEdit = false, size = 72 }: Props) {
+export default function FotoCaballo({
+  caballoId,
+  nombre,
+  canEdit = false,
+  size = 72,
+  shape = 'circle',
+  height = 176,
+}: Props) {
   const [src, setSrc]             = useState(() => fotoService.getUrl(caballoId))
   const [hasError, setHasError]   = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -34,15 +48,24 @@ export default function FotoCaballo({ caballoId, nombre, canEdit = false, size =
     }
   }
 
+  const esRect = shape === 'rect'
+  // Lado de referencia para escalar la inicial y el badge de cámara
+  const lado = esRect ? height : size
+
   // Badge de cámara: tamaño fijo para que no sea gigante en tamaños grandes
-  const badgeSize = Math.min(28, Math.max(18, Math.round(size * 0.3)))
+  const badgeSize = Math.min(28, Math.max(18, Math.round(lado * 0.3)))
 
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      {/* ── Avatar ── */}
+    <div
+      className={`relative shrink-0 ${esRect ? 'w-full' : ''}`}
+      style={esRect ? { height } : { width: size, height: size }}
+    >
+      {/* ── Avatar / foto ── */}
       <div
-        className={`w-full h-full rounded-full overflow-hidden border-2 flex items-center justify-center select-none ${
-          showImg ? 'border-slate-300' : 'border-slate-200 bg-white'
+        className={`w-full h-full overflow-hidden flex items-center justify-center select-none ${
+          esRect
+            ? 'bg-slate-100'
+            : `rounded-full border-2 ${showImg ? 'border-slate-300' : 'border-slate-200 bg-white'}`
         }`}
       >
         {showImg ? (
@@ -55,7 +78,7 @@ export default function FotoCaballo({ caballoId, nombre, canEdit = false, size =
         ) : (
           <span
             className="font-bold text-slate-400"
-            style={{ fontSize: Math.round(size * 0.38) }}
+            style={{ fontSize: Math.round(lado * 0.38) }}
           >
             {nombre.charAt(0).toUpperCase()}
           </span>

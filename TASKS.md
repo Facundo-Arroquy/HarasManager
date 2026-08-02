@@ -137,6 +137,10 @@
 
 ## ✅ Terminado
 
+### [x] Rediseño de la UI de Caballos (vista grilla)
+- **Prioridad:** media
+- **Descripción:** El listado pasa a tarjetas con foto en grilla, con toggle grilla/lista que recuerda la preferencia. Cada tarjeta muestra campo, rol reproductivo, RP y chip, con botones "Ver ficha" (detalle rápido) e "Historial". Se mantienen los filtros, el modo de edición masiva y la subsección "Dados de baja".
+
 ### [x] Fix Genealogía
 - **Prioridad:** alta
 - **Descripción:** Corrección de bugs en el árbol genealógico.

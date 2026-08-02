@@ -32,15 +32,15 @@ interface Props {
 }
 
 const CATEGORIA_STYLE: Record<string, string> = {
-  Yegua:    'bg-pink-950 text-pink-700 ring-1 ring-pink-800',
-  Padrillo: 'bg-blue-950 text-blue-700 ring-1 ring-blue-800',
+  Yegua:    'bg-pink-100 text-pink-700 ring-1 ring-pink-200',
+  Padrillo: 'bg-blue-100 text-blue-700 ring-1 ring-blue-200',
   Caballo:  'bg-slate-100 text-slate-600 ring-1 ring-slate-200',
-  Potrillo: 'bg-brand-950 text-brand-700 ring-1 ring-brand-800',
+  Potrillo: 'bg-brand-100 text-brand-700 ring-1 ring-brand-200',
 }
 
 const SUBCATEGORIA_STYLE: Record<string, string> = {
-  Donante:   'bg-purple-950 text-purple-700 ring-1 ring-purple-800',
-  Receptora: 'bg-teal-950 text-teal-700 ring-1 ring-teal-800',
+  Donante:   'bg-purple-100 text-purple-700 ring-1 ring-purple-200',
+  Receptora: 'bg-teal-100 text-teal-700 ring-1 ring-teal-200',
 }
 
 export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onEditar, onRefresh }: Props) {
@@ -209,10 +209,10 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
         <div className="px-5 pb-5 space-y-2">
           <button
             onClick={() => { onClose(); navigate(`/caballos/${caballo.id}/historial`) }}
-            className="w-full flex items-center justify-between rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:border-emerald-700 hover:bg-brand-50 hover:text-brand-500"
+            className="w-full flex items-center justify-between rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-500"
           >
             <span className="flex items-center gap-2">
-              <ClipboardList size={15} /> Ver Ficha
+              <ClipboardList size={15} /> Ver historial
             </span>
             <span className="text-slate-400">→</span>
           </button>
