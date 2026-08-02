@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, LayoutGrid, Settings, SlidersHorizontal,
-  ClipboardList, Droplets, Bell, ArrowLeftRight, FlaskConical,
+  ClipboardList, Bell, ArrowLeftRight, FlaskConical,
   CalendarDays, BellRing, Settings2, Syringe,
 } from 'lucide-react'
 
@@ -44,9 +44,10 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/centro-cria/programa',       label: 'Programa semanal',   icon: <CalendarDays size={18} /> },
       { to: '/centro-cria/caballos',       label: 'Caballos Centro',    icon: <LayoutGrid size={18} /> },
       { to: '/centro-cria/recordatorios',  label: 'Recordatorios',      icon: <Bell size={18} /> },
-      { to: '/centro-cria/flushings',      label: 'Flushings',                   icon: <Droplets size={18} /> },
-      { to: '/centro-cria/embriones',      label: 'Embriones',                   icon: <FlaskConical size={18} /> },
-      { to: '/centro-cria/transferencias', label: 'Transferencias de embriones', icon: <ArrowLeftRight size={18} /> },
+      // Los flushings se registran desde "Embriones vitrificados": la sección
+      // propia se eliminó para tener el stock y su origen en un solo lugar.
+      { to: '/centro-cria/embriones',      label: 'Embriones vitrificados',        icon: <FlaskConical size={18} /> },
+      { to: '/centro-cria/transferencias', label: 'Transferencias Hechas/Ecografías', icon: <ArrowLeftRight size={18} /> },
       // Las acciones y los plazos son propios de cada veterinario (no hay
       // configuración por sociedad), así que el resto no tiene nada que ver acá.
       { to: '/centro-cria/config',         label: 'Configuración',               icon: <Settings2 size={18} />, roles: ['veterinario'] },
