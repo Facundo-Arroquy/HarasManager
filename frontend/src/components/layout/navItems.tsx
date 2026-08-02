@@ -28,10 +28,12 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/caballos',          label: 'Caballos',           icon: <LayoutGrid size={18} /> },
       { to: '/sanidad',           label: 'Sanidad',            icon: <Syringe size={18} />,           roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
       { to: '/revision-preventa', label: 'Revisión pre-venta', icon: <ClipboardList size={18} />, roles: ['veterinario'] },
-      { to: '/transferir-vet',    label: 'Transferencias',     icon: <ArrowLeftRight size={18} />, roles: ['veterinario'] },
-      { to: '/transferencias',    label: 'Transferencias',     icon: <ArrowLeftRight size={18} />, roles: ['admin'] },
-      { to: '/admin',             label: 'Administración',     icon: <Settings size={18} />,       roles: ['admin'] },
       { to: '/alertas',           label: 'Alertas',            icon: <BellRing size={18} />,          roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
+      // Traspaso de caballos entre dueños/empresas. Una entrada por rol: el vet
+      // mueve los caballos que creó él, el admin los de la sociedad.
+      { to: '/transferir-vet',    label: 'Compra/Venta Caballos', icon: <ArrowLeftRight size={18} />, roles: ['veterinario'] },
+      { to: '/transferencias',    label: 'Compra/Venta Caballos', icon: <ArrowLeftRight size={18} />, roles: ['admin'] },
+      { to: '/admin',             label: 'Administración',     icon: <Settings size={18} />,       roles: ['admin'] },
       { to: '/config',            label: 'Configuración',      icon: <SlidersHorizontal size={18} />, roles: ['admin', 'jugador', 'piloto'] },
     ],
   },
