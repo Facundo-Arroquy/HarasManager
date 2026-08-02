@@ -93,11 +93,7 @@ export default function MobileDrawer({ open, onClose }: Props) {
               </p>
               <div className="space-y-0.5">
                 {group.items.map((item) => {
-                  const isActive = item.to === '/centro-cria'
-                    ? location.pathname === '/centro-cria'
-                    : item.matchPrefix
-                      ? location.pathname.startsWith(item.to)
-                      : location.pathname.startsWith(item.to)
+                  const isActive = location.pathname.startsWith(item.to)
                   return (
                     <NavLink
                       key={item.to}

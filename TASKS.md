@@ -28,11 +28,11 @@
 - **Asignado:** -
 - **Descripción:** El campo `rol_reproductivo` (Donante / Receptora / null) en la tabla `caballo` no se está guardando correctamente.
 
-### [ ] Fix Centro de embriones en panel reproductivo
-- **Estado:** QA
+### [x] Fix Centro de embriones en panel reproductivo
+- **Estado:** terminado (sin arreglar — la pantalla se eliminó)
 - **Asignado:** -
-- **Descripción:** Aparece "Error al cargar datos" desde el lado de admin. Causa probable: problema de permisos RLS o query incorrecta.
-- **Avance:** UI admin ahora es read-only (ocultos todos los botones de escritura). El error en `cargar()` ahora muestra qué query falla: `[registros] ...`, `[recordatorios] ...`, etc. Falta confirmar la causa raíz corriendo el app con admin real.
+- **Descripción:** Aparecía "Error al cargar datos" desde el lado de admin. Causa probable: problema de permisos RLS o query incorrecta.
+- **Cierre:** el panel reproductivo (`/centro-cria` → `DashboardCriaPage`) se sacó del menú y del router, así que el bug ya no tiene dónde manifestarse. **La causa raíz nunca se confirmó**: si el mismo error aparece en otra pantalla del centro, arrancar por acá. La página está en el historial de git si hace falta recuperarla.
 
 ### [ ] Alertas en dashboard
 - **Estado:** QA

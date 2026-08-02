@@ -23,7 +23,6 @@ import AdminPage from './pages/admin/AdminPage'
 import ConfigPage from './pages/config/ConfigPage'
 import RevisionPreVentaPage from './pages/vet/RevisionPreVentaPage'
 import PanelVetPage from './pages/vet/PanelVetPage'
-import DashboardCriaPage from './pages/centro-cria/DashboardCriaPage'
 import RecordatoriosPage from './pages/centro-cria/RecordatoriosPage'
 import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
 import FlushingsPage from './pages/centro-cria/FlushingsPage'
@@ -169,7 +168,9 @@ export default function App() {
           <Route path="/config" element={<ConfigPage />} />
           {/* Centro de Embriones — requiere acceso explícito por usuario u organización */}
           <Route element={<RequireCentroCria />}>
-            <Route path="/centro-cria" element={<DashboardCriaPage />} />
+            {/* El panel reproductivo se eliminó; el centro entra por el programa
+                semanal, que es la primera sección del grupo. */}
+            <Route path="/centro-cria" element={<Navigate to="/centro-cria/programa" replace />} />
             <Route path="/centro-cria/caballos" element={<CaballosCentroPage />} />
             <Route path="/centro-cria/programa" element={<ProgramaSemanalPage />} />
             <Route path="/centro-cria/recordatorios" element={<RecordatoriosPage />} />
