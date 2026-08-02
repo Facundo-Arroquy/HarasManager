@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, CheckSquare, X, FileDown, ChevronDown } from 'lucide-react'
+import { Search, Plus, CheckSquare, X, FileDown, ChevronDown, LayoutGrid, List } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { useAuthStore } from '../../store/authStore'
 import CaballoCard from '../../components/domain/CaballoCard'
+import CaballoGridCard from '../../components/domain/CaballoGridCard'
+import CaballoDetalleModal from '../../components/domain/CaballoDetalleModal'
+import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import { textoBusquedaCaballo } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
@@ -19,6 +22,18 @@ const CATEGORIAS      = ['Todos', 'Caballo', 'Yegua', 'Padrillo', 'Potrillo']
 const CATEGORIAS_EDIT = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo']
 const SIN_CAMBIO      = '__sin_cambio__'
 const SIN_CAMPO       = '__sin_campo__'
+
+type Vista = 'grilla' | 'lista'
+/** Preferencia de vista del listado, para que sobreviva a la recarga. */
+const VISTA_KEY = 'hm_caballos_vista'
+
+function leerVistaGuardada(): Vista {
+  try {
+    return localStorage.getItem(VISTA_KEY) === 'lista' ? 'lista' : 'grilla'
+  } catch {
+    return 'grilla'
+  }
+}
 
 const canManageCampos = (rol: string | null) =>
   rol === 'admin' || rol === 'jugador' || rol === 'piloto'
@@ -67,6 +82,18 @@ export default function CaballosPage() {
   const [showConsulta, setShowConsulta] = useState(false)
   const [showNuevo,    setShowNuevo]    = useState(false)
   const [showImportar, setShowImportar] = useState(false)
+
+  // Detalle rápido ("Ver ficha") y edición desde la tarjeta
+  const [detalle,  setDetalle]  = useState<Caballo | null>(null)
+  const [editando, setEditando] = useState<Caballo | null>(null)
+
+  const puedeEditarCaballo = rol === 'admin' || rol === 'veterinario'
+
+  const [vista, setVista] = useState<Vista>(leerVistaGuardada)
+
+  useEffect(() => {
+    try { localStorage.setItem(VISTA_KEY, vista) } catch { /* storage no disponible */ }
+  }, [vista])
 
   // ── Selección masiva ──────────────────────────────────────────────────────
   const [modoSeleccion,    setModoSeleccion]    = useState(false)
@@ -255,19 +282,19 @@ export default function CaballosPage() {
   }, [caballos, caballosBaja, verBaja, busqueda, filtro, filtroEmpresaIds, filtroCamposIds, filtroCamadas, soloPreñadas])
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto pb-32">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto pb-32">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
             {verBaja ? 'Caballos · Dados de baja' : 'Caballos'}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             {loading
               ? '…'
               : verBaja
                 ? `${caballosBaja.length} dado${caballosBaja.length !== 1 ? 's' : ''} de baja`
-                : `${caballos.length} animales`}
+                : `${caballos.length} animales registrados`}
           </p>
         </div>
 
@@ -343,7 +370,7 @@ export default function CaballosPage() {
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar…"
+              placeholder="Buscar por nombre o RP…"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
@@ -360,6 +387,35 @@ export default function CaballosPage() {
               ))}
             </select>
           )}
+          {/* Toggle grilla / lista */}
+          <div className="flex shrink-0 items-center rounded-lg border border-slate-300 bg-white p-0.5">
+            <button
+              onClick={() => setVista('grilla')}
+              title="Ver en grilla"
+              aria-label="Ver en grilla"
+              aria-pressed={vista === 'grilla'}
+              className={`rounded-md p-1.5 transition-colors ${
+                vista === 'grilla'
+                  ? 'bg-slate-200 text-slate-900'
+                  : 'text-slate-400 hover:text-slate-700'
+              }`}
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              onClick={() => setVista('lista')}
+              title="Ver en lista"
+              aria-label="Ver en lista"
+              aria-pressed={vista === 'lista'}
+              className={`rounded-md p-1.5 transition-colors ${
+                vista === 'lista'
+                  ? 'bg-slate-200 text-slate-900'
+                  : 'text-slate-400 hover:text-slate-700'
+              }`}
+            >
+              <List size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Botones de categoría (desktop) */}
@@ -507,18 +563,35 @@ export default function CaballosPage() {
               </button>
             </div>
           )}
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
-            {filtradosOrdenados.map((caballo) => (
-              <CaballoCard
-                key={caballo.id}
-                caballo={caballo}
-                onClick={() => navigate(`/caballos/${caballo.id}/historial`)}
-                seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
-                onToggle={modoSeleccion ? () => toggleSeleccion(caballo.id) : undefined}
-                empresaNombre={esVet ? caballo.empresa_nombre ?? undefined : undefined}
-              />
-            ))}
-          </div>
+          {vista === 'grilla' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filtradosOrdenados.map((caballo) => (
+                <CaballoGridCard
+                  key={caballo.id}
+                  caballo={caballo}
+                  onVerFicha={() => setDetalle(caballo)}
+                  onHistorial={() => navigate(`/caballos/${caballo.id}/historial`)}
+                  seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
+                  onToggle={modoSeleccion ? () => toggleSeleccion(caballo.id) : undefined}
+                  empresaNombre={esVet ? caballo.empresa_nombre ?? undefined : undefined}
+                  dadoDeBaja={verBaja}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
+              {filtradosOrdenados.map((caballo) => (
+                <CaballoCard
+                  key={caballo.id}
+                  caballo={caballo}
+                  onClick={() => navigate(`/caballos/${caballo.id}/historial`)}
+                  seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
+                  onToggle={modoSeleccion ? () => toggleSeleccion(caballo.id) : undefined}
+                  empresaNombre={esVet ? caballo.empresa_nombre ?? undefined : undefined}
+                />
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -536,6 +609,24 @@ export default function CaballosPage() {
           onClose={() => setShowNuevo(false)}
           onSuccess={() => { setShowNuevo(false); cargar() }}
           vetMode={esVet}
+        />
+      )}
+      {detalle && (
+        <CaballoDetalleModal
+          caballo={detalle}
+          puedeEditar={puedeEditarCaballo}
+          onClose={() => setDetalle(null)}
+          onEditar={() => setEditando(detalle)}
+          onRefresh={cargar}
+        />
+      )}
+      {editando && (
+        <EditarCaballoModal
+          caballo={editando}
+          caballos={caballos}
+          vetMode={esVet}
+          onClose={() => setEditando(null)}
+          onSuccess={() => { setEditando(null); cargar() }}
         />
       )}
 
