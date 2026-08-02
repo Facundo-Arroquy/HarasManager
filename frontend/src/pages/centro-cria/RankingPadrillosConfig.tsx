@@ -59,11 +59,14 @@ export default function RankingPadrillosConfig() {
     [animales],
   )
 
-  const cargarRanking = useCallback((id: string) => {
+  const cargarRanking = useCallback(async (id: string) => {
     if (!id) return setOrden([])
-    crianzaService.listarRankingPadrillos(id)
-      .then((filas) => setOrden(filas.map((f) => f.padrillo_id)))
-      .catch((e) => setError(mensajeError(e)))
+    try {
+      const filas = await crianzaService.listarRankingPadrillos(id)
+      setOrden(filas.map((f) => f.padrillo_id))
+    } catch (e) {
+      setError(mensajeError(e))
+    }
   }, [])
 
   useEffect(() => { cargarRanking(donanteId) }, [donanteId, cargarRanking])
@@ -98,6 +101,8 @@ export default function RankingPadrillosConfig() {
     setGuardando(true)
     try {
       await crianzaService.guardarRankingPadrillos(donanteId, orden)
+      // Releemos de la DB: lo que queda en pantalla es lo que quedó guardado.
+      await cargarRanking(donanteId)
       setGuardado(true)
     } catch (err) {
       setError(mensajeError(err, 'No se pudo guardar el ranking.'))

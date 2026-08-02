@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
 import { Settings2, RotateCcw, Check, Plus, AlertCircle, Bell } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
@@ -11,7 +12,6 @@ import {
   type PlazosVet,
   type CatChipObs,
 } from '../../types/crianza'
-import RankingPadrillosConfig from './RankingPadrillosConfig'
 
 // =============================================================================
 // Configuración del centro de cría — por veterinario
@@ -25,27 +25,66 @@ export default function ConfigCriaPage() {
   const { rol } = useAuth()
   const esVet = rol === 'veterinario'
 
-  // El ranking de padrillos sí es del establecimiento: lo arman admin o vet
-  // (definición de Gero, 2026-08-02). Acciones y plazos siguen siendo del vet.
+  // Subsecciones (definición de Gero, 2026-08-02): las listas de padrillos por
+  // donante viven en su propia pestaña, separadas de acciones y plazos.
+  // Las listas son del establecimiento (admin o vet); acciones y plazos son
+  // propios de cada veterinario.
+  const tabs = [
+    { to: '/centro-cria/config/padrillos', label: 'Listas Padrillos por donante' },
+    ...(esVet ? [{ to: '/centro-cria/config/vet', label: 'Mis acciones y plazos' }] : []),
+  ]
+
   return (
-    <div className="space-y-6 p-1 max-w-lg">
+    <div className="space-y-5 p-1 max-w-lg">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Configuración del centro</h1>
         <p className="text-sm text-slate-500 mt-0.5">
           {esVet
-            ? 'Tus acciones y tus plazos de recordatorios se aplican en todos los establecimientos donde trabajás. El ranking de padrillos es del establecimiento.'
-            : 'Ranking de padrillos por donante. Las acciones y los plazos de recordatorios los configura cada veterinario.'}
+            ? 'Las listas de padrillos son del establecimiento. Tus acciones y plazos viajan con vos a todos los establecimientos donde trabajás.'
+            : 'Las acciones y los plazos de recordatorios los configura cada veterinario.'}
         </p>
       </div>
 
-      <RankingPadrillosConfig />
+      <nav className="flex gap-1 border-b border-slate-200">
+        {tabs.map((t) => (
+          <NavLink
+            key={t.to}
+            to={t.to}
+            className={({ isActive }) =>
+              `px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                isActive
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`
+            }
+          >
+            {t.label}
+          </NavLink>
+        ))}
+      </nav>
 
-      {esVet && (
-        <>
-          <CatalogoChips />
-          <PlazosSection />
-        </>
-      )}
+      <Outlet />
+    </div>
+  )
+}
+
+/** Subsección "Mis acciones y plazos" — solo veterinario. */
+export function ConfigVetPage() {
+  const { rol } = useAuth()
+
+  if (rol !== 'veterinario') {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">
+        Las acciones y los plazos de recordatorios son propios de cada
+        veterinario, porque es quien carga los registros reproductivos.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      <CatalogoChips />
+      <PlazosSection />
     </div>
   )
 }

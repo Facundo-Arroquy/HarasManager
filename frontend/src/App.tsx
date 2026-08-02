@@ -26,7 +26,8 @@ import PanelVetPage from './pages/vet/PanelVetPage'
 import RecordatoriosPage from './pages/centro-cria/RecordatoriosPage'
 import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
 import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
-import ConfigCriaPage from './pages/centro-cria/ConfigCriaPage'
+import ConfigCriaPage, { ConfigVetPage } from './pages/centro-cria/ConfigCriaPage'
+import RankingPadrillosConfig from './pages/centro-cria/RankingPadrillosConfig'
 import CaballosCentroPage from './pages/centro-cria/CaballosCentroPage'
 import EmbrionesPage from './pages/centro-cria/EmbrionesPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
@@ -178,7 +179,12 @@ export default function App() {
                 se deja el redirect para los links guardados. */}
             <Route path="/centro-cria/flushings" element={<Navigate to="/centro-cria/embriones" replace />} />
             <Route path="/centro-cria/embriones" element={<EmbrionesPage />} />
-            <Route path="/centro-cria/config" element={<ConfigCriaPage />} />
+            {/* Configuración del centro: una subsección por pestaña */}
+            <Route path="/centro-cria/config" element={<ConfigCriaPage />}>
+              <Route index element={<Navigate to="/centro-cria/config/padrillos" replace />} />
+              <Route path="padrillos" element={<RankingPadrillosConfig />} />
+              <Route path="vet" element={<ConfigVetPage />} />
+            </Route>
           </Route>
           <Route path="/transferencias" element={<TransferirEmpresaPage />} />
           <Route path="/transferir-vet" element={<TransferirVetPage />} />
