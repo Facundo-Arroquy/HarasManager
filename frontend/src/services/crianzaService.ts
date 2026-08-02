@@ -9,6 +9,7 @@ import type {
   Flushing,
   NuevoFlushingPayload,
   Embrion,
+  EmbrionConSeguimiento,
   NuevoEmbrionPayload,
   TransferenciaEmbrionaria,
   RegistrarTransferenciaPayload,
@@ -21,6 +22,23 @@ import type {
   PlazosVet,
 } from '../types/crianza'
 import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
+
+/**
+ * Embrión + transferencia + ecografías de esa transferencia. El embed de
+ * transferencia viene vacío para los embriones que nunca se transfirieron
+ * (disponibles, vitrificados o descartados), así que la lista los muestra sin
+ * receptora.
+ */
+const SELECT_EMBRION_SEGUIMIENTO = `
+  *,
+  donante:caballo_donante_id(nombre),
+  padrillo:padrillo_id(nombre),
+  cria_transferencia!embrion_id(
+    fecha,
+    receptora:caballo_receptora_id(nombre, pelaje:pelaje_id(nombre)),
+    cria_ecografia!transferencia_id(numero, fecha, resultado)
+  )
+`
 
 // =============================================================================
 // Mock data — cargada lazy para no contaminar el bundle en producción
@@ -492,35 +510,25 @@ export const crianzaService = {
     return data as Embrion[]
   },
 
-  async listarTodosEmbriones(sociedadId: string): Promise<Embrion[]> {
+  async listarTodosEmbriones(sociedadId: string): Promise<EmbrionConSeguimiento[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('embrion')
-      .select(`
-        *,
-        donante:caballo_donante_id(nombre),
-        padrillo:padrillo_id(nombre),
-        cria_transferencia!embrion_id(fecha, receptora:caballo_receptora_id(nombre))
-      `)
+      .select(SELECT_EMBRION_SEGUIMIENTO)
       .eq('sociedad_id', sociedadId)
       .order('created_at', { ascending: false })
     if (error) throw error
-    return data as Embrion[]
+    return data as unknown as EmbrionConSeguimiento[]
   },
 
-  async listarTodosEmbrionesVet(): Promise<Embrion[]> {
+  async listarTodosEmbrionesVet(): Promise<EmbrionConSeguimiento[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('embrion')
-      .select(`
-        *,
-        donante:caballo_donante_id(nombre),
-        padrillo:padrillo_id(nombre),
-        cria_transferencia!embrion_id(fecha, receptora:caballo_receptora_id(nombre))
-      `)
+      .select(SELECT_EMBRION_SEGUIMIENTO)
       .order('created_at', { ascending: false })
     if (error) throw error
-    return data as Embrion[]
+    return data as unknown as EmbrionConSeguimiento[]
   },
 
   async listarEmbrionesDisponibles(sociedadId: string, donanteId?: string): Promise<Embrion[]> {

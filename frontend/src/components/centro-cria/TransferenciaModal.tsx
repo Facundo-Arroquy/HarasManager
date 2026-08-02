@@ -14,6 +14,8 @@ interface Props {
   flushingId?: string
   donantePredId?: string
   padrilloPreId?: string
+  // Embrión ya elegido (se transfiere desde la lista de embriones)
+  embrionPreId?: string
   // Fallback para el rol 'veterinario' (sociedadActiva es null)
   sociedadId?: string
 }
@@ -46,7 +48,7 @@ function labelEmbrion(e: Embrion, idx: number): string {
 }
 
 export default function TransferenciaModal({
-  onClose, onSuccess, flushing, flushingId, donantePredId, padrilloPreId, sociedadId,
+  onClose, onSuccess, flushing, flushingId, donantePredId, padrilloPreId, embrionPreId, sociedadId,
 }: Props) {
   const { user, sociedadActiva } = useAuth()
   const { registrarTransferencia, transferencias } = useCrianzaStore()
@@ -66,7 +68,7 @@ export default function TransferenciaModal({
   // Form
   const [receptoraId,   setReceptoraId]   = useState('')
   const [donanteId,     setDonanteId]     = useState(donantePredId_)
-  const [embrionId,     setEmbrionId]     = useState('')
+  const [embrionId,     setEmbrionId]     = useState(embrionPreId ?? '')
   const [padrilloId,    setPadrilloId]    = useState(padrilloPreId_)
   const [fecha,         setFecha]         = useState(HOY)
   const [clCalidad,     setClCalidad]     = useState<string>('')
@@ -114,13 +116,21 @@ export default function TransferenciaModal({
       .finally(() => setCargando(false))
   }, [efectivaSociedadId])
 
-  // Carga embriones disponibles cuando cambia la donante
+  // Carga embriones disponibles cuando cambia la donante. Si el modal se abrió
+  // desde un embrión concreto se mantiene esa selección mientras siga en la lista.
   useEffect(() => {
     if (!efectivaSociedadId) return
-    setEmbrionId('')
     crianzaService.listarEmbrionesDisponibles(efectivaSociedadId, donanteId || undefined)
-      .then(setEmbriones)
-      .catch(() => setEmbriones([]))
+      .then((data) => {
+        setEmbriones(data)
+        setEmbrionId((actual) =>
+          actual && data.some((e) => e.id === actual) ? actual : ''
+        )
+      })
+      .catch(() => {
+        setEmbriones([])
+        setEmbrionId('')
+      })
   }, [efectivaSociedadId, donanteId])
 
   // Cuando se selecciona un embrión, auto-fill padrillo

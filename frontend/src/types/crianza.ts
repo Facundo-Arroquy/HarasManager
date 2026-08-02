@@ -254,6 +254,23 @@ export type NuevoEmbrionPayload = Omit<
   'id' | 'created_at' | 'updated_at' | 'donante' | 'padrillo'
 >
 
+/**
+ * Embrión con su transferencia (si la tuvo) y las ecografías de esa
+ * transferencia. Los embriones que nunca se transfirieron vienen con
+ * `cria_transferencia` vacío: en la lista se muestran sin receptora.
+ */
+export interface EmbrionConSeguimiento extends Embrion {
+  cria_transferencia?: Array<{
+    fecha:      string
+    receptora:  { nombre: string; pelaje: { nombre: string } | null } | null
+    cria_ecografia: Array<{
+      numero:    number
+      fecha:     string
+      resultado: ResultadoEcografia
+    }>
+  }>
+}
+
 // ---------------------------------------------------------------------------
 // Transferencia embrionaria
 // ---------------------------------------------------------------------------

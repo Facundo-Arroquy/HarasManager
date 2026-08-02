@@ -25,7 +25,6 @@ import RevisionPreVentaPage from './pages/vet/RevisionPreVentaPage'
 import PanelVetPage from './pages/vet/PanelVetPage'
 import RecordatoriosPage from './pages/centro-cria/RecordatoriosPage'
 import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
-import FlushingsPage from './pages/centro-cria/FlushingsPage'
 import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
 import ConfigCriaPage from './pages/centro-cria/ConfigCriaPage'
 import CaballosCentroPage from './pages/centro-cria/CaballosCentroPage'
@@ -175,7 +174,9 @@ export default function App() {
             <Route path="/centro-cria/programa" element={<ProgramaSemanalPage />} />
             <Route path="/centro-cria/recordatorios" element={<RecordatoriosPage />} />
             <Route path="/centro-cria/transferencias" element={<TransferenciasPage />} />
-            <Route path="/centro-cria/flushings"  element={<FlushingsPage />} />
+            {/* La sección de flushings se absorbió en "Embriones vitrificados";
+                se deja el redirect para los links guardados. */}
+            <Route path="/centro-cria/flushings" element={<Navigate to="/centro-cria/embriones" replace />} />
             <Route path="/centro-cria/embriones" element={<EmbrionesPage />} />
             <Route path="/centro-cria/config" element={<ConfigCriaPage />} />
           </Route>
