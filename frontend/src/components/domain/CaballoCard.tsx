@@ -15,6 +15,7 @@ interface CaballoCardProps {
     cat_raza?: { nombre: string } | null
     cat_pelaje?: { nombre: string } | null
     campo?: { nombre: string } | null
+    tags?: { id: number; nombre: string }[]
   }
   onClick?: () => void
   seleccionado?: boolean
@@ -108,6 +109,14 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
             Preñada
           </span>
         )}
+        {(caballo.tags ?? []).map((t) => (
+          <span
+            key={t.id}
+            className="rounded-full px-2 py-0.5 text-[11px] font-medium bg-teal-100 text-teal-700 ring-1 ring-teal-200"
+          >
+            {t.nombre}
+          </span>
+        ))}
       </span>
 
       {/* Chevron */}

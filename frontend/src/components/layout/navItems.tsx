@@ -48,9 +48,10 @@ export const NAV_GROUPS: NavGroup[] = [
       // propia se eliminó para tener el stock y su origen en un solo lugar.
       { to: '/centro-cria/embriones',      label: 'Embriones vitrificados',        icon: <FlaskConical size={18} /> },
       { to: '/centro-cria/transferencias', label: 'Transferencias Hechas/Ecografías', icon: <ArrowLeftRight size={18} /> },
-      // Las acciones y los plazos son propios de cada veterinario (no hay
-      // configuración por sociedad), así que el resto no tiene nada que ver acá.
-      { to: '/centro-cria/config',         label: 'Configuración',               icon: <Settings2 size={18} />, roles: ['veterinario'] },
+      // Acciones y plazos son propios de cada veterinario; el ranking de
+      // padrillos por donante sí es del establecimiento, así que el admin
+      // también entra acá (definición de Gero, 2026-08-02).
+      { to: '/centro-cria/config',         label: 'Configuración',               icon: <Settings2 size={18} />, roles: ['veterinario', 'admin'] },
     ],
   },
 ]

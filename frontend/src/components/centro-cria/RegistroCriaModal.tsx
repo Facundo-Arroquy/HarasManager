@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { X, AlertCircle, Settings2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -7,6 +7,7 @@ import { crianzaService } from '../../services/crianzaService'
 import { CHIPS_OI_OD, CHIPS_UTERO } from '../../types/crianza'
 import type { RolReproductivo, PlazosVet } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
+import PadrilloSelect from './PadrilloSelect'
 
 interface Props {
   onClose: () => void
@@ -34,6 +35,10 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [cargandoAnimales, setCargandoAnimales] = useState(true)
   const [chipsObs, setChipsObs] = useState<string[]>([])
   const [cargandoChips, setCargandoChips] = useState(true)
+  // padrillo_id → parentesco con la donante seleccionada (bloquea la elección)
+  const [familiares, setFamiliares] = useState<Record<string, string>>({})
+  // Ids del ranking de la donante, ordenados por prioridad
+  const [ranking, setRanking] = useState<string[]>([])
 
   // ── Form state ────────────────────────────────────────────────────────────
   const [caballoId,     setCaballoId]     = useState(caballoIdInicial ?? '')
@@ -58,13 +63,19 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
   // ── Derivados ─────────────────────────────────────────────────────────────
   const animalSeleccionado = animales.find((a) => a.id === caballoId) ?? null
-  const padrillos          = animales.filter((a) => a.categoria === 'Padrillo')
+  // useMemo: la identidad de este array es dependencia del efecto que busca
+  // familiares y ranking; sin memo se relanzaría en cada render.
+  const padrillos = useMemo(
+    () => animales.filter((a) => a.categoria === 'Padrillo'),
+    [animales],
+  )
   const rolEfectivo: RolReproductivo =
     animalSeleccionado?.rol_reproductivo ?? rolManual
 
   const mostrarPadrillo = obsChips.includes('IN')
   const mostrarOvDias   = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
   const necesitaRol     = animalSeleccionado && !animalSeleccionado.rol_reproductivo
+  const parentescoElegido = padrilloId ? familiares[padrilloId] : undefined
 
   // ── Carga de animales ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -100,6 +111,33 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
     if (animal?.sociedad_id) setAnimalSociedadId(animal.sociedad_id)
   }, [caballoId, animales])
 
+  // ── Familiares + ranking de la donante seleccionada ───────────────────────
+  // Se recalcula al cambiar de animal: el parentesco y el ranking son de esa yegua.
+  useEffect(() => {
+    if (!caballoId || padrillos.length === 0) {
+      setFamiliares({})
+      setRanking([])
+      return
+    }
+    let cancelado = false
+    const ids = padrillos.map((p) => p.id)
+
+    crianzaService.listarPadrillosFamiliares(caballoId, ids)
+      .then((res) => { if (!cancelado) setFamiliares(res) })
+      .catch(() => { if (!cancelado) setFamiliares({}) })
+
+    crianzaService.listarRankingPadrillos(caballoId)
+      .then((res) => { if (!cancelado) setRanking(res.map((r) => r.padrillo_id)) })
+      .catch(() => { if (!cancelado) setRanking([]) })
+
+    return () => { cancelado = true }
+  }, [caballoId, padrillos])
+
+  // Si el padrillo elegido resulta familiar (cambió la donante), se limpia.
+  useEffect(() => {
+    if (padrilloId && familiares[padrilloId]) setPadrilloId('')
+  }, [familiares, padrilloId])
+
   // Escape para cerrar
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -118,6 +156,11 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
     const sociedadId = sociedadActiva?.id ?? animalSociedadId
     if (!sociedadId)      return setError('No se pudo determinar la sociedad del animal.')
     if (necesitaRol && !rolManual) return setError('Indicá si es Donante o Receptora.')
+    if (mostrarPadrillo && parentescoElegido) {
+      return setError(
+        `El padrillo es ${parentescoElegido.toLowerCase()} de la yegua: no se puede inseminar con un familiar directo.`,
+      )
+    }
 
     setSaving(true)
     try {
@@ -331,16 +374,24 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           {mostrarPadrillo && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-500">Padrillo (inseminación)</label>
-              <select
+              <PadrilloSelect
+                padrillos={padrillos}
                 value={padrilloId}
-                onChange={(e) => setPadrilloId(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              >
-                <option value="">— Seleccioná padrillo —</option>
-                {padrillos.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                ))}
-              </select>
+                onChange={setPadrilloId}
+                familiares={familiares}
+                ranking={ranking}
+              />
+              {ranking.length > 0 && (
+                <p className="text-[11px] text-slate-400">
+                  Los #1, #2… son el ranking configurado para esta donante.
+                </p>
+              )}
+              {parentescoElegido && (
+                <p className="flex items-center gap-1.5 text-xs text-red-600">
+                  <AlertCircle size={12} />
+                  {parentescoElegido} de la yegua — no se puede inseminar con este padrillo.
+                </p>
+              )}
             </div>
           )}
 
@@ -411,7 +462,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           <button
             type="submit"
             form="registro-cria-form"
-            disabled={saving}
+            disabled={saving || Boolean(mostrarPadrillo && parentescoElegido)}
             className="px-4 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors disabled:opacity-50"
           >
             {saving ? 'Guardando…' : 'Guardar registro'}

@@ -2,12 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { X, Plus, GitBranch, Camera } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useAuthStore } from '../../store/authStore'
-import { caballoService, type NuevoCaballoPayload, type Caballo } from '../../services/caballoService'
+import {
+  caballoService,
+  CATEGORIAS_MADRE,
+  CATEGORIAS_PADRE,
+  type NuevoCaballoPayload,
+  type CaballoPedigree,
+} from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { fotoService } from '../../services/fotoService'
+import { CATEGORIAS_CON_TAGS, tagService } from '../../services/tagService'
 import { mensajeError } from '../../utils/error'
 import PedigreeCombobox, { type HorseRef } from './PedigreeCombobox'
+import TagSelector from './TagSelector'
 
 interface Props {
   onClose: () => void
@@ -24,7 +32,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
   const [razas,   setRazas]   = useState<{ id: number; nombre: string }[]>([])
   const [pelajes, setPelajes] = useState<{ id: number; nombre: string }[]>([])
   const [campos,  setCampos]  = useState<Campo[]>([])
-  const [caballos, setCaballos] = useState<Caballo[]>([])
+  const [pedigree, setPedigree] = useState<CaballoPedigree[]>([])
   const [nuevoCampo, setNuevoCampo] = useState('')
   const [creandoCampo, setCreandoCampo] = useState(false)
 
@@ -42,6 +50,13 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
 
   const [padre, setPadre] = useState<HorseRef>({ id: null, nombre: null })
   const [madre, setMadre] = useState<HorseRef>({ id: null, nombre: null })
+  const [tagIds, setTagIds] = useState<number[]>([])
+
+  // Padre: solo machos. Madre: solo yeguas. En ambos casos se incluyen los
+  // dados de baja — un progenitor puede estar muerto (definición de Gero).
+  const padresPosibles = pedigree.filter((c) => CATEGORIAS_PADRE.includes(c.categoria))
+  const madresPosibles = pedigree.filter((c) => CATEGORIAS_MADRE.includes(c.categoria))
+  const admiteTags     = CATEGORIAS_CON_TAGS.includes(form.categoria)
 
   const [fotoFile, setFotoFile]       = useState<File | null>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
@@ -60,22 +75,22 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
   }
 
   useEffect(() => {
-    const caballosPromise = vetMode && userId
-      ? caballoService.listarDelVeterinario(userId)
+    const pedigreePromise = vetMode
+      ? caballoService.listarParaPedigreeVet()
       : sociedadActiva
-        ? caballoService.listar(sociedadActiva.id)
+        ? caballoService.listarParaPedigree(sociedadActiva.id)
         : Promise.resolve([])
 
     Promise.all([
       catalogoService.razas(),
       catalogoService.pelajes(),
       (!vetMode && sociedadActiva) ? campoService.listar(sociedadActiva.id) : Promise.resolve([]),
-      caballosPromise,
+      pedigreePromise.catch(() => [] as CaballoPedigree[]),
     ]).then(([r, p, c, cabs]) => {
       setRazas(r)
       setPelajes(p)
       setCampos(c)
-      setCaballos(cabs as Caballo[])
+      setPedigree(cabs)
       // No pre-seleccionamos raza/pelaje — el admin elige o deja vacío
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -122,6 +137,9 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       }
       if (fotoFile) {
         try { await fotoService.subir(nuevoId, fotoFile) } catch { /* no bloquear creación */ }
+      }
+      if (admiteTags && tagIds.length > 0) {
+        try { await tagService.guardar(nuevoId, tagIds) } catch { /* no bloquear creación */ }
       }
       onSuccess()
     } catch (err: unknown) {
@@ -238,6 +256,9 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
             </div>
           )}
 
+          {/* Tags — solo para caballos y yeguas */}
+          {admiteTags && <TagSelector value={tagIds} onChange={setTagIds} />}
+
           {/* ── Genealogía ─────────────────────────────────────────────── */}
           <div className="pt-2">
             <div className="flex items-center gap-2 mb-3">
@@ -250,14 +271,14 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
                 placeholder="— Sin datos —"
                 value={padre}
                 onChange={setPadre}
-                caballos={caballos}
+                caballos={padresPosibles}
               />
               <PedigreeCombobox
                 label="Madre"
                 placeholder="— Sin datos —"
                 value={madre}
                 onChange={setMadre}
-                caballos={caballos}
+                caballos={madresPosibles}
               />
             </div>
           </div>

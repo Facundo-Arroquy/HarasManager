@@ -11,6 +11,7 @@ import {
   type PlazosVet,
   type CatChipObs,
 } from '../../types/crianza'
+import RankingPadrillosConfig from './RankingPadrillosConfig'
 
 // =============================================================================
 // Configuración del centro de cría — por veterinario
@@ -22,32 +23,29 @@ import {
 
 export default function ConfigCriaPage() {
   const { rol } = useAuth()
+  const esVet = rol === 'veterinario'
 
-  if (rol !== 'veterinario') {
-    return (
-      <div className="max-w-lg p-1">
-        <h1 className="text-xl font-semibold text-slate-900">Configuración del centro</h1>
-        <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">
-          La configuración del centro (acciones y plazos de recordatorios) es
-          propia de cada veterinario, porque es quien carga los registros
-          reproductivos. No hay nada para configurar a nivel del establecimiento.
-        </div>
-      </div>
-    )
-  }
-
+  // El ranking de padrillos sí es del establecimiento: lo arman admin o vet
+  // (definición de Gero, 2026-08-02). Acciones y plazos siguen siendo del vet.
   return (
     <div className="space-y-6 p-1 max-w-lg">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Configuración del centro</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Tus acciones y tus plazos de recordatorios. Se aplican en todos los
-          establecimientos donde trabajás.
+          {esVet
+            ? 'Tus acciones y tus plazos de recordatorios se aplican en todos los establecimientos donde trabajás. El ranking de padrillos es del establecimiento.'
+            : 'Ranking de padrillos por donante. Las acciones y los plazos de recordatorios los configura cada veterinario.'}
         </p>
       </div>
 
-      <CatalogoChips />
-      <PlazosSection />
+      <RankingPadrillosConfig />
+
+      {esVet && (
+        <>
+          <CatalogoChips />
+          <PlazosSection />
+        </>
+      )}
     </div>
   )
 }
