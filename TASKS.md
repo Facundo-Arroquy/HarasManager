@@ -74,6 +74,7 @@
 - **Estado:** pendiente
 - **Asignado:** -
 - **Descripción:** En la tabla de programa semanal debe tener las listas de receptoras y donantes separadas por empresa y campo en lo posible.
+- **Ojo:** el rediseño del Programa Semanal movió la separación Donante/Receptora adentro de cada día de la semana, y en ese movimiento se sacó el panel lateral que agrupaba por empresa → campo. La separación por rol quedó, la de empresa/campo no. Hay que definir cómo reintroducirla en el nuevo layout (¿subtítulo de empresa dentro de cada grupo del día?, ¿un filtro de empresa arriba del calendario?).
 
 ---
 
