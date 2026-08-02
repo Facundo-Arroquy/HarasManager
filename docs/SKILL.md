@@ -202,8 +202,9 @@ CREATE TABLE caballo (
 -- Catálogo + M:N en vez de una columna booleana: sumar un tag nuevo no
 -- requiere migración ni cambios de UI. Arranca con 'Jugador' (animales
 -- destinados o usados para juego/deporte).
--- El frontend solo ofrece tags para categoría 'Caballo' o 'Yegua'
--- (CATEGORIAS_CON_TAGS en services/tagService.ts).
+-- Los tags se pueden poner en cualquier categoría (CATEGORIAS_CON_TAGS en
+-- services/tagService.ts): "asignable a caballos y yeguas" se lee como
+-- cualquier equino, macho o hembra.
 CREATE TABLE cat_tag (
   id SERIAL PRIMARY KEY,
   nombre TEXT NOT NULL UNIQUE,

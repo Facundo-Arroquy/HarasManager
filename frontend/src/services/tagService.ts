@@ -17,8 +17,12 @@ export interface Tag {
 /** Tag que se asigna a caballos destinados o usados para juego/deporte. */
 export const TAG_JUGADOR = 'Jugador'
 
-/** Categorías que admiten tags (definición de Gero: caballos y yeguas). */
-export const CATEGORIAS_CON_TAGS: string[] = ['Caballo', 'Yegua']
+/**
+ * Categorías que admiten tags: todas.
+ * "Asignable a caballos y yeguas" se lee como cualquier equino, macho o
+ * hembra — no como una restricción por categoría (confirmado 2026-08-02).
+ */
+export const CATEGORIAS_CON_TAGS: string[] = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo']
 
 export const tagService = {
   async listar(): Promise<Tag[]> {
