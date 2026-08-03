@@ -435,8 +435,17 @@ export const caballoService = {
     if (cambios.categoria)             update.categoria        = cambios.categoria
     if ('rol_reproductivo' in cambios) update.rol_reproductivo = cambios.rol_reproductivo ?? null
     if ('prenada' in cambios) {
-      update.prenada      = cambios.prenada ?? false
-      update.fecha_prenez = cambios.prenada ? undefined : null
+      update.prenada = cambios.prenada ?? false
+      // Al desmarcar se limpia la fecha. Al marcar se respeta la que ya tenga
+      // cada yegua: la edición masiva no pide una fecha común. Antes se asignaba
+      // `undefined`, que supabase-js descarta al serializar — el mismo efecto,
+      // pero por accidente.
+      if (!cambios.prenada) update.fecha_prenez = null
+    }
+    // Mismo criterio que `actualizar`: lo que no es Yegua no puede quedar preñado.
+    if (cambios.categoria && cambios.categoria !== 'Yegua') {
+      update.prenada      = false
+      update.fecha_prenez = null
     }
     const { error } = await supabase.from('caballo').update(update).in('id', ids)
     if (error) throw error

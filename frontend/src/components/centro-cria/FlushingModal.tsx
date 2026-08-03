@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
 import type { RecordatorioCria } from '../../types/crianza'
+import { hoyAR } from '../../utils/fecha'
 
 interface Props {
   onClose: () => void
@@ -31,8 +32,6 @@ const ESTADIOS = ['Mórula', 'Blastocisto temprano', 'Blastocisto', 'Blastocisto
 const TAMANIOS = ['Pequeño', 'Mediano', 'Grande'] as const
 const GRADOS   = [1, 2, 3, 4] as const
 
-const HOY = new Date().toISOString().split('T')[0]
-
 export default function FlushingModal({ onClose, onSuccess, recordatorio, caballoIdInicial }: Props) {
   const { user, sociedadActiva } = useAuth()
   const { crearFlushing, actualizarEstadoRecordatorio } = useCrianzaStore()
@@ -43,7 +42,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
 
   // Form
   const [caballoId,   setCaballoId]   = useState(caballoIdInicial ?? recordatorio?.caballo_id ?? '')
-  const [fecha,       setFecha]       = useState(recordatorio?.fecha_vto ?? HOY)
+  const [fecha,       setFecha]       = useState(recordatorio?.fecha_vto ?? hoyAR())
   const [esNegativo,   setEsNegativo]   = useState(false)
   const [cantidad,     setCantidad]     = useState('')
   const [estadio,      setEstadio]      = useState<string>('')

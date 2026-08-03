@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { crianzaService } from '../services/crianzaService'
 import { mensajeError } from '../utils/error'
+import { hoyAR } from '../utils/fecha'
 import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
 import type {
   PlazosVet,
@@ -43,12 +44,21 @@ import type {
 //   review_manana = true → Revisión  próximo MWF
 // =============================================================================
 
-function proximoMWF(desde: Date): string {
-  const d = new Date(desde)
-  d.setDate(d.getDate() + 1)
+/**
+ * Próximo lunes / miércoles / viernes posterior a `fecha` ('YYYY-MM-DD').
+ *
+ * Se ancla al mediodía UTC y avanza con los getters/setters UTC: mezclar el
+ * parseo UTC de 'YYYY-MM-DD' con `getDay()`/`setDate()` locales corría el
+ * cálculo un día en cualquier zona con offset negativo (Argentina incluida) y
+ * el resultado ni siquiera caía en lunes/miércoles/viernes.
+ * Es la misma implementación que usa el preview de RegistroCriaModal.
+ */
+function proximoMWF(fecha: string): string {
+  const d = new Date(fecha + 'T12:00:00Z')
+  d.setUTCDate(d.getUTCDate() + 1)
   // 1=Lun 3=Mié 5=Vie
-  while (![1, 3, 5].includes(d.getDay())) {
-    d.setDate(d.getDate() + 1)
+  while (![1, 3, 5].includes(d.getUTCDay())) {
+    d.setUTCDate(d.getUTCDate() + 1)
   }
   return d.toISOString().split('T')[0]
 }
@@ -88,7 +98,7 @@ function reglasParaRegistro(
 
   if (rolReproductivo === 'Receptora') {
     if (chips.includes('Strelin'))
-      reglas.push({ tipo: 'Revisión Strelin', calcularFecha: (f) => proximoMWF(new Date(f)) })
+      reglas.push({ tipo: 'Revisión Strelin', calcularFecha: (f) => proximoMWF(f) })
     if (chips.includes('PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.receptora_pg_a_revision_pg) })
     const tieneOV = registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV')
@@ -98,7 +108,7 @@ function reglasParaRegistro(
   }
 
   if (registro.review_manana)
-    reglas.push({ tipo: 'Revisión', calcularFecha: (f) => proximoMWF(new Date(f)) })
+    reglas.push({ tipo: 'Revisión', calcularFecha: (f) => proximoMWF(f) })
 
   return reglas.map((r) => ({ ...r, calcularFecha: () => r.calcularFecha(base) }))
 }
@@ -315,7 +325,10 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   // ── Sincronización de vencidos (corre cada 60s desde el componente raíz) ──
 
   sincronizarVencidos: () => {
-    const hoy = new Date().toISOString().split('T')[0]
+    // La fecha tiene que ser la de Argentina: con `toISOString()` (UTC) los
+    // recordatorios del día se marcaban vencidos —y se persistía el estado— a
+    // partir de las 21:00 hora local.
+    const hoy = hoyAR()
     const aVencer = get().recordatorios
       .filter((r) => r.estado === 'pendiente' && r.fecha_vto < hoy)
       .map((r) => r.id)

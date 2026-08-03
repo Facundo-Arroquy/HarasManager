@@ -8,6 +8,8 @@ import { CHIPS_OI_OD, CHIPS_UTERO } from '../../types/crianza'
 import type { RolReproductivo, PlazosVet } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import PadrilloSelect from './PadrilloSelect'
+import { hoyAR } from '../../utils/fecha'
+import { mensajeError } from '../../utils/error'
 
 interface Props {
   onClose: () => void
@@ -25,8 +27,6 @@ type AnimalItem = {
   campo: { nombre: string } | null
 }
 
-const HOY = new Date().toISOString().split('T')[0]
-
 export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial }: Props) {
   const { user, sociedadActiva, rol } = useAuth()
   const { crearRegistro, plazos } = useCrianzaStore()
@@ -42,7 +42,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
   // ── Form state ────────────────────────────────────────────────────────────
   const [caballoId,     setCaballoId]     = useState(caballoIdInicial ?? '')
-  const [fecha,         setFecha]         = useState(HOY)
+  const [fecha,         setFecha]         = useState(hoyAR())
   const [ovarioIzq,     setOvarioIzq]     = useState<string[]>([])
   const [ovarioDer,     setOvarioDer]     = useState<string[]>([])
   const [utero,         setUtero]         = useState<string[]>([])
@@ -78,18 +78,30 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const parentescoElegido = padrilloId ? familiares[padrilloId] : undefined
 
   // ── Carga de animales ─────────────────────────────────────────────────────
+  // Sin el catch/finally, un error de la consulta —o un usuario sin sociedad
+  // activa que tampoco sea veterinario— dejaba el modal en "Cargando…" para
+  // siempre, sin forma de saber qué pasó.
   useEffect(() => {
-    if (sociedadActiva) {
-      crianzaService.listarAnimalesReproductivos(sociedadActiva.id).then((data) => {
+    const carga = sociedadActiva
+      ? crianzaService.listarAnimalesReproductivos(sociedadActiva.id)
+      : rol === 'veterinario'
+        ? crianzaService.listarAnimalesReproductivosVet()
+        : null
+
+    if (!carga) { setCargandoAnimales(false); return }
+
+    let cancelado = false
+    carga
+      .then((data) => {
+        if (cancelado) return
         setAnimales(data.filter((a: { categoria: string }) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
-        setCargandoAnimales(false)
       })
-    } else if (rol === 'veterinario') {
-      crianzaService.listarAnimalesReproductivosVet().then((data) => {
-        setAnimales(data.filter((a: { categoria: string }) => a.categoria !== 'Potrillo' && a.categoria !== 'Caballo'))
-        setCargandoAnimales(false)
+      .catch((e: unknown) => {
+        if (!cancelado) setError(mensajeError(e, 'No se pudieron cargar los animales.'))
       })
-    }
+      .finally(() => { if (!cancelado) setCargandoAnimales(false) })
+
+    return () => { cancelado = true }
   }, [sociedadActiva, rol])
 
   // ── Carga del catálogo de acciones del vet autenticado ────────────────────

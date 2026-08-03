@@ -2,7 +2,7 @@ import type { Caballo } from '../services/caballoService'
 import { caballoService } from '../services/caballoService'
 import type { HistorialEntry } from '../components/domain/HistorialCard'
 import type { RegistroClinicoCria, Flushing, TransferenciaEmbrionaria } from '../types/crianza'
-import { formatFecha, calcularEdad } from './fecha'
+import { formatFecha, calcularEdad, hoyAR } from './fecha'
 import { fotoService } from '../services/fotoService'
 
 export interface FichaCaballoData {
@@ -66,7 +66,7 @@ export async function generarFichaHtml(data: FichaCaballoData, { autoPrint = fal
     } catch { /* sin genealogía */ }
   }
 
-  const hoy = new Date().toISOString().slice(0, 10)
+  const hoy = hoyAR()
 
   const fotoBase64 = await urlToBase64(fotoService.getUrl(caballo.id))
 

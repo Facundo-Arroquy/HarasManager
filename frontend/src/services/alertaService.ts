@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../lib/supabase'
+import { hoyAR } from '../utils/fecha'
 
 export interface Alerta {
   id: string
@@ -56,8 +57,11 @@ export const alertaService = {
   }): Promise<string> {
     const supabase = getSupabaseClient()
 
-    const fecha = new Date()
-    fecha.setDate(fecha.getDate() + payload.dias)
+    // Se parte de la fecha de Argentina anclada al mediodía UTC: sumar días
+    // sobre `new Date()` y serializar con toISOString() adelantaba la alerta un
+    // día cuando se creaba después de las 21:00 hora local.
+    const fecha = new Date(hoyAR() + 'T12:00:00Z')
+    fecha.setUTCDate(fecha.getUTCDate() + payload.dias)
     const fechaStr = fecha.toISOString().slice(0, 10)
 
     const { data, error } = await supabase

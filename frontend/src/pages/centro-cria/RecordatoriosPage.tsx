@@ -6,6 +6,7 @@ import type { RecordatorioCria, EstadoRecordatorio } from '../../types/crianza'
 import Spinner from '../../components/ui/Spinner'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
 import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
+import { hoyAR } from '../../utils/fecha'
 
 const FILTROS: { label: string; value: EstadoRecordatorio | 'todos' }[] = [
   { label: 'Todos',      value: 'todos' },
@@ -147,7 +148,7 @@ function RecordatorioItem({
   cancelando: boolean
   setCancelando: () => void
 }) {
-  const hoy = new Date().toISOString().split('T')[0]
+  const hoy = hoyAR()
   const esHoy    = r.fecha_vto === hoy
   const esPasado = r.fecha_vto < hoy
   const activo   = r.estado === 'pendiente' || r.estado === 'vencido'
