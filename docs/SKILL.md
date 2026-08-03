@@ -816,12 +816,7 @@ HarasManager/
 │   │   ├── store/                      # Zustand (authStore, crianzaStore)
 │   │   ├── hooks/                      # useAuth, etc.
 │   │   ├── types/                      # Tipos TypeScript
-│   │   ├── utils/                      # Helpers
-│   │   └── dev/                        # Mock system (SOLO desarrollo local)
-│   │       ├── mockMode.ts
-│   │       ├── mockUsers.ts
-│   │       ├── mockData.ts
-│   │       └── DevPanel.tsx
+│   │   └── utils/                      # Helpers
 │   └── .env.example
 └── supabase/
     └── migrations/                     # Historial documental de cambios a la DB
@@ -859,7 +854,6 @@ No se usa `supabase db push` ni `supabase migration up`.
 - Hooks: `camelCase` con prefijo `use` (`useAuth.ts`)
 - Servicios: `camelCase` con sufijo `Service` (`caballoService.ts`)
 - No lógica de negocio en componentes; solo en hooks o services
-- Mock mode en `src/dev/` — solo se renderiza si `import.meta.env.DEV`
 
 ---
 
@@ -881,17 +875,11 @@ No se usa `supabase db push` ni `supabase migration up`.
 
 ---
 
-## Mock System (desarrollo)
+## Datos de prueba
 
-Los usuarios de demo cubren los roles principales:
-
-| ID mock | Usuario | Email | Rol |
-|---------|---------|-------|-----|
-| `mock-admin-haras` | Carlos Mendoza | admin@haras-demo.com | admin |
-| `mock-veterinario` | Dra. Valentina Ríos | vet@haras-demo.com | veterinario |
-| `mock-admin-estancia` | Rodrigo Benavídez | admin@losalamos.com | admin |
-| `mock-jugador` | Martín Urquiza | martin@losalamos.com | jugador |
-| `mock-peticero` | Diego Suárez | diego@pcba.com.ar | peticero |
+No hay mock system: el frontend siempre habla con Supabase. Para probar se usan
+sociedades reales de demo en el proyecto de producción (`Demo 1` y `Demo 2`),
+con usuarios reales invitados a cada una.
 
 ---
 

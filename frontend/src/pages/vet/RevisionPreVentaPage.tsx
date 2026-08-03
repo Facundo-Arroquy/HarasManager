@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react'
 import { Plus, Trash2, Printer, RotateCcw } from 'lucide-react'
 import { caballoService } from '../../services/caballoService'
 import { useAuthStore } from '../../store/authStore'
-import { isMockMode, getMockUserId } from '../../dev/mockMode'
-import { getMockUser } from '../../dev/mockUsers'
 import { hoyAR } from '../../utils/fecha'
 import { imprimirRevision } from '../../utils/imprimirRevision'
 import Spinner from '../../components/ui/Spinner'
@@ -55,10 +53,6 @@ function makeDefaultItems(): ItemRevision[] {
 }
 
 function getVetNombre(user: { email?: string | null; user_metadata?: { full_name?: string; nombre?: string } } | null): string {
-  if (isMockMode()) {
-    const mu = getMockUser(getMockUserId())
-    return `${mu.nombre} ${mu.apellido}`.trim()
-  }
   return user?.user_metadata?.full_name
     ?? user?.user_metadata?.nombre
     ?? user?.email
@@ -85,7 +79,7 @@ export default function RevisionPreVentaPage() {
     if (!user?.id) { setLoading(false); return }
     const fn = sociedad?.id
       ? () => caballoService.listar(sociedad.id)
-      : () => caballoService.listarDelVeterinario(user.id)
+      : () => caballoService.listarDelVeterinario()
     fn().then(setCaballos).finally(() => setLoading(false))
   }, [sociedad?.id, user?.id])
 

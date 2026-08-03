@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Search, UserPlus, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { isMockMode } from '../../dev/mockMode'
 import { getSupabaseClient } from '../../lib/supabase'
 
 const ROLES = [
@@ -49,13 +48,6 @@ export default function InvitarUsuarioTab() {
     setBuscado(false)
 
     try {
-      if (isMockMode()) {
-        await new Promise((r) => setTimeout(r, 400))
-        setUsuario({ id: 'mock-vet', nombre: 'Carlos', apellido: 'Gómez', email: email.trim() })
-        setBuscado(true)
-        return
-      }
-
       const supabase = getSupabaseClient()
       const { data, error: rpcError } = await supabase.rpc('buscar_usuario_por_email', {
         p_email: email.trim(),
@@ -84,13 +76,6 @@ export default function InvitarUsuarioTab() {
     setSuccess(null)
 
     try {
-      if (isMockMode()) {
-        await new Promise((r) => setTimeout(r, 500))
-        setSuccess(`${usuario.nombre} ${usuario.apellido} fue agregado al haras.`)
-        reset()
-        return
-      }
-
       const supabase = getSupabaseClient()
 
       // Verificar que no tenga ya una membresía activa en esta sociedad

@@ -1,5 +1,3 @@
-import { isMockMode } from '../dev/mockMode'
-import { MOCK_USERS } from '../dev/mockUsers'
 import { getSupabaseClient } from '../lib/supabase'
 
 export interface UserAccesoCentro {
@@ -12,10 +10,6 @@ export interface UserAccesoCentro {
 }
 
 export async function tieneAccesoCentroCria(userId: string): Promise<boolean> {
-  if (isMockMode()) {
-    const u = MOCK_USERS.find((x) => x.id === userId)
-    return u?.accesosCentroC ?? false
-  }
   // Supabase: lee la columna acceso_centro_cria de membresia
   const supabase = getSupabaseClient()
   const { data } = await supabase
@@ -30,10 +24,6 @@ export async function tieneAccesoCentroCria(userId: string): Promise<boolean> {
 // Veterinarios son usuarios globales sin membresía — su acceso al Centro de
 // Embriones lo otorga/deniega el superadmin directamente sobre usuario.acceso_centro_cria
 export async function tieneAccesoCentroCriaVeterinario(userId: string): Promise<boolean> {
-  if (isMockMode()) {
-    const u = MOCK_USERS.find((x) => x.id === userId)
-    return u?.accesosCentroC ?? false
-  }
   const supabase = getSupabaseClient()
   const { data } = await supabase
     .from('usuario')
@@ -44,16 +34,6 @@ export async function tieneAccesoCentroCriaVeterinario(userId: string): Promise<
 }
 
 export async function listarAccesosCentroCria(sociedadId: string): Promise<UserAccesoCentro[]> {
-  if (isMockMode()) {
-    return MOCK_USERS.map((u) => ({
-      id: u.id,
-      nombre: u.nombre,
-      apellido: u.apellido,
-      email: u.email,
-      rol: u.rol,
-      tieneAcceso: u.accesosCentroC,
-    }))
-  }
   // Supabase: misma tabla membresia con el campo acceso_centro_cria
   const supabase = getSupabaseClient()
   const { data, error } = await supabase
@@ -84,11 +64,6 @@ export async function actualizarAccesoCentroCria(
   tieneAcceso: boolean,
   sociedadId?: string
 ): Promise<void> {
-  if (isMockMode()) {
-    const u = MOCK_USERS.find((x) => x.id === userId)
-    if (u) u.accesosCentroC = tieneAcceso
-    return
-  }
   // Supabase: actualiza columna acceso_centro_cria en membresia
   const supabase = getSupabaseClient()
   let q = supabase

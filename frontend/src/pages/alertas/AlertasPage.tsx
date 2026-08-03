@@ -74,7 +74,7 @@ export default function AlertasPage() {
       const [a, c] = await Promise.all([
         alertaService.listar({ sociedadId, userId, esVet }),
         esVet
-          ? caballoService.listarDelVeterinario(userId)
+          ? caballoService.listarDelVeterinario()
           : caballoService.listar(sociedadId!),
       ])
       setAlertas(a)

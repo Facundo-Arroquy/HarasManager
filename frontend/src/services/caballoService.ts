@@ -1,16 +1,6 @@
 import { getSupabaseClient } from '../lib/supabase'
-import { isMockMode, getMockUserId } from '../dev/mockMode'
-import { getMockUser } from '../dev/mockUsers'
-import { MOCK_SOCIEDAD } from '../dev/mockUsers'
-import { MOCK_CABALLOS, MOCK_ACCESOS_VET, MOCK_RAZAS, MOCK_PELAJES, MOCK_SOCIEDADES } from '../dev/mockData'
 import type { BulkCaballoPayload } from '../utils/importarCaballos'
 import { tagService, type Tag } from './tagService'
-
-// Lookup de nombre de empresa por sociedad_id (mock)
-function getEmpresaNombre(sociedadId: string): string {
-  if (sociedadId === MOCK_SOCIEDAD.id) return MOCK_SOCIEDAD.nombre
-  return MOCK_SOCIEDADES.find((s) => s.id === sociedadId)?.nombre ?? 'Empresa desconocida'
-}
 
 export type Subcategoria = 'Donante' | 'Receptora'
 
@@ -113,19 +103,7 @@ export interface NuevoCaballoPayload {
 
 export const caballoService = {
   /** Todos los caballos del vet, a través de todas las empresas en que tiene acceso */
-  async listarDelVeterinario(vetId: string): Promise<Caballo[]> {
-    if (isMockMode()) {
-      const accesos = MOCK_ACCESOS_VET.filter((a) => a.vet_id === vetId && a.activo)
-      const ids     = new Set(accesos.map((a) => a.caballo_id))
-      return MOCK_CABALLOS
-        .filter((c) => c.activo && ids.has(c.id))
-        .map((c) => ({
-          ...c,
-          empresa_id:     c.sociedad_id,
-          empresa_nombre: getEmpresaNombre(c.sociedad_id),
-        }))
-    }
-
+  async listarDelVeterinario(): Promise<Caballo[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.rpc('get_caballos_veterinario')
     if (error) throw error
@@ -186,21 +164,6 @@ export const caballoService = {
   },
 
   async listar(sociedadId: string): Promise<Caballo[]> {
-    if (isMockMode()) {
-      const mockUser = getMockUser(getMockUserId())
-      let all = MOCK_CABALLOS.filter((c) => c.sociedad_id === sociedadId && c.activo)
-
-      if (mockUser.rol === 'veterinario') {
-        all = all.filter((c) =>
-          MOCK_ACCESOS_VET.some(
-            (a) => a.vet_id === mockUser.id && a.activo && a.caballo_id === c.id
-          )
-        )
-      }
-
-      return all
-    }
-
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('caballo')
@@ -223,9 +186,6 @@ export const caballoService = {
 
   /** Caballos dados de baja (inactivos) de la sociedad. */
   async listarDadosDeBaja(sociedadId: string): Promise<Caballo[]> {
-    if (isMockMode()) {
-      return MOCK_CABALLOS.filter((c) => c.sociedad_id === sociedadId && !c.activo)
-    }
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('caballo')
@@ -247,12 +207,6 @@ export const caballoService = {
   },
 
   async obtener(id: string) {
-    if (isMockMode()) {
-      const caballo = MOCK_CABALLOS.find((c) => c.id === id)
-      if (!caballo) throw new Error('Caballo no encontrado')
-      return caballo
-    }
-
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('caballo')
@@ -300,32 +254,6 @@ export const caballoService = {
   },
 
   async crear(payload: NuevoCaballoPayload, sociedadId: string) {
-    if (isMockMode()) {
-      const { MOCK_CAMPOS } = await import('../dev/mockData')
-      const raza   = MOCK_RAZAS.find((r) => r.id === payload.raza_id)
-      const pelaje = MOCK_PELAJES.find((p) => p.id === payload.pelaje_id)
-      const campo  = payload.campo_id ? MOCK_CAMPOS.find((c) => c.id === payload.campo_id) : null
-      const nuevo = {
-        id: `cab-${Date.now()}`,
-        nombre: payload.nombre,
-        fecha_nacimiento: payload.fecha_nacimiento ?? null,
-        categoria: payload.categoria,
-        rol_reproductivo: payload.rol_reproductivo ?? null,
-        raza_id: payload.raza_id ?? null,
-        pelaje_id: payload.pelaje_id ?? null,
-        numero_chip: payload.numero_chip ?? '',
-        numero_registro: payload.numero_registro ?? '',
-        sociedad_id: sociedadId,
-        campo_id: payload.campo_id ?? null,
-        activo: true,
-        cat_raza:  raza   ? { nombre: raza.nombre }   : null,
-        cat_pelaje: pelaje ? { nombre: pelaje.nombre } : null,
-        campo: campo ? { nombre: campo.nombre } : null,
-      }
-      MOCK_CABALLOS.push(nuevo)
-      return nuevo
-    }
-
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('caballo')
@@ -352,34 +280,6 @@ export const caballoService = {
   },
 
   async actualizar(id: string, payload: ActualizarCaballoPayload): Promise<void> {
-    if (isMockMode()) {
-      const { MOCK_CAMPOS } = await import('../dev/mockData')
-      const caballo = MOCK_CABALLOS.find((c) => c.id === id)
-      if (!caballo) return
-      const raza   = MOCK_RAZAS.find((r) => r.id === payload.raza_id)
-      const pelaje = MOCK_PELAJES.find((p) => p.id === payload.pelaje_id)
-      const campo  = payload.campo_id ? MOCK_CAMPOS.find((c) => c.id === payload.campo_id) : null
-      Object.assign(caballo, {
-        nombre:           payload.nombre,
-        fecha_nacimiento: payload.fecha_nacimiento,
-        categoria:        payload.categoria,
-        rol_reproductivo: payload.rol_reproductivo ?? null,
-        raza_id:          payload.raza_id,
-        pelaje_id:        payload.pelaje_id,
-        numero_chip:      payload.numero_chip ?? '',
-        numero_registro:  payload.numero_registro ?? '',
-        campo_id:         payload.campo_id ?? null,
-        cat_raza:         raza   ? { nombre: raza.nombre }   : null,
-        cat_pelaje:       pelaje ? { nombre: pelaje.nombre } : null,
-        campo:            campo  ? { nombre: campo.nombre }  : null,
-        padre_id:         payload.padre_id    ?? null,
-        padre_nombre:     payload.padre_nombre ?? null,
-        madre_id:         payload.madre_id    ?? null,
-        madre_nombre:     payload.madre_nombre ?? null,
-      })
-      return
-    }
-
     const supabase = getSupabaseClient()
     const update: Record<string, unknown> = {
       nombre:           payload.nombre,
@@ -411,24 +311,6 @@ export const caballoService = {
     ids: string[],
     cambios: { campo_id?: string | null; categoria?: string; rol_reproductivo?: string | null; prenada?: boolean | null }
   ): Promise<void> {
-    if (isMockMode()) {
-      const { MOCK_CAMPOS } = await import('../dev/mockData')
-      for (const id of ids) {
-        const caballo = MOCK_CABALLOS.find((c) => c.id === id)
-        if (!caballo) continue
-        if ('campo_id' in cambios) {
-          const campo = cambios.campo_id
-            ? MOCK_CAMPOS.find((c) => c.id === cambios.campo_id)
-            : null
-          caballo.campo_id = cambios.campo_id ?? null
-          caballo.campo = campo ? { nombre: campo.nombre } : null
-        }
-        if (cambios.categoria)                  caballo.categoria        = cambios.categoria
-        if ('rol_reproductivo' in cambios)       caballo.rol_reproductivo = cambios.rol_reproductivo ?? null
-      }
-      return
-    }
-
     const supabase = getSupabaseClient()
     const update: Record<string, unknown> = {}
     if ('campo_id' in cambios)         update.campo_id         = cambios.campo_id ?? null
@@ -452,9 +334,6 @@ export const caballoService = {
   },
 
   async actualizarComoVet(id: string, payload: ActualizarCaballoPayload): Promise<void> {
-    if (isMockMode()) {
-      return caballoService.actualizar(id, payload)
-    }
     const supabase = getSupabaseClient()
     const { error } = await supabase.rpc('actualizar_caballo_veterinario', {
       p_caballo_id:       id,
@@ -475,12 +354,6 @@ export const caballoService = {
   },
 
   async darDeBaja(id: string): Promise<void> {
-    if (isMockMode()) {
-      const caballo = MOCK_CABALLOS.find((c) => c.id === id)
-      if (caballo) caballo.activo = false
-      return
-    }
-
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from('caballo')
@@ -538,44 +411,6 @@ export const caballoService = {
         return true
       })
       return { nuevos, omitidos }
-    }
-
-    if (isMockMode()) {
-      const { MOCK_CAMPOS } = await import('../dev/mockData')
-      const rpExist = new Set<string>()
-      const nomExist = new Set<string>()
-      for (const c of MOCK_CABALLOS.filter((c) => c.sociedad_id === sociedadId && c.activo)) {
-        const rp = c.numero_registro?.trim().toLowerCase()
-        if (rp) rpExist.add(rp)
-        else nomExist.add(c.nombre.trim().toLowerCase())
-      }
-      const { nuevos, omitidos } = filtrarNuevos(rpExist, nomExist)
-      let insertados = 0
-      for (let i = 0; i < nuevos.length; i++) {
-        const p = nuevos[i]
-        const raza   = MOCK_RAZAS.find((r) => r.id === p.raza_id)
-        const pelaje = MOCK_PELAJES.find((pl) => pl.id === p.pelaje_id)
-        const campo  = p.campo_id ? MOCK_CAMPOS.find((c) => c.id === p.campo_id) : null
-        MOCK_CABALLOS.push({
-          id:              `cab-${Date.now()}-${i}`,
-          nombre:          p.nombre,
-          fecha_nacimiento: p.fecha_nacimiento ?? '',
-          categoria:       p.categoria,
-          rol_reproductivo: p.rol_reproductivo ?? null,
-          raza_id:         p.raza_id,
-          pelaje_id:       p.pelaje_id,
-          numero_chip:     p.numero_chip ?? '',
-          numero_registro: p.numero_registro ?? '',
-          sociedad_id:     sociedadId,
-          campo_id:        p.campo_id ?? null,
-          activo:          true,
-          cat_raza:        raza   ? { nombre: raza.nombre }   : null,
-          cat_pelaje:      pelaje ? { nombre: pelaje.nombre } : null,
-          campo:           campo  ? { nombre: campo.nombre }  : null,
-        })
-        insertados++
-      }
-      return { insertados, errores: [], omitidos }
     }
 
     const supabase = getSupabaseClient()

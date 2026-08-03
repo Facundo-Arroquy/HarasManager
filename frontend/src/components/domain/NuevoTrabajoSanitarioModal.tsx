@@ -46,7 +46,7 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
       if (!user?.id) return
       Promise.all([
         sanidadService.listarCatalogoGlobales(),
-        caballoService.listarDelVeterinario(user.id),
+        caballoService.listarDelVeterinario(),
       ])
         .then(([cat, cabs]) => { setCatalogo(cat); setCaballos(cabs); setCampos([]) })
         .catch((e) => setError(mensajeError(e, 'Error al cargar datos')))

@@ -107,7 +107,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
     const cargarCaballos = caballoId
       ? Promise.resolve([] as { id: string; nombre: string; marca_nombre?: string }[])
       : rol === 'veterinario' && user?.id
-        ? caballoService.listarDelVeterinario(user.id).then((data) =>
+        ? caballoService.listarDelVeterinario().then((data) =>
             data
               .map((c) => ({ id: c.id, nombre: nombreCaballo(c), marca_nombre: c.empresa_nombre ?? c.propietario_nombre ?? 'Desconocido' }))
               .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
@@ -203,7 +203,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
         }))
 
       if (entryToEdit) {
-        await historialService.actualizar(entryToEdit.id, selCaballoId, {
+        await historialService.actualizar(entryToEdit.id, {
           tipoConsultaId:  Number(tipoConsultaId),
           fechaConsulta:   new Date(fechaConsulta).toISOString(),
           diagnostico:     diagnostico   || undefined,

@@ -3,11 +3,7 @@ import { ArrowLeftRight, CheckSquare, Square, AlertTriangle, CheckCircle2, FileT
 import { useAuth } from '../../hooks/useAuth'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import type { HistorialEntry } from '../../components/domain/HistorialCard'
-import {
-  transferEmpresaService,
-  type SociedadItem,
-  type TransferenciaEmpresa,
-} from '../../services/transferEmpresaService'
+import { transferEmpresaService, type SociedadItem } from '../../services/transferEmpresaService'
 import { historialService } from '../../services/historialService'
 import { crianzaService } from '../../services/crianzaService'
 import { generarFichaHtml } from '../../utils/exportarFichaCaballo'
@@ -23,7 +19,6 @@ export default function TransferirEmpresaPage() {
 
   const [caballos, setCaballos] = useState<Caballo[]>([])
   const [sociedades, setSociedades] = useState<SociedadItem[]>([])
-  const [historial, setHistorial] = useState<TransferenciaEmpresa[]>([])
   const [fichasHistoricas, setFichasHistoricas] = useState<FichaHistorica[]>([])
 
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
@@ -38,15 +33,13 @@ export default function TransferirEmpresaPage() {
 
   const cargarDatos = useCallback(async () => {
     if (!sociedadId) return
-    const [listaCaballos, listaSociedades, listaHistorial, listaFichas] = await Promise.all([
+    const [listaCaballos, listaSociedades, listaFichas] = await Promise.all([
       caballoService.listar(sociedadId),
       transferEmpresaService.listarSociedades(sociedadId),
-      transferEmpresaService.listarHistorial(sociedadId),
       fichaHistoricaService.listar(sociedadId),
     ])
     setCaballos(listaCaballos)
     setSociedades(listaSociedades)
-    setHistorial(listaHistorial)
     setFichasHistoricas(listaFichas)
   }, [sociedadId])
 
@@ -107,7 +100,6 @@ export default function TransferirEmpresaPage() {
 
             await fichaHistoricaService.guardar({
               caballoId: caballo.id,
-              nombre: caballo.nombre,
               sociedadId,
               html,
             })
@@ -122,16 +114,13 @@ export default function TransferirEmpresaPage() {
       // 2. Ejecutar la transferencia
       setSavingStep('Transfiriendo caballos…')
       const sociedadDest = sociedades.find((s) => s.id === sociedadDestinoId)
-      await transferEmpresaService.transferir(
-        {
-          caballoIds: Array.from(seleccionados),
-          tipo,
-          sociedadDestinoId: tipo === 'registrada' ? sociedadDestinoId : undefined,
-          sociedadDestinoNombre: tipo === 'registrada' ? sociedadDest?.nombre : undefined,
-          entidadNombre: tipo === 'no_registrada' ? entidadNombre.trim() : undefined,
-        },
-        sociedadId
-      )
+      await transferEmpresaService.transferir({
+        caballoIds: Array.from(seleccionados),
+        tipo,
+        sociedadDestinoId: tipo === 'registrada' ? sociedadDestinoId : undefined,
+        sociedadDestinoNombre: tipo === 'registrada' ? sociedadDest?.nombre : undefined,
+        entidadNombre: tipo === 'no_registrada' ? entidadNombre.trim() : undefined,
+      })
 
       setExito(
         `${seleccionados.size} caballo${seleccionados.size > 1 ? 's' : ''} transferido${seleccionados.size > 1 ? 's' : ''} correctamente. Se guardó la ficha histórica de cada animal.`
@@ -322,51 +311,6 @@ export default function TransferirEmpresaPage() {
             </button>
           </div>
         )}
-
-        {/* Historial de transferencias */}
-        <div>
-          <p className="text-xs font-medium uppercase tracking-widest text-slate-400 mb-3">
-            Historial de transferencias
-          </p>
-          {historial.length === 0 ? (
-            <p className="text-sm text-slate-400">Sin transferencias registradas.</p>
-          ) : (
-            <ul className="space-y-2">
-              {historial.map((t) => {
-                const fecha = new Date(t.fecha).toLocaleDateString('es-AR', {
-                  day: '2-digit',
-                  month: '2-digit',
-                })
-                const destino =
-                  t.tipo === 'registrada'
-                    ? t.sociedadDestinoNombre ?? t.sociedadDestinoId
-                    : t.entidadNombre
-                return (
-                  <li
-                    key={t.id}
-                    className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3"
-                  >
-                    <ArrowLeftRight size={14} className="mt-0.5 shrink-0 text-slate-400" />
-                    <div className="min-w-0">
-                      <p className="text-sm text-slate-700">
-                        <span className="font-medium">{fecha}</span>
-                        {' · '}
-                        {t.caballoNombres.length === 1
-                          ? t.caballoNombres[0]
-                          : `${t.caballoNombres.length} caballos`}
-                        {' → '}
-                        <span className="text-slate-600">{destino}</span>
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {t.tipo === 'registrada' ? 'Empresa registrada' : 'Entidad no registrada'}
-                      </p>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
 
         {/* Fichas históricas guardadas */}
         {fichasHistoricas.length > 0 && (

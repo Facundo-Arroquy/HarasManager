@@ -136,7 +136,7 @@ export default function CaballosPage() {
     setLoading(true)
     try {
       if (esVet && userId) {
-        const c = await caballoService.listarDelVeterinario(userId)
+        const c = await caballoService.listarDelVeterinario()
         setCaballos(c)
         setCampos([])
       } else {

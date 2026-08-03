@@ -1,6 +1,3 @@
-import { isMockMode } from '../dev/mockMode'
-import { MOCK_MEMBRESIAS, MOCK_CABALLOS, MOCK_CAMPOS, MOCK_SOCIEDADES } from '../dev/mockData'
-import { MOCK_SOCIEDAD, MOCK_USERS } from '../dev/mockUsers'
 import { getSupabaseClient } from '../lib/supabase'
 
 export interface EmpresaStats {
@@ -41,43 +38,12 @@ export interface VeterinarioAcceso {
   accesoCentroC: boolean
 }
 
-// ── Estado mutable mock ────────────────────────────────────────────────────────
-
-let membresias = MOCK_MEMBRESIAS.map((m) => ({ ...m }))
-
-let sociedades: Array<{ id: string; nombre: string; accesosCentroC: boolean }> = [
-  { id: MOCK_SOCIEDAD.id, nombre: MOCK_SOCIEDAD.nombre, accesosCentroC: MOCK_SOCIEDAD.acceso_centro_cria },
-  ...MOCK_SOCIEDADES.map((s) => ({ id: s.id, nombre: s.nombre, accesosCentroC: s.acceso_centro_cria })),
-]
-
-const veterinarios: VeterinarioAcceso[] = MOCK_USERS
-  .filter((u) => u.rol === 'veterinario')
-  .map((u) => ({
-    id: u.id,
-    nombre: u.nombre,
-    apellido: u.apellido,
-    email: u.email,
-    activo: true,
-    accesoCentroC: u.accesosCentroC,
-  }))
-
 // ── Servicio ──────────────────────────────────────────────────────────────────
 
 export const superAdminService = {
   // ── Empresas ─────────────────────────────────────────────────────────────────
 
   async listarEmpresas(): Promise<EmpresaStats[]> {
-    if (isMockMode()) {
-      return sociedades.map((soc) => ({
-        id: soc.id,
-        nombre: soc.nombre,
-        cantidadCaballos: MOCK_CABALLOS.filter((c) => c.sociedad_id === soc.id && c.activo).length,
-        cantidadUsuarios: membresias.filter((m) => m.sociedad_id === soc.id).length,
-        cantidadCampos: MOCK_CAMPOS.filter((c) => c.sociedad_id === soc.id).length,
-        accesosCentroC: soc.accesosCentroC,
-      }))
-    }
-
     const supabase = getSupabaseClient()
     const { data: socs, error } = await supabase
       .from('sociedad')
@@ -106,12 +72,6 @@ export const superAdminService = {
   },
 
   async crearEmpresa(nombre: string): Promise<EmpresaStats> {
-    if (isMockMode()) {
-      const nueva = { id: `soc-${Date.now()}`, nombre: nombre.trim(), accesosCentroC: false }
-      sociedades = [...sociedades, nueva]
-      return { ...nueva, cantidadCaballos: 0, cantidadUsuarios: 0, cantidadCampos: 0 }
-    }
-
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('sociedad')
@@ -123,12 +83,6 @@ export const superAdminService = {
   },
 
   async eliminarEmpresa(sociedadId: string): Promise<void> {
-    if (isMockMode()) {
-      sociedades = sociedades.filter((s) => s.id !== sociedadId)
-      membresias = membresias.filter((m) => m.sociedad_id !== sociedadId)
-      return
-    }
-
     const supabase = getSupabaseClient()
     // Soft delete: desactivar empresa y sus membresías
     await supabase.from('membresia').update({ activa: false }).eq('sociedad_id', sociedadId)
@@ -139,21 +93,6 @@ export const superAdminService = {
   // ── Usuarios ─────────────────────────────────────────────────────────────────
 
   async listarUsuariosPorEmpresa(sociedadId: string): Promise<UsuarioEmpresa[]> {
-    if (isMockMode()) {
-      return membresias
-        .filter((m) => m.sociedad_id === sociedadId)
-        .map((m) => ({
-          id: m.id,
-          usuario_id: m.usuario_id,
-          nombre: m.usuario.nombre,
-          apellido: m.usuario.apellido,
-          email: m.usuario.email,
-          rol: m.rol,
-          activo: m.activo,
-          accesosCentroC: m.accesosCentroC,
-        }))
-    }
-
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('membresia')
@@ -185,27 +124,6 @@ export const superAdminService = {
   },
 
   async crearUsuario(sociedadId: string, payload: NuevoUsuarioPayload): Promise<void> {
-    if (isMockMode()) {
-      const id = `m-${Date.now()}`
-      membresias = [
-        ...membresias,
-        {
-          id,
-          usuario_id: `usr-${Date.now()}`,
-          sociedad_id: sociedadId,
-          rol: payload.rol,
-          activo: true,
-          accesosCentroC: payload.accesosCentroC,
-          usuario: {
-            nombre: payload.nombre.trim(),
-            apellido: payload.apellido.trim(),
-            email: payload.email.trim(),
-          },
-        },
-      ]
-      return
-    }
-
     const supabase = getSupabaseClient()
     const { error } = await supabase.functions.invoke('create-user', {
       body: {
@@ -222,23 +140,12 @@ export const superAdminService = {
   },
 
   async eliminarUsuario(membresiaId: string): Promise<void> {
-    if (isMockMode()) {
-      membresias = membresias.filter((m) => m.id !== membresiaId)
-      return
-    }
-
     const supabase = getSupabaseClient()
     const { error } = await supabase.from('membresia').delete().eq('id', membresiaId)
     if (error) throw error
   },
 
   async cambiarRol(membresiaId: string, nuevoRol: string): Promise<void> {
-    if (isMockMode()) {
-      const m = membresias.find((x) => x.id === membresiaId)
-      if (m) m.rol = nuevoRol
-      return
-    }
-
     const supabase = getSupabaseClient()
     const { data: catRol, error: rolError } = await supabase
       .from('cat_rol')
@@ -255,12 +162,6 @@ export const superAdminService = {
   },
 
   async toggleAccesosCentroC(membresiaId: string, valor: boolean): Promise<void> {
-    if (isMockMode()) {
-      const m = membresias.find((x) => x.id === membresiaId)
-      if (m) m.accesosCentroC = valor
-      return
-    }
-
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from('membresia')
@@ -270,12 +171,6 @@ export const superAdminService = {
   },
 
   async toggleActivo(membresiaId: string, valor: boolean): Promise<void> {
-    if (isMockMode()) {
-      const m = membresias.find((x) => x.id === membresiaId)
-      if (m) m.activo = valor
-      return
-    }
-
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from('membresia')
@@ -285,12 +180,6 @@ export const superAdminService = {
   },
 
   async toggleAccesoCentroCOrg(sociedadId: string, valor: boolean): Promise<void> {
-    if (isMockMode()) {
-      const s = sociedades.find((x) => x.id === sociedadId)
-      if (s) s.accesosCentroC = valor
-      return
-    }
-
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from('sociedad')
@@ -305,10 +194,6 @@ export const superAdminService = {
   // de Embriones igual que con las empresas, pero a nivel de usuario.
 
   async listarVeterinarios(): Promise<VeterinarioAcceso[]> {
-    if (isMockMode()) {
-      return veterinarios.map((v) => ({ ...v }))
-    }
-
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('usuario')
@@ -331,12 +216,6 @@ export const superAdminService = {
   },
 
   async toggleAccesoCentroCVeterinario(usuarioId: string, valor: boolean): Promise<void> {
-    if (isMockMode()) {
-      const v = veterinarios.find((x) => x.id === usuarioId)
-      if (v) v.accesoCentroC = valor
-      return
-    }
-
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from('usuario')
@@ -348,10 +227,6 @@ export const superAdminService = {
   // ── Helpers ───────────────────────────────────────────────────────────────────
 
   async getTodasEmpresas(): Promise<Array<{ id: string; nombre: string }>> {
-    if (isMockMode()) {
-      return [...sociedades]
-    }
-
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('sociedad')

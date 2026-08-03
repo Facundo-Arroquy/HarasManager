@@ -18,7 +18,7 @@ export default function TransferirVetPage() {
 
   useEffect(() => {
     Promise.all([
-      caballoService.listarDelVeterinario(''),
+      caballoService.listarDelVeterinario(),
       transferEmpresaService.listarTodasSociedades(),
     ])
       .then(([cabs, socs]) => {

@@ -1,5 +1,4 @@
 import { getSupabaseClient } from '../lib/supabase'
-import { isMockMode } from '../dev/mockMode'
 
 export type LeadEstado =
   | 'nuevo'
@@ -50,7 +49,6 @@ export interface LeadCompleto {
 }
 
 export async function insertarLead(data: LeadInput): Promise<void> {
-  if (isMockMode()) return
   const supabase = getSupabaseClient()
   const { error } = await supabase
     .from('lead')

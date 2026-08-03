@@ -14,9 +14,6 @@ export interface Tag {
   activo: boolean
 }
 
-/** Tag que se asigna a caballos destinados o usados para juego/deporte. */
-export const TAG_JUGADOR = 'Jugador'
-
 /**
  * Categorías que admiten tags: todas.
  * "Asignable a caballos y yeguas" se lee como cualquier equino, macho o
