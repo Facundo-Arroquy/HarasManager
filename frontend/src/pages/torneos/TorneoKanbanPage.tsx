@@ -331,7 +331,7 @@ export default function TorneoKanbanPage() {
                 onChange={(e) => setNuevoJugador(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleAgregarJugador() }}
                 placeholder="Nombre"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-400"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 outline-none focus:border-brand-400"
               />
               <button
                 onClick={handleAgregarJugador}

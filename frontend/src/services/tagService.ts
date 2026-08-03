@@ -61,6 +61,35 @@ export const tagService = {
     return (await this.porCaballos([caballoId])).get(caballoId) ?? []
   },
 
+  /**
+   * Pone o saca un tag en varios caballos de una. Usado por la edición masiva
+   * del panel de caballos: es la forma práctica de marcar los animales que van
+   * a un torneo sin abrir la ficha de cada uno.
+   */
+  async asignarMasivo(caballoIds: string[], tagId: number, asignar: boolean): Promise<void> {
+    if (caballoIds.length === 0) return
+    const supabase = getSupabaseClient()
+
+    if (!asignar) {
+      const { error } = await supabase
+        .from('caballo_tag')
+        .delete()
+        .in('caballo_id', caballoIds)
+        .eq('tag_id', tagId)
+      if (error) throw error
+      return
+    }
+
+    // Los caballos que ya tenían el tag se ignoran en vez de fallar por PK.
+    const { error } = await supabase
+      .from('caballo_tag')
+      .upsert(
+        caballoIds.map((caballo_id) => ({ caballo_id, tag_id: tagId })),
+        { onConflict: 'caballo_id,tag_id', ignoreDuplicates: true },
+      )
+    if (error) throw error
+  },
+
   /** Reemplaza los tags del caballo por la lista recibida. */
   async guardar(caballoId: string, tagIds: number[]): Promise<void> {
     const supabase = getSupabaseClient()

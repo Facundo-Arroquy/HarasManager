@@ -9,6 +9,7 @@ import CaballoCard from '../../components/domain/CaballoCard'
 import CaballoGridCard from '../../components/domain/CaballoGridCard'
 import CaballoDetalleModal from '../../components/domain/CaballoDetalleModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
+import { tagService, type Tag } from '../../services/tagService'
 import { textoBusquedaCaballo } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
@@ -103,6 +104,10 @@ export default function CaballosPage() {
   const [bulkSubcategoria, setBulkSubcategoria] = useState(SIN_CAMBIO)
   const [bulkPrenada,      setBulkPrenada]      = useState(SIN_CAMBIO)
   const [bulkSaving,       setBulkSaving]       = useState(false)
+  // Tags disponibles (hoy solo "Jugador") y qué hacer con cada uno en la
+  // edición masiva: tag_id → SIN_CAMBIO | 'true' (poner) | 'false' (sacar).
+  const [tags,     setTags]     = useState<Tag[]>([])
+  const [bulkTags, setBulkTags] = useState<Record<number, string>>({})
 
   const salirModoSeleccion = useCallback(() => {
     setModoSeleccion(false)
@@ -111,6 +116,7 @@ export default function CaballosPage() {
     setBulkCategoria(SIN_CAMBIO)
     setBulkSubcategoria(SIN_CAMBIO)
     setBulkPrenada(SIN_CAMBIO)
+    setBulkTags({})
   }, [])
 
   const toggleSeleccion = useCallback((id: string) => {
@@ -159,6 +165,12 @@ export default function CaballosPage() {
 
   useEffect(() => { cargar() }, [sociedadId, userId, esVet]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // El catálogo de tags no depende de la sociedad; si falla, la edición masiva
+  // sigue andando sin la columna de tags.
+  useEffect(() => {
+    tagService.listar().then(setTags).catch(() => setTags([]))
+  }, [])
+
   // Cerrar dropdowns al hacer click fuera
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -171,9 +183,11 @@ export default function CaballosPage() {
   }, [])
 
   // ── Edición masiva ────────────────────────────────────────────────────────
+  const hayBulkTags = Object.values(bulkTags).some((v) => v !== SIN_CAMBIO)
+
   const hayBulkCambios =
     bulkCampoId !== SIN_CAMBIO || bulkCategoria !== SIN_CAMBIO ||
-    bulkSubcategoria !== SIN_CAMBIO || bulkPrenada !== SIN_CAMBIO
+    bulkSubcategoria !== SIN_CAMBIO || bulkPrenada !== SIN_CAMBIO || hayBulkTags
 
   async function aplicarEdicionMasiva() {
     if (!hayBulkCambios || seleccionados.size === 0) return
@@ -188,7 +202,18 @@ export default function CaballosPage() {
         cambios.rol_reproductivo = bulkSubcategoria === '' ? null : bulkSubcategoria
       if (bulkPrenada !== SIN_CAMBIO)
         cambios.prenada = bulkPrenada === 'true'
-      await caballoService.editarMasivo(Array.from(seleccionados), cambios)
+
+      const ids = Array.from(seleccionados)
+      // Los tags viven en `caballo_tag`, no en columnas de `caballo`: si el
+      // único cambio es un tag, no hay update de la tabla que hacer.
+      if (Object.keys(cambios).length > 0) {
+        await caballoService.editarMasivo(ids, cambios)
+      }
+      for (const [tagId, valor] of Object.entries(bulkTags)) {
+        if (valor === SIN_CAMBIO) continue
+        await tagService.asignarMasivo(ids, Number(tagId), valor === 'true')
+      }
+
       await cargar()
       salirModoSeleccion()
     } finally {
@@ -704,6 +729,23 @@ export default function CaballosPage() {
                   <option value="false">No</option>
                 </select>
               </div>
+
+              {tags.map((tag) => (
+                <div key={tag.id} className="sm:flex-1 sm:min-w-[120px]">
+                  <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">
+                    Tag {tag.nombre}
+                  </label>
+                  <select
+                    value={bulkTags[tag.id] ?? SIN_CAMBIO}
+                    onChange={(e) => setBulkTags((prev) => ({ ...prev, [tag.id]: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none"
+                  >
+                    <option value={SIN_CAMBIO}>— Sin cambio —</option>
+                    <option value="true">Poner</option>
+                    <option value="false">Sacar</option>
+                  </select>
+                </div>
+              ))}
 
               <button
                 onClick={aplicarEdicionMasiva}
