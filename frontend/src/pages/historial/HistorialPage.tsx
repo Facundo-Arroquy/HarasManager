@@ -572,7 +572,6 @@ export default function HistorialPage() {
       {showEditar && caballo && (
         <EditarCaballoModal
           caballo={caballo}
-          caballos={todosCaballos}
           vetMode={rol === 'veterinario'}
           onClose={() => setShowEditar(false)}
           onSuccess={() => {

@@ -385,3 +385,22 @@ export interface CaballoReproductivo {
   recordatorios_hoy?:  RecordatorioCria[]
   dias_post_ov?:       number | null     // null = no hay OV reciente
 }
+
+// ---------------------------------------------------------------------------
+// Ranking de padrillos preferidos por donante — migración 20260802120200
+// Definición de Gero (2026-08-02): hasta 10 padrillos por donante, ordenados
+// por prioridad (1 = más recomendado, 10 = menos recomendado). La lista es del
+// establecimiento y la arman admin o veterinario.
+// ---------------------------------------------------------------------------
+
+/** Tope de padrillos que admite el ranking de una donante. */
+export const MAX_PADRILLOS_RANKING = 10
+
+export interface PadrilloPreferido {
+  id:          string
+  donante_id:  string
+  padrillo_id: string
+  prioridad:   number
+  // join opcional
+  padrillo?:   { nombre: string } | null
+}

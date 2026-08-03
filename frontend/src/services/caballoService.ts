@@ -4,6 +4,7 @@ import { getMockUser } from '../dev/mockUsers'
 import { MOCK_SOCIEDAD } from '../dev/mockUsers'
 import { MOCK_CABALLOS, MOCK_ACCESOS_VET, MOCK_RAZAS, MOCK_PELAJES, MOCK_SOCIEDADES } from '../dev/mockData'
 import type { BulkCaballoPayload } from '../utils/importarCaballos'
+import { tagService, type Tag } from './tagService'
 
 // Lookup de nombre de empresa por sociedad_id (mock)
 function getEmpresaNombre(sociedadId: string): string {
@@ -37,9 +38,31 @@ export interface Caballo {
   madre_id?: string | null
   madre_nombre?: string | null
   propietario_nombre?: string | null
+  tags?: Tag[]
   // Presentes solo cuando el listado viene del veterinario (multi-empresa)
   empresa_id?: string | null
   empresa_nombre?: string | null
+}
+
+/** Referencia mínima para los combos de padre/madre — incluye dados de baja. */
+export interface CaballoPedigree {
+  id:        string
+  nombre:    string
+  categoria: string
+  activo:    boolean
+}
+
+/** Categorías que pueden figurar como padre / madre en el pedigree. */
+export const CATEGORIAS_PADRE = ['Caballo', 'Padrillo']
+export const CATEGORIAS_MADRE = ['Yegua']
+
+/** Fila cruda de `caballo_tag(cat_tag(...))` embebida en los selects. */
+type FilaTag = { cat_tag: Tag | null }
+
+function mapearTags(row: { caballo_tag?: FilaTag[] | null }): Tag[] {
+  return (row.caballo_tag ?? [])
+    .map((t) => t.cat_tag)
+    .filter((t): t is Tag => t !== null)
 }
 
 /** Fila cruda que devuelve la RPC `get_caballos_veterinario`. */
@@ -122,6 +145,11 @@ export const caballoService = {
         .forEach((p) => prenMap.set(p.id, { prenada: p.prenada ?? false, fecha_prenez: p.fecha_prenez ?? null }))
     }
 
+    // Los tags no viajan en la RPC — se piden aparte (RLS los filtra igual).
+    const tagsMap = ids.length > 0
+      ? await tagService.porCaballos(ids).catch(() => new Map<string, Tag[]>())
+      : new Map<string, Tag[]>()
+
     return typedRows.map((c) => ({
       ...c,
       prenada:           prenMap.get(c.id)?.prenada      ?? c.prenada      ?? false,
@@ -130,7 +158,31 @@ export const caballoService = {
       cat_pelaje:        c.pelaje_nombre      ? { nombre: c.pelaje_nombre }      : null,
       campo:             c.campo_nombre       ? { nombre: c.campo_nombre }       : null,
       propietario_nombre: c.propietario_nombre ?? null,
+      tags:              tagsMap.get(c.id) ?? [],
     })) as unknown as Caballo[]
+  },
+
+  /**
+   * Caballos elegibles como padre/madre. A diferencia de `listar`, incluye los
+   * dados de baja: el pedigree es histórico y un progenitor puede estar muerto.
+   */
+  async listarParaPedigree(sociedadId: string): Promise<CaballoPedigree[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('caballo')
+      .select('id, nombre, categoria, activo')
+      .eq('sociedad_id', sociedadId)
+      .order('nombre')
+    if (error) throw error
+    return (data ?? []) as CaballoPedigree[]
+  },
+
+  /** Ídem para el vet: `get_caballos_veterinario` filtra los inactivos. */
+  async listarParaPedigreeVet(): Promise<CaballoPedigree[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('get_caballos_pedigree_vet')
+    if (error) throw error
+    return (data ?? []) as CaballoPedigree[]
   },
 
   async listar(sociedadId: string): Promise<Caballo[]> {
@@ -158,13 +210,15 @@ export const caballoService = {
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
         cat_pelaje(nombre),
-        campo(nombre)
+        campo(nombre),
+        caballo_tag(cat_tag(id, nombre, color, activo))
       `)
       .eq('sociedad_id', sociedadId)
       .eq('activo', true)
       .order('nombre')
     if (error) throw error
-    return data as unknown as Caballo[]
+    return ((data ?? []) as unknown as (Caballo & { caballo_tag?: FilaTag[] })[])
+      .map((c) => ({ ...c, tags: mapearTags(c) }))
   },
 
   /** Caballos dados de baja (inactivos) de la sociedad. */
@@ -181,13 +235,15 @@ export const caballoService = {
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
         cat_pelaje(nombre),
-        campo(nombre)
+        campo(nombre),
+        caballo_tag(cat_tag(id, nombre, color, activo))
       `)
       .eq('sociedad_id', sociedadId)
       .eq('activo', false)
       .order('nombre')
     if (error) throw error
-    return data as unknown as Caballo[]
+    return ((data ?? []) as unknown as (Caballo & { caballo_tag?: FilaTag[] })[])
+      .map((c) => ({ ...c, tags: mapearTags(c) }))
   },
 
   async obtener(id: string) {

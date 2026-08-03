@@ -195,7 +195,6 @@ export default function ArbolGenealogico({ caballo, caballos }: Props) {
       {editingCaballo && (
         <EditarCaballoModal
           caballo={editingCaballo}
-          caballos={caballos}
           onClose={() => setEditingCaballo(null)}
           onSuccess={() => setEditingCaballo(null)}
         />

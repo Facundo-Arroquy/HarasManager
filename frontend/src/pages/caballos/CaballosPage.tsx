@@ -623,7 +623,6 @@ export default function CaballosPage() {
       {editando && (
         <EditarCaballoModal
           caballo={editando}
-          caballos={caballos}
           vetMode={esVet}
           onClose={() => setEditando(null)}
           onSuccess={() => { setEditando(null); cargar() }}

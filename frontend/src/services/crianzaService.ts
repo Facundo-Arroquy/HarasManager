@@ -20,6 +20,7 @@ import type {
   CatChipObs,
   NuevoCatChipObsPayload,
   PlazosVet,
+  PadrilloPreferido,
 } from '../types/crianza'
 import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
 
@@ -1006,6 +1007,71 @@ export const crianzaService = {
     const { error } = await supabase
       .from('cria_plazo_vet')
       .upsert({ veterinario_id: veterinarioId, ...plazos }, { onConflict: 'veterinario_id' })
+    if (error) throw error
+  },
+
+  // ── Padrillos familiares — migración 20260802120100 ────────────────────────
+
+  /**
+   * De los padrillos que la UI está mostrando, cuáles son familiares directos
+   * de la donante (2 generaciones) y con qué parentesco.
+   * La regla también está en un trigger de `cria_registro_clinico`: esto es
+   * para poder marcarlos en rojo antes de que el vet intente guardar.
+   */
+  async listarPadrillosFamiliares(
+    donanteId: string,
+    padrilloIds: string[],
+  ): Promise<Record<string, string>> {
+    if (!donanteId || padrilloIds.length === 0) return {}
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('get_padrillos_familiares', {
+      p_donante_id:   donanteId,
+      p_padrillo_ids: padrilloIds,
+    })
+    if (error) throw error
+    return Object.fromEntries(
+      ((data ?? []) as { padrillo_id: string; parentesco: string }[])
+        .map((f) => [f.padrillo_id, f.parentesco]),
+    )
+  },
+
+  // ── Ranking de padrillos por donante — migración 20260802120200 ────────────
+
+  /** Ranking de una donante, ordenado por prioridad (1 = más recomendado). */
+  async listarRankingPadrillos(donanteId: string): Promise<PadrilloPreferido[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_padrillo_preferido')
+      .select('id, donante_id, padrillo_id, prioridad, padrillo:caballo!cria_padrillo_preferido_padrillo_id_fkey(nombre)')
+      .eq('donante_id', donanteId)
+      .order('prioridad')
+    if (error) throw error
+    return ((data ?? []) as unknown as PadrilloPreferido[])
+  },
+
+  /** Rankings de todas las donantes de la sociedad (para el listado de config). */
+  async listarRankingsSociedad(sociedadId: string): Promise<PadrilloPreferido[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_padrillo_preferido')
+      .select('id, donante_id, padrillo_id, prioridad, padrillo:caballo!cria_padrillo_preferido_padrillo_id_fkey(nombre)')
+      .eq('sociedad_id', sociedadId)
+      .order('prioridad')
+    if (error) throw error
+    return ((data ?? []) as unknown as PadrilloPreferido[])
+  },
+
+  /**
+   * Reemplaza el ranking completo de una donante. El orden del array es la
+   * prioridad (índice 0 → prioridad 1). Va por RPC porque el reordenamiento
+   * necesita borrar e insertar en una sola transacción.
+   */
+  async guardarRankingPadrillos(donanteId: string, padrilloIds: string[]): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.rpc('guardar_ranking_padrillos', {
+      p_donante_id:   donanteId,
+      p_padrillo_ids: padrilloIds,
+    })
     if (error) throw error
   },
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Link2Off, X } from 'lucide-react'
-import type { Caballo } from '../../services/caballoService'
+import type { CaballoPedigree } from '../../services/caballoService'
 
 export interface HorseRef {
   id?: string | null
@@ -12,7 +12,11 @@ interface Props {
   placeholder: string
   value: HorseRef
   onChange: (val: HorseRef) => void
-  caballos: Caballo[]
+  /**
+   * Candidatos ya filtrados por sexo. Incluye animales dados de baja: el
+   * pedigree es histórico y un progenitor puede estar muerto.
+   */
+  caballos: CaballoPedigree[]
 }
 
 export default function PedigreeCombobox({ label, placeholder, value, onChange, caballos }: Props) {
@@ -52,7 +56,7 @@ export default function PedigreeCombobox({ label, placeholder, value, onChange, 
     ? caballos.filter((c) => c.nombre.toLowerCase().includes(query.toLowerCase()))
     : caballos
 
-  function selectHorse(c: Caballo) {
+  function selectHorse(c: CaballoPedigree) {
     onChange({ id: c.id, nombre: null })
     setOpen(false)
   }
@@ -131,8 +135,15 @@ export default function PedigreeCombobox({ label, placeholder, value, onChange, 
                     className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-slate-100 transition-colors text-left
                       ${value.id === c.id ? 'text-brand-600' : 'text-slate-600'}`}
                   >
-                    <span>{c.nombre}</span>
-                    <span className="text-xs text-slate-400">{c.categoria}</span>
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="truncate">{c.nombre}</span>
+                      {c.activo === false && (
+                        <span className="shrink-0 rounded px-1 py-0.5 text-[10px] bg-slate-100 text-slate-400 border border-slate-200">
+                          baja
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-xs text-slate-400 shrink-0">{c.categoria}</span>
                   </button>
                 ))
               )}

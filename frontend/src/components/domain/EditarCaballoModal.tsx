@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react'
 import { X, AlertTriangle, GitBranch } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { caballoService, type NuevoCaballoPayload, type Caballo } from '../../services/caballoService'
+import {
+  caballoService,
+  CATEGORIAS_MADRE,
+  CATEGORIAS_PADRE,
+  type NuevoCaballoPayload,
+  type CaballoPedigree,
+} from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
+import { CATEGORIAS_CON_TAGS, tagService } from '../../services/tagService'
 import PedigreeCombobox from './PedigreeCombobox'
+import TagSelector from './TagSelector'
 
 interface CaballoEditProps {
   id: string
@@ -27,19 +35,20 @@ interface Props {
   caballo: CaballoEditProps
   onClose: () => void
   onSuccess: () => void
-  caballos?: Caballo[]
   vetMode?: boolean
 }
 
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
 
-export default function EditarCaballoModal({ caballo, onClose, onSuccess, caballos = [], vetMode = false }: Props) {
+export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMode = false }: Props) {
   const { sociedadActiva, rol } = useAuth()
   const esAdmin = rol === 'admin'
 
   const [razas,   setRazas]   = useState<{ id: number; nombre: string }[]>([])
   const [pelajes, setPelajes] = useState<{ id: number; nombre: string }[]>([])
   const [campos,  setCampos]  = useState<Campo[]>([])
+  const [pedigree, setPedigree] = useState<CaballoPedigree[]>([])
+  const [tagIds,  setTagIds]  = useState<number[]>([])
   const [confirmBaja,   setConfirmBaja]   = useState(false)
 
   const [form, setForm] = useState({
@@ -64,21 +73,43 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
 
+  // Padre: solo machos. Madre: solo yeguas. Se incluyen los dados de baja
+  // porque el pedigree es histórico (definición de Gero).
+  const padresPosibles = pedigree.filter(
+    (c) => c.id !== caballo.id && CATEGORIAS_PADRE.includes(c.categoria),
+  )
+  const madresPosibles = pedigree.filter(
+    (c) => c.id !== caballo.id && CATEGORIAS_MADRE.includes(c.categoria),
+  )
+  const admiteTags = CATEGORIAS_CON_TAGS.includes(form.categoria)
+
   useEffect(() => {
+    const pedigreePromise = vetMode
+      ? caballoService.listarParaPedigreeVet()
+      : sociedadActiva
+        ? caballoService.listarParaPedigree(sociedadActiva.id)
+        : Promise.resolve([])
+
     Promise.all([
       catalogoService.razas(),
       catalogoService.pelajes(),
       sociedadActiva ? campoService.listar(sociedadActiva.id) : Promise.resolve([]),
-    ]).then(([r, p, c]) => {
+      pedigreePromise.catch(() => [] as CaballoPedigree[]),
+    ]).then(([r, p, c, ped]) => {
       setRazas(r)
       setPelajes(p)
       setCampos(c)
+      setPedigree(ped)
       setForm((f) => ({
         ...f,
         raza_id:   f.raza_id   || r[0]?.id || 0,
         pelaje_id: f.pelaje_id || p[0]?.id || 0,
       }))
     })
+
+    tagService.deCaballo(caballo.id)
+      .then((tags) => setTagIds(tags.map((t) => t.id)))
+      .catch(() => setTagIds([]))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function set(field: keyof typeof form, value: string | number) {
@@ -110,6 +141,8 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
         madre_id:         genealogia.madre_id,
         madre_nombre:     genealogia.madre_nombre,
       })
+      // Si dejó de ser caballo/yegua, los tags que tuviera se limpian.
+      await tagService.guardar(caballo.id, admiteTags ? tagIds : [])
       onSuccess()
     } catch (err: unknown) {
       const msg =
@@ -275,6 +308,9 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
             </div>
           </div>
 
+          {/* Tags — solo para caballos y yeguas */}
+          {admiteTags && <TagSelector value={tagIds} onChange={setTagIds} />}
+
           {/* Genealogía */}
           <div className="pt-2">
             <div className="flex items-center gap-2 mb-3">
@@ -287,14 +323,14 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, caball
                 placeholder="— Sin datos —"
                 value={{ id: genealogia.padre_id, nombre: genealogia.padre_nombre }}
                 onChange={(v) => setGenealogia((g) => ({ ...g, padre_id: v.id ?? null, padre_nombre: v.nombre ?? null }))}
-                caballos={caballos.filter((c) => c.id !== caballo.id)}
+                caballos={padresPosibles}
               />
               <PedigreeCombobox
                 label="Madre"
                 placeholder="— Sin datos —"
                 value={{ id: genealogia.madre_id, nombre: genealogia.madre_nombre }}
                 onChange={(v) => setGenealogia((g) => ({ ...g, madre_id: v.id ?? null, madre_nombre: v.nombre ?? null }))}
-                caballos={caballos.filter((c) => c.id !== caballo.id)}
+                caballos={madresPosibles}
               />
             </div>
           </div>

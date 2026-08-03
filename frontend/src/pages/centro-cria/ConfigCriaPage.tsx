@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
 import { Settings2, RotateCcw, Check, Plus, AlertCircle, Bell } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
@@ -22,30 +23,66 @@ import {
 
 export default function ConfigCriaPage() {
   const { rol } = useAuth()
+  const esVet = rol === 'veterinario'
+
+  // Subsecciones (definición de Gero, 2026-08-02): las listas de padrillos por
+  // donante viven en su propia pestaña, separadas de acciones y plazos.
+  // Las listas son del establecimiento (admin o vet); acciones y plazos son
+  // propios de cada veterinario.
+  const tabs = [
+    { to: '/centro-cria/config/padrillos', label: 'Listas Padrillos por donante' },
+    ...(esVet ? [{ to: '/centro-cria/config/vet', label: 'Mis acciones y plazos' }] : []),
+  ]
+
+  return (
+    <div className="space-y-5 p-1 max-w-lg">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-900">Configuración del centro</h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          {esVet
+            ? 'Las listas de padrillos son del establecimiento. Tus acciones y plazos viajan con vos a todos los establecimientos donde trabajás.'
+            : 'Las acciones y los plazos de recordatorios los configura cada veterinario.'}
+        </p>
+      </div>
+
+      <nav className="flex gap-1 border-b border-slate-200">
+        {tabs.map((t) => (
+          <NavLink
+            key={t.to}
+            to={t.to}
+            className={({ isActive }) =>
+              `px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                isActive
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`
+            }
+          >
+            {t.label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <Outlet />
+    </div>
+  )
+}
+
+/** Subsección "Mis acciones y plazos" — solo veterinario. */
+export function ConfigVetPage() {
+  const { rol } = useAuth()
 
   if (rol !== 'veterinario') {
     return (
-      <div className="max-w-lg p-1">
-        <h1 className="text-xl font-semibold text-slate-900">Configuración del centro</h1>
-        <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">
-          La configuración del centro (acciones y plazos de recordatorios) es
-          propia de cada veterinario, porque es quien carga los registros
-          reproductivos. No hay nada para configurar a nivel del establecimiento.
-        </div>
+      <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-500">
+        Las acciones y los plazos de recordatorios son propios de cada
+        veterinario, porque es quien carga los registros reproductivos.
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-1 max-w-lg">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Configuración del centro</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Tus acciones y tus plazos de recordatorios. Se aplican en todos los
-          establecimientos donde trabajás.
-        </p>
-      </div>
-
+    <div className="space-y-5">
       <CatalogoChips />
       <PlazosSection />
     </div>

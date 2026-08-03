@@ -181,6 +181,11 @@ CREATE TABLE caballo (
     'revision','strelling','inseminacion','oxy','ov','flushing','pg','espera',
     'disponible','transferida','eco1','eco2','eco3','prenada','vacia'
   ])),
+  -- Pedigree. Regla de UI (definición de Gero, 2026-08-02): el combo de padre
+  -- ofrece solo categorías 'Caballo' y 'Padrillo', el de madre solo 'Yegua', y
+  -- ambos INCLUYEN animales dados de baja/muertos (`activo = false`) porque el
+  -- pedigree es histórico. Ver CATEGORIAS_PADRE/CATEGORIAS_MADRE en
+  -- services/caballoService.ts.
   padre_id UUID REFERENCES caballo(id),        -- FK al padrillo si está registrado
   padre_nombre TEXT,                           -- nombre libre si el padre no está en sistema
   madre_id UUID REFERENCES caballo(id),
@@ -191,6 +196,30 @@ CREATE TABLE caballo (
   vet_owner_id UUID REFERENCES usuario(id),    -- vet que creó el caballo antes de asignarlo a sociedad
   activo BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Tags de caballos (migración 20260802120000)
+-- Catálogo + M:N en vez de una columna booleana: sumar un tag nuevo no
+-- requiere migración ni cambios de UI. Arranca con 'Jugador' (animales
+-- destinados o usados para juego/deporte).
+-- Los tags se pueden poner en cualquier categoría (CATEGORIAS_CON_TAGS en
+-- services/tagService.ts): "asignable a caballos y yeguas" se lee como
+-- cualquier equino, macho o hembra.
+CREATE TABLE cat_tag (
+  id SERIAL PRIMARY KEY,
+  nombre TEXT NOT NULL UNIQUE,
+  color TEXT,                                  -- clave de color para la UI
+  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+-- Pre-cargado: 'Jugador'
+
+CREATE TABLE caballo_tag (
+  caballo_id UUID NOT NULL REFERENCES caballo(id) ON DELETE CASCADE,
+  tag_id INTEGER NOT NULL REFERENCES cat_tag(id) ON DELETE CASCADE,
+  creado_por UUID REFERENCES usuario(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (caballo_id, tag_id)
 );
 
 -- Acceso explícito de un vet a un caballo (granular, caballo por caballo)
@@ -437,6 +466,29 @@ CREATE TABLE cria_plazo_vet (
 -- NOTA: `cria_parametro` (por sociedad, clave/valor) sigue existiendo pero
 -- nunca se conectó al frontend. Los plazos del centro son `cria_plazo_vet`.
 
+-- Ranking de padrillos preferidos por donante (migración 20260802120200)
+-- Definición de Gero (2026-08-02): hasta 10 padrillos por donante, ordenados
+-- por prioridad (1 = más recomendado). La lista es del ESTABLECIMIENTO, no del
+-- vet: la arman admin o veterinario, y el vet solo con las donantes y
+-- padrillos a los que el admin le dio acceso (`acceso_vet`).
+-- Se muestra al elegir padrillo en la inseminación: los rankeados van primero
+-- con su número de prioridad.
+CREATE TABLE cria_padrillo_preferido (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  donante_id  UUID NOT NULL REFERENCES caballo(id) ON DELETE CASCADE,
+  padrillo_id UUID NOT NULL REFERENCES caballo(id) ON DELETE CASCADE,
+  prioridad   SMALLINT NOT NULL CHECK (prioridad BETWEEN 1 AND 10),
+  creado_por  UUID REFERENCES usuario(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CHECK (donante_id <> padrillo_id),
+  UNIQUE (donante_id, padrillo_id),
+  UNIQUE (donante_id, prioridad)
+);
+-- El reordenamiento choca contra UNIQUE (donante_id, prioridad), así que la
+-- escritura va siempre por `guardar_ranking_padrillos()` (borra + reinserta en
+-- una transacción). El frontend nunca hace UPDATE fila por fila.
+
 -- Auditoría inmutable de cambios de estado_reproductivo (solo INSERT)
 CREATE TABLE cria_estado_transicion (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -579,6 +631,11 @@ CREATE TABLE lead (
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
 | `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Devuelve `jsonb` con los tres ids (migración `20260724000626`) |
+| `ancestros_caballo(p_caballo_id, p_gen)` | Ancestros de un caballo hasta N generaciones (incluye el propio en nivel 0). Base del cálculo de parentesco (migración `20260802120100`) |
+| `es_familiar_directo(p_a, p_b, p_gen)` | TRUE si los dos comparten un ancestro dentro de `p_gen` generaciones. Con el default (2) cubre padres, abuelos, hijos, nietos, hermanos/medios hermanos y tíos |
+| `get_padrillos_familiares(p_donante_id, p_padrillo_ids)` | De la lista de padrillos que muestra la UI, cuáles son familiares y con qué parentesco ('Padre', 'Abuelo', 'Hijo', 'Nieto', 'Hermano', 'Familiar'). Alimenta la etiqueta roja del selector |
+| `guardar_ranking_padrillos(p_donante_id, p_padrillo_ids)` | Reemplaza el ranking completo de una donante en una transacción; la prioridad sale del orden del array. Valida tope de 10, sin repetidos, y permiso de admin de la sociedad o vet con acceso a la donante **y a cada padrillo** (migración `20260802120200`) |
+| `get_caballos_pedigree_vet()` | Candidatos a padre/madre para el vet, **incluyendo los dados de baja** — `get_caballos_veterinario()` filtra `activo = true` y el pedigree es histórico (migración `20260802120300`) |
 | `completar_trabajo_sanitario(p_trabajo_id)` | Marca un `trabajo_sanitario` como realizado e inserta una fila en `historial_clinico` por cada caballo no excluido (asegura el `cat_tipo_consulta` con el nombre del trabajo). Valida `tiene_membresia`. Solo `authenticated`. Devuelve la cantidad cargada (migración `20260728181738`) |
 
 ### Triggers
@@ -588,6 +645,7 @@ CREATE TABLE lead (
 | `on_auth_user_created` | `handle_new_auth_user()` | AFTER INSERT en `auth.users` → crea fila en `usuario` |
 | `bloquear_self_escalation_trigger` | `bloquear_self_escalation()` | BEFORE UPDATE en `usuario` → impide auto-escalación de rol/activo/acceso_centro_cria/email |
 | `set_updated_at` | `trigger_set_updated_at()` | BEFORE UPDATE en tablas con `updated_at` |
+| `trg_bloquear_padrillo_familiar` | `bloquear_padrillo_familiar()` | BEFORE INSERT OR UPDATE OF padrillo_id, caballo_id en `cria_registro_clinico` → rechaza si el padrillo es familiar directo (2 generaciones) de la yegua. El frontend además deshabilita la opción, pero la regla vive acá (migración `20260802120100`) |
 | `trg_cancelar_pendientes_baja` | `cancelar_pendientes_por_baja()` | AFTER UPDATE OF activo en `caballo` (cuando `activo` → false) → cancela `cria_recordatorio` pendientes/vencidos y excluye al caballo de `trabajo_sanitario` pendientes. Conserva el historial (migración `20260729144522`) |
 
 ### Quién ve qué
@@ -681,6 +739,18 @@ CREATE TABLE lead (
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_receptora_id)` o `is_superadmin()`
 - INSERT: `vet_tiene_acceso(caballo_receptora_id)`
 - UPDATE: `veterinario_id = auth.uid()` o `es_admin(sociedad_id)` o `is_superadmin()`
+
+**`cat_tag`** (migración `20260802120000`)
+- SELECT: cualquier autenticado
+- INSERT/UPDATE/DELETE: solo `is_superadmin()`
+
+**`caballo_tag`**
+- SELECT: `tiene_membresia` (vía `caballo.sociedad_id`) o `vet_tiene_acceso(caballo_id)` o `is_superadmin()`
+- INSERT/UPDATE/DELETE: `es_admin` (vía `caballo.sociedad_id`) o `vet_tiene_acceso(caballo_id)` o `is_superadmin()`
+
+**`cria_padrillo_preferido`** (migración `20260802120200`)
+- SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(donante_id)` o `is_superadmin()`
+- INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` o `vet_tiene_acceso(donante_id)` o `is_superadmin()` — en la práctica se escribe siempre vía `guardar_ranking_padrillos()`
 
 **`cria_parametro`**
 - SELECT: `sociedad_id IS NULL` (globales, visibles para todos) o `tiene_membresia(sociedad_id)` o `is_superadmin()`

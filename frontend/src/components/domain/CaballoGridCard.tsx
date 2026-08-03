@@ -16,6 +16,7 @@ interface CaballoGridCardProps {
     cat_raza?: { nombre: string } | null
     cat_pelaje?: { nombre: string } | null
     campo?: { nombre: string } | null
+    tags?: { id: number; nombre: string }[]
   }
   /** Abre el detalle rápido del animal. */
   onVerFicha?: () => void
@@ -105,6 +106,14 @@ export default function CaballoGridCard({
                     Preñada
                   </span>
                 )}
+                {(caballo.tags ?? []).map((t) => (
+                  <span
+                    key={t.id}
+                    className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-medium text-teal-700 ring-1 ring-teal-200"
+                  >
+                    {t.nombre}
+                  </span>
+                ))}
               </>
             )}
           </span>
