@@ -30,6 +30,8 @@ import ConfigCriaPage, { ConfigVetPage } from './pages/centro-cria/ConfigCriaPag
 import RankingPadrillosConfig from './pages/centro-cria/RankingPadrillosConfig'
 import CaballosCentroPage from './pages/centro-cria/CaballosCentroPage'
 import EmbrionesPage from './pages/centro-cria/EmbrionesPage'
+import TorneosPage from './pages/torneos/TorneosPage'
+import TorneoKanbanPage from './pages/torneos/TorneoKanbanPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 import TransferirVetPage from './pages/vet/TransferirVetPage'
 import AlertasPage from './pages/alertas/AlertasPage'
@@ -162,6 +164,8 @@ export default function App() {
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
           <Route path="/sanidad" element={<SanidadPage />} />
+          <Route path="/torneos" element={<TorneosPage />} />
+          <Route path="/torneos/:id" element={<TorneoKanbanPage />} />
           <Route path="/panel-vet" element={<PanelVetPage />} />
           <Route path="/revision-preventa" element={<RevisionPreVentaPage />} />
           <Route path="/admin" element={<AdminPage />} />
