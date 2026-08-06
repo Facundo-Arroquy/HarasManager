@@ -20,11 +20,21 @@ export const LABEL_ESTADO_TRABAJO: Record<EstadoTrabajoSanitario, string> = {
   cancelado: 'Cancelado',
 }
 
+/** Resultado por caballo y trabajo. `null` = todavía sin marcar. */
+export type EstadoCaballoTrabajo = 'realizado' | 'no_realizado' | 'pendiente'
+
+export const LABEL_ESTADO_CABALLO: Record<EstadoCaballoTrabajo, string> = {
+  realizado:    'Realizado',
+  no_realizado: 'No realizado',
+  pendiente:    'Pendiente',
+}
+
 export interface TrabajoSanitarioCaballo {
   id:           string
   trabajo_id:   string
   caballo_id:   string
   excluido:     boolean
+  estado:       EstadoCaballoTrabajo | null
   historial_id: string | null
   // join opcional
   caballo?:     { nombre: string; numero_registro?: string | null }
@@ -32,6 +42,8 @@ export interface TrabajoSanitarioCaballo {
 
 export interface TrabajoSanitario {
   id:               string
+  /** Agrupa los trabajos cargados juntos: son las columnas de una misma grilla. */
+  plan_id:          string
   sociedad_id:      string
   nombre:           string
   fecha_programada: string        // YYYY-MM-DD
@@ -47,6 +59,8 @@ export interface TrabajoSanitario {
 }
 
 export interface NuevoTrabajoSanitarioPayload {
+  /** Se omite al crear un plan nuevo: lo asigna `sanidadService.crearTrabajos`. */
+  plan_id?:         string
   sociedad_id:      string
   nombre:           string
   fecha_programada: string

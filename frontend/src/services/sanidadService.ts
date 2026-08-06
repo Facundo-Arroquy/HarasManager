@@ -4,6 +4,7 @@ import type {
   CatTrabajoSanitario,
   TrabajoSanitario,
   NuevoTrabajoSanitarioPayload,
+  EstadoCaballoTrabajo,
 } from '../types/sanidad'
 
 export const sanidadService = {
@@ -41,7 +42,7 @@ export const sanidadService = {
       .select(`
         *,
         caballos:trabajo_sanitario_caballo(
-          id, trabajo_id, caballo_id, excluido, historial_id,
+          id, trabajo_id, caballo_id, excluido, estado, historial_id,
           caballo:caballo_id(nombre, numero_registro)
         )
       `)
@@ -58,7 +59,7 @@ export const sanidadService = {
       .select(`
         *,
         caballos:trabajo_sanitario_caballo(
-          id, trabajo_id, caballo_id, excluido, historial_id,
+          id, trabajo_id, caballo_id, excluido, estado, historial_id,
           caballo:caballo_id(nombre, numero_registro)
         )
       `)
@@ -105,9 +106,12 @@ export const sanidadService = {
     if (items.length === 0) return []
     const supabase = getSupabaseClient()
 
+    // Todos los trabajos de la misma carga comparten plan: así se abren después
+    // como una sola grilla caballo × trabajo.
+    const planId = crypto.randomUUID()
     const { data: trabajos, error } = await supabase
       .from('trabajo_sanitario')
-      .insert(items.map((i) => i.payload))
+      .insert(items.map((i) => ({ plan_id: planId, ...i.payload })))
       .select('*')
     if (error) throw error
 
@@ -125,6 +129,65 @@ export const sanidadService = {
       }
     }
     return trabajos as TrabajoSanitario[]
+  },
+
+  /** Los trabajos de un plan, con sus caballos: las columnas de la grilla. */
+  async listarPlan(planId: string): Promise<TrabajoSanitario[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('trabajo_sanitario')
+      .select(`
+        *,
+        caballos:trabajo_sanitario_caballo(
+          id, trabajo_id, caballo_id, excluido, estado, historial_id,
+          caballo:caballo_id(nombre, numero_registro)
+        )
+      `)
+      .eq('plan_id', planId)
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return data as TrabajoSanitario[]
+  },
+
+  /**
+   * Guarda el resultado de cada celda del plan. Solo los 'realizado' escriben en
+   * el historial clínico; devuelve cuántas filas de historial se crearon.
+   */
+  async cerrarPlan(
+    items: { caballoRowId: string; estado: EstadoCaballoTrabajo }[],
+  ): Promise<number> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('cerrar_plan_sanitario', {
+      p_items: items.map((i) => ({ caballo_row_id: i.caballoRowId, estado: i.estado })),
+    })
+    if (error) throw error
+    return (data as number) ?? 0
+  },
+
+  /**
+   * Crea un plan nuevo en otra fecha con lo que quedó pendiente: un trabajo por
+   * cada tipo que tenga pendientes, solo con esos caballos.
+   */
+  async reprogramarPendientes(
+    grupos: { trabajo: TrabajoSanitario; caballoIds: string[] }[],
+    fecha: string,
+    creadoPor: string,
+  ): Promise<TrabajoSanitario[]> {
+    const conCaballos = grupos.filter((g) => g.caballoIds.length > 0)
+    if (conCaballos.length === 0) return []
+    return sanidadService.crearTrabajos(
+      conCaballos.map((g) => ({
+        payload: {
+          sociedad_id:      g.trabajo.sociedad_id,
+          nombre:           g.trabajo.nombre,
+          fecha_programada: fecha,
+          tratamiento:      g.trabajo.tratamiento,
+          observaciones:    g.trabajo.observaciones,
+          creado_por:       creadoPor,
+        },
+        caballoIds: g.caballoIds,
+      })),
+    )
   },
 
   /**

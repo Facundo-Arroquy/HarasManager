@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Syringe, Stethoscope, CalendarDays, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Syringe, Stethoscope, CalendarDays, X } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { sanidadService } from '../../services/sanidadService'
 import { historialService, type ConsultaCalendario } from '../../services/historialService'
@@ -9,6 +9,7 @@ import { diaAR, hoyAR } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
+import DetallePlanSanitario from '../../components/domain/DetallePlanSanitario'
 import type { HistorialEntry } from '../../components/domain/HistorialCard'
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────
@@ -86,11 +87,15 @@ export default function CalendarioPage() {
   const [trabajos,  setTrabajos]  = useState<TrabajoSanitario[]>([])
   const [consultas, setConsultas] = useState<ConsultaCalendario[]>([])
   const [loading,   setLoading]   = useState(true)
+  // Solo la primera carga tapa la lista: en las recargas el detalle abierto de un
+  // plan tiene que seguir montado, con lo que el usuario esté completando.
+  const [primeraCarga, setPrimeraCarga] = useState(true)
   const [error,     setError]     = useState<string | null>(null)
 
   const [reagendando, setReagendando] = useState<ConsultaCalendario | null>(null)
   const [completando, setCompletando] = useState<(HistorialEntry & { caballo_id: string }) | null>(null)
   const [abriendoId,  setAbriendoId]  = useState<string | null>(null)
+  const [planAbierto, setPlanAbierto] = useState<string | null>(null)
   const [recarga,     setRecarga]     = useState(0)
 
   const dias = useMemo(() => grillaMes(mesRef), [mesRef])
@@ -103,7 +108,7 @@ export default function CalendarioPage() {
       .then((t) => { if (vigente) setTrabajos(t) })
       .catch((e) => { if (vigente) setError(mensajeError(e)) })
     return () => { vigente = false }
-  }, [sociedadId, esVet])
+  }, [sociedadId, esVet, recarga])
 
   // Las consultas sí se piden por mes visible, con un día de margen a cada lado:
   // `fecha_consulta` es TIMESTAMPTZ y el corte por día se hace en hora argentina.
@@ -117,7 +122,7 @@ export default function CalendarioPage() {
     historialService.listarPorRango(toISO(desde), toISO(hasta), esVet ? undefined : sociedadId)
       .then((c) => { if (vigente) { setConsultas(c); setError(null) } })
       .catch((e) => { if (vigente) setError(mensajeError(e)) })
-      .finally(() => { if (vigente) setLoading(false) })
+      .finally(() => { if (vigente) { setLoading(false); setPrimeraCarga(false) } })
     return () => { vigente = false }
   }, [sociedadId, esVet, dias, recarga])
 
@@ -288,7 +293,7 @@ export default function CalendarioPage() {
           </div>
         </div>
 
-        {loading ? (
+        {loading && primeraCarga ? (
           <div className="flex justify-center py-12"><Spinner size="lg" /></div>
         ) : trabajosDia.length === 0 && consultasDia.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-slate-400">
@@ -297,22 +302,41 @@ export default function CalendarioPage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {trabajosDia.map((t) => {
-              const total = t.caballos?.length ?? 0
+              const total    = t.caballos?.length ?? 0
+              const abierto  = planAbierto === t.plan_id
               return (
-                <div key={t.id} className="flex items-start gap-3 px-4 py-3 text-sm">
-                  <Syringe size={14} className="mt-0.5 shrink-0 text-brand-500" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-slate-900">{t.nombre}</span>
+                <div key={t.id}>
+                  <div className="flex items-start gap-3 px-4 py-3 text-sm hover:bg-slate-50">
+                    <Syringe size={14} className="mt-0.5 shrink-0 text-brand-500" />
+                    <button
+                      type="button"
+                      onClick={() => setPlanAbierto(abierto ? null : t.plan_id)}
+                      className="flex-1 min-w-0 text-left"
+                    >
+                      <span className="block font-medium text-slate-900">{t.nombre}</span>
+                      <span className="mt-1 flex items-center gap-3 flex-wrap text-xs text-slate-400">
+                        <span>{total} caballo{total !== 1 ? 's' : ''}</span>
+                        {t.tratamiento && <span>· {t.tratamiento}</span>}
+                      </span>
+                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTADO_BADGE[t.estado]}`}>
                         {LABEL_ESTADO_TRABAJO[t.estado]}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap text-xs text-slate-400">
-                      <span>{total} caballo{total !== 1 ? 's' : ''}</span>
-                      {t.tratamiento && <span>· {t.tratamiento}</span>}
+                      <ChevronDown
+                        size={15}
+                        className={`text-slate-300 transition-transform ${abierto ? 'rotate-180' : ''}`}
+                      />
                     </div>
                   </div>
+                  {abierto && (
+                    <div className="border-t border-slate-100 bg-slate-50/60">
+                      <DetallePlanSanitario
+                        planId={t.plan_id}
+                        onCambio={() => setRecarga((n) => n + 1)}
+                      />
+                    </div>
+                  )}
                 </div>
               )
             })}
