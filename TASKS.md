@@ -101,9 +101,21 @@
 - **Descripción:** Definir la mejor estrategia: si los veterinarios tienen acceso siempre y solo ven los caballos con acceso, o si el acceso depende del plan del propietario (centro activo).
 
 ### [ ] Lista de caballos para la temporada
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Descripción:** Que los usuarios puedan armar el listado de caballos para la temporada en formato kanban.
+- **Avance:** se implementó como módulo **Torneos** (`/torneos`). El admin crea el torneo (nombre, temporada/fechas, jugadores participantes) y reparte los caballos con tag "Jugador" en un tablero kanban con drag & drop: columna de disponibles + una columna por jugador, con reordenamiento dentro de cada columna. Un caballo no puede quedar asignado a dos jugadores del mismo torneo. Los torneos finalizados quedan como historial consultable.
+- **Pendiente de definición:** hoy "disponible" = caballo activo, de la sociedad y con tag Jugador. No hay noción de lesión o descanso.
+
+### [ ] Torneos — mejoras de la v2
+- **Estado:** pendiente
+- **Asignado:** -
+- **Descripción:** Mejoras que quedaron fuera del alcance del módulo de Torneos:
+  - Control de disponibilidad por lesión o descanso (hoy no existe el dato en el modelo).
+  - Restricción de cantidad máxima de caballos por jugador.
+  - Seguimiento de resultados deportivos por torneo.
+  - Estadísticas de participación por caballo y por jugador.
+  - Impresión / exportación de la lista final del torneo (el proyecto ya usa `xlsx`).
 
 ### [ ] Que superadmin maneje también veterinarios
 - **Estado:** pendiente

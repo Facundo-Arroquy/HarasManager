@@ -234,6 +234,58 @@ CREATE TABLE acceso_vet (
 );
 ```
 
+### Torneos (asignación de caballos por jugador)
+
+```sql
+-- Migración 20260803120000. Módulo de administración: el admin arma el torneo
+-- con sus jugadores participantes y reparte los caballos con tag "Jugador" en
+-- un tablero kanban (columna de disponibles + una columna por jugador).
+-- El torneo no se borra al terminar: queda como historial de conformación de
+-- equipos, consultable por temporada.
+CREATE TABLE torneo (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sociedad_id  UUID NOT NULL REFERENCES sociedad(id),
+  nombre       TEXT NOT NULL,
+  temporada    TEXT,                       -- "2026", "Alta 2026", etc.
+  fecha_inicio DATE, fecha_fin DATE,
+  estado       TEXT NOT NULL DEFAULT 'activo'
+    CHECK (estado IN ('activo','finalizado','cancelado')),
+  notas        TEXT,
+  creado_por   UUID REFERENCES usuario(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CHECK (fecha_fin IS NULL OR fecha_inicio IS NULL OR fecha_fin >= fecha_inicio)
+);
+
+-- Una columna del kanban. `usuario_id` es opcional a propósito: en polo el
+-- jugador no siempre es usuario de la plataforma (definición 2026-08-03).
+CREATE TABLE torneo_jugador (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  torneo_id  UUID NOT NULL REFERENCES torneo(id) ON DELETE CASCADE,
+  usuario_id UUID REFERENCES usuario(id),   -- NULL = jugador externo al sistema
+  nombre     TEXT NOT NULL,
+  orden      SMALLINT NOT NULL DEFAULT 0,   -- orden de las columnas
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (torneo_id, nombre),
+  UNIQUE (id, torneo_id)                    -- habilita la FK compuesta de abajo
+);
+
+CREATE TABLE torneo_asignacion (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  torneo_id  UUID NOT NULL REFERENCES torneo(id) ON DELETE CASCADE,
+  jugador_id UUID NOT NULL,
+  caballo_id UUID NOT NULL REFERENCES caballo(id) ON DELETE CASCADE,
+  orden      SMALLINT NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (torneo_id, caballo_id),           -- evita la asignación duplicada
+  FOREIGN KEY (jugador_id, torneo_id)
+    REFERENCES torneo_jugador (id, torneo_id) ON DELETE CASCADE
+);
+-- Sin UNIQUE sobre `orden`: reordenar dentro de una columna chocaría fila por
+-- fila. La escritura va siempre por `guardar_asignaciones_torneo()`.
+-- El orden de la columna "Disponibles" no se persiste: se arma alfabéticamente
+-- en cada carga a partir de los caballos con tag "Jugador" sin asignar.
+```
+
 ### Historial Clínico
 
 ```sql
@@ -636,6 +688,7 @@ CREATE TABLE lead (
 | `get_padrillos_familiares(p_donante_id, p_padrillo_ids)` | De la lista de padrillos que muestra la UI, cuáles son familiares y con qué parentesco ('Padre', 'Abuelo', 'Hijo', 'Nieto', 'Hermano', 'Familiar'). Alimenta la etiqueta roja del selector |
 | `guardar_ranking_padrillos(p_donante_id, p_padrillo_ids)` | Reemplaza el ranking completo de una donante en una transacción; la prioridad sale del orden del array. Valida tope de 10, sin repetidos, y permiso de admin de la sociedad o vet con acceso a la donante **y a cada padrillo** (migración `20260802120200`) |
 | `get_caballos_pedigree_vet()` | Candidatos a padre/madre para el vet, **incluyendo los dados de baja** — `get_caballos_veterinario()` filtra `activo = true` y el pedigree es histórico (migración `20260802120300`) |
+| `guardar_asignaciones_torneo(p_torneo_id, p_jugador_id, p_caballo_ids)` | Reescribe la columna de un jugador en el kanban del torneo, en una transacción: suelta los caballos de su jugador anterior, borra la columna y reinserta con el orden del array. `p_jugador_id` NULL devuelve los caballos a "Disponibles". Valida torneo `activo`, admin de la sociedad, jugador del torneo, sin repetidos, y caballo activo + de la sociedad + con tag "Jugador" (migración `20260803120000`) |
 | `completar_trabajo_sanitario(p_trabajo_id)` | Marca un `trabajo_sanitario` como realizado e inserta una fila en `historial_clinico` por cada caballo no excluido (asegura el `cat_tipo_consulta` con el nombre del trabajo). Valida `tiene_membresia`. Solo `authenticated`. Devuelve la cantidad cargada (migración `20260728181738`) |
 
 ### Triggers
@@ -751,6 +804,12 @@ CREATE TABLE lead (
 **`cria_padrillo_preferido`** (migración `20260802120200`)
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(donante_id)` o `is_superadmin()`
 - INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` o `vet_tiene_acceso(donante_id)` o `is_superadmin()` — en la práctica se escribe siempre vía `guardar_ranking_padrillos()`
+
+**`torneo` / `torneo_jugador` / `torneo_asignacion`** (migración `20260803120000`)
+- SELECT: `tiene_membresia(sociedad_id)` o `is_superadmin()` — el jugador y el piloto ven la conformación de equipos
+- INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` o `is_superadmin()`
+- En las tablas hijas la sociedad se resuelve con un `EXISTS` contra el `torneo` padre
+- Las asignaciones se escriben en la práctica vía `guardar_asignaciones_torneo()`
 
 **`cria_parametro`**
 - SELECT: `sociedad_id IS NULL` (globales, visibles para todos) o `tiene_membresia(sociedad_id)` o `is_superadmin()`
@@ -871,6 +930,7 @@ No se usa `supabase db push` ni `supabase migration up`.
 | Crear usuarios en la sociedad | ✅ | ✅ | ❌ | ❌ |
 | Vender caballos | ✅ | ✅ | ❌ | ❌ |
 | Gestionar campos/potreros | ✅ | ✅ | ❌ (solo lectura) | ✅ |
+| Crear torneos y asignar caballos | ✅ | ✅ | ❌ | ❌ (solo lectura) |
 | Acceso centro de embriones | — | Según `sociedad.acceso_centro_cria` | Según `usuario.acceso_centro_cria` | ❌ |
 
 ---
