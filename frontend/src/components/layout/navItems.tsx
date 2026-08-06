@@ -44,9 +44,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/centro-cria/programa',       label: 'Programa semanal',   icon: <CalendarDays size={18} /> },
       { to: '/centro-cria/caballos',       label: 'Caballos Centro',    icon: <LayoutGrid size={18} /> },
       { to: '/centro-cria/recordatorios',  label: 'Recordatorios',      icon: <Bell size={18} /> },
-      // Los flushings se registran desde "Embriones vitrificados": la sección
+      // Los flushings se registran desde "Embriones": la sección
       // propia se eliminó para tener el stock y su origen en un solo lugar.
-      { to: '/centro-cria/embriones',      label: 'Embriones vitrificados',        icon: <FlaskConical size={18} /> },
+      { to: '/centro-cria/embriones',      label: 'Embriones',        icon: <FlaskConical size={18} /> },
       { to: '/centro-cria/transferencias', label: 'Transferencias Hechas/Ecografías', icon: <ArrowLeftRight size={18} /> },
       // Acciones y plazos son propios de cada veterinario; el ranking de
       // padrillos por donante sí es del establecimiento, así que el admin

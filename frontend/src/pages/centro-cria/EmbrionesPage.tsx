@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
 import type { EmbrionConSeguimiento, EstadoEmbrion, ResultadoEcografia } from '../../types/crianza'
+import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
 import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
@@ -13,6 +14,13 @@ const ESTADO_LABEL: Record<EstadoEmbrion, string> = {
   transferido: 'Transferido',
   congelado:   'Vitrificado',
   descartado:  'Descartado',
+}
+
+const ESTADO_BADGE: Record<EstadoEmbrion, string> = {
+  disponible:  'bg-emerald-100 text-emerald-700',
+  transferido: 'bg-blue-100    text-blue-700',
+  congelado:   'bg-cyan-100    text-cyan-700',
+  descartado:  'bg-slate-100   text-slate-500',
 }
 
 const FILTROS: Array<EstadoEmbrion | 'todos'> = ['todos', 'disponible', 'transferido', 'congelado', 'descartado']
@@ -45,6 +53,7 @@ export default function EmbrionesPage() {
 
   const [embriones, setEmbriones] = useState<EmbrionConSeguimiento[]>([])
   const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState<string | null>(null)
   const [filtro,    setFiltro]    = useState<EstadoEmbrion | 'todos'>('todos')
 
   const [embrionParaTransf,  setEmbrionParaTransf]  = useState<EmbrionConSeguimiento | null>(null)
@@ -53,14 +62,27 @@ export default function EmbrionesPage() {
   const puedeOperar = rol === 'veterinario' || rol === 'admin'
 
   const recargar = useCallback(() => {
-    if (!sociedadId && rol !== 'veterinario') return
+    // Sin sociedad activa y sin ser veterinario no hay a quién consultarle el
+    // stock. Antes se cortaba acá sin apagar el spinner y la página quedaba
+    // cargando para siempre, en blanco.
+    if (!sociedadId && rol !== 'veterinario') {
+      setEmbriones([])
+      setError('No hay una empresa activa para consultar el stock de embriones.')
+      setLoading(false)
+      return
+    }
     setLoading(true)
+    setError(null)
     const promesa = sociedadId
       ? crianzaService.listarTodosEmbriones(sociedadId)
       : crianzaService.listarTodosEmbrionesVet()
     promesa
-      .then(setEmbriones)
-      .catch(() => setEmbriones([]))
+      .then((data) => setEmbriones(data))
+      // El error se muestra: si la consulta falla, "sin embriones" mentiría.
+      .catch((e) => {
+        setEmbriones([])
+        setError(mensajeError(e))
+      })
       .finally(() => setLoading(false))
   }, [sociedadId, rol])
 
@@ -88,7 +110,7 @@ export default function EmbrionesPage() {
     <div className="space-y-5 p-1">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Embriones vitrificados</h1>
+          <h1 className="text-xl font-semibold text-slate-900">Embriones</h1>
           <p className="text-sm text-slate-500 mt-0.5">Stock del centro, flushings y seguimiento de las transferencias</p>
         </div>
         {puedeOperar && (
@@ -135,6 +157,18 @@ export default function EmbrionesPage() {
         </div>
       )}
 
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span>{error}</span>
+          <button
+            onClick={recargar}
+            className="shrink-0 text-xs font-medium px-2.5 py-1 rounded border border-red-300 hover:bg-red-100 transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       {/* Tabla — se desliza en horizontal con la receptora fija a la izquierda */}
       {embriones.length === 0 ? (
         <div className="text-center py-16 text-slate-400 text-sm">
@@ -147,6 +181,7 @@ export default function EmbrionesPage() {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left">
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 sticky left-0 z-10 bg-slate-50 border-r border-slate-200">Receptora</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Estado</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Pelaje</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Fecha transferencia</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500">Madre</th>
@@ -189,6 +224,11 @@ export default function EmbrionesPage() {
                           VACIO
                         )
                       )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_BADGE[e.estado]}`}>
+                        {ESTADO_LABEL[e.estado]}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                       {transf?.receptora?.pelaje?.nombre ?? VACIO}
