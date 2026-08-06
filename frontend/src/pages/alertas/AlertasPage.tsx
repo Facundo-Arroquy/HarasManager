@@ -6,13 +6,12 @@ import { caballoService } from '../../services/caballoService'
 import { useAuthStore } from '../../store/authStore'
 import NuevaAlertaModal from '../../components/domain/NuevaAlertaModal'
 import Spinner from '../../components/ui/Spinner'
+import { diasHastaAR } from '../../utils/fecha'
 
 type EstadoAlerta = 'vencida' | 'hoy' | 'proxima' | 'futura'
 
 function getEstado(fechaAlerta: string): EstadoAlerta {
-  const hoy   = new Date(); hoy.setHours(0, 0, 0, 0)
-  const fecha = new Date(fechaAlerta + 'T00:00:00')
-  const diff  = Math.round((fecha.getTime() - hoy.getTime()) / 86400000)
+  const diff = diasHastaAR(fechaAlerta)
   if (diff < 0)  return 'vencida'
   if (diff === 0) return 'hoy'
   if (diff <= 7)  return 'proxima'
@@ -20,9 +19,7 @@ function getEstado(fechaAlerta: string): EstadoAlerta {
 }
 
 function diasRestantes(fechaAlerta: string): number {
-  const hoy   = new Date(); hoy.setHours(0, 0, 0, 0)
-  const fecha = new Date(fechaAlerta + 'T00:00:00')
-  return Math.round((fecha.getTime() - hoy.getTime()) / 86400000)
+  return diasHastaAR(fechaAlerta)
 }
 
 function BadgeEstado({ fecha }: { fecha: string }) {

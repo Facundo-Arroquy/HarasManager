@@ -7,6 +7,16 @@ export function hoyAR(): string {
 }
 
 /**
+ * Días entre hoy (en Argentina) y una fecha 'YYYY-MM-DD'.
+ * Negativo si ya pasó, 0 si es hoy, positivo si falta.
+ */
+export function diasHastaAR(fechaISO: string): number {
+  const [y, m, d]    = fechaISO.split('-').map(Number)
+  const [hy, hm, hd] = hoyAR().split('-').map(Number)
+  return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(hy, hm - 1, hd)) / 86400000)
+}
+
+/**
  * Formatea una fecha ISO a dd/MM/yyyy en timezone Argentina.
  * Soporta tanto datetime ('2026-04-10T10:00:00Z') como date-only ('2026-04-17').
  */

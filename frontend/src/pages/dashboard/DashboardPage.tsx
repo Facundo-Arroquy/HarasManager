@@ -10,7 +10,7 @@ import { alertaService, type Alerta } from '../../services/alertaService'
 import { sanidadService } from '../../services/sanidadService'
 import type { TrabajoSanitario } from '../../types/sanidad'
 import Spinner from '../../components/ui/Spinner'
-import { hoyAR, formatFechaCorta } from '../../utils/fecha'
+import { hoyAR, diasHastaAR, formatFechaCorta } from '../../utils/fecha'
 
 type Caballo    = Awaited<ReturnType<typeof caballoService.listar>>[number]
 type HistResumen = Awaited<ReturnType<typeof historialService.listarRecientesTodos>>[number]
@@ -63,13 +63,17 @@ export default function DashboardPage() {
       count: caballos.filter((c) => c.categoria === cat).length,
     })), [caballos])
 
+  // Las vencidas se cuentan aparte: si compitieran por los 5 slots, las más
+  // viejas taparían siempre a las que están por vencer.
+  const alertasVencidas = useMemo(
+    () => alertas.filter((a) => diasHastaAR(a.fecha_alerta) < 0),
+    [alertas])
+
   const alertasProximas = useMemo(() => {
-    const hoyDate = new Date(); hoyDate.setHours(0, 0, 0, 0)
     return alertas
       .filter((a) => {
-        const fecha = new Date(a.fecha_alerta + 'T00:00:00')
-        const dias  = Math.round((fecha.getTime() - hoyDate.getTime()) / 86400000)
-        return dias <= 7
+        const dias = diasHastaAR(a.fecha_alerta)
+        return dias >= 0 && dias <= 7
       })
       .slice(0, 5)
   }, [alertas])
@@ -196,7 +200,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Alertas próximas */}
-      {alertasProximas.length > 0 && (
+      {(alertasProximas.length > 0 || alertasVencidas.length > 0) && (
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-slate-600">Alertas próximas</h2>
@@ -207,11 +211,29 @@ export default function DashboardPage() {
               Ver todas →
             </button>
           </div>
-          <div className="space-y-1">
-            {alertasProximas.map((alerta) => (
-              <AlertaWidget key={alerta.id} alerta={alerta} onClick={() => navigate('/alertas')} />
-            ))}
-          </div>
+
+          {alertasVencidas.length > 0 && (
+            <button
+              onClick={() => navigate('/alertas')}
+              className="w-full flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 mb-3 text-left hover:bg-red-100 transition-colors"
+            >
+              <AlertCircle size={13} className="text-red-500 shrink-0" />
+              <span className="text-xs font-medium text-red-700">
+                {alertasVencidas.length} alerta{alertasVencidas.length !== 1 ? 's' : ''} vencida{alertasVencidas.length !== 1 ? 's' : ''}
+              </span>
+              <span className="ml-auto text-[11px] text-red-500">Ver →</span>
+            </button>
+          )}
+
+          {alertasProximas.length === 0 ? (
+            <p className="text-xs text-slate-400">Sin alertas en los próximos 7 días.</p>
+          ) : (
+            <div className="space-y-1">
+              {alertasProximas.map((alerta) => (
+                <AlertaWidget key={alerta.id} alerta={alerta} onClick={() => navigate('/alertas')} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -312,9 +334,7 @@ const ACCENT_CLASS: Record<string, string> = {
 // ── Alerta Widget ─────────────────────────────────────────────────────────────
 
 function AlertaWidget({ alerta, onClick }: { alerta: Alerta; onClick: () => void }) {
-  const hoyDate = new Date(); hoyDate.setHours(0, 0, 0, 0)
-  const fecha   = new Date(alerta.fecha_alerta + 'T00:00:00')
-  const dias    = Math.round((fecha.getTime() - hoyDate.getTime()) / 86400000)
+  const dias = diasHastaAR(alerta.fecha_alerta)
 
   const badge =
     dias < 0  ? { label: 'Vencida',          cls: 'bg-red-100 text-red-700' } :
