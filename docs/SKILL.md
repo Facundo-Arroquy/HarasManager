@@ -297,6 +297,10 @@ CREATE TABLE historial_clinico (
   diagnostico TEXT, tratamiento TEXT, observaciones TEXT,
   proxima_consulta DATE,
   imagen_url TEXT,                             -- URL de imagen adjunta (Supabase Storage)
+  -- 'pendiente' = consulta agendada desde el calendario, sin ficha clínica
+  -- cargada todavía; pasa a 'realizada' al completarla (migración 20260806120000)
+  estado TEXT NOT NULL DEFAULT 'realizada'
+    CHECK (estado IN ('pendiente','realizada')),
   creado_por UUID NOT NULL REFERENCES usuario(id),
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
   -- REGLA RLS: solo creado_por puede hacer UPDATE

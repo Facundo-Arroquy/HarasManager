@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../lib/supabase'
+import { nombreCaballo } from '../utils/caballo'
 
 export interface NuevaConsultaPayload {
   caballoId: string
@@ -9,6 +10,8 @@ export interface NuevaConsultaPayload {
   observaciones?: string
   proximaConsulta?: string     // fecha YYYY-MM-DD
   creadoPor: string            // usuario.id
+  /** 'pendiente' = consulta agendada, todavía sin hacer. Por defecto 'realizada'. */
+  estado?: EstadoConsulta
   imagenUrl?: string
   partesAfectadas: Array<{
     parteCuerpoId: number
@@ -31,6 +34,21 @@ interface HistorialResumen {
   caballo_nombre: string
   tipo: string
   diagnostico: string | null
+}
+
+export type EstadoConsulta = 'pendiente' | 'realizada'
+
+/** Consulta agendada o ya hecha, como la muestra el calendario. */
+export interface ConsultaCalendario {
+  id:             string
+  fecha_consulta: string        // TIMESTAMPTZ
+  estado:         EstadoConsulta
+  caballo_id:     string
+  caballo_nombre: string
+  tipo:           string
+  diagnostico:    string | null
+  veterinario:    string | null
+  creado_por:     string
 }
 
 export interface AlertaVet {
@@ -107,6 +125,85 @@ export const historialService = {
     }))
   },
 
+  /**
+   * Consultas ya cargadas dentro de un rango de días, para el calendario. El
+   * rango se pide con un día de margen a cada lado porque `fecha_consulta` es
+   * TIMESTAMPTZ y el corte por día se hace después en hora argentina.
+   * Sin `sociedadId` (veterinario) el filtrado queda en manos de la RLS.
+   */
+  async listarPorRango(
+    desde: string, hasta: string, sociedadId?: string,
+  ): Promise<ConsultaCalendario[]> {
+    const supabase = getSupabaseClient()
+    let query = supabase
+      .from('historial_clinico')
+      .select(`
+        id, fecha_consulta, estado, diagnostico, caballo_id, creado_por,
+        caballo!inner(nombre, numero_registro, sociedad_id),
+        cat_tipo_consulta(nombre),
+        usuario!creado_por(nombre, apellido)
+      `)
+      .gte('fecha_consulta', `${desde}T00:00:00`)
+      .lte('fecha_consulta', `${hasta}T23:59:59`)
+      .order('fecha_consulta', { ascending: true })
+    if (sociedadId) query = query.eq('caballo.sociedad_id', sociedadId)
+
+    const { data, error } = await query
+    if (error) throw error
+
+    return ((data ?? []) as unknown as {
+      id: string; fecha_consulta: string; estado: EstadoConsulta
+      diagnostico: string | null; caballo_id: string; creado_por: string
+      caballo?: { nombre?: string | null; numero_registro?: string | null } | null
+      cat_tipo_consulta?: { nombre?: string } | null
+      usuario?: { nombre?: string; apellido?: string } | null
+    }[]).map((h) => ({
+      id:             h.id,
+      fecha_consulta: h.fecha_consulta,
+      estado:         h.estado,
+      caballo_id:     h.caballo_id,
+      caballo_nombre: nombreCaballo(h.caballo ?? {}),
+      tipo:           h.cat_tipo_consulta?.nombre ?? 'Consulta',
+      diagnostico:    h.diagnostico ?? null,
+      veterinario:    h.usuario ? `${h.usuario.nombre ?? ''} ${h.usuario.apellido ?? ''}`.trim() : null,
+      creado_por:     h.creado_por,
+    }))
+  },
+
+  /** Mueve una consulta a otra fecha y horario. Solo puede su autor (RLS). */
+  async reagendar(historialId: string, fechaISO: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('historial_clinico')
+      .update({ fecha_consulta: fechaISO })
+      .eq('id', historialId)
+    if (error) throw error
+  },
+
+  /** Una consulta con todo su detalle, para completarla desde el calendario. */
+  async obtenerPorId(historialId: string) {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('historial_clinico')
+      .select(`
+        id, fecha_consulta, estado, diagnostico, tratamiento, creado_por,
+        observaciones, proxima_consulta, imagen_url, caballo_id, created_at,
+        cat_tipo_consulta(id, nombre),
+        usuario!creado_por(nombre, apellido),
+        historial_parte_afectada(
+          id, lado, descripcion,
+          cat_parte_cuerpo(nombre)
+        ),
+        historial_medicamento(
+          id, medicamento, dosis, via_administracion, duracion_dias
+        )
+      `)
+      .eq('id', historialId)
+      .single()
+    if (error) throw error
+    return data
+  },
+
   async listarPorCaballo(caballoId: string) {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
@@ -145,6 +242,8 @@ export const historialService = {
         observaciones:    payload.observaciones ?? null,
         proxima_consulta: payload.proximaConsulta ?? null,
         imagen_url:       payload.imagenUrl ?? null,
+        // Completar una consulta agendada es guardarla con la ficha cargada.
+        ...(payload.estado ? { estado: payload.estado } : {}),
       })
       .eq('id', historialId)
     if (e1) throw e1
@@ -193,6 +292,7 @@ export const historialService = {
         proxima_consulta: payload.proximaConsulta,
         creado_por: payload.creadoPor,
         imagen_url: payload.imagenUrl ?? null,
+        estado: payload.estado ?? 'realizada',
       })
       .select('id')
       .single()

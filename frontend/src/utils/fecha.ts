@@ -7,6 +7,16 @@ export function hoyAR(): string {
 }
 
 /**
+ * Día calendario ('YYYY-MM-DD') al que pertenece una fecha en Argentina. Los
+ * date-only se devuelven tal cual; los datetime se convierten a la zona AR para
+ * que una consulta de las 22:00 no caiga en el día siguiente.
+ */
+export function diaAR(iso: string): string {
+  if (!iso.includes('T') && !iso.includes(' ')) return iso
+  return new Intl.DateTimeFormat('sv', { timeZone: AR_TZ }).format(new Date(iso))
+}
+
+/**
  * Formatea una fecha ISO a dd/MM/yyyy en timezone Argentina.
  * Soporta tanto datetime ('2026-04-10T10:00:00Z') como date-only ('2026-04-17').
  */

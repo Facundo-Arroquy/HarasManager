@@ -51,6 +51,8 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
     return now.toISOString().slice(0, 16)   // formato datetime-local
   })
+  // Agendar deja la consulta 'pendiente': se carga la ficha clínica más tarde.
+  const [agendar,         setAgendar]         = useState(false)
   const [diagnostico,     setDiagnostico]     = useState('')
   const [tratamiento,     setTratamiento]     = useState('')
   const [observaciones,   setObservaciones]   = useState('')
@@ -90,6 +92,9 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
     setImagenPreview(null)
     if (imagenInputRef.current) imagenInputRef.current.value = ''
   }
+
+  /** Se está cargando la ficha de una consulta que estaba agendada. */
+  const esCompletar = entryToEdit?.estado === 'pendiente'
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState<string | null>(null)
@@ -213,6 +218,8 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
           imagenUrl,
           partesAfectadas,
           medicamentos,
+          // Guardar la ficha de una consulta agendada la da por hecha.
+          ...(esCompletar ? { estado: 'realizada' as const } : {}),
         })
       } else {
         await historialService.crear({
@@ -227,6 +234,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
           imagenUrl,
           partesAfectadas,
           medicamentos,
+          estado:          agendar ? 'pendiente' : 'realizada',
         })
       }
       onSuccess()
@@ -248,7 +256,9 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 shrink-0">
           <h2 className="text-base font-semibold text-slate-900">
-            {entryToEdit ? 'Editar consulta clínica' : 'Nueva consulta clínica'}
+            {esCompletar
+              ? 'Completar consulta'
+              : entryToEdit ? 'Editar consulta clínica' : 'Nueva consulta clínica'}
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors">
             <X size={18} />
@@ -341,6 +351,24 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
                   />
                 </Field>
               </div>
+
+              {/* Agendar: la consulta queda pendiente hasta que se cargue la ficha */}
+              {!entryToEdit && (
+                <label className="flex items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agendar}
+                    onChange={(e) => setAgendar(e.target.checked)}
+                    className="mt-0.5 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+                  />
+                  <span className="text-xs text-slate-600">
+                    Agendar para más adelante
+                    <span className="block text-slate-400">
+                      Queda como pendiente en el calendario; los datos clínicos se cargan al completarla.
+                    </span>
+                  </span>
+                </label>
+              )}
 
               {/* Diagnóstico */}
               <Field label="Diagnóstico">
@@ -569,7 +597,9 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
             className="flex items-center gap-2 rounded-lg bg-brand-500 hover:bg-brand-500 disabled:opacity-50 px-4 py-2 text-sm font-medium text-white transition-colors"
           >
             {submitting && <Spinner size="sm" />}
-            {entryToEdit ? 'Guardar cambios' : 'Guardar consulta'}
+            {esCompletar
+              ? 'Marcar como realizada'
+              : entryToEdit ? 'Guardar cambios' : agendar ? 'Agendar consulta' : 'Guardar consulta'}
           </button>
         </div>
       </div>

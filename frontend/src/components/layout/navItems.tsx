@@ -25,6 +25,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/dashboard',  label: 'Panel', icon: <LayoutDashboard size={18} />, roles: ['admin', 'jugador', 'piloto', 'peticero'] },
       { to: '/panel-vet', label: 'Panel', icon: <LayoutDashboard size={18} />, roles: ['veterinario'] },
+      { to: '/calendario',        label: 'Calendario',         icon: <CalendarDays size={18} />,      roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
       { to: '/caballos',          label: 'Caballos',           icon: <LayoutGrid size={18} /> },
       { to: '/sanidad',           label: 'Sanidad',            icon: <Syringe size={18} />,           roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
       { to: '/revision-preventa', label: 'Revisión pre-venta', icon: <ClipboardList size={18} />, roles: ['veterinario'] },
