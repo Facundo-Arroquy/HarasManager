@@ -95,6 +95,39 @@ export const sanidadService = {
   },
 
   /**
+   * Crea varios trabajos de una (ej: 3 vacunas en 3 fechas) para un mismo grupo
+   * de caballos. Cada item lleva su propia lista porque, cuando el veterinario
+   * mezcla empresas, el grupo se desdobla en un trabajo por sociedad.
+   */
+  async crearTrabajos(
+    items: { payload: NuevoTrabajoSanitarioPayload; caballoIds: string[] }[],
+  ): Promise<TrabajoSanitario[]> {
+    if (items.length === 0) return []
+    const supabase = getSupabaseClient()
+
+    const { data: trabajos, error } = await supabase
+      .from('trabajo_sanitario')
+      .insert(items.map((i) => i.payload))
+      .select('*')
+    if (error) throw error
+
+    // PostgREST devuelve las filas en el mismo orden en que se insertaron.
+    const filas = (trabajos as TrabajoSanitario[]).flatMap((t, idx) =>
+      items[idx].caballoIds.map((cid) => ({ trabajo_id: t.id, caballo_id: cid })),
+    )
+    if (filas.length > 0) {
+      const { error: errCab } = await supabase.from('trabajo_sanitario_caballo').insert(filas)
+      if (errCab) {
+        throw new Error(
+          `Los planes se crearon pero no se pudo cargar la lista de caballos: ${mensajeError(errCab)}`,
+          { cause: errCab },
+        )
+      }
+    }
+    return trabajos as TrabajoSanitario[]
+  },
+
+  /**
    * Marca el trabajo como realizado. `excluidoRowIds` son ids de
    * `trabajo_sanitario_caballo` a excluir (no se les carga el trabajo).
    * Devuelve la cantidad de caballos a los que se cargó el historial.

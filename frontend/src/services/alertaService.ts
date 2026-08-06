@@ -48,10 +48,15 @@ export const alertaService = {
     }))
   },
 
+  /**
+   * Crea la alerta. La fecha se indica de una de dos formas: `dias` (a contar
+   * desde hoy) o `fecha_alerta` en formato YYYY-MM-DD, que tiene prioridad.
+   */
   async crear(payload: {
     sociedad_id: string | null
     motivo: string
-    dias: number
+    dias?: number
+    fecha_alerta?: string
     caballo_ids: string[]
     creado_por: string
   }): Promise<string> {
@@ -60,9 +65,12 @@ export const alertaService = {
     // Se parte de la fecha de Argentina anclada al mediodía UTC: sumar días
     // sobre `new Date()` y serializar con toISOString() adelantaba la alerta un
     // día cuando se creaba después de las 21:00 hora local.
-    const fecha = new Date(hoyAR() + 'T12:00:00Z')
-    fecha.setUTCDate(fecha.getUTCDate() + payload.dias)
-    const fechaStr = fecha.toISOString().slice(0, 10)
+    let fechaStr = payload.fecha_alerta
+    if (!fechaStr) {
+      const fecha = new Date(hoyAR() + 'T12:00:00Z')
+      fecha.setUTCDate(fecha.getUTCDate() + (payload.dias ?? 0))
+      fechaStr = fecha.toISOString().slice(0, 10)
+    }
 
     const { data, error } = await supabase
       .from('alerta')

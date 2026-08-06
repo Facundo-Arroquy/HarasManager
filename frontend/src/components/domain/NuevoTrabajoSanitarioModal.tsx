@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
-import { X, AlertCircle, Syringe, Search, MapPin } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { X, AlertCircle, Syringe, Search, MapPin, Building2, Layers, Plus, Trash2, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { sanidadService } from '../../services/sanidadService'
-import { nombreCaballo, textoBusquedaCaballo } from '../../utils/caballo'
+import { alertaService } from '../../services/alertaService'
+import { nombreCaballo, textoBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
-import type { CatTrabajoSanitario } from '../../types/sanidad'
+import type { CatTrabajoSanitario, NuevoTrabajoSanitarioPayload } from '../../types/sanidad'
 import Spinner from '../ui/Spinner'
 import { hoyAR } from '../../utils/fecha'
 
@@ -17,6 +18,20 @@ interface Props {
 }
 
 const OTRO = '__otro__'
+
+/** Una línea del plan: un trabajo con su fecha, sobre el mismo grupo de caballos. */
+interface FilaTrabajo {
+  tempId:      string
+  catId:       string
+  nombreLibre: string
+  fecha:       string
+  tratamiento: string
+}
+
+let _id = 0
+const nuevaFila = (): FilaTrabajo => ({
+  tempId: String(++_id), catId: '', nombreLibre: '', fecha: hoyAR(), tratamiento: '',
+})
 
 export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props) {
   const { user, sociedadActiva } = useAuth()
@@ -30,13 +45,15 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
   const [cargando, setCargando] = useState(true)
 
   // Form
-  const [catId,        setCatId]        = useState('')
-  const [nombreLibre,  setNombreLibre]  = useState('')
-  const [fecha,        setFecha]        = useState(hoyAR())
-  const [tratamiento,  setTratamiento]  = useState('')
+  const [filas,         setFilas]         = useState<FilaTrabajo[]>([nuevaFila()])
   const [observaciones, setObservaciones] = useState('')
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
-  const [busqueda,     setBusqueda]     = useState('')
+
+  // Filtros del selector de caballos (vacío = sin filtrar)
+  const [busqueda,       setBusqueda]       = useState('')
+  const [filtroEmpresas, setFiltroEmpresas] = useState<Set<string>>(new Set())
+  const [filtroCamadas,  setFiltroCamadas]  = useState<Set<string>>(new Set())
+  const [filtroCampos,   setFiltroCampos]   = useState<Set<string>>(new Set())
 
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
@@ -70,38 +87,78 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const nombreTrabajo = catId === OTRO
-    ? nombreLibre.trim()
-    : (catalogo.find((c) => c.id === catId)?.nombre ?? '')
+  // ── Filas de trabajos ──────────────────────────────────────────────────────
+
+  function updFila(tempId: string, key: keyof FilaTrabajo, val: string) {
+    setFilas((prev) => prev.map((f) => f.tempId === tempId ? { ...f, [key]: val } : f))
+  }
+
+  function nombreDeFila(f: FilaTrabajo): string {
+    return f.catId === OTRO
+      ? f.nombreLibre.trim()
+      : (catalogo.find((c) => c.id === f.catId)?.nombre ?? '')
+  }
+
+  const filasValidas = filas.filter((f) => nombreDeFila(f) !== '' && f.fecha !== '')
+
+  // ── Agrupaciones para los filtros ──────────────────────────────────────────
+
+  const empresas = useMemo(() => {
+    if (!esVet) return []
+    const map = new Map<string, string>()
+    caballos.forEach((c) => {
+      if (c.sociedad_id) map.set(c.sociedad_id, c.empresa_nombre ?? 'Sin nombre')
+    })
+    return [...map.entries()]
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [caballos, esVet])
+
+  const camadas = useMemo(() => {
+    const set = new Set<string>()
+    caballos.forEach((c) => {
+      const camada = getCamada(c.fecha_nacimiento)
+      if (camada) set.add(camada)
+    })
+    return [...set].sort((a, b) => b.localeCompare(a))
+  }, [caballos])
+
+  // Se arma desde los caballos y no desde `campos`: el veterinario no tiene
+  // sociedad fija, así que nunca carga el listado de campos, pero sus caballos
+  // igual traen el campo en el que están.
+  const camposConCaballos = useMemo(() => {
+    const map = new Map<string, string>()
+    caballos.forEach((c) => {
+      if (!c.campo_id) return
+      const nombre = c.campo?.nombre ?? campos.find((f) => f.id === c.campo_id)?.nombre
+      if (nombre) map.set(c.campo_id, nombre)
+    })
+    return [...map.entries()]
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [campos, caballos])
 
   const filtrados = useMemo(() => {
     const q = busqueda.toLowerCase()
     return caballos
-      .filter((c) => textoBusquedaCaballo(c).includes(q))
+      .filter((c) => {
+        if (!textoBusquedaCaballo(c).includes(q)) return false
+        if (filtroEmpresas.size > 0 && !filtroEmpresas.has(c.sociedad_id ?? '')) return false
+        if (filtroCampos.size > 0   && !filtroCampos.has(c.campo_id ?? ''))      return false
+        if (filtroCamadas.size > 0) {
+          const camada = getCamada(c.fecha_nacimiento)
+          if (camada === null || !filtroCamadas.has(camada)) return false
+        }
+        return true
+      })
       .sort((a, b) => nombreCaballo(a).localeCompare(nombreCaballo(b)))
-  }, [caballos, busqueda])
+  }, [caballos, busqueda, filtroEmpresas, filtroCampos, filtroCamadas])
 
-  const camposConCaballos = useMemo(() => {
-    const ids = new Set(caballos.map((c) => c.campo_id).filter(Boolean))
-    return campos.filter((f) => ids.has(f.id)).sort((a, b) => a.nombre.localeCompare(b.nombre))
-  }, [campos, caballos])
-
-  function toggle(id: string) {
-    setSeleccionados((prev) => {
+  function toggleEnSet<T>(setter: React.Dispatch<React.SetStateAction<Set<T>>>, val: T) {
+    setter((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  function toggleCampo(campoId: string) {
-    const idsCampo = caballos.filter((c) => c.campo_id === campoId).map((c) => c.id)
-    setSeleccionados((prev) => {
-      const todos = idsCampo.every((id) => prev.has(id))
-      const next = new Set(prev)
-      if (todos) idsCampo.forEach((id) => next.delete(id))
-      else idsCampo.forEach((id) => next.add(id))
+      if (next.has(val)) next.delete(val)
+      else next.add(val)
       return next
     })
   }
@@ -109,7 +166,7 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
   function toggleTodosVisibles() {
     const ids = filtrados.map((c) => c.id)
     setSeleccionados((prev) => {
-      const todos = ids.every((id) => prev.has(id))
+      const todos = ids.length > 0 && ids.every((id) => prev.has(id))
       const next = new Set(prev)
       if (todos) ids.forEach((id) => next.delete(id))
       else ids.forEach((id) => next.add(id))
@@ -117,46 +174,80 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
     })
   }
 
+  // ── Resumen de lo que se va a crear ────────────────────────────────────────
+
+  /** Los caballos elegidos, agrupados por empresa: cada grupo es un plan aparte. */
+  const gruposPorEmpresa = useMemo(() => {
+    const map = new Map<string, string[]>()
+    caballos.forEach((c) => {
+      if (!seleccionados.has(c.id)) return
+      const soc = esVet ? (c.sociedad_id ?? '') : sociedadId
+      map.set(soc, [...(map.get(soc) ?? []), c.id])
+    })
+    return map
+  }, [caballos, seleccionados, esVet, sociedadId])
+
+  const totalPlanes = filasValidas.length * gruposPorEmpresa.size
+
+  // ── Guardar ────────────────────────────────────────────────────────────────
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (!nombreTrabajo)          return setError('Elegí o escribí el tipo de trabajo.')
-    if (!fecha)                  return setError('La fecha es requerida.')
-    if (seleccionados.size === 0) return setError('Seleccioná al menos un caballo.')
+    if (filasValidas.length === 0)  return setError('Cargá al menos un trabajo con su fecha.')
+    if (seleccionados.size === 0)   return setError('Seleccioná al menos un caballo.')
     if (!user?.id) return
-
-    // La sociedad del trabajo: para la empresa es la activa; para el vet se
-    // deriva de los caballos elegidos (deben ser todos de la misma empresa).
-    let sociedadTrabajo = sociedadId
-    if (esVet) {
-      const socs = new Set(
-        caballos.filter((c) => seleccionados.has(c.id)).map((c) => c.sociedad_id),
-      )
-      if (socs.size > 1) return setError('Seleccioná caballos de una sola empresa por trabajo.')
-      sociedadTrabajo = [...socs][0] ?? ''
+    if ([...gruposPorEmpresa.keys()].some((soc) => !soc)) {
+      return setError('No se pudo determinar la empresa de algunos caballos.')
     }
-    if (!sociedadTrabajo) return setError('No se pudo determinar la empresa del trabajo.')
+
+    const items: { payload: NuevoTrabajoSanitarioPayload; caballoIds: string[] }[] = []
+    for (const fila of filasValidas) {
+      for (const [soc, ids] of gruposPorEmpresa) {
+        items.push({
+          payload: {
+            sociedad_id:      soc,
+            nombre:           nombreDeFila(fila),
+            fecha_programada: fila.fecha,
+            tratamiento:      fila.tratamiento.trim() || null,
+            observaciones:    observaciones.trim() || null,
+            creado_por:       user.id,
+          },
+          caballoIds: ids,
+        })
+      }
+    }
 
     setSaving(true)
     try {
-      await sanidadService.crearTrabajo(
-        {
-          sociedad_id:      sociedadTrabajo,
-          nombre:           nombreTrabajo,
-          fecha_programada: fecha,
-          tratamiento:      tratamiento.trim() || null,
-          observaciones:    observaciones.trim() || null,
-          creado_por:       user.id,
-        },
-        Array.from(seleccionados),
-      )
-      onSuccess?.()
-      onClose()
+      await sanidadService.crearTrabajos(items)
     } catch (err) {
       setError(mensajeError(err, 'Error al guardar.'))
-    } finally {
       setSaving(false)
+      return
     }
+
+    // Una alerta por plan. El vet no es miembro de las empresas, así que sus
+    // alertas van sin sociedad (personales), que es como las lista Alertas.
+    try {
+      for (const item of items) {
+        await alertaService.crear({
+          sociedad_id:  esVet ? null : item.payload.sociedad_id,
+          motivo:       item.payload.nombre,
+          fecha_alerta: item.payload.fecha_programada,
+          caballo_ids:  item.caballoIds,
+          creado_por:   user.id,
+        })
+      }
+    } catch (err) {
+      onSuccess?.()
+      setError(`Los planes se crearon, pero falló la creación de alertas: ${mensajeError(err)}`)
+      setSaving(false)
+      return
+    }
+
+    onSuccess?.()
+    onClose()
   }
 
   return (
@@ -164,13 +255,13 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-lg sm:mx-4 rounded-t-2xl sm:rounded-xl border border-slate-300 bg-white shadow-2xl max-h-[92vh] flex flex-col">
+      <div className="w-full max-w-2xl sm:mx-4 rounded-t-2xl sm:rounded-xl border border-slate-300 bg-white shadow-2xl max-h-[92vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 shrink-0">
           <div className="flex items-center gap-2">
             <Syringe size={16} className="text-brand-600" />
-            <h2 className="text-sm font-semibold text-slate-900">Nuevo trabajo sanitario</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Nuevo plan sanitario</h2>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
             <X size={16} />
@@ -180,60 +271,84 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
         {cargando ? (
           <div className="flex justify-center py-16"><Spinner size="lg" /></div>
         ) : (
-          <form id="trabajo-form" onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
-            {/* Tipo + Fecha */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500">Tipo de trabajo *</label>
-                <select
-                  value={catId}
-                  onChange={(e) => setCatId(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          <form id="trabajo-form" onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+
+            {/* Trabajos */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-slate-500">Trabajos a programar *</label>
+                <button
+                  type="button"
+                  onClick={() => setFilas((prev) => [...prev, nuevaFila()])}
+                  className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700"
                 >
-                  <option value="">— Seleccioná —</option>
-                  {catalogo.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                  <option value={OTRO}>Otro…</option>
-                </select>
+                  <Plus size={13} /> Agregar trabajo
+                </button>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500">Fecha *</label>
-                <input
-                  type="date"
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                />
+
+              <div className="space-y-2">
+                {filas.map((f) => (
+                  <div key={f.tempId} className="rounded-lg border border-slate-200 bg-slate-50/60 p-2.5 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <div className="grid flex-1 grid-cols-1 sm:grid-cols-2 gap-2">
+                        <select
+                          value={f.catId}
+                          onChange={(e) => updFila(f.tempId, 'catId', e.target.value)}
+                          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        >
+                          <option value="">— Tipo de trabajo —</option>
+                          {catalogo.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                          <option value={OTRO}>Otro…</option>
+                        </select>
+                        <input
+                          type="date"
+                          value={f.fecha}
+                          onChange={(e) => updFila(f.tempId, 'fecha', e.target.value)}
+                          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        />
+                      </div>
+                      {filas.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setFilas((prev) => prev.filter((r) => r.tempId !== f.tempId))}
+                          className="mt-2 text-slate-400 hover:text-red-600"
+                          title="Quitar trabajo"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {f.catId === OTRO && (
+                        <input
+                          type="text"
+                          value={f.nombreLibre}
+                          onChange={(e) => updFila(f.tempId, 'nombreLibre', e.target.value)}
+                          placeholder="Nombre del trabajo"
+                          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                        />
+                      )}
+                      <input
+                        type="text"
+                        value={f.tratamiento}
+                        onChange={(e) => updFila(f.tempId, 'tratamiento', e.target.value)}
+                        placeholder="Tratamiento / producto (opcional)"
+                        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {catId === OTRO && (
-              <input
-                type="text"
-                value={nombreLibre}
-                onChange={(e) => setNombreLibre(e.target.value)}
-                placeholder="Nombre del trabajo"
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              />
-            )}
-
-            {/* Tratamiento + Observaciones */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Tratamiento / producto</label>
-              <input
-                type="text"
-                value={tratamiento}
-                onChange={(e) => setTratamiento(e.target.value)}
-                placeholder="Ej: Ivermectina 1.87%"
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              />
-            </div>
+            {/* Observaciones */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-500">Observaciones</label>
               <textarea
                 value={observaciones}
                 onChange={(e) => setObservaciones(e.target.value)}
                 rows={2}
-                placeholder="Notas del trabajo…"
+                placeholder="Se aplican a todos los trabajos del plan…"
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500 resize-none"
               />
             </div>
@@ -244,44 +359,63 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
                 <label className="text-xs font-medium text-slate-500">
                   Caballos ({seleccionados.size} seleccionado{seleccionados.size !== 1 ? 's' : ''})
                 </label>
-                <button
-                  type="button"
-                  onClick={toggleTodosVisibles}
-                  className="text-xs text-brand-600 hover:text-brand-700"
-                >
-                  {filtrados.length > 0 && filtrados.every((c) => seleccionados.has(c.id))
-                    ? 'Deseleccionar visibles' : 'Seleccionar visibles'}
-                </button>
-              </div>
-              {esVet && (
-                <p className="text-[11px] text-slate-400">
-                  Los caballos deben ser todos de la misma empresa.
-                </p>
-              )}
-
-              {/* Campos completos */}
-              {camposConCaballos.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {camposConCaballos.map((f) => {
-                    const idsCampo = caballos.filter((c) => c.campo_id === f.id).map((c) => c.id)
-                    const activo = idsCampo.length > 0 && idsCampo.every((id) => seleccionados.has(id))
-                    return (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => toggleCampo(f.id)}
-                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                          activo
-                            ? 'bg-brand-100 text-brand-700 border-brand-300'
-                            : 'bg-slate-100 text-slate-500 border-slate-300 hover:border-slate-400'
-                        }`}
-                      >
-                        <MapPin size={11} /> {f.nombre}
-                      </button>
-                    )
-                  })}
+                <div className="flex items-center gap-3">
+                  {seleccionados.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSeleccionados(new Set())}
+                      className="text-xs text-slate-400 hover:text-slate-600"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={toggleTodosVisibles}
+                    className="text-xs text-brand-600 hover:text-brand-700"
+                  >
+                    {filtrados.length > 0 && filtrados.every((c) => seleccionados.has(c.id))
+                      ? 'Deseleccionar visibles' : 'Seleccionar visibles'}
+                  </button>
                 </div>
-              )}
+              </div>
+
+              {/* Filtros: empresa / camada / campo */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {empresas.length > 0 && (
+                  <FiltroDropdown
+                    icon={<Building2 size={12} />}
+                    seleccion={filtroEmpresas}
+                    onToggle={(k) => toggleEnSet(setFiltroEmpresas, k)}
+                    onLimpiar={() => setFiltroEmpresas(new Set())}
+                    placeholder="Todas las empresas"
+                    sustantivo="empresas"
+                    items={empresas.map((e) => ({ key: e.id, label: e.nombre }))}
+                  />
+                )}
+                {camadas.length > 0 && (
+                  <FiltroDropdown
+                    icon={<Layers size={12} />}
+                    seleccion={filtroCamadas}
+                    onToggle={(k) => toggleEnSet(setFiltroCamadas, k)}
+                    onLimpiar={() => setFiltroCamadas(new Set())}
+                    placeholder="Todas las camadas"
+                    sustantivo="camadas"
+                    items={camadas.map((c) => ({ key: c, label: c }))}
+                  />
+                )}
+                {camposConCaballos.length > 0 && (
+                  <FiltroDropdown
+                    icon={<MapPin size={12} />}
+                    seleccion={filtroCampos}
+                    onToggle={(k) => toggleEnSet(setFiltroCampos, k)}
+                    onLimpiar={() => setFiltroCampos(new Set())}
+                    placeholder="Todos los campos"
+                    sustantivo="campos"
+                    items={camposConCaballos.map((f) => ({ key: f.id, label: f.nombre }))}
+                  />
+                )}
+              </div>
 
               {/* Búsqueda */}
               <div className="relative">
@@ -304,22 +438,34 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
                     <input
                       type="checkbox"
                       checked={seleccionados.has(c.id)}
-                      onChange={() => toggle(c.id)}
+                      onChange={() => toggleEnSet(setSeleccionados, c.id)}
                       className="rounded border-slate-300 text-brand-500 focus:ring-brand-500"
                     />
                     <span className="text-slate-700">{nombreCaballo(c)}</span>
-                    {esVet && c.empresa_nombre && (
-                      <span className="ml-auto text-[11px] text-slate-400 truncate max-w-[45%]">{c.empresa_nombre}</span>
-                    )}
-                    {!esVet && c.categoria && <span className="ml-auto text-[11px] text-slate-400">{c.categoria}</span>}
+                    <span className="ml-auto flex items-center gap-2 text-[11px] text-slate-400 shrink-0">
+                      {getCamada(c.fecha_nacimiento) && <span>{getCamada(c.fecha_nacimiento)}</span>}
+                      {esVet
+                        ? c.empresa_nombre && <span className="truncate max-w-[140px]">{c.empresa_nombre}</span>
+                        : c.categoria      && <span>{c.categoria}</span>}
+                    </span>
                   </label>
                 ))}
               </div>
             </div>
 
+            {/* Resumen */}
+            {totalPlanes > 0 && (
+              <p className="rounded-lg bg-brand-50 border border-brand-200 px-3 py-2 text-xs text-brand-700">
+                Se crearán <strong>{totalPlanes}</strong> plan{totalPlanes !== 1 ? 'es' : ''} sanitario
+                {totalPlanes !== 1 ? 's' : ''} y otras tantas alertas
+                {gruposPorEmpresa.size > 1 && ` (${filasValidas.length} trabajo${filasValidas.length !== 1 ? 's' : ''} × ${gruposPorEmpresa.size} empresas)`}
+                {' '}sobre {seleccionados.size} caballo{seleccionados.size !== 1 ? 's' : ''}.
+              </p>
+            )}
+
             {error && (
-              <div className="flex items-center gap-2 text-xs text-red-600">
-                <AlertCircle size={13} /> {error}
+              <div className="flex items-start gap-2 text-xs text-red-600">
+                <AlertCircle size={13} className="mt-0.5 shrink-0" /> {error}
               </div>
             )}
           </form>
@@ -336,10 +482,93 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
             disabled={saving || cargando}
             className="px-4 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors disabled:opacity-50"
           >
-            {saving ? 'Guardando…' : 'Crear trabajo'}
+            {saving ? 'Guardando…' : totalPlanes > 1 ? `Crear ${totalPlanes} planes` : 'Crear plan'}
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Dropdown de selección múltiple que acota la lista de caballos (empresa,
+ * camada, campo). Sin selección = no filtra.
+ */
+function FiltroDropdown({
+  icon, seleccion, onToggle, onLimpiar, placeholder, sustantivo, items,
+}: {
+  icon: React.ReactNode
+  seleccion: Set<string>
+  onToggle: (key: string) => void
+  onLimpiar: () => void
+  placeholder: string
+  sustantivo: string
+  items: { key: string; label: string }[]
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!abierto) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [abierto])
+
+  const activo = seleccion.size > 0
+  const texto = seleccion.size === 0
+    ? placeholder
+    : seleccion.size === 1
+      ? (items.find((i) => seleccion.has(i.key))?.label ?? placeholder)
+      : `${seleccion.size} ${sustantivo}`
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        className={`flex w-full items-center gap-1.5 rounded-md border py-1.5 pl-2.5 pr-2 text-xs transition-colors ${
+          activo
+            ? 'border-brand-300 bg-brand-50 text-brand-700'
+            : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+        }`}
+      >
+        <span className={activo ? 'text-brand-600' : 'text-slate-400'}>{icon}</span>
+        <span className="truncate">{texto}</span>
+        <ChevronDown size={13} className={`ml-auto shrink-0 ${activo ? 'text-brand-500' : 'text-slate-400'}`} />
+      </button>
+
+      {abierto && (
+        <div className="absolute z-20 mt-1 w-full min-w-[11rem] rounded-lg border border-slate-300 bg-white shadow-lg">
+          {activo && (
+            <button
+              type="button"
+              onClick={onLimpiar}
+              className="w-full border-b border-slate-100 px-3 py-1.5 text-left text-[11px] text-slate-400 hover:text-slate-600"
+            >
+              Limpiar selección
+            </button>
+          )}
+          <div className="max-h-48 overflow-y-auto py-1">
+            {items.map((i) => (
+              <label
+                key={i.key}
+                className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={seleccion.has(i.key)}
+                  onChange={() => onToggle(i.key)}
+                  className="rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+                />
+                <span className="truncate">{i.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
