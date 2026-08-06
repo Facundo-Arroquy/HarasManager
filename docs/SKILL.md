@@ -91,15 +91,23 @@ CREATE TABLE cat_rol           (id SERIAL PRIMARY KEY, nombre VARCHAR(50)  NOT N
 ### Entidades principales
 
 ```sql
+-- Plan comercial de la empresa. Define qué módulos tiene contratados.
+CREATE TYPE plan_sociedad AS ENUM ('silver', 'gold', 'diamond');
+
 -- Sociedades (tenants)
 CREATE TABLE sociedad (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre VARCHAR(200) NOT NULL,
   cuit VARCHAR(20), direccion TEXT,
   activa BOOLEAN DEFAULT TRUE,
-  acceso_centro_cria BOOLEAN DEFAULT FALSE,  -- habilita el módulo de embriones para la sociedad
+  plan plan_sociedad NOT NULL DEFAULT 'silver',
+  -- Derivada del plan: Gold y Diamond incluyen el módulo de embriones.
+  -- Al ser generada no se escribe a mano, así que un admin no puede
+  -- auto-otorgársela vía la policy `sociedad_update` (migración `20260806120000`)
+  acceso_centro_cria BOOLEAN GENERATED ALWAYS AS (plan <> 'silver'::plan_sociedad) STORED,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+-- Trigger: bloquear_cambio_plan → solo el superadmin cambia `plan`
 
 -- Usuarios (espejo de Supabase Auth)
 -- rol global: NULL = rol definido solo por membresia | 'superadmin' | 'veterinario' | 'admin'
@@ -627,6 +635,7 @@ CREATE TABLE lead (
 | `buscar_usuario_por_email(p_email)` | Busca usuario activo; solo accesible para admin/superadmin |
 | `get_veterinarios_plataforma()` | Lista todos los vets activos de la plataforma |
 | `get_caballos_veterinario()` | Lista caballos accesibles por el vet autenticado (via `acceso_vet`) |
+| `get_caballos_veterinario_cria()` | Igual que la anterior, pero solo los de empresas cuyo plan incluye el Centro de Cría. Es la que usa el módulo: el vet es un usuario global, así que el plan lo filtra por los datos que ve y no por la ruta (migración `20260806120000`) |
 | `get_alertas_vet()` | Alertas de los próximos 30 días del vet autenticado |
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
@@ -645,6 +654,7 @@ CREATE TABLE lead (
 | `on_auth_user_created` | `handle_new_auth_user()` | AFTER INSERT en `auth.users` → crea fila en `usuario` |
 | `bloquear_self_escalation_trigger` | `bloquear_self_escalation()` | BEFORE UPDATE en `usuario` → impide auto-escalación de rol/activo/acceso_centro_cria/email |
 | `set_updated_at` | `trigger_set_updated_at()` | BEFORE UPDATE en tablas con `updated_at` |
+| `trg_bloquear_cambio_plan` | `bloquear_cambio_plan()` | BEFORE UPDATE en `sociedad` → rechaza el cambio de `plan` si quien lo hace no es superadmin. Necesario porque la policy `sociedad_update` deja al admin de la empresa escribir su propia fila. Conexiones sin JWT (service role) quedan exentas (migración `20260806120000`) |
 | `trg_bloquear_padrillo_familiar` | `bloquear_padrillo_familiar()` | BEFORE INSERT OR UPDATE OF padrillo_id, caballo_id en `cria_registro_clinico` → rechaza si el padrillo es familiar directo (2 generaciones) de la yegua. El frontend además deshabilita la opción, pero la regla vive acá (migración `20260802120100`) |
 | `trg_cancelar_pendientes_baja` | `cancelar_pendientes_por_baja()` | AFTER UPDATE OF activo en `caballo` (cuando `activo` → false) → cancela `cria_recordatorio` pendientes/vencidos y excluye al caballo de `trabajo_sanitario` pendientes. Conserva el historial (migración `20260729144522`) |
 
@@ -871,7 +881,8 @@ No se usa `supabase db push` ni `supabase migration up`.
 | Crear usuarios en la sociedad | ✅ | ✅ | ❌ | ❌ |
 | Vender caballos | ✅ | ✅ | ❌ | ❌ |
 | Gestionar campos/potreros | ✅ | ✅ | ❌ (solo lectura) | ✅ |
-| Acceso centro de embriones | — | Según `sociedad.acceso_centro_cria` | Según `usuario.acceso_centro_cria` | ❌ |
+| Acceso centro de embriones | — | Plan de la empresa (Gold/Diamond) **y** admin o `membresia.acceso_centro_cria` | Según `usuario.acceso_centro_cria`; adentro solo ve animales de empresas con el módulo | ❌ |
+| Cambiar el plan de la empresa | ✅ | ❌ | ❌ | ❌ |
 
 ---
 

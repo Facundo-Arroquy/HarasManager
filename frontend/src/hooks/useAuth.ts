@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { getSupabaseClient } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
 import { tieneAccesoCentroCria, tieneAccesoCentroCriaVeterinario } from '../services/accesoCentroCriaService'
+import type { PlanSociedad } from '../types/plan'
 
 // Carga el perfil desde Supabase y configura el store según el rol del usuario.
 // Solo corre si rol todavía no fue cargado (evita llamadas redundantes en remounts).
@@ -34,13 +35,16 @@ async function cargarPerfilProd(
     // Usuario normal: cargar sociedad activa via membresia
     const { data: memb } = await supabase
       .from('membresia')
-      .select('activa, cat_rol(nombre), sociedad(id, nombre, activa, acceso_centro_cria)')
+      .select('activa, cat_rol(nombre), sociedad(id, nombre, activa, plan, acceso_centro_cria)')
       .eq('usuario_id', userId)
       .eq('activa', true)
       .single()
 
     // PostgREST puede devolver cat_rol como objeto o array según la versión
-    type SociedadRow = { id: string; nombre: string; activa: boolean; acceso_centro_cria: boolean }
+    type SociedadRow = {
+      id: string; nombre: string; activa: boolean
+      plan: PlanSociedad; acceso_centro_cria: boolean
+    }
     type CatRol = { nombre: string }
     const m = memb as { cat_rol?: CatRol | CatRol[] | null; sociedad?: SociedadRow | null } | null
     const catRol = Array.isArray(m?.cat_rol) ? m?.cat_rol[0] : m?.cat_rol

@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { X, LogOut } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { NAV_GROUPS } from './navItems'
+import { PLAN_LABEL, PLAN_STYLE } from '../../types/plan'
 import logoUrl from '../../assets/logo.png'
 
 interface Props {
@@ -78,9 +79,16 @@ export default function MobileDrawer({ open, onClose }: Props) {
             <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">
               Establecimiento
             </p>
-            <p className="text-sm font-medium text-slate-700 truncate">
-              {sociedadActiva.nombre}
-            </p>
+            <div className="flex items-center gap-2 min-w-0">
+              <p className="text-sm font-medium text-slate-700 truncate">
+                {sociedadActiva.nombre}
+              </p>
+              {sociedadActiva.plan && (
+                <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${PLAN_STYLE[sociedadActiva.plan]}`}>
+                  {PLAN_LABEL[sociedadActiva.plan]}
+                </span>
+              )}
+            </div>
           </div>
         )}
 

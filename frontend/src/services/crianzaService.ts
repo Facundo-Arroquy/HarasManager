@@ -375,7 +375,7 @@ export const crianzaService = {
 
   async listarAnimalesReproductivosVet() {
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.rpc('get_caballos_veterinario')
+    const { data, error } = await supabase.rpc('get_caballos_veterinario_cria')
     if (error) throw error
     return (data ?? []).map((d: Record<string, unknown>) => ({
       id:               d.id as string,

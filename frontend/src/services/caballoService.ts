@@ -101,16 +101,18 @@ export interface NuevoCaballoPayload {
   madre_nombre?: string | null
 }
 
-export const caballoService = {
-  /** Todos los caballos del vet, a través de todas las empresas en que tiene acceso */
-  async listarDelVeterinario(): Promise<Caballo[]> {
+/**
+ * Los dos RPC de caballos del vet devuelven la misma forma y sólo difieren en
+ * el filtro, así que comparten el mapeo.
+ */
+async function caballosVetDesdeRpc(rpc: string): Promise<Caballo[]> {
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.rpc('get_caballos_veterinario')
+    const { data, error } = await supabase.rpc(rpc)
     if (error) throw error
     const rows = data ?? []
 
-    // get_caballos_veterinario puede no devolver prenada/fecha_prenez si fue
-    // creado antes de esas columnas. Las obtenemos con una query directa.
+    // El RPC puede no devolver prenada/fecha_prenez si fue creado antes de esas
+    // columnas. Las obtenemos con una query directa.
     const typedRows = rows as CaballoVetRow[]
     const ids = typedRows.map((c) => c.id)
     const prenMap = new Map<string, { prenada: boolean; fecha_prenez: string | null }>()
@@ -138,6 +140,21 @@ export const caballoService = {
       propietario_nombre: c.propietario_nombre ?? null,
       tags:              tagsMap.get(c.id) ?? [],
     })) as unknown as Caballo[]
+}
+
+export const caballoService = {
+  /** Todos los caballos del vet, a través de todas las empresas en que tiene acceso */
+  listarDelVeterinario(): Promise<Caballo[]> {
+    return caballosVetDesdeRpc('get_caballos_veterinario')
+  },
+
+  /**
+   * Igual que `listarDelVeterinario`, pero sólo los animales de empresas cuyo
+   * plan incluye el Centro de Cría. Es el listado que corresponde adentro del
+   * módulo: una empresa sin el módulo contratado no debe aparecer ahí.
+   */
+  listarDelVeterinarioCria(): Promise<Caballo[]> {
+    return caballosVetDesdeRpc('get_caballos_veterinario_cria')
   },
 
   /**

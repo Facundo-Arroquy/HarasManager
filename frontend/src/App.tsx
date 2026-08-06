@@ -111,12 +111,18 @@ function RequireCentroCria() {
   const accesosCentroCOrg = useAuthStore((s) => s.accesosCentroCOrg)
   const rol = useAuthStore((s) => s.rol)
 
-  // Veterinarios: el acceso lo otorga/deniega el superadmin (usuario.acceso_centro_cria)
+  // Veterinarios: son usuarios globales sin sociedad, así que el plan no los
+  // filtra acá — el acceso lo otorga/deniega el superadmin
+  // (usuario.acceso_centro_cria). Lo que sí filtra el plan son los animales que
+  // ven adentro: sólo los de empresas cuyo plan incluye el módulo.
   if (rol === 'veterinario') {
     return accesosCentroC ? <Outlet /> : <Navigate to="/dashboard" replace />
   }
 
-  if (!accesosCentroC && !accesosCentroCOrg) {
+  // El plan de la empresa manda: sin módulo no entra nadie, ni por URL directa.
+  // Adentro, el admin entra siempre y el resto necesita su permiso individual.
+  // Mismo criterio que usa el menú (Sidebar / MobileDrawer).
+  if (!accesosCentroCOrg || !(rol === 'admin' || accesosCentroC)) {
     return <Navigate to="/dashboard" replace />
   }
   return <Outlet />

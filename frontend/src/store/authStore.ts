@@ -1,11 +1,13 @@
 import { create } from 'zustand'
 import type { User, Session } from '@supabase/supabase-js'
+import type { PlanSociedad } from '../types/plan'
 
 interface Sociedad {
   id: string
   nombre: string
   activa: boolean
-  acceso_centro_cria?: boolean
+  plan?: PlanSociedad
+  acceso_centro_cria?: boolean   // derivada del plan en la DB
 }
 
 interface AuthState {

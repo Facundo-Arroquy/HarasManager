@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '../lib/supabase'
+import type { PlanSociedad } from '../types/plan'
 
 export interface EmpresaStats {
   id: string
@@ -6,7 +7,8 @@ export interface EmpresaStats {
   cantidadCaballos: number
   cantidadUsuarios: number
   cantidadCampos: number
-  accesosCentroC: boolean
+  plan: PlanSociedad
+  accesosCentroC: boolean   // derivada del plan, sólo lectura
 }
 
 export interface UsuarioEmpresa {
@@ -47,7 +49,7 @@ export const superAdminService = {
     const supabase = getSupabaseClient()
     const { data: socs, error } = await supabase
       .from('sociedad')
-      .select('id, nombre, acceso_centro_cria')
+      .select('id, nombre, plan, acceso_centro_cria')
       .eq('activa', true)
       .order('nombre')
     if (error) throw error
@@ -64,6 +66,7 @@ export const superAdminService = {
         cantidadCaballos: caballos.count ?? 0,
         cantidadUsuarios: usuarios.count ?? 0,
         cantidadCampos: campos.count ?? 0,
+        plan: (soc.plan ?? 'silver') as PlanSociedad,
         accesosCentroC: soc.acceso_centro_cria ?? false,
       }
     }))
@@ -76,10 +79,18 @@ export const superAdminService = {
     const { data, error } = await supabase
       .from('sociedad')
       .insert({ nombre: nombre.trim(), activa: true })
-      .select('id, nombre')
+      .select('id, nombre, plan, acceso_centro_cria')
       .single()
     if (error) throw error
-    return { id: data.id, nombre: data.nombre, cantidadCaballos: 0, cantidadUsuarios: 0, cantidadCampos: 0, accesosCentroC: false }
+    return {
+      id: data.id,
+      nombre: data.nombre,
+      cantidadCaballos: 0,
+      cantidadUsuarios: 0,
+      cantidadCampos: 0,
+      plan: (data.plan ?? 'silver') as PlanSociedad,
+      accesosCentroC: data.acceso_centro_cria ?? false,
+    }
   },
 
   async eliminarEmpresa(sociedadId: string): Promise<void> {
@@ -179,11 +190,16 @@ export const superAdminService = {
     if (error) throw error
   },
 
-  async toggleAccesoCentroCOrg(sociedadId: string, valor: boolean): Promise<void> {
+  /**
+   * El plan define qué módulos tiene la empresa: `sociedad.acceso_centro_cria`
+   * es una columna generada a partir de él, así que no se escribe por separado.
+   * Un trigger en la DB rechaza el cambio si quien lo intenta no es superadmin.
+   */
+  async cambiarPlan(sociedadId: string, plan: PlanSociedad): Promise<void> {
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from('sociedad')
-      .update({ acceso_centro_cria: valor })
+      .update({ plan })
       .eq('id', sociedadId)
     if (error) throw error
   },
