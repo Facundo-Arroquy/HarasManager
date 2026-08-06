@@ -1,6 +1,4 @@
 import { getSupabaseClient } from '../lib/supabase'
-import { isMockMode } from '../dev/mockMode'
-import { MOCK_HISTORIAL } from '../dev/mockData'
 
 export interface NuevaConsultaPayload {
   caballoId: string
@@ -55,7 +53,6 @@ export const historialService = {
     return data.publicUrl
   },
 
-
   async listarRecientesVet(limit = 5): Promise<HistorialResumen[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.rpc('get_consultas_recientes_vet', { p_limit: limit })
@@ -82,31 +79,6 @@ export const historialService = {
   },
 
   async listarRecientesTodos(sociedadId: string, limit = 8): Promise<HistorialResumen[]> {
-    if (isMockMode()) {
-      const { MOCK_CABALLOS } = await import('../dev/mockData')
-      const entries: HistorialResumen[] = []
-
-      for (const [caballoId, consultas] of Object.entries(MOCK_HISTORIAL)) {
-        const caballo = MOCK_CABALLOS.find((c) => c.id === caballoId)
-        if (!caballo) continue
-        for (const c of consultas as Array<{ id: string; fecha_consulta: string; proxima_consulta?: string | null; cat_tipo_consulta?: { nombre?: string } | null; diagnostico?: string | null }>) {
-          entries.push({
-            id: c.id,
-            fecha_consulta:   c.fecha_consulta,
-            proxima_consulta: c.proxima_consulta ?? null,
-            caballo_id:       caballoId,
-            caballo_nombre:   caballo.nombre,
-            tipo:             c.cat_tipo_consulta?.nombre ?? 'Consulta',
-            diagnostico:      c.diagnostico ?? null,
-          })
-        }
-      }
-
-      return entries
-        .sort((a, b) => new Date(b.fecha_consulta).getTime() - new Date(a.fecha_consulta).getTime())
-        .slice(0, limit)
-    }
-
     const supabase = getSupabaseClient()
     // RLS restringe por sociedad; el filtro explicit es por si acaso
     const { data, error } = await supabase
@@ -136,16 +108,6 @@ export const historialService = {
   },
 
   async listarPorCaballo(caballoId: string) {
-    if (isMockMode()) {
-      const entries = (MOCK_HISTORIAL[caballoId] ?? []) as object[]
-      // Ordenar DESC por fecha_consulta
-      return [...entries].sort((a, b) => {
-        const fa = (a as { fecha_consulta: string }).fecha_consulta
-        const fb = (b as { fecha_consulta: string }).fecha_consulta
-        return new Date(fb).getTime() - new Date(fa).getTime()
-      })
-    }
-
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('historial_clinico')
@@ -170,40 +132,8 @@ export const historialService = {
 
   async actualizar(
     historialId: string,
-    caballoId: string,
     payload: Omit<NuevaConsultaPayload, 'caballoId' | 'creadoPor'>
   ): Promise<void> {
-    if (isMockMode()) {
-      const { MOCK_TIPOS_CONSULTA } = await import('../dev/mockData')
-      const tipo = MOCK_TIPOS_CONSULTA.find((t) => t.id === payload.tipoConsultaId)
-      const entries = MOCK_HISTORIAL[caballoId] as Array<{ id: string }>
-      if (!entries) return
-      const idx = entries.findIndex((e) => e.id === historialId)
-      if (idx === -1) return
-      Object.assign(entries[idx], {
-        cat_tipo_consulta:        { nombre: tipo?.nombre ?? 'Consulta' },
-        fecha_consulta:           payload.fechaConsulta,
-        diagnostico:              payload.diagnostico  ?? null,
-        tratamiento:              payload.tratamiento  ?? null,
-        observaciones:            payload.observaciones ?? null,
-        proxima_consulta:         payload.proximaConsulta ?? null,
-        historial_parte_afectada: payload.partesAfectadas.map((p, i) => ({
-          id:              `hpa-upd-${Date.now()}-${i}`,
-          lado:            p.lado,
-          descripcion:     p.descripcion ?? null,
-          cat_parte_cuerpo: { nombre: `Parte ${p.parteCuerpoId}` },
-        })),
-        historial_medicamento: payload.medicamentos.map((m, i) => ({
-          id:                 `hm-upd-${Date.now()}-${i}`,
-          medicamento:        m.medicamento,
-          dosis:              m.dosis              ?? null,
-          via_administracion: m.viaAdministracion  ?? null,
-          duracion_dias:      m.duracionDias        ?? null,
-        })),
-      })
-      return
-    }
-
     const supabase = getSupabaseClient()
     const { error: e1 } = await supabase
       .from('historial_clinico')
@@ -248,48 +178,6 @@ export const historialService = {
   },
 
   async crear(payload: NuevaConsultaPayload) {
-    if (isMockMode()) {
-      // Construir entrada mock compatible con HistorialCard
-      const { MOCK_TIPOS_CONSULTA } = await import('../dev/mockData')
-      const tipo = MOCK_TIPOS_CONSULTA.find((t) => t.id === payload.tipoConsultaId)
-
-      const partes = payload.partesAfectadas.map((p, i) => ({
-        id: `hpa-mock-${Date.now()}-${i}`,
-        lado: p.lado,
-        descripcion: p.descripcion ?? null,
-        cat_parte_cuerpo: { nombre: `Parte ${p.parteCuerpoId}` }, // nombre real viene de catalogoService
-      }))
-
-      const meds = payload.medicamentos.map((m, i) => ({
-        id: `hm-mock-${Date.now()}-${i}`,
-        medicamento: m.medicamento,
-        dosis: m.dosis ?? null,
-        via_administracion: m.viaAdministracion ?? null,
-        duracion_dias: m.duracionDias ?? null,
-      }))
-
-      const nuevaEntrada = {
-        id: `hc-mock-${Date.now()}`,
-        caballo_id: payload.caballoId,
-        fecha_consulta: payload.fechaConsulta,
-        diagnostico: payload.diagnostico ?? null,
-        tratamiento: payload.tratamiento ?? null,
-        observaciones: payload.observaciones ?? null,
-        proxima_consulta: payload.proximaConsulta ?? null,
-        creado_por: payload.creadoPor,
-        cat_tipo_consulta: { nombre: tipo?.nombre ?? 'Consulta' },
-        usuario: { nombre: 'Dra. Valentina', apellido: 'Ríos' },
-        historial_parte_afectada: partes,
-        historial_medicamento: meds,
-      }
-
-      if (!MOCK_HISTORIAL[payload.caballoId]) {
-        MOCK_HISTORIAL[payload.caballoId] = []
-      }
-      MOCK_HISTORIAL[payload.caballoId].unshift(nuevaEntrada)
-      return nuevaEntrada
-    }
-
     const supabase = getSupabaseClient()
 
     // Insertar historial_clinico

@@ -136,7 +136,7 @@ export default function CaballosPage() {
     setLoading(true)
     try {
       if (esVet && userId) {
-        const c = await caballoService.listarDelVeterinario(userId)
+        const c = await caballoService.listarDelVeterinario()
         setCaballos(c)
         setCampos([])
       } else {
@@ -178,6 +178,7 @@ export default function CaballosPage() {
   async function aplicarEdicionMasiva() {
     if (!hayBulkCambios || seleccionados.size === 0) return
     setBulkSaving(true)
+    setError(null)
     try {
       const cambios: { campo_id?: string | null; categoria?: string; rol_reproductivo?: string | null; prenada?: boolean | null } = {}
       if (bulkCampoId !== SIN_CAMBIO)
@@ -191,6 +192,10 @@ export default function CaballosPage() {
       await caballoService.editarMasivo(Array.from(seleccionados), cambios)
       await cargar()
       salirModoSeleccion()
+    } catch (e: unknown) {
+      // Sin este catch el error se perdía como rejection sin manejar y el panel
+      // quedaba abierto como si no hubiera pasado nada.
+      setError(mensajeError(e, 'No se pudieron aplicar los cambios'))
     } finally {
       setBulkSaving(false)
     }
@@ -670,7 +675,14 @@ export default function CaballosPage() {
                 <label className="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Categoría</label>
                 <select
                   value={bulkCategoria}
-                  onChange={(e) => { setBulkCategoria(e.target.value); if (e.target.value !== 'Yegua') setBulkSubcategoria(SIN_CAMBIO) }}
+                  onChange={(e) => {
+                    setBulkCategoria(e.target.value)
+                    // Rol reproductivo y preñez solo aplican a Yeguas
+                    if (e.target.value !== 'Yegua') {
+                      setBulkSubcategoria(SIN_CAMBIO)
+                      setBulkPrenada(SIN_CAMBIO)
+                    }
+                  }}
                   className="w-full rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-2 text-sm text-slate-700 focus:border-brand-500 focus:outline-none"
                 >
                   <option value={SIN_CAMBIO}>— Sin cambio —</option>

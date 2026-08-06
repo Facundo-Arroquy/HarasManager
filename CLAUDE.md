@@ -42,7 +42,7 @@ HarasManager/
 └── frontend/src/
     ├── components/
     │   ├── domain/         ← componentes de negocio
-    │   ├── layout/         ← AppLayout, Sidebar, BottomNav
+    │   ├── layout/         ← AppLayout, Sidebar, MobileDrawer
     │   ├── centro-cria/    ← modales del módulo de embriones
     │   └── ui/             ← genéricos (Spinner, etc.)
     ├── pages/              ← una carpeta por sección
@@ -50,8 +50,7 @@ HarasManager/
     ├── store/              ← Zustand (authStore, crianzaStore)
     ├── hooks/              ← useAuth
     ├── types/              ← tipos TypeScript
-    ├── utils/              ← helpers
-    └── dev/                ← mock system (SOLO desarrollo local)
+    └── utils/              ← helpers
 ```
 
 ---
@@ -62,7 +61,6 @@ HarasManager/
 - Esto es **Vite**, no Next.js — nunca usar `"use client"` ni `"use server"`
 - Tailwind v4: usar `@import "tailwindcss"` en CSS
 - Lógica de negocio solo en hooks o services, nunca en componentes
-- `src/dev/` es solo para desarrollo local, nunca llega a producción
 
 **Base de datos**
 - Tablas: `snake_case` singular (`caballo`, no `caballos`)

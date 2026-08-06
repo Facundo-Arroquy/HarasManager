@@ -11,9 +11,6 @@
 export const CHIPS_OI_OD = ['Chico', 'Mediano', 'CLV', '25', '30', '35', '40', '45', 'OV'] as const
 export const CHIPS_UTERO = ['C/T', 'Ed-1', 'Ed-2', 'Ed-3', 'Liq+', 'Liq++', 'Liq+++'] as const
 
-export type ChipOvario = typeof CHIPS_OI_OD[number]
-export type ChipUtero  = typeof CHIPS_UTERO[number]
-
 // ---------------------------------------------------------------------------
 // Catálogo editable de acciones/tratamientos (antes CHIPS_OBS hardcodeado)
 // Migración 20260730120000 — cat_chip_obs, una lista por veterinario.
@@ -301,11 +298,6 @@ export interface TransferenciaEmbrionaria {
   embrion?:             { estadio: string | null; grado: number | null } | null
 }
 
-export type NuevaTransferenciaPayload = Omit<
-  TransferenciaEmbrionaria,
-  'id' | 'created_at' | 'updated_at' | 'receptora' | 'donante' | 'padrillo' | 'veterinario' | 'embrion'
->
-
 /**
  * Payload de la RPC `registrar_transferencia_embrionaria`, que crea el registro
  * clínico de la receptora, la transferencia y descuenta el embrión en una sola
@@ -363,28 +355,6 @@ export type NuevaEcografiaPayload = Omit<
   Ecografia,
   'id' | 'created_at' | 'updated_at' | 'receptora' | 'veterinario'
 >
-
-// ---------------------------------------------------------------------------
-// Vista unificada de caballo con datos reproductivos (para listas del módulo)
-// ---------------------------------------------------------------------------
-
-export interface CaballoReproductivo {
-  id:                  string
-  nombre:              string
-  fecha_nacimiento:    string | null
-  categoria:           string
-  rol_reproductivo:    RolReproductivo
-  raza:                string | null
-  pelaje:              string | null
-  campo:               string | null
-  marca:               string | null
-  sociedad_id:         string
-  activo:              boolean
-  // Estado reproductivo actual (calculado en el store)
-  ultimo_registro?:    RegistroClinicoCria | null
-  recordatorios_hoy?:  RecordatorioCria[]
-  dias_post_ov?:       number | null     // null = no hay OV reciente
-}
 
 // ---------------------------------------------------------------------------
 // Ranking de padrillos preferidos por donante — migración 20260802120200

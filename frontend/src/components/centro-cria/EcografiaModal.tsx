@@ -5,6 +5,7 @@ import { useCrianzaStore } from '../../store/crianzaStore'
 import { CHIPS_OI_OD, LABEL_RESULTADO_ECO } from '../../types/crianza'
 import type { ResultadoEcografia, TransferenciaEmbrionaria } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
+import { hoyAR } from '../../utils/fecha'
 
 interface Props {
   transferencia: TransferenciaEmbrionaria
@@ -13,8 +14,6 @@ interface Props {
   onClose: () => void
   onSuccess?: () => void
 }
-
-const HOY = new Date().toISOString().split('T')[0]
 
 const RESULTADOS: ResultadoEcografia[] = ['prenada', 'abortada', 'pendiente']
 
@@ -34,7 +33,7 @@ export default function EcografiaModal({ transferencia, ecografiasExistentes, on
   const proximoNumero = maxExistente + 1
 
   const [numero,     setNumero]     = useState<number>(proximoNumero)
-  const [fecha,      setFecha]      = useState(HOY)
+  const [fecha,      setFecha]      = useState(hoyAR())
   const [resultado,  setResultado]  = useState<ResultadoEcografia>('pendiente')
   const [ovarioIzq,  setOvarioIzq]  = useState<string[]>([])
   const [ovarioDer,  setOvarioDer]  = useState<string[]>([])

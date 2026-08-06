@@ -9,13 +9,13 @@ import { nombreCaballo, textoBusquedaCaballo } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import type { CatTrabajoSanitario } from '../../types/sanidad'
 import Spinner from '../ui/Spinner'
+import { hoyAR } from '../../utils/fecha'
 
 interface Props {
   onClose: () => void
   onSuccess?: () => void
 }
 
-const HOY = new Date().toISOString().split('T')[0]
 const OTRO = '__otro__'
 
 export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props) {
@@ -32,7 +32,7 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
   // Form
   const [catId,        setCatId]        = useState('')
   const [nombreLibre,  setNombreLibre]  = useState('')
-  const [fecha,        setFecha]        = useState(HOY)
+  const [fecha,        setFecha]        = useState(hoyAR())
   const [tratamiento,  setTratamiento]  = useState('')
   const [observaciones, setObservaciones] = useState('')
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
@@ -46,7 +46,7 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
       if (!user?.id) return
       Promise.all([
         sanidadService.listarCatalogoGlobales(),
-        caballoService.listarDelVeterinario(user.id),
+        caballoService.listarDelVeterinario(),
       ])
         .then(([cat, cabs]) => { setCatalogo(cat); setCaballos(cabs); setCampos([]) })
         .catch((e) => setError(mensajeError(e, 'Error al cargar datos')))

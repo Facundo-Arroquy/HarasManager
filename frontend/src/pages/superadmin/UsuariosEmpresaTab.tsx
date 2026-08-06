@@ -208,12 +208,14 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
 
   // Cargar empresas al montar
   useEffect(() => {
-    superAdminService.getTodasEmpresas().then((data) => {
-      setEmpresas(data)
-      const inicial = sociedadIdInicial ?? data[0]?.id ?? ''
-      setSociedadId(inicial)
-      setLoadingEmpresas(false)
-    })
+    superAdminService.getTodasEmpresas()
+      .then((data) => {
+        setEmpresas(data)
+        const inicial = sociedadIdInicial ?? data[0]?.id ?? ''
+        setSociedadId(inicial)
+      })
+      // Sin el finally, un error dejaba el tab con el spinner girando para siempre.
+      .finally(() => setLoadingEmpresas(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sincronizar sociedadIdInicial cuando cambia desde el tab Empresas
@@ -225,10 +227,10 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
   useEffect(() => {
     if (!sociedadId) return
     setLoadingUsuarios(true)
-    superAdminService.listarUsuariosPorEmpresa(sociedadId).then((data) => {
-      setUsuarios(data)
-      setLoadingUsuarios(false)
-    })
+    superAdminService.listarUsuariosPorEmpresa(sociedadId)
+      .then(setUsuarios)
+      .catch(() => setUsuarios([]))
+      .finally(() => setLoadingUsuarios(false))
   }, [sociedadId])
 
   async function recargarUsuarios() {

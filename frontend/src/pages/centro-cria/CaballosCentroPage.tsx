@@ -37,7 +37,7 @@ export default function CaballosCentroPage() {
     setError(null)
     try {
       if (esVet) {
-        const c = userId ? await caballoService.listarDelVeterinario(userId) : []
+        const c = userId ? await caballoService.listarDelVeterinario() : []
         setCaballos(c); setCampos([])
       } else {
         if (!sociedadId) return

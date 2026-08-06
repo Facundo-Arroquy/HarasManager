@@ -36,7 +36,7 @@ export default function PanelVetPage() {
   useEffect(() => {
     if (!userId) { setLoading(false); return }
     Promise.allSettled([
-      caballoService.listarDelVeterinario(userId).then((c) => setCantCaballos(c.length)),
+      caballoService.listarDelVeterinario().then((c) => setCantCaballos(c.length)),
       historialService.listarRecientesVet(5).then(setConsultas),
       historialService.listarAlertasVet().then(setAlertas),
     ]).then((results) => {

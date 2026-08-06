@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
 import type { Flushing, Embrion } from '../../types/crianza'
+import { hoyAR } from '../../utils/fecha'
 
 interface Props {
   onClose: () => void
@@ -29,8 +30,6 @@ type AnimalItem = {
 
 const CL_CALIDADES = ['Excelente', 'Buena', 'Regular', 'Mala'] as const
 const TONOS        = ['Excelente', 'Bueno', 'Regular', 'Malo'] as const
-
-const HOY = new Date().toISOString().split('T')[0]
 
 function formatFecha(iso: string): string {
   const [y, m, d] = iso.split('T')[0].split('-')
@@ -70,7 +69,7 @@ export default function TransferenciaModal({
   const [donanteId,     setDonanteId]     = useState(donantePredId_)
   const [embrionId,     setEmbrionId]     = useState(embrionPreId ?? '')
   const [padrilloId,    setPadrilloId]    = useState(padrilloPreId_)
-  const [fecha,         setFecha]         = useState(HOY)
+  const [fecha,         setFecha]         = useState(hoyAR())
   const [clCalidad,     setClCalidad]     = useState<string>('')
   const [tonoUterino,   setTonoUterino]   = useState<string>('')
   const [tonoCervical,  setTonoCervical]  = useState<string>('')

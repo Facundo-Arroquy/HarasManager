@@ -1,8 +1,6 @@
 import { useEffect } from 'react'
 import { getSupabaseClient } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
-import { isMockMode, getMockUserId } from '../dev/mockMode'
-import { getMockUser } from '../dev/mockUsers'
 import { tieneAccesoCentroCria, tieneAccesoCentroCriaVeterinario } from '../services/accesoCentroCriaService'
 
 // Carga el perfil desde Supabase y configura el store según el rol del usuario.
@@ -67,23 +65,6 @@ export function useAuth() {
   const store = useAuthStore()
 
   useEffect(() => {
-    if (isMockMode()) {
-      const mockUser = getMockUser(getMockUserId())
-      store.setSession({ user: { id: mockUser.id, email: mockUser.email } } as never)
-      if (mockUser.rol === 'superadmin') {
-        store.setRolSuperAdmin()
-        return
-      }
-      if (mockUser.rol === 'veterinario') {
-        store.setRolVeterinario()
-        store.setAccesosCentroC(mockUser.accesosCentroC)
-        return
-      }
-      store.setSociedadActiva(mockUser.sociedad, mockUser.rol)
-      tieneAccesoCentroCria(mockUser.id).then((v) => store.setAccesosCentroC(v))
-      return
-    }
-
     let supabase: ReturnType<typeof getSupabaseClient>
     try {
       supabase = getSupabaseClient()
@@ -111,16 +92,6 @@ export function useAuth() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const signIn = async (email: string, password: string) => {
-    if (isMockMode()) {
-      const mockUser = getMockUser(getMockUserId())
-      store.setSession({ user: { id: mockUser.id, email: mockUser.email } } as never)
-      if (mockUser.rol === 'superadmin') {
-        store.setRolSuperAdmin()
-        return
-      }
-      store.setSociedadActiva(mockUser.sociedad, mockUser.rol)
-      return
-    }
     const supabase = getSupabaseClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
@@ -128,7 +99,6 @@ export function useAuth() {
   }
 
   const signOut = async () => {
-    if (isMockMode()) { store.clear(); return }
     const supabase = getSupabaseClient()
     await supabase.auth.signOut()
     store.clear()
@@ -142,7 +112,6 @@ export function useAuth() {
     loading: store.loading,
     accesosCentroC: store.accesosCentroC,
     accesosCentroCOrg: store.accesosCentroCOrg,
-    isMock: isMockMode(),
     isAuthenticated: !!store.session,
     signIn,
     signOut,
