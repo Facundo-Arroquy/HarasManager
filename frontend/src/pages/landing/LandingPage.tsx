@@ -134,6 +134,7 @@ function PrimaryButton({
     letterSpacing: '0.02em',
     transition: 'background-color 0.2s',
     textDecoration: 'none',
+    whiteSpace: 'nowrap',
     opacity: loading ? 0.7 : 1,
   }
   if (href) {
@@ -277,7 +278,32 @@ function Navbar() {
           ))}
         </div>
 
-        <PrimaryButton onClick={() => scrollTo('contacto')}>Solicitar demo</PrimaryButton>
+        {/* Acceso a la app + CTA. En mobile los dos no entran en la barra, así
+            que queda solo "Iniciar sesión" (el hero y el footer ya ofrecen la demo). */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <Link
+            to="/login"
+            style={{
+              ...linkStyle,
+              whiteSpace: 'nowrap',
+              ...(isMobile
+                ? {
+                    opacity: 1,
+                    border: `1px solid ${C.goldSoft}`,
+                    borderRadius: '4px',
+                    padding: '9px 16px',
+                  }
+                : {}),
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = isMobile ? '1' : '0.75')}
+          >
+            Iniciar sesión
+          </Link>
+          {!isMobile && (
+            <PrimaryButton onClick={() => scrollTo('contacto')}>Solicitar demo</PrimaryButton>
+          )}
+        </div>
       </div>
     </nav>
   )

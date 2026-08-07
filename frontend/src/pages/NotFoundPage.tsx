@@ -6,7 +6,8 @@ export default function NotFoundPage() {
   const rol = useAuthStore((s) => s.rol)
 
   function handleVolver() {
-    if (!rol) { navigate('/login', { replace: true }); return }
+    // Sin sesión el "inicio" es la landing, no el login
+    if (!rol) { navigate('/landing', { replace: true }); return }
     if (rol === 'superadmin') { navigate('/superadmin', { replace: true }); return }
     if (rol === 'veterinario') { navigate('/panel-vet', { replace: true }); return }
     navigate('/dashboard', { replace: true })

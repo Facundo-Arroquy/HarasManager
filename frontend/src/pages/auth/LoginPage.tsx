@@ -20,9 +20,12 @@ export default function LoginPage() {
     return () => clearTimeout(t)
   }, [])
 
+  // Se entra por "/" para que RootRedirect mande a cada rol a su sección
+  // (el vet a /panel-vet, el resto al dashboard); acá todavía puede no estar
+  // cargado el perfil, así que no se puede decidir el destino desde el login.
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      navigate('/dashboard', { replace: true })
+      navigate('/', { replace: true })
     }
   }, [isAuthenticated, loading, navigate])
 
@@ -33,7 +36,7 @@ export default function LoginPage() {
     setSubmitting(true)
     try {
       await signIn(email.trim(), password)
-      navigate('/dashboard', { replace: true })
+      navigate('/', { replace: true })
     } catch (err: unknown) {
       setError(
         err instanceof Error

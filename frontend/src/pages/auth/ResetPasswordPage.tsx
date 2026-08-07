@@ -54,7 +54,8 @@ export default function ResetPasswordPage() {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw updateError
       setDone(true)
-      setTimeout(() => navigate('/dashboard', { replace: true }), 2500)
+      // "/" para que RootRedirect resuelva el destino según el rol
+      setTimeout(() => navigate('/', { replace: true }), 2500)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al actualizar la contraseña.')
     } finally {

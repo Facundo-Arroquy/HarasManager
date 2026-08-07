@@ -53,6 +53,7 @@ function RootRedirect() {
   }
 
   if (!isAuthenticated) return <Navigate to="/landing" replace />
+  if (rol === 'superadmin') return <Navigate to="/superadmin" replace />
   if (rol === 'veterinario') return <Navigate to="/panel-vet" replace />
   return <Navigate to="/dashboard" replace />
 }
@@ -116,7 +117,7 @@ function RequireCentroCria() {
 
   // Veterinarios: el acceso lo otorga/deniega el superadmin (usuario.acceso_centro_cria)
   if (rol === 'veterinario') {
-    return accesosCentroC ? <Outlet /> : <Navigate to="/dashboard" replace />
+    return accesosCentroC ? <Outlet /> : <Navigate to="/panel-vet" replace />
   }
 
   if (!accesosCentroC && !accesosCentroCOrg) {
