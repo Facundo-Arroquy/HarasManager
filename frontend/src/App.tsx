@@ -34,7 +34,6 @@ import TorneosPage from './pages/torneos/TorneosPage'
 import TorneoKanbanPage from './pages/torneos/TorneoKanbanPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 import TransferirVetPage from './pages/vet/TransferirVetPage'
-import AlertasPage from './pages/alertas/AlertasPage'
 import SanidadPage from './pages/sanidad/SanidadPage'
 import CalendarioPage from './pages/calendario/CalendarioPage'
 import NotFoundPage from './pages/NotFoundPage'
@@ -195,7 +194,6 @@ export default function App() {
           </Route>
           <Route path="/transferencias" element={<TransferirEmpresaPage />} />
           <Route path="/transferir-vet" element={<TransferirVetPage />} />
-          <Route path="/alertas" element={<AlertasPage />} />
         </Route>
 
         <Route element={<RequireSuperAdmin />}>

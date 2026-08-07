@@ -600,6 +600,12 @@ CREATE TABLE venta_caballo (
 
 ### Alertas
 
+> **Sin UI desde 2026-08-07.** La sección "Alertas" del frontend se eliminó: los
+> planes sanitarios ya se ven en Sanidad y en Calendario, y las alertas del panel
+> del vet salen del RPC `get_alertas_vet` (historial), no de estas tablas. Las
+> tablas y sus políticas siguen en la base con los datos históricos; nada las
+> escribe ni las lee hoy.
+
 ```sql
 -- Alertas de seguimiento: con sociedad (admin) o sin sociedad (vet personal)
 CREATE TABLE alerta (

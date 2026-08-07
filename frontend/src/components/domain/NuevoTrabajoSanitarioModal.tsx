@@ -5,7 +5,6 @@ import { useAuthStore } from '../../store/authStore'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { sanidadService } from '../../services/sanidadService'
-import { alertaService } from '../../services/alertaService'
 import { nombreCaballo, textoBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import type { CatTrabajoSanitario, NuevoTrabajoSanitarioPayload } from '../../types/sanidad'
@@ -227,25 +226,6 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
       return
     }
 
-    // Una alerta por plan. El vet no es miembro de las empresas, así que sus
-    // alertas van sin sociedad (personales), que es como las lista Alertas.
-    try {
-      for (const item of items) {
-        await alertaService.crear({
-          sociedad_id:  esVet ? null : item.payload.sociedad_id,
-          motivo:       item.payload.nombre,
-          fecha_alerta: item.payload.fecha_programada,
-          caballo_ids:  item.caballoIds,
-          creado_por:   user.id,
-        })
-      }
-    } catch (err) {
-      onSuccess?.()
-      setError(`Los planes se crearon, pero falló la creación de alertas: ${mensajeError(err)}`)
-      setSaving(false)
-      return
-    }
-
     onSuccess?.()
     onClose()
   }
@@ -457,8 +437,8 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
             {totalPlanes > 0 && (
               <p className="rounded-lg bg-brand-50 border border-brand-200 px-3 py-2 text-xs text-brand-700">
                 Se crearán <strong>{totalPlanes}</strong> plan{totalPlanes !== 1 ? 'es' : ''} sanitario
-                {totalPlanes !== 1 ? 's' : ''} y otras tantas alertas
-                {gruposPorEmpresa.size > 1 && ` (${filasValidas.length} trabajo${filasValidas.length !== 1 ? 's' : ''} × ${gruposPorEmpresa.size} empresas)`}
+                {totalPlanes !== 1 ? 's' : ''}
+                {gruposPorEmpresa.size > 1 &&` (${filasValidas.length} trabajo${filasValidas.length !== 1 ? 's' : ''} × ${gruposPorEmpresa.size} empresas)`}
                 {' '}sobre {seleccionados.size} caballo{seleccionados.size !== 1 ? 's' : ''}.
               </p>
             )}
