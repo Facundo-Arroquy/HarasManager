@@ -25,3 +25,16 @@ export function nombreCaballo(caballo: CaballoIdentificable): string {
 export function textoBusquedaCaballo(caballo: CaballoIdentificable): string {
   return `${caballo.nombre ?? ''} ${caballo.numero_registro ?? ''}`.toLowerCase()
 }
+
+/**
+ * Camada del caballo como "YYYY-YYYY+1". La temporada arranca en julio: los
+ * nacidos de julio a diciembre pertenecen a la camada del año siguiente.
+ */
+export function getCamada(fechaNacimiento: string | null | undefined): string | null {
+  if (!fechaNacimiento) return null
+  const date  = new Date(fechaNacimiento + 'T12:00:00')
+  const year  = date.getFullYear()
+  const month = date.getMonth() + 1
+  if (month >= 7) return `${year}-${year + 1}`
+  return `${year - 1}-${year}`
+}

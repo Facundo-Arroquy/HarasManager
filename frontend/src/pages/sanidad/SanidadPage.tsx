@@ -6,6 +6,7 @@ import { nombreCaballo } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import { LABEL_ESTADO_TRABAJO, type TrabajoSanitario } from '../../types/sanidad'
 import NuevoTrabajoSanitarioModal from '../../components/domain/NuevoTrabajoSanitarioModal'
+import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import Spinner from '../../components/ui/Spinner'
 
 const ESTADO_BADGE: Record<string, string> = {
@@ -28,6 +29,7 @@ export default function SanidadPage() {
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState<string | null>(null)
   const [showNuevo, setShowNuevo] = useState(false)
+  const [showConsulta, setShowConsulta] = useState(false)
   const [completar, setCompletar] = useState<TrabajoSanitario | null>(null)
 
   const cargar = useCallback(async () => {
@@ -60,13 +62,28 @@ export default function SanidadPage() {
             Trabajos sanitarios (vacunas, desparasitaciones, etc.)
           </p>
         </div>
-        <button
-          onClick={() => setShowNuevo(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 px-3 py-2 text-sm font-medium text-white transition-colors"
-        >
-          <Plus size={15} />
-          <span className="hidden sm:inline">Nuevo trabajo</span>
-        </button>
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {esVet && (
+            <button
+              onClick={() => setShowConsulta(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 px-3 py-2 text-sm font-medium text-white transition-colors"
+            >
+              <Plus size={15} />
+              <span className="hidden sm:inline">Nueva consulta</span>
+            </button>
+          )}
+          <button
+            onClick={() => setShowNuevo(true)}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              esVet
+                ? 'border border-slate-300 hover:border-slate-400 text-slate-700'
+                : 'bg-brand-500 hover:bg-brand-400 text-white'
+            }`}
+          >
+            <Plus size={15} />
+            <span className="hidden sm:inline">Nuevo plan sanitario</span>
+          </button>
+        </div>
       </div>
 
       {loading && <div className="flex justify-center py-20"><Spinner size="lg" /></div>}
@@ -75,7 +92,7 @@ export default function SanidadPage() {
       {!loading && !error && trabajos.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-sm">
           <Syringe size={28} className="mb-2 opacity-30" />
-          Sin trabajos sanitarios. Creá el primero con “Nuevo trabajo”.
+          Sin trabajos sanitarios. Creá el primero con “Nuevo plan sanitario”.
         </div>
       )}
 
@@ -100,6 +117,12 @@ export default function SanidadPage() {
         <NuevoTrabajoSanitarioModal
           onClose={() => setShowNuevo(false)}
           onSuccess={() => { setShowNuevo(false); cargar() }}
+        />
+      )}
+      {showConsulta && (
+        <NuevaConsultaModal
+          onClose={() => setShowConsulta(false)}
+          onSuccess={() => setShowConsulta(false)}
         />
       )}
       {completar && (

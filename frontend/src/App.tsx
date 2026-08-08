@@ -34,8 +34,8 @@ import TorneosPage from './pages/torneos/TorneosPage'
 import TorneoKanbanPage from './pages/torneos/TorneoKanbanPage'
 import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
 import TransferirVetPage from './pages/vet/TransferirVetPage'
-import AlertasPage from './pages/alertas/AlertasPage'
 import SanidadPage from './pages/sanidad/SanidadPage'
+import CalendarioPage from './pages/calendario/CalendarioPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 function RootRedirect() {
@@ -52,6 +52,7 @@ function RootRedirect() {
   }
 
   if (!isAuthenticated) return <Navigate to="/landing" replace />
+  if (rol === 'superadmin') return <Navigate to="/superadmin" replace />
   if (rol === 'veterinario') return <Navigate to="/panel-vet" replace />
   return <Navigate to="/dashboard" replace />
 }
@@ -115,7 +116,7 @@ function RequireCentroCria() {
 
   // Veterinarios: el acceso lo otorga/deniega el superadmin (usuario.acceso_centro_cria)
   if (rol === 'veterinario') {
-    return accesosCentroC ? <Outlet /> : <Navigate to="/dashboard" replace />
+    return accesosCentroC ? <Outlet /> : <Navigate to="/panel-vet" replace />
   }
 
   if (!accesosCentroC && !accesosCentroCOrg) {
@@ -161,6 +162,7 @@ export default function App() {
           }
         >
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/calendario" element={<CalendarioPage />} />
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
           <Route path="/sanidad" element={<SanidadPage />} />
@@ -192,7 +194,6 @@ export default function App() {
           </Route>
           <Route path="/transferencias" element={<TransferirEmpresaPage />} />
           <Route path="/transferir-vet" element={<TransferirVetPage />} />
-          <Route path="/alertas" element={<AlertasPage />} />
         </Route>
 
         <Route element={<RequireSuperAdmin />}>

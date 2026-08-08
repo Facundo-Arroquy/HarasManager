@@ -297,6 +297,10 @@ CREATE TABLE historial_clinico (
   diagnostico TEXT, tratamiento TEXT, observaciones TEXT,
   proxima_consulta DATE,
   imagen_url TEXT,                             -- URL de imagen adjunta (Supabase Storage)
+  -- 'pendiente' = consulta agendada desde el calendario, sin ficha clínica
+  -- cargada todavía; pasa a 'realizada' al completarla (migración 20260806120000)
+  estado TEXT NOT NULL DEFAULT 'realizada'
+    CHECK (estado IN ('pendiente','realizada')),
   creado_por UUID NOT NULL REFERENCES usuario(id),
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
   -- REGLA RLS: solo creado_por puede hacer UPDATE
@@ -335,6 +339,9 @@ CREATE TABLE cat_trabajo_sanitario (           -- catálogo editable (NULL = glo
 
 CREATE TABLE trabajo_sanitario (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Los trabajos cargados juntos desde "Nuevo plan sanitario" comparten plan_id:
+  -- son las columnas de una misma grilla caballo × trabajo (migración 20260806130000)
+  plan_id UUID NOT NULL DEFAULT gen_random_uuid(),
   sociedad_id UUID NOT NULL REFERENCES sociedad(id),
   nombre TEXT NOT NULL,
   fecha_programada DATE NOT NULL,
@@ -350,6 +357,10 @@ CREATE TABLE trabajo_sanitario_caballo (
   trabajo_id UUID NOT NULL REFERENCES trabajo_sanitario(id) ON DELETE CASCADE,
   caballo_id UUID NOT NULL REFERENCES caballo(id),
   excluido BOOLEAN NOT NULL DEFAULT false,       -- checkbox de exclusión al completar
+  -- Resultado por caballo y trabajo (migración 20260806130000). NULL = sin marcar
+  -- todavía. Solo 'realizado' escribe historial; 'pendiente' es lo que se
+  -- reprograma en un plan nuevo. Se mantiene sincronizado con `excluido`.
+  estado TEXT CHECK (estado IN ('realizado','no_realizado','pendiente')),
   historial_id UUID REFERENCES historial_clinico(id),  -- fila creada al completar
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (trabajo_id, caballo_id)
@@ -589,6 +600,12 @@ CREATE TABLE venta_caballo (
 
 ### Alertas
 
+> **Sin UI desde 2026-08-07.** La sección "Alertas" del frontend se eliminó: los
+> planes sanitarios ya se ven en Sanidad y en Calendario, y las alertas del panel
+> del vet salen del RPC `get_alertas_vet` (historial), no de estas tablas. Las
+> tablas y sus políticas siguen en la base con los datos históricos; nada las
+> escribe ni las lee hoy.
+
 ```sql
 -- Alertas de seguimiento: con sociedad (admin) o sin sociedad (vet personal)
 CREATE TABLE alerta (
@@ -689,7 +706,8 @@ CREATE TABLE lead (
 | `guardar_ranking_padrillos(p_donante_id, p_padrillo_ids)` | Reemplaza el ranking completo de una donante en una transacción; la prioridad sale del orden del array. Valida tope de 10, sin repetidos, y permiso de admin de la sociedad o vet con acceso a la donante **y a cada padrillo** (migración `20260802120200`) |
 | `get_caballos_pedigree_vet()` | Candidatos a padre/madre para el vet, **incluyendo los dados de baja** — `get_caballos_veterinario()` filtra `activo = true` y el pedigree es histórico (migración `20260802120300`) |
 | `guardar_asignaciones_torneo(p_torneo_id, p_jugador_id, p_caballo_ids)` | Reescribe la columna de un jugador en el kanban del torneo, en una transacción: suelta los caballos de su jugador anterior, borra la columna y reinserta con el orden del array. `p_jugador_id` NULL devuelve los caballos a "Disponibles". Valida torneo `activo`, admin de la sociedad, jugador del torneo, sin repetidos, y caballo activo + de la sociedad + con tag "Jugador" (migración `20260803120000`) |
-| `completar_trabajo_sanitario(p_trabajo_id)` | Marca un `trabajo_sanitario` como realizado e inserta una fila en `historial_clinico` por cada caballo no excluido (asegura el `cat_tipo_consulta` con el nombre del trabajo). Valida `tiene_membresia`. Solo `authenticated`. Devuelve la cantidad cargada (migración `20260728181738`) |
+| `completar_trabajo_sanitario(p_trabajo_id)` | Marca un `trabajo_sanitario` como realizado e inserta una fila en `historial_clinico` por cada caballo no excluido (asegura el `cat_tipo_consulta` con el nombre del trabajo). Valida `tiene_membresia`. Solo `authenticated`. Devuelve la cantidad cargada (migración `20260728181738`). Es el flujo viejo, el de la sección Sanidad |
+| `cerrar_plan_sanitario(p_items jsonb)` | Cierra la grilla de un plan en una transacción: `p_items` es `[{caballo_row_id, estado}]` sobre `trabajo_sanitario_caballo`. Guarda el `estado` de cada celda (sincronizando `excluido`) y escribe `historial_clinico` **solo** para los `'realizado'` sin historial previo. Cada `trabajo_sanitario` pasa a `'realizado'` cuando ya no le quedan celdas en NULL. Permiso: `tiene_membresia` **o** `is_superadmin()` **o** `creado_por = auth.uid()` (a diferencia de la anterior, deja cerrar al vet que lo creó). Solo `authenticated`. Devuelve cuántos historiales creó (migración `20260806130000`) |
 
 ### Triggers
 

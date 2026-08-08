@@ -20,6 +20,8 @@ interface Medicamento {
 export interface HistorialEntry {
   id: string
   fecha_consulta: string
+  /** 'pendiente' = consulta agendada, sin la ficha cargada todavía. */
+  estado?: 'pendiente' | 'realizada'
   diagnostico?: string | null
   tratamiento?: string | null
   observaciones?: string | null
@@ -35,10 +37,12 @@ export interface HistorialEntry {
 interface Props {
   entry: HistorialEntry
   onEditar?: () => void
+  /** Se llegó a esta consulta desde el calendario: se abre y se resalta. */
+  destacada?: boolean
 }
 
-export default function HistorialCard({ entry, onEditar }: Props) {
-  const [open, setOpen] = useState(false)
+export default function HistorialCard({ entry, onEditar, destacada = false }: Props) {
+  const [open, setOpen] = useState(destacada)
   const tieneDetalle =
     entry.historial_parte_afectada.length > 0 ||
     entry.historial_medicamento.length > 0 ||
@@ -47,7 +51,12 @@ export default function HistorialCard({ entry, onEditar }: Props) {
     !!entry.imagen_url
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <div
+      id={`consulta-${entry.id}`}
+      className={`rounded-xl border bg-white overflow-hidden ${
+        destacada ? 'border-brand-500 ring-2 ring-brand-500/30' : 'border-slate-200'
+      }`}
+    >
       {/* Header: área clickeable para expandir + acciones separadas */}
       <div className="flex items-start gap-4 p-4 hover:bg-slate-50 transition-colors">
         {/* Zona de click para expandir */}

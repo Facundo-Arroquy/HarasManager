@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch, Printer, ImageIcon, Pencil } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { caballoService, type Caballo } from '../../services/caballoService'
@@ -26,6 +26,7 @@ const CATEGORIA_STYLE: Record<string, string> = {
 export default function HistorialPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const rol  = useAuthStore((s) => s.rol)
   const user = useAuthStore((s) => s.user)
 
@@ -51,12 +52,24 @@ export default function HistorialPage() {
   const [ahoraMs] = useState(() => Date.now())
   const cambiosPren = prenada !== baselinePren || fechaPrenez !== baselineFecha
 
+  // Se llega con ?consulta=<id> desde el calendario: esa consulta se abre y se
+  // resalta dentro del historial.
+  const consultaDestacada = searchParams.get('consulta')
+
   const [tab, setTab] = useState<'clinico' | 'reproductivo' | 'genealogia' | 'foto'>('clinico')
   const [repLoading,    setRepLoading]    = useState(false)
   const [registrosCria, setRegistrosCria] = useState<RegistroClinicoCria[]>([])
   const [flushings,     setFlushings]     = useState<Flushing[]>([])
   const [transferencias,setTransferencias]= useState<TransferenciaEmbrionaria[]>([])
   const [todosCaballos, setTodosCaballos] = useState<Caballo[]>([])
+
+  // Al venir del calendario, llevar la vista hasta la consulta señalada.
+  useEffect(() => {
+    if (!consultaDestacada || historial.length === 0) return
+    document
+      .getElementById(`consulta-${consultaDestacada}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [consultaDestacada, historial])
 
   function cargarHistorial() {
     if (!id) return
@@ -379,6 +392,7 @@ export default function HistorialPage() {
                   <HistorialCard
                     key={e.id}
                     entry={e}
+                    destacada={e.id === consultaDestacada}
                     onEditar={e.creado_por === user?.id ? () => setEntryToEdit(e) : undefined}
                   />
                 )

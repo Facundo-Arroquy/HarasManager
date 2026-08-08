@@ -10,9 +10,8 @@ import CaballoGridCard from '../../components/domain/CaballoGridCard'
 import CaballoDetalleModal from '../../components/domain/CaballoDetalleModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import { tagService, type Tag } from '../../services/tagService'
-import { textoBusquedaCaballo } from '../../utils/caballo'
+import { textoBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
-import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
 import ImportarCaballosModal from '../../components/domain/ImportarCaballosModal'
 import Spinner from '../../components/ui/Spinner'
@@ -38,16 +37,6 @@ function leerVistaGuardada(): Vista {
 
 const canManageCampos = (rol: string | null) =>
   rol === 'admin' || rol === 'jugador' || rol === 'piloto'
-
-/** Retorna la camada como "YYYY-YYYY+1". Jul-Dic → camada del año siguiente. */
-function getCamada(fechaNacimiento: string | null): string | null {
-  if (!fechaNacimiento) return null
-  const date = new Date(fechaNacimiento + 'T12:00:00')
-  const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  if (month >= 7) return `${year}-${year + 1}`
-  return `${year - 1}-${year}`
-}
 
 export default function CaballosPage() {
   const navigate   = useNavigate()
@@ -80,7 +69,6 @@ export default function CaballosPage() {
   const [showCamadas,      setShowCamadas]      = useState(false)
   const camadasRef = useRef<HTMLDivElement>(null)
 
-  const [showConsulta, setShowConsulta] = useState(false)
   const [showNuevo,    setShowNuevo]    = useState(false)
   const [showImportar, setShowImportar] = useState(false)
 
@@ -331,22 +319,13 @@ export default function CaballosPage() {
         {/* Acciones */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {rol === 'veterinario' && !modoSeleccion && !verBaja && (
-            <>
-              <button
-                onClick={() => setShowConsulta(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-500 px-3 py-2 text-sm font-medium text-white transition-colors"
-              >
-                <Plus size={15} />
-                <span className="hidden sm:inline">Nueva consulta</span>
-              </button>
-              <button
-                onClick={() => setShowNuevo(true)}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 px-3 py-2 text-sm font-medium text-slate-700 transition-colors"
-              >
-                <Plus size={15} />
-                <span className="hidden sm:inline">Nuevo caballo</span>
-              </button>
-            </>
+            <button
+              onClick={() => setShowNuevo(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 px-3 py-2 text-sm font-medium text-slate-700 transition-colors"
+            >
+              <Plus size={15} />
+              <span className="hidden sm:inline">Nuevo caballo</span>
+            </button>
           )}
           {canManageCampos(rol) && !modoSeleccion && !verBaja && (
             <button
@@ -630,9 +609,6 @@ export default function CaballosPage() {
           onClose={() => setShowImportar(false)}
           onSuccess={() => { setShowImportar(false); cargar() }}
         />
-      )}
-      {showConsulta && (
-        <NuevaConsultaModal onClose={() => setShowConsulta(false)} onSuccess={cargar} />
       )}
       {showNuevo && (
         <NuevoCaballoModal

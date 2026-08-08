@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, LayoutGrid, Settings, SlidersHorizontal,
   ClipboardList, Bell, ArrowLeftRight, FlaskConical,
-  CalendarDays, BellRing, Settings2, Syringe, Trophy,
+  CalendarDays, Settings2, Syringe, Trophy,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -25,13 +25,13 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/dashboard',  label: 'Panel', icon: <LayoutDashboard size={18} />, roles: ['admin', 'jugador', 'piloto', 'peticero'] },
       { to: '/panel-vet', label: 'Panel', icon: <LayoutDashboard size={18} />, roles: ['veterinario'] },
+      { to: '/calendario',        label: 'Calendario',         icon: <CalendarDays size={18} />,      roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
       { to: '/caballos',          label: 'Caballos',           icon: <LayoutGrid size={18} /> },
       { to: '/sanidad',           label: 'Sanidad',            icon: <Syringe size={18} />,           roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
       { to: '/revision-preventa', label: 'Revisión pre-venta', icon: <ClipboardList size={18} />, roles: ['veterinario'] },
       // El armado del torneo lo hace el admin; el jugador y el piloto entran a
       // ver la conformación de equipos (la escritura la corta la RLS igual).
       { to: '/torneos',           label: 'Torneos',            icon: <Trophy size={18} />,   matchPrefix: true, roles: ['admin', 'jugador', 'piloto'] },
-      { to: '/alertas',           label: 'Alertas',            icon: <BellRing size={18} />,          roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
       // Traspaso de caballos entre dueños/empresas. Una entrada por rol: el vet
       // mueve los caballos que creó él, el admin los de la sociedad.
       { to: '/transferir-vet',    label: 'Compra/Venta Caballos', icon: <ArrowLeftRight size={18} />, roles: ['veterinario'] },
