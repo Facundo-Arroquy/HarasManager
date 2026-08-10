@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react'
 import { FlaskConical, Stethoscope } from 'lucide-react'
 import { superAdminService, type VeterinarioAcceso } from '../../services/superAdminService'
+import { listarModulos } from '../../services/moduloService'
+import { useToastStore } from '../../store/toastStore'
+import { mensajeError } from '../../utils/error'
+import type { Modulo, ModuloCodigo } from '../../types/modulo'
 import Spinner from '../../components/ui/Spinner'
+
+// Torneo/Polo restringe roles a admin/jugador/piloto — nunca veterinario — así
+// que mostrar ese toggle acá sería UI muerta. Se filtra el catálogo en vez de
+// agregar una columna nueva en cat_modulo para este único caso.
+const MODULOS_VETERINARIO: ModuloCodigo[] = ['centro_cria']
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
 
@@ -28,13 +37,19 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 
 export default function VeterinariosTab() {
   const [veterinarios, setVeterinarios] = useState<VeterinarioAcceso[]>([])
+  const [catalogo, setCatalogo] = useState<Modulo[]>([])
   const [loading, setLoading] = useState(true)
   const [mutando, setMutando] = useState<string | null>(null)
+  const pushToast = useToastStore((s) => s.pushToast)
 
   async function recargar() {
     setLoading(true)
     try {
-      setVeterinarios(await superAdminService.listarVeterinarios())
+      const [vets, mods] = await Promise.all([superAdminService.listarVeterinarios(), listarModulos()])
+      setVeterinarios(vets)
+      setCatalogo(mods.filter((m) => MODULOS_VETERINARIO.includes(m.codigo)))
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudieron cargar los veterinarios.'))
     } finally {
       setLoading(false)
     }
@@ -42,11 +57,14 @@ export default function VeterinariosTab() {
 
   useEffect(() => { recargar() }, [])
 
-  async function handleToggleAcceso(usuarioId: string, valor: boolean) {
+  async function handleToggleModulo(usuarioId: string, codigo: ModuloCodigo, valor: boolean) {
     setMutando(usuarioId)
     try {
-      await superAdminService.toggleAccesoCentroCVeterinario(usuarioId, valor)
+      await superAdminService.toggleModuloUsuario(usuarioId, codigo, valor)
       await recargar()
+      pushToast('success', 'Acceso actualizado.')
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudo actualizar el acceso.'))
     } finally {
       setMutando(null)
     }
@@ -90,16 +108,23 @@ export default function VeterinariosTab() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 sm:w-56">
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                    <FlaskConical size={13} className={v.accesoCentroC ? 'text-brand-400' : 'text-zinc-600'} />
-                    Centro de Embriones
-                  </div>
-                  <Toggle
-                    checked={v.accesoCentroC}
-                    onChange={(valor) => handleToggleAcceso(v.id, valor)}
-                    disabled={enMutacion}
-                  />
+                <div className="flex flex-col items-end gap-2 shrink-0 sm:w-56">
+                  {catalogo.map((modulo) => {
+                    const habilitado = v.modulos[modulo.codigo] ?? false
+                    return (
+                      <div key={modulo.codigo} className="flex items-center justify-between w-full sm:justify-end gap-2">
+                        <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                          <FlaskConical size={13} className={habilitado ? 'text-brand-400' : 'text-zinc-600'} />
+                          {modulo.nombre}
+                        </div>
+                        <Toggle
+                          checked={habilitado}
+                          onChange={(valor) => handleToggleModulo(v.id, modulo.codigo, valor)}
+                          disabled={enMutacion}
+                        />
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )

@@ -2,8 +2,11 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom
 import { useEffect, useState, lazy, Suspense } from 'react'
 import { useAuth } from './hooks/useAuth'
 import { useAuthStore } from './store/authStore'
+import { tieneAccesoModulo } from './utils/modulos'
+import type { ModuloCodigo } from './types/modulo'
 import Spinner from './components/ui/Spinner'
 import TerminosModal from './components/ui/TerminosModal'
+import ToastContainer from './components/ui/ToastContainer'
 import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/auth/LoginPage'
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
@@ -109,18 +112,31 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   )
 }
 
-function RequireCentroCria() {
-  const accesosCentroC = useAuthStore((s) => s.accesosCentroC)
-  const accesosCentroCOrg = useAuthStore((s) => s.accesosCentroCOrg)
+/**
+ * Guard de ruta genérico por módulo. Reemplaza RequireCentroCria — usa el
+ * mismo predicado (tieneAccesoModulo) que el sidebar, así un módulo apagado
+ * queda oculto del menú Y bloqueado por URL directa por igual (antes eran
+ * dos chequeos distintos: el sidebar exigía AND, el guard se conformaba con
+ * un OR-de-negaciones, y quedaban desincronizados).
+ *
+ * Rol y módulo se chequean por separado, no combinados: si el rol no
+ * califica, siempre va a /dashboard — solo el fallo de MÓDULO manda al
+ * veterinario a /panel-vet. Combinarlos mandaría a un veterinario que
+ * visite una ruta con roles que no lo incluyen (p. ej. Torneos) al lugar
+ * equivocado por la razón equivocada.
+ */
+function RequireModulo({ codigo, roles }: { codigo: ModuloCodigo; roles?: string[] }) {
   const rol = useAuthStore((s) => s.rol)
+  const modulos = useAuthStore((s) => s.modulos)
 
-  // Veterinarios: el acceso lo otorga/deniega el superadmin (usuario.acceso_centro_cria)
-  if (rol === 'veterinario') {
-    return accesosCentroC ? <Outlet /> : <Navigate to="/panel-vet" replace />
+  if (roles && rol && !roles.includes(rol)) {
+    return <Navigate to="/dashboard" replace />
   }
 
-  if (!accesosCentroC && !accesosCentroCOrg) {
-    return <Navigate to="/dashboard" replace />
+  if (!tieneAccesoModulo(rol, modulos, codigo)) {
+    return rol === 'veterinario'
+      ? <Navigate to="/panel-vet" replace />
+      : <Navigate to="/dashboard" replace />
   }
   return <Outlet />
 }
@@ -166,14 +182,12 @@ export default function App() {
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
           <Route path="/sanidad" element={<SanidadPage />} />
-          <Route path="/torneos" element={<TorneosPage />} />
-          <Route path="/torneos/:id" element={<TorneoKanbanPage />} />
           <Route path="/panel-vet" element={<PanelVetPage />} />
           <Route path="/revision-preventa" element={<RevisionPreVentaPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/config" element={<ConfigPage />} />
-          {/* Centro de Embriones — requiere acceso explícito por usuario u organización */}
-          <Route element={<RequireCentroCria />}>
+          {/* Centro de Embriones — requiere módulo habilitado por usuario u organización */}
+          <Route element={<RequireModulo codigo="centro_cria" />}>
             {/* El panel reproductivo se eliminó; el centro entra por el programa
                 semanal, que es la primera sección del grupo. */}
             <Route path="/centro-cria" element={<Navigate to="/centro-cria/programa" replace />} />
@@ -192,6 +206,12 @@ export default function App() {
               <Route path="vet" element={<ConfigVetPage />} />
             </Route>
           </Route>
+          {/* Polo / Torneos — antes sin ningún guard de ruta, dependía solo de
+              que el sidebar lo ocultara */}
+          <Route element={<RequireModulo codigo="polo" roles={['admin', 'jugador', 'piloto']} />}>
+            <Route path="/torneos" element={<TorneosPage />} />
+            <Route path="/torneos/:id" element={<TorneoKanbanPage />} />
+          </Route>
           <Route path="/transferencias" element={<TransferirEmpresaPage />} />
           <Route path="/transferir-vet" element={<TransferirVetPage />} />
         </Route>
@@ -203,6 +223,7 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
+      <ToastContainer />
     </BrowserRouter>
   )
 }

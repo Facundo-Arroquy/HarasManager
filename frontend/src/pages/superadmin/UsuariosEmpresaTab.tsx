@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Plus, Trash2, X, Eye, EyeOff } from 'lucide-react'
 import { superAdminService, type UsuarioEmpresa, type NuevoUsuarioPayload } from '../../services/superAdminService'
+import { listarModulos } from '../../services/moduloService'
+import { useToastStore } from '../../store/toastStore'
+import { mensajeError } from '../../utils/error'
+import type { Modulo, ModuloCodigo } from '../../types/modulo'
 import Spinner from '../../components/ui/Spinner'
 
 const ROLES = ['admin', 'veterinario', 'jugador', 'piloto', 'peticero']
@@ -70,18 +74,20 @@ interface CrearUsuarioModalProps {
   onClose: () => void
   onCreado: () => void
   sociedadId: string
+  catalogo: Modulo[]
 }
 
-function CrearUsuarioModal({ sociedadNombre, sociedadId, onClose, onCreado }: CrearUsuarioModalProps) {
-  const [form, setForm] = useState<NuevoUsuarioPayload>({
-    nombre: '', apellido: '', email: '', password: '', rol: 'admin', accesosCentroC: false,
+function CrearUsuarioModal({ sociedadNombre, sociedadId, onClose, onCreado, catalogo }: CrearUsuarioModalProps) {
+  const [form, setForm] = useState<Omit<NuevoUsuarioPayload, 'modulos'>>({
+    nombre: '', apellido: '', email: '', password: '', rol: 'admin',
   })
+  const [modulos, setModulos] = useState<Partial<Record<ModuloCodigo, boolean>>>({})
   const [confirmar, setConfirmar] = useState('')
-  const [errors, setErrors] = useState<Partial<Record<keyof NuevoUsuarioPayload | 'confirmar', string>>>({})
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof form | 'confirmar', string>>>({})
   const [submitting, setSubmitting] = useState(false)
   const [errorGlobal, setErrorGlobal] = useState('')
 
-  function setField(field: keyof NuevoUsuarioPayload, value: string | boolean) {
+  function setField(field: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => ({ ...prev, [field]: undefined }))
   }
@@ -105,7 +111,7 @@ function CrearUsuarioModal({ sociedadNombre, sociedadId, onClose, onCreado }: Cr
     setSubmitting(true)
     setErrorGlobal('')
     try {
-      await superAdminService.crearUsuario(sociedadId, form)
+      await superAdminService.crearUsuario(sociedadId, { ...form, modulos })
       onCreado()
     } catch (err) {
       setErrorGlobal(err instanceof Error ? err.message : 'Error al crear usuario.')
@@ -173,8 +179,15 @@ function CrearUsuarioModal({ sociedadNombre, sociedadId, onClose, onCreado }: Cr
             </select>
           </div>
 
-          <div className="flex items-center gap-3 pt-1">
-            <Toggle checked={form.accesosCentroC} onChange={(v) => setField('accesosCentroC', v)} label="Acceso Centro de Cría" />
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            {catalogo.map((modulo) => (
+              <Toggle
+                key={modulo.codigo}
+                checked={modulos[modulo.codigo] ?? false}
+                onChange={(v) => setModulos((prev) => ({ ...prev, [modulo.codigo]: v }))}
+                label={`Acceso ${modulo.nombre}`}
+              />
+            ))}
           </div>
 
           {errorGlobal && <p className="text-xs text-rose-400 bg-rose-950/40 border border-rose-800/40 rounded-md px-3 py-2">{errorGlobal}</p>}
@@ -198,6 +211,7 @@ function CrearUsuarioModal({ sociedadNombre, sociedadId, onClose, onCreado }: Cr
 
 export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
   const [empresas, setEmpresas] = useState<Array<{ id: string; nombre: string }>>([])
+  const [catalogo, setCatalogo] = useState<Modulo[]>([])
   const [sociedadId, setSociedadId] = useState('')
   const [usuarios, setUsuarios] = useState<UsuarioEmpresa[]>([])
   const [loadingEmpresas, setLoadingEmpresas] = useState(true)
@@ -205,15 +219,18 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
   const [showModal, setShowModal] = useState(false)
   const [confirmandoEliminar, setConfirmandoEliminar] = useState<string | null>(null)
   const [mutando, setMutando] = useState<string | null>(null) // membresiaId en mutación
+  const pushToast = useToastStore((s) => s.pushToast)
 
-  // Cargar empresas al montar
+  // Cargar empresas y catálogo de módulos al montar
   useEffect(() => {
-    superAdminService.getTodasEmpresas()
-      .then((data) => {
+    Promise.all([superAdminService.getTodasEmpresas(), listarModulos()])
+      .then(([data, mods]) => {
         setEmpresas(data)
+        setCatalogo(mods)
         const inicial = sociedadIdInicial ?? data[0]?.id ?? ''
         setSociedadId(inicial)
       })
+      .catch((e) => pushToast('error', mensajeError(e, 'No se pudieron cargar las empresas.')))
       // Sin el finally, un error dejaba el tab con el spinner girando para siempre.
       .finally(() => setLoadingEmpresas(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -229,15 +246,23 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
     setLoadingUsuarios(true)
     superAdminService.listarUsuariosPorEmpresa(sociedadId)
       .then(setUsuarios)
-      .catch(() => setUsuarios([]))
+      .catch((e) => {
+        setUsuarios([])
+        pushToast('error', mensajeError(e, 'No se pudieron cargar los usuarios.'))
+      })
       .finally(() => setLoadingUsuarios(false))
-  }, [sociedadId])
+  }, [sociedadId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function recargarUsuarios() {
     if (!sociedadId) return
     setLoadingUsuarios(true)
-    setUsuarios(await superAdminService.listarUsuariosPorEmpresa(sociedadId))
-    setLoadingUsuarios(false)
+    try {
+      setUsuarios(await superAdminService.listarUsuariosPorEmpresa(sociedadId))
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudieron recargar los usuarios.'))
+    } finally {
+      setLoadingUsuarios(false)
+    }
   }
 
   async function handleRolChange(membresiaId: string, nuevoRol: string) {
@@ -245,6 +270,9 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
     try {
       await superAdminService.cambiarRol(membresiaId, nuevoRol)
       await recargarUsuarios()
+      pushToast('success', 'Rol actualizado.')
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudo cambiar el rol.'))
     } finally {
       setMutando(null)
     }
@@ -255,16 +283,22 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
     try {
       await superAdminService.toggleActivo(membresiaId, valor)
       await recargarUsuarios()
+      pushToast('success', 'Estado actualizado.')
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudo actualizar el estado.'))
     } finally {
       setMutando(null)
     }
   }
 
-  async function handleToggleCentroC(membresiaId: string, valor: boolean) {
+  async function handleToggleModulo(membresiaId: string, codigo: ModuloCodigo, valor: boolean) {
     setMutando(membresiaId)
     try {
-      await superAdminService.toggleAccesosCentroC(membresiaId, valor)
+      await superAdminService.toggleModuloMembresia(membresiaId, codigo, valor)
       await recargarUsuarios()
+      pushToast('success', 'Acceso actualizado.')
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudo actualizar el acceso.'))
     } finally {
       setMutando(null)
     }
@@ -276,6 +310,9 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
       await superAdminService.eliminarUsuario(membresiaId)
       setConfirmandoEliminar(null)
       await recargarUsuarios()
+      pushToast('success', 'Usuario eliminado.')
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudo eliminar el usuario.'))
     } finally {
       setMutando(null)
     }
@@ -361,8 +398,16 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
                     >
                       {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                     </select>
-                    <Toggle checked={u.activo}         onChange={(v) => handleToggleActivo(u.id, v)}  label="Activo"      disabled={enMutacion} />
-                    <Toggle checked={u.accesosCentroC} onChange={(v) => handleToggleCentroC(u.id, v)} label="Centro Cría" disabled={enMutacion} />
+                    <Toggle checked={u.activo} onChange={(v) => handleToggleActivo(u.id, v)} label="Activo" disabled={enMutacion} />
+                    {catalogo.map((modulo) => (
+                      <Toggle
+                        key={modulo.codigo}
+                        checked={u.modulos[modulo.codigo] ?? false}
+                        onChange={(v) => handleToggleModulo(u.id, modulo.codigo, v)}
+                        label={modulo.nombre}
+                        disabled={enMutacion}
+                      />
+                    ))}
                     <button
                       onClick={() => setConfirmandoEliminar(u.id)}
                       disabled={enMutacion}
@@ -399,6 +444,7 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
         <CrearUsuarioModal
           sociedadId={sociedadId}
           sociedadNombre={nombreEmpresa}
+          catalogo={catalogo}
           onClose={() => setShowModal(false)}
           onCreado={() => { setShowModal(false); recargarUsuarios() }}
         />

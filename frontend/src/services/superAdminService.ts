@@ -1,4 +1,6 @@
 import { getSupabaseClient } from '../lib/supabase'
+import * as moduloService from './moduloService'
+import type { ModuloCodigo } from '../types/modulo'
 
 export interface EmpresaStats {
   id: string
@@ -6,7 +8,7 @@ export interface EmpresaStats {
   cantidadCaballos: number
   cantidadUsuarios: number
   cantidadCampos: number
-  accesosCentroC: boolean
+  modulos: Partial<Record<ModuloCodigo, boolean>>
 }
 
 export interface UsuarioEmpresa {
@@ -17,7 +19,7 @@ export interface UsuarioEmpresa {
   email: string
   rol: string
   activo: boolean
-  accesosCentroC: boolean
+  modulos: Partial<Record<ModuloCodigo, boolean>>
 }
 
 export interface NuevoUsuarioPayload {
@@ -26,7 +28,7 @@ export interface NuevoUsuarioPayload {
   email: string
   password: string
   rol: string
-  accesosCentroC: boolean
+  modulos: Partial<Record<ModuloCodigo, boolean>>
 }
 
 export interface VeterinarioAcceso {
@@ -35,7 +37,36 @@ export interface VeterinarioAcceso {
   apellido: string
   email: string
   activo: boolean
-  accesoCentroC: boolean
+  modulos: Partial<Record<ModuloCodigo, boolean>>
+}
+
+// ── Helper compartido: módulos habilitados por entidad, para las 3 tablas puente ──
+
+async function modulosPorIds(
+  tabla: 'sociedad_modulo' | 'membresia_modulo' | 'usuario_modulo',
+  columnaId: 'sociedad_id' | 'membresia_id' | 'usuario_id',
+  ids: string[],
+): Promise<Map<string, Partial<Record<ModuloCodigo, boolean>>>> {
+  const mapa = new Map<string, Partial<Record<ModuloCodigo, boolean>>>()
+  if (ids.length === 0) return mapa
+
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from(tabla)
+    .select(`${columnaId}, habilitado, cat_modulo(codigo)`)
+    .in(columnaId, ids)
+    .eq('habilitado', true)
+  if (error) throw error
+
+  for (const fila of (data ?? []) as unknown as Record<string, unknown>[]) {
+    const entidadId = fila[columnaId] as string
+    const codigo = (fila.cat_modulo as { codigo: ModuloCodigo } | null)?.codigo
+    if (!codigo) continue
+    const actuales = mapa.get(entidadId) ?? {}
+    actuales[codigo] = true
+    mapa.set(entidadId, actuales)
+  }
+  return mapa
 }
 
 // ── Servicio ──────────────────────────────────────────────────────────────────
@@ -47,10 +78,12 @@ export const superAdminService = {
     const supabase = getSupabaseClient()
     const { data: socs, error } = await supabase
       .from('sociedad')
-      .select('id, nombre, acceso_centro_cria')
+      .select('id, nombre')
       .eq('activa', true)
       .order('nombre')
     if (error) throw error
+
+    const modulosPorSociedad = await modulosPorIds('sociedad_modulo', 'sociedad_id', (socs ?? []).map((s) => s.id))
 
     const stats = await Promise.all((socs ?? []).map(async (soc) => {
       const [caballos, usuarios, campos] = await Promise.all([
@@ -64,7 +97,7 @@ export const superAdminService = {
         cantidadCaballos: caballos.count ?? 0,
         cantidadUsuarios: usuarios.count ?? 0,
         cantidadCampos: campos.count ?? 0,
-        accesosCentroC: soc.acceso_centro_cria ?? false,
+        modulos: modulosPorSociedad.get(soc.id) ?? {},
       }
     }))
 
@@ -79,7 +112,7 @@ export const superAdminService = {
       .select('id, nombre')
       .single()
     if (error) throw error
-    return { id: data.id, nombre: data.nombre, cantidadCaballos: 0, cantidadUsuarios: 0, cantidadCampos: 0, accesosCentroC: false }
+    return { id: data.id, nombre: data.nombre, cantidadCaballos: 0, cantidadUsuarios: 0, cantidadCampos: 0, modulos: {} }
   },
 
   async eliminarEmpresa(sociedadId: string): Promise<void> {
@@ -99,7 +132,6 @@ export const superAdminService = {
       .select(`
         id,
         activa,
-        acceso_centro_cria,
         usuario_id,
         usuario!inner(nombre, apellido, email),
         cat_rol!inner(nombre)
@@ -107,11 +139,15 @@ export const superAdminService = {
       .eq('sociedad_id', sociedadId)
     if (error) throw error
 
-    return ((data ?? []) as unknown as {
+    const filas = (data ?? []) as unknown as {
       id: string; usuario_id: string
       usuario: { nombre: string; apellido: string; email: string }
-      cat_rol: { nombre: string }; activa: boolean; acceso_centro_cria?: boolean | null
-    }[]).map((m) => ({
+      cat_rol: { nombre: string }; activa: boolean
+    }[]
+
+    const modulosPorMembresia = await modulosPorIds('membresia_modulo', 'membresia_id', filas.map((m) => m.id))
+
+    return filas.map((m) => ({
       id: m.id,
       usuario_id: m.usuario_id,
       nombre: m.usuario.nombre,
@@ -119,7 +155,7 @@ export const superAdminService = {
       email: m.usuario.email,
       rol: m.cat_rol.nombre,
       activo: m.activa,
-      accesosCentroC: m.acceso_centro_cria ?? false,
+      modulos: modulosPorMembresia.get(m.id) ?? {},
     }))
   },
 
@@ -133,7 +169,7 @@ export const superAdminService = {
         password: payload.password,
         sociedad_id: sociedadId,
         rol: payload.rol,
-        acceso_centro_cria: payload.accesosCentroC,
+        modulos: payload.modulos,
       },
     })
     if (error) throw new Error(error.message)
@@ -161,15 +197,6 @@ export const superAdminService = {
     if (error) throw error
   },
 
-  async toggleAccesosCentroC(membresiaId: string, valor: boolean): Promise<void> {
-    const supabase = getSupabaseClient()
-    const { error } = await supabase
-      .from('membresia')
-      .update({ acceso_centro_cria: valor })
-      .eq('id', membresiaId)
-    if (error) throw error
-  },
-
   async toggleActivo(membresiaId: string, valor: boolean): Promise<void> {
     const supabase = getSupabaseClient()
     const { error } = await supabase
@@ -179,49 +206,43 @@ export const superAdminService = {
     if (error) throw error
   },
 
-  async toggleAccesoCentroCOrg(sociedadId: string, valor: boolean): Promise<void> {
-    const supabase = getSupabaseClient()
-    const { error } = await supabase
-      .from('sociedad')
-      .update({ acceso_centro_cria: valor })
-      .eq('id', sociedadId)
-    if (error) throw error
+  async toggleModuloOrg(sociedadId: string, codigo: ModuloCodigo, valor: boolean): Promise<void> {
+    return moduloService.toggleSociedadModulo(sociedadId, codigo, valor)
+  },
+
+  async toggleModuloMembresia(membresiaId: string, codigo: ModuloCodigo, valor: boolean): Promise<void> {
+    return moduloService.toggleMembresiaModulo(membresiaId, codigo, valor)
   },
 
   // ── Veterinarios ─────────────────────────────────────────────────────────────
   // Los veterinarios son usuarios globales (usuario.rol = 'veterinario'), sin
-  // sociedad/membresía fija. El superadmin otorga/deniega su acceso al Centro
-  // de Embriones igual que con las empresas, pero a nivel de usuario.
+  // sociedad/membresía fija. El superadmin otorga/deniega su acceso a cada
+  // módulo igual que con las empresas, pero a nivel de usuario.
 
   async listarVeterinarios(): Promise<VeterinarioAcceso[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('usuario')
-      .select('id, nombre, apellido, email, activo, acceso_centro_cria')
+      .select('id, nombre, apellido, email, activo')
       .eq('rol', 'veterinario')
       .order('nombre')
     if (error) throw error
 
-    return ((data ?? []) as unknown as {
-      id: string; nombre: string; apellido: string; email: string
-      activo: boolean; acceso_centro_cria?: boolean | null
-    }[]).map((u) => ({
+    const filas = (data ?? []) as { id: string; nombre: string; apellido: string; email: string; activo: boolean }[]
+    const modulosPorUsuario = await modulosPorIds('usuario_modulo', 'usuario_id', filas.map((u) => u.id))
+
+    return filas.map((u) => ({
       id: u.id,
       nombre: u.nombre,
       apellido: u.apellido,
       email: u.email,
       activo: u.activo,
-      accesoCentroC: u.acceso_centro_cria ?? false,
+      modulos: modulosPorUsuario.get(u.id) ?? {},
     }))
   },
 
-  async toggleAccesoCentroCVeterinario(usuarioId: string, valor: boolean): Promise<void> {
-    const supabase = getSupabaseClient()
-    const { error } = await supabase
-      .from('usuario')
-      .update({ acceso_centro_cria: valor })
-      .eq('id', usuarioId)
-    if (error) throw error
+  async toggleModuloUsuario(usuarioId: string, codigo: ModuloCodigo, valor: boolean): Promise<void> {
+    return moduloService.toggleUsuarioModulo(usuarioId, codigo, valor)
   },
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
