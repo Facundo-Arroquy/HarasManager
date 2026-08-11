@@ -276,6 +276,33 @@ CREATE TABLE acceso_vet (
 );
 ```
 
+### Suscripción de veterinarios independientes
+
+```sql
+-- Freemium: hasta 5 caballos propios (sociedad_id IS NULL) gratis por vet;
+-- a partir del 6to hace falta una fila 'activa' acá. Fase 1: activación
+-- manual por superadmin, sin pasarela de pago (migración 20260811150000).
+CREATE TABLE suscripcion_veterinario (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id UUID NOT NULL REFERENCES usuario(id),
+  estado TEXT NOT NULL DEFAULT 'inactiva' CHECK (estado IN ('activa', 'inactiva', 'cancelada')),
+  activado_por UUID REFERENCES usuario(id),
+  fecha_activacion TIMESTAMPTZ,
+  fecha_vencimiento TIMESTAMPTZ,        -- NULL = sin vencimiento
+  proveedor_pago TEXT,                  -- NULL en Fase 1; 'mercadopago' en Fase 2
+  external_subscription_id TEXT,        -- id de preapproval de MercadoPago, Fase 2
+  notas TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- UNIQUE en usuario_id: una fila por vet
+```
+
+Auto-registro público (`/registro-veterinario`, migración `20260811160000`):
+el trigger `handle_new_auth_user` lee `rol_solicitado` del metadata de
+`auth.signUp()` — si es `'veterinario'`, pone `usuario.rol = 'veterinario'`
+e inserta la fila inicial `'inactiva'` acá mismo, en la misma transacción.
+Sin ese flag, el comportamiento es idéntico al de antes (`rol = 'admin'`).
+
 ### Torneos (asignación de caballos por jugador)
 
 ```sql
@@ -724,12 +751,13 @@ CREATE TABLE lead (
 | `puede_gestionar_campo(sociedad_id)` | Tiene rol admin, jugador o piloto activo en esa sociedad |
 | `vet_tiene_acceso(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo **y** que el usuario sea veterinario activo; usado en políticas de centro de embriones (corregida en `20260611155651` — antes ignoraba el parámetro) |
 | `vet_tiene_acceso_caballo(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo específico |
+| `vet_puede_agregar_caballo(usuario_id)` | TRUE si el vet tiene menos de 5 caballos propios activos (`vet_owner_id`, `sociedad_id IS NULL`) o tiene `suscripcion_veterinario` en estado `activa` vigente. Gate freemium (migración `20260811150100`) |
 
 ### Funciones de negocio (SECURITY DEFINER, llamadas desde frontend)
 
 | Función | Descripción |
 |---------|-------------|
-| `crear_caballo_veterinario(...)` | Crea caballo sin `sociedad_id` + inserta en `acceso_vet` automáticamente |
+| `crear_caballo_veterinario(...)` | Crea caballo sin `sociedad_id` + inserta en `acceso_vet` automáticamente. Rechaza con `RAISE EXCEPTION` si `vet_puede_agregar_caballo(auth.uid())` da falso (límite freemium, migración `20260811150200`) — **es el enforcement real del límite**, no una policy RLS: la función es `SECURITY DEFINER` con dueño `postgres` (`rolbypassrls = true`), así que su INSERT interno nunca pasa por RLS de `caballo` |
 | `actualizar_caballo_veterinario(p_caballo_id, ...)` | Actualiza caballo si el vet tiene acceso verificado |
 | `toggle_prenada_veterinario(p_caballo_id, p_prenada, p_fecha_prenez)` | Marca/desmarca preñez; solo para Yeguas |
 | `transferir_caballos_vet(p_caballo_ids, p_sociedad_destino_id)` | Asigna caballos del vet a una sociedad |
@@ -920,6 +948,11 @@ CREATE TABLE lead (
 
 **`alerta_caballo`**
 - Hereda acceso de la alerta asociada
+
+**`suscripcion_veterinario`**
+- SELECT: `usuario_id = auth.uid()` o `is_superadmin()`
+- INSERT/UPDATE: solo `is_superadmin()` (activación/desactivación manual, Fase 1). La fila inicial `inactiva` la crea el trigger `handle_new_auth_user` con `SECURITY DEFINER`, que bypasea RLS
+- Sin DELETE
 
 **`terminos_condiciones`**
 - SELECT: cualquier autenticado (solo los activos)
