@@ -38,6 +38,8 @@ export interface VeterinarioAcceso {
   email: string
   activo: boolean
   modulos: Partial<Record<ModuloCodigo, boolean>>
+  caballosPropios: number
+  suscripcionEstado: 'activa' | 'inactiva' | 'cancelada' | null
 }
 
 // ── Helper compartido: módulos habilitados por entidad, para las 3 tablas puente ──
@@ -229,7 +231,25 @@ export const superAdminService = {
     if (error) throw error
 
     const filas = (data ?? []) as { id: string; nombre: string; apellido: string; email: string; activo: boolean }[]
-    const modulosPorUsuario = await modulosPorIds('usuario_modulo', 'usuario_id', filas.map((u) => u.id))
+    if (filas.length === 0) return []
+    const vetIds = filas.map((u) => u.id)
+
+    const [modulosPorUsuario, caballosRes, suscripcionesRes] = await Promise.all([
+      modulosPorIds('usuario_modulo', 'usuario_id', vetIds),
+      supabase.from('caballo').select('vet_owner_id').is('sociedad_id', null).eq('activo', true).in('vet_owner_id', vetIds),
+      supabase.from('suscripcion_veterinario').select('usuario_id, estado').in('usuario_id', vetIds),
+    ])
+    if (caballosRes.error) throw caballosRes.error
+    if (suscripcionesRes.error) throw suscripcionesRes.error
+
+    const cantidadPorVet = new Map<string, number>()
+    for (const c of (caballosRes.data ?? []) as { vet_owner_id: string }[]) {
+      cantidadPorVet.set(c.vet_owner_id, (cantidadPorVet.get(c.vet_owner_id) ?? 0) + 1)
+    }
+    const estadoPorVet = new Map<string, VeterinarioAcceso['suscripcionEstado']>()
+    for (const s of (suscripcionesRes.data ?? []) as { usuario_id: string; estado: VeterinarioAcceso['suscripcionEstado'] }[]) {
+      estadoPorVet.set(s.usuario_id, s.estado)
+    }
 
     return filas.map((u) => ({
       id: u.id,
@@ -238,11 +258,36 @@ export const superAdminService = {
       email: u.email,
       activo: u.activo,
       modulos: modulosPorUsuario.get(u.id) ?? {},
+      caballosPropios: cantidadPorVet.get(u.id) ?? 0,
+      suscripcionEstado: estadoPorVet.get(u.id) ?? null,
     }))
   },
 
   async toggleModuloUsuario(usuarioId: string, codigo: ModuloCodigo, valor: boolean): Promise<void> {
     return moduloService.toggleUsuarioModulo(usuarioId, codigo, valor)
+  },
+
+  async activarSuscripcionVeterinario(usuarioId: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error } = await supabase
+      .from('suscripcion_veterinario')
+      .upsert({
+        usuario_id: usuarioId,
+        estado: 'activa',
+        activado_por: user?.id ?? null,
+        fecha_activacion: new Date().toISOString(),
+        fecha_vencimiento: null,
+      }, { onConflict: 'usuario_id' })
+    if (error) throw error
+  },
+
+  async desactivarSuscripcionVeterinario(usuarioId: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('suscripcion_veterinario')
+      .upsert({ usuario_id: usuarioId, estado: 'cancelada' }, { onConflict: 'usuario_id' })
+    if (error) throw error
   },
 
   // ── Helpers ───────────────────────────────────────────────────────────────────

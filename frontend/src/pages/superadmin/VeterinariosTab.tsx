@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FlaskConical, Stethoscope } from 'lucide-react'
+import { FlaskConical, Stethoscope, LayoutGrid } from 'lucide-react'
 import { superAdminService, type VeterinarioAcceso } from '../../services/superAdminService'
 import { listarModulos } from '../../services/moduloService'
 import { useToastStore } from '../../store/toastStore'
@@ -11,6 +11,8 @@ import Spinner from '../../components/ui/Spinner'
 // que mostrar ese toggle acá sería UI muerta. Se filtra el catálogo en vez de
 // agregar una columna nueva en cat_modulo para este único caso.
 const MODULOS_VETERINARIO: ModuloCodigo[] = ['centro_cria']
+
+const LIMITE_GRATIS = 5
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,31 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
         }`}
       />
     </button>
+  )
+}
+
+function BadgeSuscripcion({ estado, caballosPropios }: {
+  estado: VeterinarioAcceso['suscripcionEstado']
+  caballosPropios: number
+}) {
+  if (estado === 'activa') {
+    return (
+      <span className="rounded border border-emerald-800/50 bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+        Suscripción activa
+      </span>
+    )
+  }
+  if (caballosPropios >= LIMITE_GRATIS) {
+    return (
+      <span className="rounded border border-amber-800/50 bg-amber-900/30 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+        Límite alcanzado
+      </span>
+    )
+  }
+  return (
+    <span className="text-[10px] text-zinc-500">
+      {caballosPropios}/{LIMITE_GRATIS} caballos gratis
+    </span>
   )
 }
 
@@ -70,6 +97,23 @@ export default function VeterinariosTab() {
     }
   }
 
+  async function handleToggleSuscripcion(usuarioId: string, activar: boolean) {
+    setMutando(usuarioId)
+    try {
+      if (activar) {
+        await superAdminService.activarSuscripcionVeterinario(usuarioId)
+      } else {
+        await superAdminService.desactivarSuscripcionVeterinario(usuarioId)
+      }
+      await recargar()
+      pushToast('success', activar ? 'Suscripción activada.' : 'Suscripción desactivada.')
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudo actualizar la suscripción.'))
+    } finally {
+      setMutando(null)
+    }
+  }
+
   if (loading) {
     return <div className="flex justify-center py-16"><Spinner size="md" /></div>
   }
@@ -89,42 +133,71 @@ export default function VeterinariosTab() {
             return (
               <div
                 key={v.id}
-                className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 bg-zinc-900 hover:bg-zinc-800/60 transition-colors"
+                className="flex flex-col gap-3 px-4 py-3 bg-zinc-900 hover:bg-zinc-800/60 transition-colors"
               >
-                <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-800">
-                    <Stethoscope size={16} className="text-sky-400" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-zinc-100">{v.nombre} {v.apellido}</p>
-                      {!v.activo && (
-                        <span className="rounded border border-red-800/50 bg-red-900/30 px-1.5 py-0.5 text-[10px] font-medium text-red-400">
-                          Inactivo
-                        </span>
-                      )}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-800">
+                      <Stethoscope size={16} className="text-sky-400" />
                     </div>
-                    <p className="text-[11px] text-zinc-500 truncate">{v.email}</p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-zinc-100">{v.nombre} {v.apellido}</p>
+                        {!v.activo && (
+                          <span className="rounded border border-red-800/50 bg-red-900/30 px-1.5 py-0.5 text-[10px] font-medium text-red-400">
+                            Inactivo
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 truncate">{v.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2 shrink-0 sm:w-56">
+                    {catalogo.map((modulo) => {
+                      const habilitado = v.modulos[modulo.codigo] ?? false
+                      return (
+                        <div key={modulo.codigo} className="flex items-center justify-between w-full sm:justify-end gap-2">
+                          <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                            <FlaskConical size={13} className={habilitado ? 'text-brand-400' : 'text-zinc-600'} />
+                            {modulo.nombre}
+                          </div>
+                          <Toggle
+                            checked={habilitado}
+                            onChange={(valor) => handleToggleModulo(v.id, modulo.codigo, valor)}
+                            disabled={enMutacion}
+                          />
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
 
-                <div className="flex flex-col items-end gap-2 shrink-0 sm:w-56">
-                  {catalogo.map((modulo) => {
-                    const habilitado = v.modulos[modulo.codigo] ?? false
-                    return (
-                      <div key={modulo.codigo} className="flex items-center justify-between w-full sm:justify-end gap-2">
-                        <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                          <FlaskConical size={13} className={habilitado ? 'text-brand-400' : 'text-zinc-600'} />
-                          {modulo.nombre}
-                        </div>
-                        <Toggle
-                          checked={habilitado}
-                          onChange={(valor) => handleToggleModulo(v.id, modulo.codigo, valor)}
-                          disabled={enMutacion}
-                        />
-                      </div>
-                    )
-                  })}
+                <div className="flex items-center justify-between gap-2 border-t border-zinc-800/70 pt-2.5 pl-12">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                      <LayoutGrid size={13} className="text-zinc-600" />
+                      {v.caballosPropios} propio{v.caballosPropios !== 1 ? 's' : ''}
+                    </div>
+                    <BadgeSuscripcion estado={v.suscripcionEstado} caballosPropios={v.caballosPropios} />
+                  </div>
+                  {v.suscripcionEstado === 'activa' ? (
+                    <button
+                      onClick={() => handleToggleSuscripcion(v.id, false)}
+                      disabled={enMutacion}
+                      className="shrink-0 rounded-md border border-zinc-700 px-2.5 py-1 text-[11px] font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-40"
+                    >
+                      Desactivar suscripción
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleToggleSuscripcion(v.id, true)}
+                      disabled={enMutacion}
+                      className="shrink-0 rounded-md border border-emerald-700/50 bg-emerald-900/30 px-2.5 py-1 text-[11px] font-medium text-emerald-400 hover:bg-emerald-900/50 transition-colors disabled:opacity-40"
+                    >
+                      Activar suscripción
+                    </button>
+                  )}
                 </div>
               </div>
             )
