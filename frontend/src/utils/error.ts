@@ -9,3 +9,9 @@ export function mensajeError(e: unknown, fallback = 'Error desconocido'): string
   }
   return fallback
 }
+
+// Coincide con el RAISE EXCEPTION de crear_caballo_veterinario cuando un vet
+// llega al límite freemium (5 caballos propios sin suscripción activa).
+export function esLimiteCaballosVet(e: unknown): boolean {
+  return mensajeError(e, '').includes('límite de 5 caballos propios')
+}
