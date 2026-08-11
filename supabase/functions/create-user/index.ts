@@ -51,8 +51,10 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Leer payload
-    const { nombre, apellido, email, password, sociedad_id, rol, acceso_centro_cria } = await req.json()
+    // Leer payload. `acceso_centro_cria` (legacy, boolean) se mantiene por
+    // compatibilidad con el frontend viejo durante el gap de despliegue;
+    // `modulos` (nuevo, genérico) es lo que manda el frontend actualizado.
+    const { nombre, apellido, email, password, sociedad_id, rol, acceso_centro_cria, modulos } = await req.json()
 
     if (!nombre || !apellido || !email || !password || !sociedad_id || !rol) {
       return new Response(JSON.stringify({ error: 'Faltan campos requeridos' }), {
@@ -108,19 +110,53 @@ Deno.serve(async (req) => {
     }
 
     // 4. Crear membresía
-    const { error: membError } = await supabaseAdmin.from('membresia').insert({
-      usuario_id: userId,
-      sociedad_id,
-      rol_id: catRol.id,
-      activa: true,
-      acceso_centro_cria: acceso_centro_cria ?? false,
-    })
-    if (membError) {
+    const { data: membData, error: membError } = await supabaseAdmin
+      .from('membresia')
+      .insert({ usuario_id: userId, sociedad_id, rol_id: catRol.id, activa: true })
+      .select('id')
+      .single()
+    if (membError || !membData) {
       await supabaseAdmin.auth.admin.deleteUser(userId)
-      return new Response(JSON.stringify({ error: membError.message }), {
+      return new Response(JSON.stringify({ error: membError?.message ?? 'Error al crear membresía' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
+    }
+
+    // 5. Accesos a módulos — `modulos` genérico, o el `acceso_centro_cria` legacy
+    const modulosAHabilitar: string[] = []
+    if (modulos && typeof modulos === 'object') {
+      for (const [codigo, habilitado] of Object.entries(modulos)) {
+        if (habilitado) modulosAHabilitar.push(codigo)
+      }
+    } else if (acceso_centro_cria) {
+      modulosAHabilitar.push('centro_cria')
+    }
+
+    if (modulosAHabilitar.length > 0) {
+      const { data: catModulos, error: catModuloError } = await supabaseAdmin
+        .from('cat_modulo')
+        .select('id, codigo')
+        .in('codigo', modulosAHabilitar)
+      if (catModuloError) {
+        await supabaseAdmin.auth.admin.deleteUser(userId)
+        return new Response(JSON.stringify({ error: catModuloError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      const filas = (catModulos ?? []).map((m) => ({ membresia_id: membData.id, modulo_id: m.id, habilitado: true }))
+      if (filas.length > 0) {
+        const { error: moduloError } = await supabaseAdmin.from('membresia_modulo').insert(filas)
+        if (moduloError) {
+          await supabaseAdmin.auth.admin.deleteUser(userId)
+          return new Response(JSON.stringify({ error: moduloError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+      }
     }
 
     return new Response(JSON.stringify({ user_id: userId }), {

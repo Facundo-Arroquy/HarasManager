@@ -1,11 +1,11 @@
 import { create } from 'zustand'
 import type { User, Session } from '@supabase/supabase-js'
+import type { ModuloCodigo, AccesoModulo } from '../types/modulo'
 
 interface Sociedad {
   id: string
   nombre: string
   activa: boolean
-  acceso_centro_cria?: boolean
 }
 
 interface AuthState {
@@ -15,16 +15,15 @@ interface AuthState {
   rol: string | null
   loading: boolean
   perfilCargado: boolean        // true cuando cargarPerfilProd terminó (éxito o error)
-  accesosCentroC: boolean      // nivel usuario (membresia.acceso_centro_cria)
-  accesosCentroCOrg: boolean   // nivel organización (sociedad.acceso_centro_cria)
+  modulos: Partial<Record<ModuloCodigo, AccesoModulo>>
   setSession: (session: Session | null) => void
   setSociedadActiva: (sociedad: Sociedad | null, rol: string | null) => void
   setRolSuperAdmin: () => void
   setRolVeterinario: () => void
   setPerfilCargado: () => void
   setLoading: (v: boolean) => void
-  setAccesosCentroC: (v: boolean) => void
-  setAccesosCentroCOrg: (v: boolean) => void
+  setModulos: (modulos: Partial<Record<ModuloCodigo, AccesoModulo>>) => void
+  setModuloUsuario: (codigo: ModuloCodigo, valor: boolean) => void
   clear: () => void
 }
 
@@ -35,8 +34,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   rol: null,
   loading: true,
   perfilCargado: false,
-  accesosCentroC: false,
-  accesosCentroCOrg: false,
+  modulos: {},
 
   setSession: (session) =>
     set({ session, user: session?.user ?? null, loading: false }),
@@ -46,7 +44,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       sociedadActiva: sociedad,
       rol,
       perfilCargado: true,
-      accesosCentroCOrg: sociedad?.acceso_centro_cria ?? false,
     }),
 
   setRolSuperAdmin: () =>
@@ -59,9 +56,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setLoading: (v) => set({ loading: v }),
 
-  setAccesosCentroC: (v) => set({ accesosCentroC: v }),
+  setModulos: (modulos) => set({ modulos }),
 
-  setAccesosCentroCOrg: (v) => set({ accesosCentroCOrg: v }),
+  setModuloUsuario: (codigo, valor) =>
+    set((s) => ({
+      modulos: { ...s.modulos, [codigo]: { org: s.modulos[codigo]?.org ?? false, usuario: valor } },
+    })),
 
   clear: () =>
     set({
@@ -71,7 +71,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       rol: null,
       loading: false,
       perfilCargado: false,
-      accesosCentroC: false,
-      accesosCentroCOrg: false,
+      modulos: {},
     }),
 }))

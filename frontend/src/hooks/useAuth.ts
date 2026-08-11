@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { getSupabaseClient } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
-import { tieneAccesoCentroCria, tieneAccesoCentroCriaVeterinario } from '../services/accesoCentroCriaService'
+import { getMisAccesos } from '../services/moduloService'
+import { tieneAccesoModulo } from '../utils/modulos'
+import type { ModuloCodigo } from '../types/modulo'
 
 // Carga el perfil desde Supabase y configura el store según el rol del usuario.
 // Solo corre si rol todavía no fue cargado (evita llamadas redundantes en remounts).
@@ -25,8 +27,8 @@ async function cargarPerfilProd(
     }
 
     if (perfil?.rol === 'veterinario') {
-      const accesosCria = await tieneAccesoCentroCriaVeterinario(userId).catch(() => false)
-      store.setAccesosCentroC(accesosCria)
+      const modulos = await getMisAccesos().catch(() => ({}))
+      store.setModulos(modulos)
       store.setRolVeterinario()
       return
     }
@@ -34,21 +36,21 @@ async function cargarPerfilProd(
     // Usuario normal: cargar sociedad activa via membresia
     const { data: memb } = await supabase
       .from('membresia')
-      .select('activa, cat_rol(nombre), sociedad(id, nombre, activa, acceso_centro_cria)')
+      .select('activa, cat_rol(nombre), sociedad(id, nombre, activa)')
       .eq('usuario_id', userId)
       .eq('activa', true)
       .single()
 
     // PostgREST puede devolver cat_rol como objeto o array según la versión
-    type SociedadRow = { id: string; nombre: string; activa: boolean; acceso_centro_cria: boolean }
+    type SociedadRow = { id: string; nombre: string; activa: boolean }
     type CatRol = { nombre: string }
     const m = memb as { cat_rol?: CatRol | CatRol[] | null; sociedad?: SociedadRow | null } | null
     const catRol = Array.isArray(m?.cat_rol) ? m?.cat_rol[0] : m?.cat_rol
 
     // Esperar el check de acceso antes de marcar el perfil como cargado,
-    // para que RequireCentroCria no redirija prematuramente.
-    const accesosCria = await tieneAccesoCentroCria(userId).catch(() => false)
-    store.setAccesosCentroC(accesosCria)
+    // para que RequireModulo no redirija prematuramente.
+    const modulos = await getMisAccesos().catch(() => ({}))
+    store.setModulos(modulos)
     store.setSociedadActiva(
       m?.sociedad ?? null,
       catRol?.nombre ?? null
@@ -110,8 +112,7 @@ export function useAuth() {
     sociedadActiva: store.sociedadActiva,
     rol: store.rol,
     loading: store.loading,
-    accesosCentroC: store.accesosCentroC,
-    accesosCentroCOrg: store.accesosCentroCOrg,
+    tieneModulo: (codigo: ModuloCodigo) => tieneAccesoModulo(store.rol, store.modulos, codigo),
     isAuthenticated: !!store.session,
     signIn,
     signOut,

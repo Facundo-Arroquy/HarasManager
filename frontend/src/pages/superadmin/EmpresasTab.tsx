@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Building2, Footprints, Users, MapPin, ChevronRight, Plus, Trash2, X, FlaskConical } from 'lucide-react'
 import { superAdminService, type EmpresaStats } from '../../services/superAdminService'
+import { listarModulos } from '../../services/moduloService'
+import { useToastStore } from '../../store/toastStore'
+import { mensajeError } from '../../utils/error'
+import type { Modulo, ModuloCodigo } from '../../types/modulo'
 import Spinner from '../../components/ui/Spinner'
 
 interface Props {
@@ -84,17 +88,18 @@ function Stat({ icon, value, label }: { icon: React.ReactNode; value: number; la
 
 interface CardProps {
   empresa: EmpresaStats
+  catalogo: Modulo[]
   onGestionar: () => void
   onEliminar: () => void
   confirmandoEliminar: boolean
   onConfirmarEliminar: () => void
   onCancelarEliminar: () => void
   eliminando: boolean
-  onToggloCentroC: (valor: boolean) => void
-  toglandoCentroC: boolean
+  onToggleModulo: (codigo: ModuloCodigo, valor: boolean) => void
+  toglandoCodigo: ModuloCodigo | null
 }
 
-function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, onConfirmarEliminar, onCancelarEliminar, eliminando, onToggloCentroC, toglandoCentroC }: CardProps) {
+function EmpresaCard({ empresa, catalogo, onGestionar, onEliminar, confirmandoEliminar, onConfirmarEliminar, onCancelarEliminar, eliminando, onToggleModulo, toglandoCodigo }: CardProps) {
   return (
     <div className={`rounded-xl border bg-zinc-900 p-5 flex flex-col gap-4 transition-colors ${confirmandoEliminar ? 'border-rose-800/60' : 'border-zinc-800'}`}>
       <div className="flex items-start gap-3">
@@ -146,26 +151,34 @@ function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, on
         <Stat icon={<MapPin size={14} />}     value={empresa.cantidadCampos}   label="Campos" />
       </div>
 
-      {/* Toggle Centro de Cría */}
-      <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
-        <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-          <FlaskConical size={13} className={empresa.accesosCentroC ? 'text-brand-400' : 'text-zinc-600'} />
-          Centro de Embriones
-        </div>
-        <button
-          onClick={() => onToggloCentroC(!empresa.accesosCentroC)}
-          disabled={toglandoCentroC}
-          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 ${
-            empresa.accesosCentroC ? 'bg-brand-500' : 'bg-zinc-700'
-          }`}
-          title={empresa.accesosCentroC ? 'Desactivar módulo' : 'Activar módulo'}
-        >
-          <span
-            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-              empresa.accesosCentroC ? 'translate-x-[18px]' : 'translate-x-[3px]'
-            }`}
-          />
-        </button>
+      {/* Toggles por módulo */}
+      <div className="space-y-2 border-t border-zinc-800 pt-3">
+        {catalogo.map((modulo) => {
+          const habilitado = empresa.modulos[modulo.codigo] ?? false
+          const toglando = toglandoCodigo === modulo.codigo
+          return (
+            <div key={modulo.codigo} className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                <FlaskConical size={13} className={habilitado ? 'text-brand-400' : 'text-zinc-600'} />
+                {modulo.nombre}
+              </div>
+              <button
+                onClick={() => onToggleModulo(modulo.codigo, !habilitado)}
+                disabled={toglando}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none disabled:opacity-40 ${
+                  habilitado ? 'bg-brand-500' : 'bg-zinc-700'
+                }`}
+                title={habilitado ? 'Desactivar módulo' : 'Activar módulo'}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                    habilitado ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                  }`}
+                />
+              </button>
+            </div>
+          )
+        })}
       </div>
 
       <button
@@ -183,16 +196,23 @@ function EmpresaCard({ empresa, onGestionar, onEliminar, confirmandoEliminar, on
 
 export default function EmpresasTab({ onGestionarUsuarios }: Props) {
   const [empresas, setEmpresas] = useState<EmpresaStats[]>([])
+  const [catalogo, setCatalogo] = useState<Modulo[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [confirmando, setConfirmando] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
-  const [toglandoCentroC, setToglandoCentroC] = useState<string | null>(null)
+  // clave `${sociedadId}:${codigo}` del toggle en curso
+  const [toglando, setToglando] = useState<string | null>(null)
+  const pushToast = useToastStore((s) => s.pushToast)
 
   async function recargar() {
     setLoading(true)
     try {
-      setEmpresas(await superAdminService.listarEmpresas())
+      const [emps, mods] = await Promise.all([superAdminService.listarEmpresas(), listarModulos()])
+      setEmpresas(emps)
+      setCatalogo(mods)
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudieron cargar las empresas.'))
     } finally {
       setLoading(false)
     }
@@ -200,13 +220,16 @@ export default function EmpresasTab({ onGestionarUsuarios }: Props) {
 
   useEffect(() => { recargar() }, [])
 
-  async function handleToggloCentroC(sociedadId: string, valor: boolean) {
-    setToglandoCentroC(sociedadId)
+  async function handleToggleModulo(sociedadId: string, codigo: ModuloCodigo, valor: boolean) {
+    setToglando(`${sociedadId}:${codigo}`)
     try {
-      await superAdminService.toggleAccesoCentroCOrg(sociedadId, valor)
+      await superAdminService.toggleModuloOrg(sociedadId, codigo, valor)
       await recargar()
+      pushToast('success', 'Acceso actualizado.')
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudo actualizar el acceso.'))
     } finally {
-      setToglandoCentroC(null)
+      setToglando(null)
     }
   }
 
@@ -216,6 +239,9 @@ export default function EmpresasTab({ onGestionarUsuarios }: Props) {
       await superAdminService.eliminarEmpresa(sociedadId)
       setConfirmando(null)
       await recargar()
+      pushToast('success', 'Empresa eliminada.')
+    } catch (e) {
+      pushToast('error', mensajeError(e, 'No se pudo eliminar la empresa.'))
     } finally {
       setEliminando(false)
     }
@@ -242,20 +268,26 @@ export default function EmpresasTab({ onGestionarUsuarios }: Props) {
         <p className="py-12 text-center text-sm text-zinc-600">Sin empresas. Creá la primera.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {empresas.map((emp) => (
-            <EmpresaCard
-              key={emp.id}
-              empresa={emp}
-              onGestionar={() => onGestionarUsuarios(emp.id)}
-              onEliminar={() => setConfirmando(emp.id)}
-              confirmandoEliminar={confirmando === emp.id}
-              onConfirmarEliminar={() => handleEliminar(emp.id)}
-              onCancelarEliminar={() => setConfirmando(null)}
-              eliminando={eliminando}
-              onToggloCentroC={(valor) => handleToggloCentroC(emp.id, valor)}
-              toglandoCentroC={toglandoCentroC === emp.id}
-            />
-          ))}
+          {empresas.map((emp) => {
+            const toglandoCodigo = toglando?.startsWith(`${emp.id}:`)
+              ? (toglando.slice(emp.id.length + 1) as ModuloCodigo)
+              : null
+            return (
+              <EmpresaCard
+                key={emp.id}
+                empresa={emp}
+                catalogo={catalogo}
+                onGestionar={() => onGestionarUsuarios(emp.id)}
+                onEliminar={() => setConfirmando(emp.id)}
+                confirmandoEliminar={confirmando === emp.id}
+                onConfirmarEliminar={() => handleEliminar(emp.id)}
+                onCancelarEliminar={() => setConfirmando(null)}
+                eliminando={eliminando}
+                onToggleModulo={(codigo, valor) => handleToggleModulo(emp.id, codigo, valor)}
+                toglandoCodigo={toglandoCodigo}
+              />
+            )
+          })}
         </div>
       )}
 

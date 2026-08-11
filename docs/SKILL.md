@@ -97,24 +97,21 @@ CREATE TABLE sociedad (
   nombre VARCHAR(200) NOT NULL,
   cuit VARCHAR(20), direccion TEXT,
   activa BOOLEAN DEFAULT TRUE,
-  acceso_centro_cria BOOLEAN DEFAULT FALSE,  -- habilita el módulo de embriones para la sociedad
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Usuarios (espejo de Supabase Auth)
 -- rol global: NULL = rol definido solo por membresia | 'superadmin' | 'veterinario' | 'admin'
--- acceso_centro_cria: solo aplica para veterinarios; lo gestiona el superadmin
 CREATE TABLE usuario (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   nombre VARCHAR(100) NOT NULL, apellido VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE, telefono VARCHAR(30),
   rol TEXT DEFAULT 'admin',
   activo BOOLEAN NOT NULL DEFAULT TRUE,
-  acceso_centro_cria BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 -- Trigger: handle_new_auth_user → INSERT en usuario al crear en auth.users
--- Trigger: bloquear_self_escalation → impide que usuario edite su propio rol/activo/acceso_centro_cria/email
+-- Trigger: bloquear_self_escalation → impide que usuario edite su propio rol/activo/email
 
 -- Membresía: relación usuario <-> sociedad con rol
 CREATE TABLE membresia (
@@ -123,7 +120,6 @@ CREATE TABLE membresia (
   sociedad_id UUID NOT NULL REFERENCES sociedad(id),
   rol_id INTEGER NOT NULL REFERENCES cat_rol(id),
   activa BOOLEAN DEFAULT TRUE,
-  acceso_centro_cria BOOLEAN DEFAULT FALSE,  -- acceso al centro de embriones para este usuario en esta sociedad
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(usuario_id, sociedad_id, rol_id)
 );
@@ -220,6 +216,52 @@ CREATE TABLE caballo_tag (
   creado_por UUID REFERENCES usuario(id),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (caballo_id, tag_id)
+);
+
+-- Sistema de módulos por empresa (migración 20260810140000)
+-- Catálogo + 3 tablas puente en vez de columnas booleanas repetidas en
+-- sociedad/membresia/usuario (acceso_centro_cria x3): sumar un módulo nuevo
+-- es un INSERT en cat_modulo, no una migración de schema. Reemplaza el bug
+-- real donde sociedad.acceso_centro_cria terminó GENERATED ALWAYS AS
+-- (plan <> 'silver') STORED por una PR sin mergear (#47) y los UPDATE a mano
+-- del superadmin empezaron a fallar en silencio.
+CREATE TABLE cat_modulo (
+  id SERIAL PRIMARY KEY,
+  codigo TEXT NOT NULL UNIQUE,
+  nombre TEXT NOT NULL,
+  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- Pre-cargado: 'centro_cria' ("Centro de Embriones"), 'polo' ("Polo")
+
+-- sociedad_modulo: habilitado a nivel organización. Solo superadmin escribe
+-- (no hereda el vector es_admin(id) que sí tiene sociedad_update).
+CREATE TABLE sociedad_modulo (
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id) ON DELETE CASCADE,
+  modulo_id INTEGER NOT NULL REFERENCES cat_modulo(id) ON DELETE CASCADE,
+  habilitado BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (sociedad_id, modulo_id)
+);
+
+-- membresia_modulo: override individual por usuario dentro de su sociedad.
+-- Escribe el admin de la empresa o superadmin (igual que membresia hoy).
+CREATE TABLE membresia_modulo (
+  membresia_id UUID NOT NULL REFERENCES membresia(id) ON DELETE CASCADE,
+  modulo_id INTEGER NOT NULL REFERENCES cat_modulo(id) ON DELETE CASCADE,
+  habilitado BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (membresia_id, modulo_id)
+);
+
+-- usuario_modulo: acceso para veterinarios globales (sin sociedad/membresía).
+-- Solo superadmin escribe.
+CREATE TABLE usuario_modulo (
+  usuario_id UUID NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+  modulo_id INTEGER NOT NULL REFERENCES cat_modulo(id) ON DELETE CASCADE,
+  habilitado BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (usuario_id, modulo_id)
 );
 
 -- Acceso explícito de un vet a un caballo (granular, caballo por caballo)
@@ -708,14 +750,19 @@ CREATE TABLE lead (
 | `guardar_asignaciones_torneo(p_torneo_id, p_jugador_id, p_caballo_ids)` | Reescribe la columna de un jugador en el kanban del torneo, en una transacción: suelta los caballos de su jugador anterior, borra la columna y reinserta con el orden del array. `p_jugador_id` NULL devuelve los caballos a "Disponibles". Valida torneo `activo`, admin de la sociedad, jugador del torneo, sin repetidos, y caballo activo + de la sociedad + con tag "Jugador" (migración `20260803120000`) |
 | `completar_trabajo_sanitario(p_trabajo_id)` | Marca un `trabajo_sanitario` como realizado e inserta una fila en `historial_clinico` por cada caballo no excluido (asegura el `cat_tipo_consulta` con el nombre del trabajo). Valida `tiene_membresia`. Solo `authenticated`. Devuelve la cantidad cargada (migración `20260728181738`). Es el flujo viejo, el de la sección Sanidad |
 | `cerrar_plan_sanitario(p_items jsonb)` | Cierra la grilla de un plan en una transacción: `p_items` es `[{caballo_row_id, estado}]` sobre `trabajo_sanitario_caballo`. Guarda el `estado` de cada celda (sincronizando `excluido`) y escribe `historial_clinico` **solo** para los `'realizado'` sin historial previo. Cada `trabajo_sanitario` pasa a `'realizado'` cuando ya no le quedan celdas en NULL. Permiso: `tiene_membresia` **o** `is_superadmin()` **o** `creado_por = auth.uid()` (a diferencia de la anterior, deja cerrar al vet que lo creó). Solo `authenticated`. Devuelve cuántos historiales creó (migración `20260806130000`) |
+| `set_sociedad_modulo(p_sociedad_id, p_modulo_codigo, p_habilitado)` | Resuelve `codigo → modulo_id` e inserta/actualiza `sociedad_modulo`. `SECURITY INVOKER` — la RLS de `sociedad_modulo` (solo superadmin escribe) hace la autorización real (migración `20260810140000`) |
+| `set_membresia_modulo(p_membresia_id, p_modulo_codigo, p_habilitado)` | Igual que la anterior pero sobre `membresia_modulo`. `SECURITY INVOKER` (migración `20260810140000`) |
+| `set_usuario_modulo(p_usuario_id, p_modulo_codigo, p_habilitado)` | Igual pero sobre `usuario_modulo` (veterinarios globales). `SECURITY INVOKER` (migración `20260810140000`) |
+| `get_mis_accesos_modulo()` | Devuelve `(modulo_codigo, org_habilitado, usuario_habilitado)` para todos los módulos activos, para el usuario autenticado — un solo round-trip que reemplaza dos consultas secuenciales que hacía el frontend. `SECURITY INVOKER`: la RLS de cada tabla puente ya permite al usuario leer sus propias filas, no hace falta escalar privilegios (migración `20260810140000`) |
 
 ### Triggers
 
 | Trigger | Función | Evento |
 |---------|---------|--------|
 | `on_auth_user_created` | `handle_new_auth_user()` | AFTER INSERT en `auth.users` → crea fila en `usuario` |
-| `bloquear_self_escalation_trigger` | `bloquear_self_escalation()` | BEFORE UPDATE en `usuario` → impide auto-escalación de rol/activo/acceso_centro_cria/email |
+| `bloquear_self_escalation` | `bloquear_self_escalation()` | BEFORE UPDATE en `usuario` → impide auto-escalación de rol/activo/email |
 | `set_updated_at` | `trigger_set_updated_at()` | BEFORE UPDATE en tablas con `updated_at` |
+| `set_updated_at_sociedad_modulo` / `set_updated_at_membresia_modulo` / `set_updated_at_usuario_modulo` | `trigger_set_updated_at()` | BEFORE UPDATE en las 3 tablas puente de módulos (migración `20260810140000`) |
 | `trg_bloquear_padrillo_familiar` | `bloquear_padrillo_familiar()` | BEFORE INSERT OR UPDATE OF padrillo_id, caballo_id en `cria_registro_clinico` → rechaza si el padrillo es familiar directo (2 generaciones) de la yegua. El frontend además deshabilita la opción, pero la regla vive acá (migración `20260802120100`) |
 | `trg_cancelar_pendientes_baja` | `cancelar_pendientes_por_baja()` | AFTER UPDATE OF activo en `caballo` (cuando `activo` → false) → cancela `cria_recordatorio` pendientes/vencidos y excluye al caballo de `trabajo_sanitario` pendientes. Conserva el historial (migración `20260729144522`) |
 
@@ -740,7 +787,7 @@ CREATE TABLE lead (
 - SELECT por admin: admin de alguna sociedad donde el usuario tiene membresia
 - SELECT vets: cualquier autenticado puede ver usuarios con `rol = 'veterinario'`
 - SELECT superadmin: `is_superadmin()`
-- UPDATE propio: `id = auth.uid()` — bloqueado por trigger para rol/activo/acceso_centro_cria/email
+- UPDATE propio: `id = auth.uid()` — bloqueado por trigger para rol/activo/email
 - UPDATE superadmin: `is_superadmin()`
 
 **`membresia`**
@@ -818,6 +865,22 @@ CREATE TABLE lead (
 **`caballo_tag`**
 - SELECT: `tiene_membresia` (vía `caballo.sociedad_id`) o `vet_tiene_acceso(caballo_id)` o `is_superadmin()`
 - INSERT/UPDATE/DELETE: `es_admin` (vía `caballo.sociedad_id`) o `vet_tiene_acceso(caballo_id)` o `is_superadmin()`
+
+**`cat_modulo`** (migración `20260810140000`)
+- SELECT: cualquier autenticado
+- INSERT/UPDATE/DELETE: solo `is_superadmin()`
+
+**`sociedad_modulo`**
+- SELECT: `tiene_membresia(sociedad_id)` o `is_superadmin()`
+- INSERT/UPDATE/DELETE: solo `is_superadmin()` (no hereda el `es_admin(id)` que sí tiene `sociedad_update`)
+
+**`membresia_modulo`**
+- SELECT: propia (vía `membresia.usuario_id = auth.uid()`) o `es_admin` (vía `membresia.sociedad_id`) o `is_superadmin()`
+- INSERT/UPDATE/DELETE: `es_admin` (vía `membresia.sociedad_id`) o `is_superadmin()`
+
+**`usuario_modulo`**
+- SELECT: propia (`usuario_id = auth.uid()`) o `is_superadmin()`
+- INSERT/UPDATE/DELETE: solo `is_superadmin()`
 
 **`cria_padrillo_preferido`** (migración `20260802120200`)
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(donante_id)` o `is_superadmin()`
@@ -949,7 +1012,8 @@ No se usa `supabase db push` ni `supabase migration up`.
 | Vender caballos | ✅ | ✅ | ❌ | ❌ |
 | Gestionar campos/potreros | ✅ | ✅ | ❌ (solo lectura) | ✅ |
 | Crear torneos y asignar caballos | ✅ | ✅ | ❌ | ❌ (solo lectura) |
-| Acceso centro de embriones | — | Según `sociedad.acceso_centro_cria` | Según `usuario.acceso_centro_cria` | ❌ |
+| Acceso centro de embriones | — | Según `sociedad_modulo`+`membresia_modulo` ('centro_cria') | Según `usuario_modulo` ('centro_cria') | ❌ |
+| Acceso Polo / Torneos | — | Según `sociedad_modulo`+`membresia_modulo` ('polo') | ❌ | ✅ jugador/piloto según módulo; peticero ❌ (roles fijos, no depende del módulo) |
 
 ---
 

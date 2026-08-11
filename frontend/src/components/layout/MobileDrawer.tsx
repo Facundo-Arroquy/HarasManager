@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { X, LogOut } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { NAV_GROUPS } from './navItems'
+import { useVisibleNavGroups } from '../../hooks/useVisibleNavGroups'
 import logoUrl from '../../assets/logo.png'
 
 interface Props {
@@ -11,7 +11,8 @@ interface Props {
 }
 
 export default function MobileDrawer({ open, onClose }: Props) {
-  const { rol, sociedadActiva, user, signOut, accesosCentroC, accesosCentroCOrg } = useAuth()
+  const { rol, sociedadActiva, user, signOut } = useAuth()
+  const visibleGroups = useVisibleNavGroups()
   const location = useLocation()
 
   // Cerrar al navegar
@@ -25,21 +26,6 @@ export default function MobileDrawer({ open, onClose }: Props) {
   }, [onClose])
 
   if (rol === 'superadmin') return null
-
-  const visibleGroups = NAV_GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter(
-      (item) => !item.roles || (rol && item.roles.includes(rol))
-    ),
-  })).filter((group) => {
-    if (group.items.length === 0) return false
-    if (group.requiresAccesoCentro) {
-      // Veterinarios: acceso personal otorgado/denegado por el superadmin
-      if (rol === 'veterinario') return accesosCentroC
-      return accesosCentroCOrg && (rol === 'admin' || accesosCentroC)
-    }
-    return true
-  })
 
   return (
     <>
