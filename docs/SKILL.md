@@ -382,7 +382,10 @@ El flujo:
    fuera del alcance de PCI.
 2. `mp_registrar_preapproval()` guarda el id **antes** de mandar al vet al
    checkout — es lo que después le permite al webhook saber de quién es el
-   evento.
+   evento. Si el vet ya tenía un preapproval en `'pendiente'` (abrió el checkout
+   y lo abandonó), se lo da de baja en MercadoPago antes de crear el nuevo: su
+   `init_point` sigue vivo, y dejar dos links válidos con uno solo registrado
+   significa que si el vet vuelve al viejo, paga y nunca nos enteramos.
 3. El vet paga en MercadoPago y vuelve a `/suscripcion/resultado`, que consulta
    el estado en intervalos. Esa ruta vive **fuera de `RequireAuth`** a propósito:
    ese guard monta el modal bloqueante del límite, y el vet que acaba de pagar

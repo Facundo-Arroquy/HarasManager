@@ -25,6 +25,30 @@ function json(body: unknown, status: number) {
   })
 }
 
+/**
+ * Da de baja un preapproval que quedó a medias. Es best-effort: si falla, se
+ * sigue igual — el objetivo es no dejar basura, no bloquear al vet que quiere
+ * suscribirse.
+ *
+ * Prueba las dos grafías por la misma razón que `cancelar-suscripcion-vet`: la
+ * documentación de MercadoPago escribe el cancelado con una y con dos eles
+ * según el párrafo, y el enum de la referencia no lo lista.
+ */
+async function cancelarPreapproval(preapprovalId: string, accessToken: string): Promise<boolean> {
+  for (const valor of ['cancelled', 'canceled']) {
+    const res = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ status: valor }),
+    })
+    if (res.ok) return true
+  }
+  return false
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -68,7 +92,7 @@ Deno.serve(async (req) => {
     // clic en "Retomar membresía" deja dos preapprovals cobrando en paralelo.
     const { data: suscripcion } = await supabaseAdmin
       .from('suscripcion_veterinario')
-      .select('estado, fecha_vencimiento')
+      .select('estado, fecha_vencimiento, external_subscription_id')
       .eq('usuario_id', user.id)
       .maybeSingle()
 
@@ -76,6 +100,20 @@ Deno.serve(async (req) => {
       (!suscripcion.fecha_vencimiento || new Date(suscripcion.fecha_vencimiento) > new Date())
     if (vigente) {
       return json({ error: 'Ya tenés una membresía activa.' }, 409)
+    }
+
+    // El vet que abrió el checkout y lo abandonó dejó un preapproval en
+    // 'pending' del lado de MercadoPago, con su `init_point` todavía vivo. Si
+    // ahora se crea otro sin dar de baja aquel, quedan dos links válidos y solo
+    // uno registrado: si el vet vuelve al viejo (desde el historial o el mail
+    // de MercadoPago) y lo autoriza, le cobran y nosotros nunca nos enteramos,
+    // porque el webhook llega con un id que dejamos de seguir.
+    if (suscripcion?.estado === 'pendiente' && suscripcion.external_subscription_id) {
+      const dadoDeBaja = await cancelarPreapproval(suscripcion.external_subscription_id, accessToken)
+      if (!dadoDeBaja) {
+        console.error('No se pudo dar de baja el preapproval abandonado',
+          suscripcion.external_subscription_id)
+      }
     }
 
     const { data: plan, error: planError } = await supabaseAdmin

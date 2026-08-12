@@ -210,6 +210,8 @@
 - [ ] Un vet con membresía que supere los 25 (dándose de alta antes del tope) ve el modal bloqueante con el texto de membresía, **sin** el botón de pago — no tiene sentido venderle lo que ya tiene
 - [ ] Reactivar caballos con membresía activa respeta el tope de 25 (antes con suscripción se podían reactivar todos)
 - [ ] Abandonar el checkout sin pagar deja la suscripción en `'pendiente'`, la tarjeta dice "Pago pendiente" y el vet **no** obtiene acceso ilimitado
+- [ ] Abandonar el checkout y volver a tocar "Suscribirme": en MercadoPago tiene que quedar **una sola** suscripción viva. La anterior debe figurar `cancelled` (verificar con `GET /preapproval/search?external_reference=<usuario_id>`)
+- [ ] El `init_point` viejo, después de reintentar, ya no permite pagar
 - [ ] Con la membresía activa, tocar "Suscribirme" de nuevo no crea un segundo cobro (la función responde "Ya tenés una membresía activa")
 - [ ] Con la membresía activa aparece el botón "Cancelar membresía"; al tocarlo pide confirmación y aclara que el acceso se conserva hasta la fecha ya paga
 - [ ] Al confirmar la cancelación, la tarjeta pasa a **Cancelada** y el vet **conserva** el acceso hasta la fecha de vencimiento
