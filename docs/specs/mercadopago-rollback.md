@@ -6,36 +6,57 @@ tener escrito de antemano cómo deshacer cada cosa.
 
 ---
 
-## 1. Estado actual: la base no fue modificada
+## 1. Registro de acciones sobre la base
 
-**Al momento de escribir esto (2026-08-12), esta rama no aplicó ningún cambio
-persistente a la base de datos.** Las dos migraciones nuevas existen como
-archivos en `supabase/migrations/` y **todavía no se aplicaron**.
+### Estado actual: **las dos migraciones están aplicadas** (2026-08-12)
 
-### Registro de todo lo que se ejecutó contra la base
+Se aplicaron con el MCP de Supabase (`apply_migration`), con los nombres
+`plan_y_pagos_vet_mercadopago` y `rpc_mercadopago_vet`, tras el visto bueno
+explícito. Antes de eso la base no había sido modificada.
+
+Verificación posterior a la aplicación:
+
+| Objeto | Resultado |
+|---|---|
+| Tablas | `plan_suscripcion_vet`, `pago_veterinario` creadas |
+| Funciones | `mp_registrar_preapproval`, `mp_sincronizar_suscripcion`, `mp_registrar_pago` creadas |
+| Columnas | `plan_id`, `fecha_cancelacion` agregadas a `suscripcion_veterinario` |
+| CHECK de estado | `('activa','inactiva','pendiente','cancelada')` |
+| Plan cargado | `Membresía veterinario — mensual` · 1000.00 ARS · cada 1 `months` |
+
+### Cronología completa
 
 | # | Qué se ejecutó | Tipo | ¿Persistió? |
 |---|---|---|---|
 | 1 | `SELECT` sobre `information_schema.columns` (`suscripcion_veterinario`, `usuario`) | lectura | — |
 | 2 | `SELECT` sobre `pg_proc` / `pg_constraint` (definiciones de funciones y constraints) | lectura | — |
-| 3 | `SELECT` de conteos por estado en `suscripcion_veterinario` | lectura | **no** |
-| 4 | DDL completo de las dos migraciones, dentro de `BEGIN … ROLLBACK` | prueba | **no — revertido por el ROLLBACK** |
-| 5 | Pruebas funcionales de las RPC (`mp_registrar_preapproval`, `mp_sincronizar_suscripcion`, `mp_registrar_pago`) sobre dos vets reales, dentro de `BEGIN … ROLLBACK` | prueba | **no — revertido por el ROLLBACK** |
+| 3 | `SELECT` de conteos por estado en `suscripcion_veterinario` | lectura | — |
+| 4 | DDL completo de las dos migraciones, dentro de `BEGIN … ROLLBACK` | prueba | **no — revertido** |
+| 5 | Pruebas funcionales de las RPC sobre dos vets reales, dentro de `BEGIN … ROLLBACK` | prueba | **no — revertido** |
 | 6 | Prueba del índice único parcial sobre una tabla `TEMP`, dentro de `BEGIN … ROLLBACK` | prueba | **no** |
+| 7 | `apply_migration` de `plan_y_pagos_vet_mercadopago` | **DDL** | **sí** |
+| 8 | `apply_migration` de `rpc_mercadopago_vet` | **DDL** | **sí** |
+| 9 | `SELECT` de verificación post-aplicación | lectura | — |
+| 10 | `UPDATE auth.users SET email_confirmed_at = now()` para el vet de prueba `test_user_3055276528951504274@testuser.com` | **dato** | **sí** |
+
+El punto 10 no tiene nada que ver con las migraciones: es un usuario de prueba
+creado a mano para el QA, cuyo email `@testuser.com` no puede recibir el mail de
+confirmación. Si se quiere limpiar después de las pruebas, se borra el usuario
+entero desde Authentication → Users en el dashboard de Supabase (borra también
+su fila en `usuario` y en `suscripcion_veterinario` por cascada de la app, no de
+la base — conviene verificar).
 
 Los puntos 4 y 5 tocaron filas reales de `suscripcion_veterinario` (los vets
 `bd19f32c…` y `736ef791…`) **dentro de una transacción que terminó en
-`ROLLBACK`**. No quedó ningún rastro. Verificable:
+`ROLLBACK`**: no quedó rastro de esas pruebas. Comprobable con
 
 ```sql
--- Tiene que devolver 0 filas: son objetos que solo existieron dentro del ROLLBACK
-select table_name from information_schema.tables
- where table_name in ('plan_suscripcion_vet', 'pago_veterinario');
-
--- Ninguna suscripción debe tener external_subscription_id de prueba
 select count(*) from suscripcion_veterinario
- where external_subscription_id in ('PRE-TEST-1', 'PRE-TEST-2');
+ where external_subscription_id in ('PRE-TEST-1', 'PRE-TEST-2');  -- debe dar 0
 ```
+
+A partir del punto 7, **para volver atrás hay que correr el rollback de la
+sección 3**.
 
 ### Resultado de las pruebas (para no tener que repetirlas)
 

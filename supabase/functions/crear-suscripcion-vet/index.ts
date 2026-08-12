@@ -91,7 +91,9 @@ Deno.serve(async (req) => {
     const email = perfil.email ?? user.email
     if (!email) return json({ error: 'Tu usuario no tiene email asociado.' }, 400)
 
-    const appUrl = Deno.env.get('APP_URL') ?? ''
+    // Se saca la barra final si la trae: `https://app/` + `/suscripcion/...`
+    // daría una doble barra, y MercadoPago valida el formato del back_url.
+    const appUrl = (Deno.env.get('APP_URL') ?? '').replace(/\/+$/, '')
 
     const preapprovalReq = {
       reason: plan.nombre,

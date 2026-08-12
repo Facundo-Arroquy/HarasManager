@@ -51,6 +51,23 @@ export function formatPeriodo(plan: PlanSuscripcionVet): string {
   return frecuencia === 1 ? 'día' : `${frecuencia} días`
 }
 
+/**
+ * Saca el mensaje útil del cuerpo de la respuesta de una Edge Function. El
+ * error que devuelve `invoke` solo dice que hubo un status no-2xx; el motivo
+ * real ("Ya tenés una membresía activa", "No hay un plan configurado") viene en
+ * el JSON.
+ */
+async function detalleDelError(error: unknown, fallback: string): Promise<string> {
+  const context = (error as { context?: Response }).context
+  if (context && typeof context.json === 'function') {
+    try {
+      const body = await context.json() as { error?: string }
+      if (body?.error) return body.error
+    } catch { /* la función respondió algo que no es JSON */ }
+  }
+  return fallback
+}
+
 export const suscripcionVetService = {
   /** Devuelve null si todavía no hay plan configurado. */
   async planVigente(): Promise<PlanSuscripcionVet | null> {
@@ -93,23 +110,20 @@ export const suscripcionVetService = {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.functions.invoke('crear-suscripcion-vet')
 
-    if (error) {
-      // El cuerpo de la respuesta trae el mensaje útil ("Ya tenés una membresía
-      // activa", "No hay un plan configurado"); el error de `invoke` solo dice
-      // que hubo un status no-2xx.
-      let detalle: string | undefined
-      const context = (error as { context?: Response }).context
-      if (context && typeof context.json === 'function') {
-        try {
-          const body = await context.json() as { error?: string }
-          detalle = body?.error
-        } catch { /* la función respondió algo que no es JSON */ }
-      }
-      throw new Error(detalle ?? 'No se pudo iniciar el pago.')
-    }
+    if (error) throw new Error(await detalleDelError(error, 'No se pudo iniciar el pago.'))
 
     const initPoint = (data as { init_point?: string } | null)?.init_point
     if (!initPoint) throw new Error('No se pudo iniciar el pago.')
     return initPoint
+  },
+
+  /**
+   * Da de baja la renovación en MercadoPago. No corta el acceso en el acto: el
+   * vet conserva la membresía hasta la fecha que ya pagó.
+   */
+  async cancelar(): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.functions.invoke('cancelar-suscripcion-vet')
+    if (error) throw new Error(await detalleDelError(error, 'No se pudo cancelar la membresía.'))
   },
 }

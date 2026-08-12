@@ -200,10 +200,11 @@ Tiene que devolver una sola fila, con tu precio, `ARS`, `1`, `months`, `true`.
 
 ## Paso 7 — Desplegar las Edge Functions
 
-Dos funciones, y **no se despliegan igual**:
+Tres funciones, y **la última no se despliega igual**:
 
 ```bash
 supabase functions deploy crear-suscripcion-vet --project-ref cbllmyboxyoumnhakvyj
+supabase functions deploy cancelar-suscripcion-vet --project-ref cbllmyboxyoumnhakvyj
 supabase functions deploy mercadopago-webhook --no-verify-jwt --project-ref cbllmyboxyoumnhakvyj
 ```
 
@@ -221,8 +222,15 @@ aparecen listadas con estado *Active*. Además:
 curl -i https://cbllmyboxyoumnhakvyj.supabase.co/functions/v1/mercadopago-webhook -X POST
 ```
 
-Tiene que devolver **401 Invalid signature** — eso confirma dos cosas a la vez:
-que la función está viva, y que rechaza lo que no viene firmado.
+En este punto tiene que devolver **503 `Not configured`**: la función corrió y
+avisa que le falta el `MP_WEBHOOK_SECRET`, que se carga en el paso 8. Eso ya
+confirma lo importante — que el `--no-verify-jwt` quedó bien puesto. Si en
+cambio devuelve **401 con un JSON de Supabase que menciona el JWT**, el flag
+faltó y hay que redesplegar.
+
+Después del paso 8, el mismo `curl` tiene que devolver **401 `Invalid
+signature`**: ahí la función ya tiene el secret y rechaza lo que no viene
+firmado.
 
 ---
 
@@ -255,15 +263,27 @@ largo) con un botón para revelarla y otro para restablecerla.
 supabase functions deploy mercadopago-webhook --no-verify-jwt --project-ref cbllmyboxyoumnhakvyj
 ```
 
-**Cómo sabés que está completo:** en la misma pantalla de MercadoPago hay un
-botón **Simular** — elegí el evento `subscription_preapproval`, mandá la
-simulación, y tiene que responder **HTTP 200**.
+**Cómo sabés que está completo:**
 
-> Un 401 en la simulación significa que el secret cargado en Supabase no es el
-> que muestra MercadoPago (o que no redesplegaste después de cargarlo).
-> Un 200 significa que la firma validó: el evento simulado no corresponde a
-> ninguna suscripción real, así que la función lo registra en los logs y sale
-> con 200 a propósito, para no quedar en un ciclo de reintentos.
+```bash
+curl -i https://cbllmyboxyoumnhakvyj.supabase.co/functions/v1/mercadopago-webhook -X POST
+```
+
+Ahora tiene que devolver **401 `Invalid signature`** (antes del secret devolvía
+503). Eso confirma que la función tiene el secret y rechaza lo que no viene
+firmado.
+
+> Sobre el botón **Simular** de MercadoPago: sirve, pero **no esperes un 200**.
+> El simulador manda un `data.id` inventado; la función valida la firma (bien),
+> después consulta ese id contra la API de MercadoPago, no lo encuentra, y
+> devuelve **500** para que la notificación se reintente. Eso es a propósito: un
+> `GET` que falla puede ser una demora de propagación de MercadoPago, y dar el
+> evento por perdido con un 200 significaría no activarle la membresía a alguien
+> que pagó.
+>
+> Cómo leer el resultado del simulador: **401** = el secret está mal. **500** =
+> la firma validó y el resto del circuito corrió (que es lo que se quería
+> probar). La prueba de verdad es el paso 9.
 
 ---
 

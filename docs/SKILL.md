@@ -398,6 +398,13 @@ El flujo:
    pelada, entre el vencimiento y la llegada del webhook del cobro nuevo habría
    una ventana en la que un vet al día se come el modal bloqueante.
 
+La baja la hace la Edge Function **`cancelar-suscripcion-vet`** (`PUT
+/preapproval/{id}` con `status: cancelled`), desde la misma tarjeta del panel.
+El id de preapproval se lee de la base a partir del usuario del JWT, no del
+body: así nadie puede cancelarle la membresía a otro. La doc de MercadoPago se
+contradice sobre si el valor va con una o dos eles, así que la función prueba
+los dos antes de dar el error por bueno.
+
 `vet_suscripcion_activa()` cambió con esto: ahora una suscripción `'cancelada'`
 **con `fecha_vencimiento` futura sigue contando como activa**. Cancelar no debe
 cortar el acceso en el acto — el vet ya pagó ese mes. Una cancelación de Fase 1

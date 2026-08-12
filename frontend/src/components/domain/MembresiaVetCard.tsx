@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CreditCard, ExternalLink } from 'lucide-react'
+import { CreditCard, ExternalLink, XCircle } from 'lucide-react'
 import {
   suscripcionVetService,
   formatPrecio,
@@ -30,17 +30,21 @@ export default function MembresiaVetCard() {
   const [plan,        setPlan]        = useState<PlanSuscripcionVet | null>(null)
   const [cargando,    setCargando]    = useState(true)
   const [pagando,     setPagando]     = useState(false)
+  const [confirmando, setConfirmando] = useState(false)
+  const [cancelando,  setCancelando]  = useState(false)
   const [error,       setError]       = useState('')
 
-  useEffect(() => {
-    Promise.all([
+  function cargar() {
+    return Promise.all([
       suscripcionVetService.miSuscripcion(),
       suscripcionVetService.planVigente(),
     ])
       .then(([s, p]) => { setSuscripcion(s); setPlan(p) })
       .catch((e) => setError(mensajeError(e, 'No se pudo cargar tu membresía.')))
       .finally(() => setCargando(false))
-  }, [])
+  }
+
+  useEffect(() => { cargar() }, [])
 
   async function pagar() {
     if (!plan || pagando) return
@@ -51,6 +55,21 @@ export default function MembresiaVetCard() {
     } catch (e) {
       setError(mensajeError(e, 'No se pudo iniciar el pago.'))
       setPagando(false)
+    }
+  }
+
+  async function cancelar() {
+    if (cancelando) return
+    setError('')
+    setCancelando(true)
+    try {
+      await suscripcionVetService.cancelar()
+      setConfirmando(false)
+      await cargar()
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo cancelar la membresía.'))
+    } finally {
+      setCancelando(false)
     }
   }
 
@@ -133,11 +152,42 @@ export default function MembresiaVetCard() {
           </button>
         )}
 
-        {vigente && (
-          <p className="text-xs text-slate-400">
-            La renovación y la baja se gestionan desde tu cuenta de MercadoPago.
-          </p>
-        )}
+        {vigente && (confirmando ? (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Se corta la renovación automática. <strong className="text-slate-800">No perdés
+              el acceso ahora</strong>: lo conservás hasta el {formatFecha(vencimiento ?? null)}, que
+              es el período que ya pagaste.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmando(false)}
+                disabled={cancelando}
+                className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-xs font-semibold text-slate-600 transition
+                  hover:bg-slate-100 disabled:opacity-40"
+              >
+                Volver
+              </button>
+              <button
+                onClick={cancelar}
+                disabled={cancelando}
+                className="flex-1 rounded-lg bg-rose-600 py-2 text-xs font-semibold text-white transition
+                  hover:bg-rose-500 disabled:opacity-40"
+              >
+                {cancelando ? 'Cancelando…' : 'Sí, cancelar'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => { setError(''); setConfirmando(true) }}
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-slate-200 py-2 text-xs font-medium text-slate-500 transition
+              hover:border-slate-300 hover:text-slate-700"
+          >
+            <XCircle size={13} />
+            Cancelar membresía
+          </button>
+        ))}
       </div>
     </div>
   )

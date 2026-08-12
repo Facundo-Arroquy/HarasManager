@@ -206,7 +206,10 @@
 - [ ] Con la membresía activa, el vet puede crear más de 5 caballos propios
 - [ ] Abandonar el checkout sin pagar deja la suscripción en `'pendiente'`, la tarjeta dice "Pago pendiente" y el vet **no** obtiene acceso ilimitado
 - [ ] Con la membresía activa, tocar "Suscribirme" de nuevo no crea un segundo cobro (la función responde "Ya tenés una membresía activa")
-- [ ] Cancelando la suscripción desde la cuenta de MercadoPago: la tarjeta pasa a **Cancelada** pero el vet **conserva** el acceso hasta la fecha de vencimiento
+- [ ] Con la membresía activa aparece el botón "Cancelar membresía"; al tocarlo pide confirmación y aclara que el acceso se conserva hasta la fecha ya paga
+- [ ] Al confirmar la cancelación, la tarjeta pasa a **Cancelada** y el vet **conserva** el acceso hasta la fecha de vencimiento
+- [ ] Tocar "Cancelar membresía" dos veces (o cancelar también desde MercadoPago) no rompe: la segunda vez avisa que ya está cancelada
+- [ ] Cancelando desde la cuenta de MercadoPago en vez de la app, el estado igual se sincroniza por webhook
 - [ ] Pasada la fecha de vencimiento, un vet con más de 5 caballos propios vuelve a ver el modal bloqueante
 - [ ] Desde el modal bloqueante, "Retomar membresía" abre el checkout igual que desde el panel
 - [ ] Los caballos dados de baja **no** se reactivan solos al pagar: siguen en la sección "Dados de baja" hasta que el vet los elija
