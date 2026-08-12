@@ -6,6 +6,7 @@ import { tieneAccesoModulo } from './utils/modulos'
 import type { ModuloCodigo } from './types/modulo'
 import Spinner from './components/ui/Spinner'
 import TerminosModal from './components/ui/TerminosModal'
+import LimiteCaballosVetModal from './components/domain/LimiteCaballosVetModal'
 import ToastContainer from './components/ui/ToastContainer'
 import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/auth/LoginPage'
@@ -18,6 +19,7 @@ import {
   aceptarTerminos,
   type TerminosVigentes,
 } from './services/terminosService'
+import { vetLimiteService, type EstadoLimiteVet } from './services/vetLimiteService'
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
 import SuperAdminPage from './pages/superadmin/SuperAdminPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
@@ -69,6 +71,11 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   const [checkandoTerminos, setCheckandoTerminos] = useState(false)
   const [terminosVerificados, setTerminosVerificados] = useState(false)
 
+  // Estado del plan gratuito del vet. Solo aplica a rol veterinario: para
+  // cualquier otro rol el chequeo ni se dispara.
+  const [limiteVet, setLimiteVet] = useState<EstadoLimiteVet | null>(null)
+  const [limiteVerificado, setLimiteVerificado] = useState(false)
+
   useEffect(() => {
     if (!user?.id || !isAuthenticated) return
     if (terminosVerificados) return
@@ -85,6 +92,29 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
       .finally(() => setCheckandoTerminos(false))
   }, [user?.id, isAuthenticated, terminosVerificados])
 
+  // Chequeo retroactivo del límite freemium. Corre una sola vez por sesión, al
+  // entrar: si el vet quedó por encima del plan gratuito sin suscripción
+  // vigente (típicamente porque pagó un mes, cargó de más y dejó de pagar), el
+  // modal lo obliga a regularizar antes de seguir usando la app.
+  useEffect(() => {
+    if (limiteVerificado) return
+    // Hay que esperar a que el perfil cargue, si no `rol` todavía es null y se
+    // daría por verificado a un vet sin haberlo chequeado nunca.
+    if (loading || (session && !perfilCargado)) return
+    if (!isAuthenticated || !user?.id || rol !== 'veterinario') {
+      setLimiteVerificado(true)
+      return
+    }
+
+    vetLimiteService.estado()
+      .then(setLimiteVet)
+      // Si la verificación falla no se bloquea al vet: el gate real del alta
+      // sigue viviendo en la base (`crear_caballo_veterinario`), así que un
+      // error acá no le abre la puerta a nada.
+      .catch(() => setLimiteVet(null))
+      .finally(() => setLimiteVerificado(true))
+  }, [user?.id, isAuthenticated, rol, limiteVerificado, loading, session, perfilCargado])
+
   async function handleAceptar() {
     if (!user?.id || !terminosPendientes) return
     await aceptarTerminos(user.id, terminosPendientes.id)
@@ -92,7 +122,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   }
 
   // Esperar mientras carga la sesión, el perfil del usuario, o la verificación de términos
-  if (loading || (session && !perfilCargado) || checkandoTerminos) {
+  if (loading || (session && !perfilCargado) || checkandoTerminos || !limiteVerificado) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spinner size="lg" />
@@ -103,10 +133,20 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (rol === 'superadmin') return <Navigate to="/superadmin" replace />
 
+  // Los T&C tienen prioridad: si están pendientes, el modal del límite espera
+  // su turno para no apilar dos bloqueantes uno encima del otro.
+  const debeRegularizar = !terminosPendientes && limiteVet?.debe_regularizar === true
+
   return (
     <>
       {terminosPendientes && (
         <TerminosModal terminos={terminosPendientes} onAceptar={handleAceptar} />
+      )}
+      {debeRegularizar && limiteVet && (
+        <LimiteCaballosVetModal
+          estado={limiteVet}
+          onResuelto={() => { setLimiteVet(null); setLimiteVerificado(false) }}
+        />
       )}
       {children}
     </>
