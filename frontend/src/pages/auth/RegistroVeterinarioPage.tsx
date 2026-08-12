@@ -1,15 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
-import { getSupabaseClient } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
+import { vetLimiteService } from '../../services/vetLimiteService'
 import logoUrl from '../../assets/logo.png'
 
 type Paso = 'form' | 'revisa-email'
 
 export default function RegistroVeterinarioPage() {
   const navigate = useNavigate()
+  const { signUp } = useAuth()
 
   const [paso, setPaso] = useState<Paso>('form')
+  const [limiteGratis, setLimiteGratis] = useState<number | null>(null)
   const [nombre, setNombre] = useState('')
   const [apellido, setApellido] = useState('')
   const [email, setEmail] = useState('')
@@ -18,6 +21,10 @@ export default function RegistroVeterinarioPage() {
   const [showPass, setShowPass] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    vetLimiteService.limiteGratis().then(setLimiteGratis).catch(() => {})
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -29,19 +36,12 @@ export default function RegistroVeterinarioPage() {
 
     setSubmitting(true)
     try {
-      const supabase = getSupabaseClient()
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { session } = await signUp({
         email: email.trim(),
         password,
-        options: {
-          data: {
-            nombre: nombre.trim(),
-            apellido: apellido.trim(),
-            rol_solicitado: 'veterinario',
-          },
-        },
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
       })
-      if (signUpError) throw signUpError
 
       // La aceptación de T&C queda pendiente para RequireAuth (App.tsx), que
       // se la pide a cualquier usuario logueado sin la versión vigente
@@ -49,7 +49,7 @@ export default function RegistroVeterinarioPage() {
       // siempre exige confirmación de email, así que acá nunca hay sesión
       // activa todavía; si en algún momento se desactivara, igual entra
       // directo y el modal aparece apenas cargue la próxima pantalla.
-      if (data.session) {
+      if (session) {
         navigate('/', { replace: true })
       } else {
         setPaso('revisa-email')
@@ -75,7 +75,7 @@ export default function RegistroVeterinarioPage() {
             <div className="text-center">
               <h1 className="text-xl font-bold text-zinc-100 tracking-tight">Registro de veterinario</h1>
               <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
-                Gratis hasta 5 caballos propios, sin necesidad de pertenecer a un haras.
+                Gratis hasta {limiteGratis ?? 'unos pocos'} caballos propios, sin necesidad de pertenecer a un haras.
               </p>
             </div>
           </div>

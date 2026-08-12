@@ -146,6 +146,16 @@ Deno.serve(async (req) => {
         })
       }
 
+      const encontrados = new Set((catModulos ?? []).map((m) => m.codigo))
+      const faltantes = modulosAHabilitar.filter((codigo) => !encontrados.has(codigo))
+      if (faltantes.length > 0) {
+        await supabaseAdmin.auth.admin.deleteUser(userId)
+        return new Response(JSON.stringify({ error: `Módulo(s) no encontrado(s): ${faltantes.join(', ')}` }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
       const filas = (catModulos ?? []).map((m) => ({ membresia_id: membData.id, modulo_id: m.id, habilitado: true }))
       if (filas.length > 0) {
         const { error: moduloError } = await supabaseAdmin.from('membresia_modulo').insert(filas)
