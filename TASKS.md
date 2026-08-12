@@ -26,6 +26,19 @@
 - **Pendiente de QA manual:** flujo completo con un vet real (crear 5 caballos, confirmar bloqueo del 6to, activar suscripción, ver que desbloquea). Ver checklist en `QA.md`.
 - **Ojo:** el flujo "vet crea/edita/lista/transfiere caballos propios sin sociedad" ya estaba construido de antes (RPCs, `/panel-vet`, `/transferir-vet`); lo nuevo acá fue solo el auto-registro y el límite. También se encontró un bug preexistente sin relación: `crearParaVet` intenta guardar genealogía con un `UPDATE` directo a `caballo` que la RLS actual (`es_admin(sociedad_id)`) rechaza en silencio para caballos de vet (`sociedad_id IS NULL`) — no se tocó, queda para otro ticket.
 
+### [x] Downgrade del freemium de vets (caer del plan pago al gratuito)
+- **Estado:** QA
+- **Asignado:** -
+- **Descripción:** El gate del freemium solo se evaluaba al crear, así que un vet que pagaba un mes, cargaba 50 caballos y dejaba de pagar se quedaba con los 50 para siempre. Ahora, al entrar, si tiene más caballos propios que el plan gratuito y no tiene suscripción vigente, un modal bloqueante lo obliga a regularizar.
+- **Avance:**
+  - [x] Migraciones `20260812120000`–`20260812120300`: `vet_limite_gratuito()` (el 5 en un solo lugar), `vet_suscripcion_activa()`, `vet_caballos_propios()`, `vet_estado_limite()` (chequeo retroactivo), `get_caballos_propios_vet()` y `dar_de_baja_caballos_veterinario()`.
+  - [x] `LimiteCaballosVetModal`: lista de caballos propios con checkbox, contador de cuántos faltan dar de baja, confirmación previa y botón "Retomar membresía" deshabilitado (placeholder de MercadoPago).
+  - [x] Montado en `RequireAuth`, después de los T&C para no apilar dos modales bloqueantes.
+  - [x] De paso: `get_alertas_vet()` no filtraba por `caballo.activo`, así que un caballo dado de baja seguía generando alertas para siempre. Con la baja en lote eso pasaba a ser el caso normal.
+  - [x] Reactivación: sección "Dados de baja" en `/panel-vet` (`CaballosDadosDeBajaVet`) + `reactivar_caballos_veterinario()`. Sin esto la baja era irreversible desde la app y el modal prometía algo que no existía.
+- **Decisiones:** baja **lógica**, no borrado — `vet_caballos_propios()` cuenta solo activos, así que alcanza para regularizar y el historial clínico queda intacto. La reactivación es **manual** (el vet elige cuáles), no automática al reactivar la suscripción: hoy no se distingue una baja por límite de una por venta o muerte del animal, y revivir un caballo vendido porque volvió a pagar sería peor. Reactivar aplica el mismo gate que el alta, si no dar de baja y reactivar sería una evasión trivial del límite.
+- **Ojo:** `dar_de_baja_caballos_veterinario` tuvo que ser `SECURITY DEFINER` porque la única policy de UPDATE sobre `caballo` es `es_admin(sociedad_id)` y los caballos de vet tienen `sociedad_id IS NULL` — el vet no puede darlos de baja con un update directo. Es la misma causa raíz del bug preexistente de genealogía en `crearParaVet` anotado en el ticket de arriba.
+
 ### [ ] Definir roles y membresías — URGENTE
 - **Estado:** QA
 - **Asignado:** -
