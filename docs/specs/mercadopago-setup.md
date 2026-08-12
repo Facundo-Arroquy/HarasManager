@@ -242,10 +242,19 @@ firmado.
 
 **Qué completar:**
 
+> ⚠️ **Pegá la URL entera, con el camino completo.** Es el error más fácil de
+> cometer, y el que más tiempo costó la primera vez: si guardás solo
+> `https://cbllmyboxyoumnhakvyj.supabase.co`, MercadoPago la acepta sin
+> chistar, muestra la configuración como válida, y manda todas las
+> notificaciones a la raíz de Supabase, donde no hay nada. El síntoma es
+> **"0% de notificaciones entregadas"** y cero llamadas en los logs de la
+> función. Después de guardar, verificá que la URL que muestra el panel termine
+> en `/functions/v1/mercadopago-webhook`.
+
 | Campo | Valor |
 |---|---|
 | URL de producción / de prueba | `https://cbllmyboxyoumnhakvyj.supabase.co/functions/v1/mercadopago-webhook` |
-| Eventos | Marcá **Suscripciones** (`subscription_preapproval`), **Pagos autorizados de suscripciones** (`subscription_authorized_payment`) y **Pagos** (`payment`) |
+| Eventos | En el panel actual alcanza con **Planes y suscripciones** (agrupa los tres tópicos de suscripción) y **Pagos**. No marques nada más — "Vinculación de aplicaciones" y el resto son de otras integraciones y solo generan ruido en los logs |
 
 > Los tres tópicos se activan aunque la función solo procesa los dos primeros:
 > MercadoPago pide tener `payment` prendido para las integraciones de
@@ -404,6 +413,27 @@ de MercadoPago del pagador.
   HarasManager; la tarjeta de membresía lo dice explícitamente.
 
 ---
+
+## Errores que ya nos pasaron
+
+Todos estos se vieron en la puesta en marcha del 12/08/2026. Están acá para que
+la próxima vez se reconozcan en un minuto en vez de en una hora.
+
+| Síntoma | Causa | Solución |
+|---|---|---|
+| `"Invalid value for back_url, must be a valid URL"` (400 al crear el preapproval) | `APP_URL` apuntaba a `http://localhost:5173`. MercadoPago exige una URL pública con `https` | Un túnel (VS Code dev tunnels, cloudflared) o la URL de preview de Vercel |
+| `"Both payer and collector must be real or test users"` (400) | La aplicación vivía en la cuenta **real** y el pagador era un **usuario de prueba** | Para el sandbox, la aplicación tiene que estar creada **dentro de la cuenta vendedora de prueba**, y se usan sus credenciales (que dicen `APP_USR-` aunque sean falsas) |
+| **0% de notificaciones entregadas**, cero llamadas en los logs | La URL del webhook se guardó sin el camino: solo el origen de Supabase | Corregirla a la URL completa y verificar en el panel que quedó bien |
+| El botón **Confirmar** del checkout queda gris | Extensiones del navegador rompiendo el JavaScript de MercadoPago (aparece un error de CSP en la consola), o el bloqueo de cookies de terceros del incógnito | Un perfil limpio de Chrome: sin extensiones y sin el bloqueo del incógnito |
+| El pago se hizo pero la app sigue en "pago pendiente" | El webhook no llegó | Revisar la URL configurada. Mientras tanto se puede sincronizar a mano con `mp_sincronizar_suscripcion()`, consultando el estado real con `GET /preapproval/{id}` |
+
+Dos cosas que **no** son problema, aunque lo parezcan:
+
+- **Pagar con dinero en cuenta funciona.** MercadoPago acepta `account_money`
+  como medio de una suscripción y programa igual el débito del mes siguiente.
+- **El simulador de webhooks devuelve 500** si le pasás el `data.id` de ejemplo
+  (`123456`): la firma valida, pero el recurso no existe. Para probarlo de
+  verdad, pasale el id de un preapproval real.
 
 ## Referencia rápida de las variables
 
