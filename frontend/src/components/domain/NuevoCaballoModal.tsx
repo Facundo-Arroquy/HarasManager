@@ -13,7 +13,7 @@ import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { fotoService } from '../../services/fotoService'
 import { CATEGORIAS_CON_TAGS, tagService } from '../../services/tagService'
-import { mensajeError } from '../../utils/error'
+import { mensajeError, esLimiteCaballosVet } from '../../utils/error'
 import PedigreeCombobox, { type HorseRef } from './PedigreeCombobox'
 import TagSelector from './TagSelector'
 
@@ -64,6 +64,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
 
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
+  const [limiteAlcanzado, setLimiteAlcanzado] = useState(false)
 
   function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -107,6 +108,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
 
     setSaving(true)
     setError('')
+    setLimiteAlcanzado(false)
 
     const payload: NuevoCaballoPayload = {
       nombre:           form.nombre.trim(),
@@ -143,7 +145,11 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       }
       onSuccess()
     } catch (err: unknown) {
-      setError(mensajeError(err))
+      if (vetMode && esLimiteCaballosVet(err)) {
+        setLimiteAlcanzado(true)
+      } else {
+        setError(mensajeError(err))
+      }
     } finally {
       setSaving(false)
     }
@@ -383,6 +389,17 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
             </div>
           </div>
 
+          {limiteAlcanzado && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-medium text-amber-800">
+                Alcanzaste el límite de 5 caballos propios gratis.
+              </p>
+              <p className="mt-1 text-xs text-amber-700 leading-relaxed">
+                Para seguir agregando caballos necesitás una suscripción activa.
+                Contactá a HarasManager para activarla.
+              </p>
+            </div>
+          )}
           {error && <p className="text-xs text-rose-600">{error}</p>}
         </form>
 

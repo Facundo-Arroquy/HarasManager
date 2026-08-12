@@ -162,6 +162,13 @@
 - [ ] Revisión pre-venta carga y funciona
 - [ ] Transferencia entre empresas funciona
 
+### Veterinario independiente / freemium
+- [ ] Alta de vet independiente end-to-end desde `/registro-veterinario` (signup + T&C + confirmación de email + login)
+- [ ] Crear 5 caballos propios (sin sociedad): ok
+- [ ] Intentar crear el 6to sin suscripción activa: bloqueado, mensaje de paywall (no un error genérico de Postgres)
+- [ ] Superadmin activa la suscripción (`/superadmin` → Veterinarios) → el mismo vet ya puede crear el 6to
+- [ ] Un vet con acceso clínico otorgado en un haras (`acceso_vet`) que además tiene caballos propios: ve ambos contextos sin que se mezclen (caballos propios + los que tiene acceso clínico)
+
 ---
 
 ## 6. Alertas
@@ -207,6 +214,8 @@
 - [ ] Lista de empresas (sociedades) se muestra correctamente
 - [ ] Se puede activar / desactivar una sociedad
 - [ ] Lista de usuarios globales funciona
+- [ ] Tab Veterinarios: muestra cantidad de caballos propios y estado de suscripción de cada vet
+- [ ] Tab Veterinarios: activar/desactivar suscripción funciona y se refleja en el límite del vet
 
 ---
 

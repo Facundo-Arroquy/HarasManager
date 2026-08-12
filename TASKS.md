@@ -13,6 +13,19 @@
 
 ## 🔴 Alta prioridad
 
+### [x] Freemium para veterinarios independientes
+- **Estado:** QA
+- **Asignado:** -
+- **Descripción:** Vet se registra solo (sin admin), gratis hasta 5 caballos propios sin sociedad; a partir del 6to necesita suscripción activada manualmente por superadmin (sin pasarela de pago todavía). Diseño completo en `docs/specs/roles-freemium-veterinarios.md`.
+- **Avance:**
+  - [x] Migraciones: tabla `suscripcion_veterinario`, función `vet_puede_agregar_caballo`, gate del límite en `crear_caballo_veterinario` (enforcement real — esa función es `SECURITY DEFINER` y bypasea RLS).
+  - [x] Auto-registro: se extendió el trigger `handle_new_auth_user` para leer `rol_solicitado` del metadata de `auth.signUp()`, en vez de una Edge Function separada (evita depender de una sesión que no existe todavía si el proyecto exige confirmación de email, que es el caso acá).
+  - [x] Página pública `/registro-veterinario` (signup + T&C vía el modal genérico existente).
+  - [x] `NuevoCaballoModal`/`utils/error.ts`: paywall claro (`esLimiteCaballosVet`) en vez del error genérico de Postgres.
+  - [x] Tab "Veterinarios" de `/superadmin`: caballos propios + estado de suscripción + activar/desactivar, sobre el sistema de módulos ya existente (`superAdminService`/`moduloService`). `PanelVetPage` ya servía como dashboard reducido del vet, no hizo falta uno nuevo.
+- **Pendiente de QA manual:** flujo completo con un vet real (crear 5 caballos, confirmar bloqueo del 6to, activar suscripción, ver que desbloquea). Ver checklist en `QA.md`.
+- **Ojo:** el flujo "vet crea/edita/lista/transfiere caballos propios sin sociedad" ya estaba construido de antes (RPCs, `/panel-vet`, `/transferir-vet`); lo nuevo acá fue solo el auto-registro y el límite. También se encontró un bug preexistente sin relación: `crearParaVet` intenta guardar genealogía con un `UPDATE` directo a `caballo` que la RLS actual (`es_admin(sociedad_id)`) rechaza en silencio para caballos de vet (`sociedad_id IS NULL`) — no se tocó, queda para otro ticket.
+
 ### [ ] Definir roles y membresías — URGENTE
 - **Estado:** QA
 - **Asignado:** -

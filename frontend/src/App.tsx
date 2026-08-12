@@ -11,6 +11,7 @@ import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/auth/LoginPage'
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
 import ResetPasswordPage from './pages/auth/ResetPasswordPage'
+import RegistroVeterinarioPage from './pages/auth/RegistroVeterinarioPage'
 import {
   getTerminosVigentes,
   usuarioAceptoTerminos,
@@ -165,6 +166,7 @@ export default function App() {
       <Routes>
         <Route path="/landing" element={<Suspense fallback={null}><LandingPage /></Suspense>} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/registro-veterinario" element={<RegistroVeterinarioPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route index element={<RootRedirect />} />

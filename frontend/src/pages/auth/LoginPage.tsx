@@ -145,12 +145,19 @@ export default function LoginPage() {
               {submitting ? 'Ingresando…' : 'Ingresar'}
             </button>
 
-            <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-xs">
               <Link
                 to="/forgot-password"
-                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-zinc-500 hover:text-zinc-300 transition-colors"
               >
                 ¿Olvidaste tu contraseña?
+              </Link>
+              <span className="text-zinc-700">·</span>
+              <Link
+                to="/registro-veterinario"
+                className="text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                ¿Sos veterinario? Registrate
               </Link>
             </div>
           </form>
