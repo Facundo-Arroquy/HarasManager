@@ -6,6 +6,9 @@ import logoUrl from '../../assets/logo.png'
 
 type Paso = 'form' | 'revisa-email'
 
+const PASSWORD_ESPECIALES = `!@#$%^&*()_+-=[]{};':"|<>?,./` + '`~'
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"|<>?,./`~]).{8,}$/
+
 export default function RegistroVeterinarioPage() {
   const navigate = useNavigate()
 
@@ -24,7 +27,9 @@ export default function RegistroVeterinarioPage() {
     if (submitting) return
     setError('')
 
-    if (password.length < 6) return setError('La contraseña debe tener al menos 6 caracteres.')
+    if (!PASSWORD_REGEX.test(password)) {
+      return setError('La contraseña debe tener al menos 8 caracteres, con mayúsculas, minúsculas, números y un símbolo.')
+    }
     if (password !== confirmar) return setError('Las contraseñas no coinciden.')
 
     setSubmitting(true)
@@ -155,6 +160,9 @@ export default function RegistroVeterinarioPage() {
                     {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
+                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                  Mínimo 8 caracteres, con mayúsculas, minúsculas, números y un símbolo ({PASSWORD_ESPECIALES}).
+                </p>
               </div>
 
               <div className="space-y-1.5">
