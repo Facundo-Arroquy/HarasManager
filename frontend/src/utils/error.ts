@@ -11,7 +11,15 @@ export function mensajeError(e: unknown, fallback = 'Error desconocido'): string
 }
 
 // Coincide con el RAISE EXCEPTION de crear_caballo_veterinario cuando un vet
-// llega al límite freemium (5 caballos propios sin suscripción activa).
+// llega a su tope de caballos propios — el del plan gratuito o el de la
+// membresía, según corresponda.
+//
+// Se mira el SQLSTATE y no el texto: el mensaje cambia según el plan y lleva
+// los números adentro, así que engancharse a él lo hace frágil. `HM001` es el
+// código que la función levanta a propósito para este caso.
 export function esLimiteCaballosVet(e: unknown): boolean {
-  return mensajeError(e, '').includes('límite de 5 caballos propios')
+  const code = (e as { code?: unknown } | null)?.code
+  if (code === 'HM001') return true
+  // Respaldo por si el error llega envuelto y pierde el código.
+  return /límite de \d+ caballos propios/.test(mensajeError(e, ''))
 }

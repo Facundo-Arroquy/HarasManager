@@ -7,6 +7,7 @@ import {
   type PlanSuscripcionVet,
   type SuscripcionVet,
 } from '../../services/suscripcionVetService'
+import { vetLimiteService, type EstadoLimiteVet } from '../../services/vetLimiteService'
 import { mensajeError } from '../../utils/error'
 
 function formatFecha(iso: string | null): string {
@@ -28,6 +29,7 @@ function formatFecha(iso: string | null): string {
 export default function MembresiaVetCard() {
   const [suscripcion, setSuscripcion] = useState<SuscripcionVet | null>(null)
   const [plan,        setPlan]        = useState<PlanSuscripcionVet | null>(null)
+  const [limites,     setLimites]     = useState<EstadoLimiteVet | null>(null)
   const [cargando,    setCargando]    = useState(true)
   const [pagando,     setPagando]     = useState(false)
   const [confirmando, setConfirmando] = useState(false)
@@ -38,8 +40,11 @@ export default function MembresiaVetCard() {
     return Promise.all([
       suscripcionVetService.miSuscripcion(),
       suscripcionVetService.planVigente(),
+      // Los topes se leen de la base y no se escriben acá: el número que
+      // promete la tarjeta tiene que ser el mismo que aplica el gate del alta.
+      vetLimiteService.estado(),
     ])
-      .then(([s, p]) => { setSuscripcion(s); setPlan(p) })
+      .then(([s, p, l]) => { setSuscripcion(s); setPlan(p); setLimites(l) })
       .catch((e) => setError(mensajeError(e, 'No se pudo cargar tu membresía.')))
       .finally(() => setCargando(false))
   }
@@ -112,6 +117,8 @@ export default function MembresiaVetCard() {
             {vencimiento
               ? <>Se renueva el <strong className="text-slate-800">{formatFecha(vencimiento)}</strong>.</>
               : 'Sin fecha de vencimiento.'}
+            {limites && <> Estás usando <strong className="text-slate-800">
+              {limites.caballos_propios} de {limites.limite}</strong> caballos.</>}
           </p>
         )}
 
@@ -130,7 +137,8 @@ export default function MembresiaVetCard() {
 
         {!vigente && !enPeriodoPago && suscripcion?.estado !== 'pendiente' && (
           <p className="text-sm text-slate-600">
-            Estás en el plan gratuito. Con la membresía cargás hasta 25 caballos sin problema.
+            Estás en el plan gratuito{limites && <> ({limites.caballos_propios} de {limites.limite_gratuito} caballos)</>}.
+            Con la membresía cargás hasta {limites?.limite_con_membresia ?? 25} caballos sin problema.
           </p>
         )}
 

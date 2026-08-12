@@ -133,12 +133,16 @@ export default function LimiteCaballosVetModal({ estado, onResuelto }: Props) {
               </div>
               <div className="min-w-0">
                 <h2 className="text-base font-bold text-zinc-100">
-                  Superaste tu plan gratuito
+                  {estado.suscripcion_activa
+                    ? 'Superaste el límite de tu membresía'
+                    : 'Superaste tu plan gratuito'}
                 </h2>
                 <p className="mt-1 text-xs text-zinc-400 leading-relaxed">
-                  Tenés <strong className="text-zinc-200">{estado.caballos_propios} caballos propios</strong> y
-                  tu suscripción no está activa. El plan gratuito incluye hasta{' '}
-                  <strong className="text-zinc-200">{estado.limite}</strong>.
+                  Tenés <strong className="text-zinc-200">{estado.caballos_propios} caballos propios</strong>
+                  {estado.suscripcion_activa
+                    ? <> y tu membresía incluye hasta <strong className="text-zinc-200">{estado.limite}</strong>.</>
+                    : <> y tu membresía no está activa. El plan gratuito incluye hasta{' '}
+                        <strong className="text-zinc-200">{estado.limite}</strong>.</>}
                 </p>
               </div>
             </div>
@@ -247,29 +251,40 @@ export default function LimiteCaballosVetModal({ estado, onResuelto }: Props) {
                 Dar de baja {seleccion.size > 0 ? `(${seleccion.size})` : ''}
               </button>
 
-              <div className="flex items-center gap-3 py-0.5">
-                <div className="h-px flex-1 bg-zinc-800" />
-                <span className="text-[10px] uppercase tracking-wide text-zinc-600">o</span>
-                <div className="h-px flex-1 bg-zinc-800" />
-              </div>
+              {/* Pagar solo es una salida si todavía no paga. Al vet que ya
+                  tiene membresía y se pasó de los 25, ofrecerle "retomar
+                  membresía" sería venderle lo que ya compró. */}
+              {estado.suscripcion_activa ? (
+                <p className="text-center text-[10px] text-zinc-600 pt-1">
+                  Tu membresía ya está activa: el tope de {estado.limite} es el máximo del plan.
+                </p>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 py-0.5">
+                    <div className="h-px flex-1 bg-zinc-800" />
+                    <span className="text-[10px] uppercase tracking-wide text-zinc-600">o</span>
+                    <div className="h-px flex-1 bg-zinc-800" />
+                  </div>
 
-              <button
-                onClick={pagar}
-                disabled={!plan || pagando}
-                className="w-full flex items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 text-sm font-semibold text-zinc-200 transition
-                  hover:bg-zinc-700 hover:border-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
-              >
-                <CreditCard size={15} />
-                {pagando
-                  ? 'Abriendo MercadoPago…'
-                  : plan
-                    ? `Retomar membresía — ${formatPrecio(plan)}/${formatPeriodo(plan)}`
-                    : 'Retomar membresía — no disponible'}
-              </button>
+                  <button
+                    onClick={pagar}
+                    disabled={!plan || pagando}
+                    className="w-full flex items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 text-sm font-semibold text-zinc-200 transition
+                      hover:bg-zinc-700 hover:border-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+                  >
+                    <CreditCard size={15} />
+                    {pagando
+                      ? 'Abriendo MercadoPago…'
+                      : plan
+                        ? `Retomar membresía — ${formatPrecio(plan)}/${formatPeriodo(plan)}`
+                        : 'Retomar membresía — no disponible'}
+                  </button>
 
-              <p className="text-center text-[10px] text-zinc-600 pt-1">
-                Con la membresía activa conservás todos tus caballos.
-              </p>
+                  <p className="text-center text-[10px] text-zinc-600 pt-1">
+                    Con la membresía activa llegás hasta {estado.limite_con_membresia} caballos.
+                  </p>
+                </>
+              )}
             </div>
           </>
         )}

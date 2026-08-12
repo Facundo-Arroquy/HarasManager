@@ -82,12 +82,10 @@ export default function CaballosDadosDeBajaVet({ onCambio }: Props) {
 
   if (caballos.length === 0) return null
 
-  // Sin suscripción, reactivar vuelve a llenar el cupo del plan gratuito. El
-  // backend rechaza si se pasa; acá se muestra antes para que no sea un error
-  // sorpresa después de seleccionar.
-  const cupo = estado?.suscripcion_activa
-    ? caballos.length
-    : Math.max((estado?.limite ?? 0) - (estado?.caballos_propios ?? 0), 0)
+  // Reactivar vuelve a llenar el cupo del límite que le aplica al vet — el del
+  // plan gratuito o el de la membresía. El backend rechaza si se pasa; acá se
+  // muestra antes para que no sea un error sorpresa después de seleccionar.
+  const cupo = Math.max((estado?.limite ?? 0) - (estado?.caballos_propios ?? 0), 0)
 
   const excede = seleccion.size > cupo
   const puedeReactivar = seleccion.size > 0 && !excede && !procesando
@@ -140,15 +138,17 @@ export default function CaballosDadosDeBajaVet({ onCambio }: Props) {
             <div className="flex items-start gap-2 px-4 py-3 bg-amber-50 border-b border-amber-100">
               <Lock size={13} className="text-amber-500 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-800 leading-relaxed">
-                Ya estás usando los {estado?.limite} caballos del plan gratuito. Para reactivar
-                alguno, primero dá de baja otro o activá tu membresía.
+                {estado?.suscripcion_activa
+                  ? <>Ya estás usando los {estado?.limite} caballos que incluye tu membresía. Para
+                      reactivar alguno, primero dá de baja otro.</>
+                  : <>Ya estás usando los {estado?.limite} caballos del plan gratuito. Para reactivar
+                      alguno, primero dá de baja otro o activá tu membresía.</>}
               </p>
             </div>
           ) : (
             <p className="px-4 py-2 text-[11px] text-slate-400 border-b border-slate-100">
-              {estado?.suscripcion_activa
-                ? 'Tu membresía está activa: podés reactivar los que quieras.'
-                : `Podés reactivar hasta ${cupo} ${cupo === 1 ? 'caballo' : 'caballos'} con el plan gratuito.`}
+              {`Podés reactivar hasta ${cupo} ${cupo === 1 ? 'caballo' : 'caballos'} `}
+              {estado?.suscripcion_activa ? 'con tu membresía.' : 'con el plan gratuito.'}
             </p>
           )}
 

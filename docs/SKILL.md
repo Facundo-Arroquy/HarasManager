@@ -279,7 +279,8 @@ CREATE TABLE acceso_vet (
 ### Suscripción de veterinarios independientes
 
 ```sql
--- Freemium: hasta 5 caballos propios (sociedad_id IS NULL) gratis por vet;
+-- Freemium: hasta 5 caballos propios (sociedad_id IS NULL) gratis por vet, y
+-- hasta 25 con la membresía paga;
 -- a partir del 6to hace falta una fila 'activa' acá. Fase 1: activación
 -- manual por superadmin, sin pasarela de pago (migración 20260811150000).
 CREATE TABLE suscripcion_veterinario (
@@ -312,7 +313,8 @@ siempre, porque nada volvía a mirar el estado hacia atrás. Ahora:
 
 1. `RequireAuth` llama a `vet_estado_limite()` al entrar (solo si
    `rol = 'veterinario'`), y espera la respuesta antes de renderizar.
-2. Si `debe_regularizar` (más caballos propios que `vet_limite_gratuito()` **y**
+2. Si `debe_regularizar` (más caballos propios que el límite que le aplica —
+   `vet_limite_aplicable()`, o sea 5 sin membresía y 25 con ella; antes exigía además que
    sin suscripción vigente), se monta `LimiteCaballosVetModal` — bloqueante, sin
    forma de cerrarlo. Los T&C tienen prioridad si ambos están pendientes.
 3. El vet tiene dos salidas: seleccionar caballos con checkbox y darlos de baja
@@ -866,10 +868,12 @@ CREATE TABLE lead (
 | `puede_gestionar_campo(sociedad_id)` | Tiene rol admin, jugador o piloto activo en esa sociedad |
 | `vet_tiene_acceso(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo **y** que el usuario sea veterinario activo; usado en políticas de centro de embriones (corregida en `20260611155651` — antes ignoraba el parámetro) |
 | `vet_tiene_acceso_caballo(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo específico |
-| `vet_limite_gratuito()` | Constante del plan gratuito (hoy 5). Única fuente del número: la comparten `vet_puede_agregar_caballo` y `vet_estado_limite` para que no se desincronicen (migración `20260812120000`) |
+| `vet_limite_gratuito()` | Constante del plan gratuito (hoy 5). Única fuente del número (migración `20260812120000`) |
+| `vet_limite_pago()` | Constante del plan con membresía (hoy 25). La membresía **no es ilimitada** (migración `20260813120200`) |
+| `vet_limite_aplicable(usuario_id)` | Devuelve 25 o 5 según haya membresía vigente. Es la única fuente del tope: la consultan el alta, la reactivación y el chequeo retroactivo. **Revocada de `authenticated`**: toma el usuario por parámetro y es `SECURITY DEFINER`, así que abierta permitiría deducir si otro vet paga (migración `20260813120200`) |
 | `vet_suscripcion_activa(usuario_id)` | TRUE si el vet tiene `suscripcion_veterinario` en estado `activa` y no vencida. **Sin EXECUTE para `authenticated`** (migración `20260812120500`): es `SECURITY DEFINER` y toma el usuario por parámetro, así que expuesta al cliente dejaba a cualquier logueado averiguar si otro paga. Solo se llama desde adentro de otras `SECURITY DEFINER`, que corren como `postgres` |
 | `vet_caballos_propios(usuario_id)` | Cantidad de caballos propios **activos** del vet (`vet_owner_id`, `sociedad_id IS NULL`, `activo = true`). Que cuente solo activos es lo que hace que la baja lógica alcance para regularizar el límite. **Sin EXECUTE para `authenticated`**, por lo mismo que la anterior |
-| `vet_puede_agregar_caballo(usuario_id)` | TRUE si `vet_caballos_propios < vet_limite_gratuito()` o `vet_suscripcion_activa`. Gate freemium al **crear** (migración `20260811150100`, reescrita en `20260812120000`) |
+| `vet_puede_agregar_caballo(usuario_id)` | TRUE si `vet_caballos_propios < vet_limite_aplicable()`. Gate al **crear** (migración `20260811150100`, reescrita en `20260812120000` y `20260813120200`) |
 
 ### Funciones de negocio (SECURITY DEFINER, llamadas desde frontend)
 
@@ -893,10 +897,10 @@ CREATE TABLE lead (
 | `get_padrillos_familiares(p_donante_id, p_padrillo_ids)` | De la lista de padrillos que muestra la UI, cuáles son familiares y con qué parentesco ('Padre', 'Abuelo', 'Hijo', 'Nieto', 'Hermano', 'Familiar'). Alimenta la etiqueta roja del selector |
 | `guardar_ranking_padrillos(p_donante_id, p_padrillo_ids)` | Reemplaza el ranking completo de una donante en una transacción; la prioridad sale del orden del array. Valida tope de 10, sin repetidos, y permiso de admin de la sociedad o vet con acceso a la donante **y a cada padrillo** (migración `20260802120200`) |
 | `get_caballos_pedigree_vet()` | Candidatos a padre/madre para el vet, **incluyendo los dados de baja** — `get_caballos_veterinario()` filtra `activo = true` y el pedigree es histórico (migración `20260802120300`) |
-| `vet_estado_limite()` | Estado del plan gratuito del vet autenticado: `caballos_propios`, `limite`, `suscripcion_activa`, `excedente`, `debe_regularizar`. Es el chequeo **retroactivo** que faltaba — `vet_puede_agregar_caballo` solo mira al crear, así que un vet que pagó un mes, cargó de más y dejó de pagar se quedaba con el excedente para siempre. El frontend la llama en `RequireAuth` y, si `debe_regularizar`, muestra el modal bloqueante (migración `20260812120000`) |
+| `vet_estado_limite()` | Estado del límite del vet autenticado: `caballos_propios`, `limite` (el aplicable), `limite_gratuito`, `limite_con_membresia`, `suscripcion_activa`, `excedente`, `debe_regularizar`. Es el chequeo **retroactivo** que faltaba — `vet_puede_agregar_caballo` solo mira al crear, así que un vet que pagó un mes, cargó de más y dejó de pagar se quedaba con el excedente para siempre. El frontend la llama en `RequireAuth` y, si `debe_regularizar`, muestra el modal bloqueante. Desde `20260813120200` devuelve los dos topes por separado —para que la UI no repita los números— y `debe_regularizar` ya no exige que la suscripción esté inactiva: también se pasa un vet que paga y superó los 25 (migraciones `20260812120000` / `20260813120200`) |
 | `get_caballos_propios_vet()` | Caballos propios del vet con `consultas` y `ultima_consulta`, para que pueda elegir cuáles dar de baja en el modal de regularización. A diferencia de `get_caballos_veterinario()`, **no** incluye los caballos de haras a los que tiene acceso clínico: esos no cuentan para el límite ni puede darlos de baja (migración `20260812120200`) |
 | `get_caballos_propios_vet_inactivos()` | Caballos propios **dados de baja** del vet, con `fecha_baja` (aproximada por `updated_at`, no hay columna de baja en `caballo`). Alimenta la sección "Dados de baja" de `/panel-vet` (migración `20260812120400`) |
-| `reactivar_caballos_veterinario(p_caballo_ids)` | Vuelve a poner `activo = true`. Aplica el **mismo gate que el alta**: sin suscripción vigente solo se puede reactivar hasta llenar el cupo del plan gratuito — si no, dar de baja los 50 para pasar el modal y reactivarlos enseguida sería una evasión trivial del límite (migración `20260812120400`) |
+| `reactivar_caballos_veterinario(p_caballo_ids)` | Vuelve a poner `activo = true`. Aplica el **mismo gate que el alta**: solo se puede reactivar hasta llenar el cupo del límite aplicable — si no, dar de baja los 50 para pasar el modal y reactivarlos enseguida sería una evasión trivial. Desde `20260813120200` el cupo se controla también con membresía activa, porque el plan pago dejó de ser ilimitado (migraciones `20260812120400` / `20260813120200`) |
 | `dar_de_baja_caballos_veterinario(p_caballo_ids)` | Baja lógica en lote (`activo = false`) de caballos propios del vet. Hace falta como `SECURITY DEFINER` porque la única policy de UPDATE sobre `caballo` es `es_admin(sociedad_id)` y los caballos de vet tienen `sociedad_id IS NULL` — el vet no puede darlos de baja con un update directo. Si algún id no es propio o ya está inactivo, **aborta la operación entera** en vez de saltearlo. No toca `acceso_vet`, para que reactivarlos sea un solo UPDATE (migración `20260812120100`) |
 | `guardar_asignaciones_torneo(p_torneo_id, p_jugador_id, p_caballo_ids)` | Reescribe la columna de un jugador en el kanban del torneo, en una transacción: suelta los caballos de su jugador anterior, borra la columna y reinserta con el orden del array. `p_jugador_id` NULL devuelve los caballos a "Disponibles". Valida torneo `activo`, admin de la sociedad, jugador del torneo, sin repetidos, y caballo activo + de la sociedad + con tag "Jugador" (migración `20260803120000`) |
 | `completar_trabajo_sanitario(p_trabajo_id)` | Marca un `trabajo_sanitario` como realizado e inserta una fila en `historial_clinico` por cada caballo no excluido (asegura el `cat_tipo_consulta` con el nombre del trabajo). Valida `tiene_membresia`. Solo `authenticated`. Devuelve la cantidad cargada (migración `20260728181738`). Es el flujo viejo, el de la sección Sanidad |

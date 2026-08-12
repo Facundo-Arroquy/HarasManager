@@ -38,6 +38,9 @@ Verificación posterior a la aplicación:
 | 8 | `apply_migration` de `rpc_mercadopago_vet` | **DDL** | **sí** |
 | 9 | `SELECT` de verificación post-aplicación | lectura | — |
 | 10 | `UPDATE auth.users SET email_confirmed_at = now()` para el vet de prueba `test_user_3055276528951504274@testuser.com` | **dato** | **sí** |
+| 11 | `UPDATE plan_suscripcion_vet SET precio = 100` y limpieza del preapproval de prueba que había quedado en la fila del vet `@testuser.com` | **dato** | **sí** |
+| 12 | `mp_sincronizar_suscripcion()` a mano para el vet `facarroquy@gmail.com`, con el estado real leído de la API de MercadoPago (el webhook todavía no llegaba) | **dato** | **sí** |
+| 13 | `apply_migration` de `tope_pago_vet` — la membresía deja de ser ilimitada y pasa a 25 caballos | **DDL** | **sí** |
 
 El punto 10 no tiene nada que ver con las migraciones: es un usuario de prueba
 creado a mano para el QA, cuyo email `@testuser.com` no puede recibir el mail de
@@ -94,6 +97,51 @@ sección 3**.
 Ninguna migración borra datos ni modifica filas existentes.
 
 ---
+
+## 2 bis. Volver atrás solo el tope de 25
+
+Si lo único que se quiere deshacer es el límite de la membresía —volver a que
+pagar signifique caballos ilimitados— sin tocar el resto de la integración,
+alcanza con esto:
+
+```sql
+BEGIN;
+
+-- La membresía vuelve a no tener tope.
+CREATE OR REPLACE FUNCTION vet_puede_agregar_caballo(p_usuario_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT vet_caballos_propios(p_usuario_id) < vet_limite_gratuito()
+      OR vet_suscripcion_activa(p_usuario_id);
+$$;
+
+-- Y el estado vuelve a mirar solo el plan gratuito.
+DROP FUNCTION IF EXISTS vet_estado_limite();
+CREATE FUNCTION vet_estado_limite()
+RETURNS TABLE(caballos_propios INTEGER, limite INTEGER, suscripcion_activa BOOLEAN,
+              excedente INTEGER, debe_regularizar BOOLEAN)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT d.propios, d.limite, d.susc,
+         GREATEST(d.propios - d.limite, 0),
+         d.propios > d.limite AND NOT d.susc
+  FROM (SELECT vet_caballos_propios(auth.uid()) AS propios,
+               vet_limite_gratuito() AS limite,
+               vet_suscripcion_activa(auth.uid()) AS susc) d;
+$$;
+REVOKE ALL ON FUNCTION vet_estado_limite() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION vet_estado_limite() TO authenticated, service_role;
+
+COMMIT;
+```
+
+**El frontend hay que revertirlo también**: `EstadoLimiteVet` perdería dos
+campos y varios componentes los leen. En la práctica conviene revertir el commit
+entero en vez de correr solo este SQL.
+
+Las funciones `vet_limite_pago()` y `vet_limite_aplicable()` pueden quedar sin
+uso; borrarlas es opcional.
 
 ## 3. Cómo volver atrás
 
