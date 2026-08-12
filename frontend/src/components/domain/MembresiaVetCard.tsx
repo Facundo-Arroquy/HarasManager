@@ -111,7 +111,7 @@ export default function MembresiaVetCard() {
 
         {!vigente && !enPeriodoPago && suscripcion?.estado !== 'pendiente' && (
           <p className="text-sm text-slate-600">
-            Estás en el plan gratuito. Con la membresía cargás caballos propios sin tope.
+            Estás en el plan gratuito. Con la membresía cargás hasta 25 caballos sin problema.
           </p>
         )}
 
