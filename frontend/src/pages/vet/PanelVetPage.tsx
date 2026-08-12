@@ -7,6 +7,7 @@ import { historialService, type AlertaVet } from '../../services/historialServic
 import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
 import CaballosDadosDeBajaVet from '../../components/domain/CaballosDadosDeBajaVet'
+import MembresiaVetCard from '../../components/domain/MembresiaVetCard'
 
 type HistorialResumen = Awaited<ReturnType<typeof historialService.listarRecientesVet>>[number]
 
@@ -128,6 +129,9 @@ export default function PanelVetPage() {
           </div>
         </div>
       )}
+
+      {/* Membresía — no se renderiza para un vet de haras, que no tiene fila */}
+      <MembresiaVetCard />
 
       {/* Dados de baja — solo se renderiza si el vet tiene alguno */}
       <CaballosDadosDeBajaVet

@@ -29,6 +29,7 @@ import AdminPage from './pages/admin/AdminPage'
 import ConfigPage from './pages/config/ConfigPage'
 import RevisionPreVentaPage from './pages/vet/RevisionPreVentaPage'
 import PanelVetPage from './pages/vet/PanelVetPage'
+import SuscripcionResultadoPage from './pages/vet/SuscripcionResultadoPage'
 import RecordatoriosPage from './pages/centro-cria/RecordatoriosPage'
 import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
 import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
@@ -207,6 +208,10 @@ export default function App() {
         <Route path="/landing" element={<Suspense fallback={null}><LandingPage /></Suspense>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro-veterinario" element={<RegistroVeterinarioPage />} />
+        {/* Vuelta del checkout de MercadoPago. Fuera de RequireAuth a propósito:
+            ese guard monta el modal bloqueante del límite, que dejaría al vet
+            atrapado justo mientras esperamos la confirmación que lo libera. */}
+        <Route path="/suscripcion/resultado" element={<SuscripcionResultadoPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route index element={<RootRedirect />} />

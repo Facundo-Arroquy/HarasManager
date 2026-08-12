@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowLeft, CreditCard, Check, Stethoscope } from 'lucide-react'
 import { vetLimiteService, type EstadoLimiteVet, type CaballoPropioVet } from '../../services/vetLimiteService'
+import {
+  suscripcionVetService,
+  formatPrecio,
+  formatPeriodo,
+  type PlanSuscripcionVet,
+} from '../../services/suscripcionVetService'
 import { mensajeError } from '../../utils/error'
 import Spinner from '../ui/Spinner'
 
@@ -27,7 +33,7 @@ function formatFecha(iso: string | null): string {
  * solo se miraba al crear, así que ese vet se quedaba con los 50 para siempre.
  *
  * No se puede cerrar a propósito: las únicas salidas son dar de baja caballos
- * hasta volver al límite, o retomar la membresía (Fase 2, MercadoPago).
+ * hasta volver al límite, o retomar la membresía pagando con MercadoPago.
  */
 export default function LimiteCaballosVetModal({ estado, onResuelto }: Props) {
   const [caballos,     setCaballos]     = useState<CaballoPropioVet[]>([])
@@ -36,12 +42,22 @@ export default function LimiteCaballosVetModal({ estado, onResuelto }: Props) {
   const [procesando,   setProcesando]   = useState(false)
   const [confirmando,  setConfirmando]  = useState(false)
   const [error,        setError]        = useState('')
+  const [plan,         setPlan]         = useState<PlanSuscripcionVet | null>(null)
+  const [pagando,      setPagando]      = useState(false)
 
   useEffect(() => {
     vetLimiteService.listarPropios()
       .then(setCaballos)
       .catch((e) => setError(mensajeError(e, 'No se pudieron cargar tus caballos.')))
       .finally(() => setCargando(false))
+  }, [])
+
+  // El precio se lee de la base. Si falla, la salida por pago queda
+  // deshabilitada y el vet todavía puede regularizar dando de baja.
+  useEffect(() => {
+    suscripcionVetService.planVigente()
+      .then(setPlan)
+      .catch(() => setPlan(null))
   }, [])
 
   const restantes    = caballos.length - seleccion.size
@@ -62,6 +78,21 @@ export default function LimiteCaballosVetModal({ estado, onResuelto }: Props) {
       else next.add(id)
       return next
     })
+  }
+
+  async function pagar() {
+    if (!plan || pagando) return
+    setError('')
+    setPagando(true)
+    try {
+      const initPoint = await suscripcionVetService.iniciarCheckout()
+      // Redirect completo y no popup: el checkout de MercadoPago vuelve por
+      // `back_url`, y un popup bloqueado dejaría al vet sin ninguna salida.
+      window.location.href = initPoint
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo iniciar el pago.'))
+      setPagando(false)
+    }
   }
 
   async function aplicar() {
@@ -222,13 +253,18 @@ export default function LimiteCaballosVetModal({ estado, onResuelto }: Props) {
                 <div className="h-px flex-1 bg-zinc-800" />
               </div>
 
-              {/* Fase 2: acá va el checkout de MercadoPago. */}
               <button
-                disabled
-                className="w-full flex items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800/50 py-2.5 text-sm font-semibold text-zinc-500 cursor-not-allowed"
+                onClick={pagar}
+                disabled={!plan || pagando}
+                className="w-full flex items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 text-sm font-semibold text-zinc-200 transition
+                  hover:bg-zinc-700 hover:border-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
               >
                 <CreditCard size={15} />
-                Retomar membresía — Próximamente
+                {pagando
+                  ? 'Abriendo MercadoPago…'
+                  : plan
+                    ? `Retomar membresía — ${formatPrecio(plan)}/${formatPeriodo(plan)}`
+                    : 'Retomar membresía — no disponible'}
               </button>
 
               <p className="text-center text-[10px] text-zinc-600 pt-1">

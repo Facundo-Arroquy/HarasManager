@@ -181,7 +181,7 @@
 - [ ] Después de regularizar, el vet puede volver a crear un caballo hasta llegar de nuevo a 5
 - [ ] Un vet con 5 o menos caballos propios y sin suscripción: nunca ve el modal
 - [ ] Un admin de haras o un superadmin: nunca ve el modal (el chequeo solo corre para `rol = 'veterinario'`)
-- [ ] "Retomar membresía" está visible pero deshabilitado (placeholder de MercadoPago)
+- [ ] "Retomar membresía" está habilitado y muestra el precio del plan (ej. `Retomar membresía — $25.000/mes`)
 
 **Reactivación de caballos dados de baja**
 - [ ] Tras dar de baja, aparece la sección "Dados de baja" en `/panel-vet` con los caballos y su fecha de baja
@@ -191,6 +191,27 @@
 - [ ] Con suscripción activa: se pueden reactivar todos de una
 - [ ] Al reactivar, el caballo vuelve al listado y al contador del panel, con su historial clínico intacto
 - [ ] El acceso clínico del vet sobre el caballo reactivado sigue funcionando (se puede abrir su historial y cargar una consulta)
+
+**Suscripción con MercadoPago**
+
+> Requiere la configuración de `docs/specs/mercadopago-setup.md` hecha en modo
+> prueba, y los usuarios de prueba de MercadoPago creados.
+
+- [ ] `/panel-vet` muestra la tarjeta "Membresía" con la etiqueta gris **Plan gratuito** y el botón `Suscribirme — $X/mes` con el precio real de `plan_suscripcion_vet`
+- [ ] Un admin de haras o un superadmin **no** ve la tarjeta de membresía (no tienen fila de suscripción)
+- [ ] Clic en "Suscribirme" abre el checkout de MercadoPago con el nombre del plan y el importe correctos
+- [ ] Pagando con tarjeta de prueba y titular `APRO`, vuelve a `/suscripcion/resultado` mostrando "Confirmando tu pago" y en segundos cambia a **Membresía activa**
+- [ ] La tarjeta del panel pasa a **Activa** y muestra la fecha de renovación
+- [ ] En la base: `suscripcion_veterinario.estado = 'activa'`, `external_subscription_id` cargado, y una fila en `pago_veterinario` con `estado = 'approved'`
+- [ ] Con la membresía activa, el vet puede crear más de 5 caballos propios
+- [ ] Abandonar el checkout sin pagar deja la suscripción en `'pendiente'`, la tarjeta dice "Pago pendiente" y el vet **no** obtiene acceso ilimitado
+- [ ] Con la membresía activa, tocar "Suscribirme" de nuevo no crea un segundo cobro (la función responde "Ya tenés una membresía activa")
+- [ ] Cancelando la suscripción desde la cuenta de MercadoPago: la tarjeta pasa a **Cancelada** pero el vet **conserva** el acceso hasta la fecha de vencimiento
+- [ ] Pasada la fecha de vencimiento, un vet con más de 5 caballos propios vuelve a ver el modal bloqueante
+- [ ] Desde el modal bloqueante, "Retomar membresía" abre el checkout igual que desde el panel
+- [ ] Los caballos dados de baja **no** se reactivan solos al pagar: siguen en la sección "Dados de baja" hasta que el vet los elija
+- [ ] Un `POST` sin firma a la URL del webhook responde **401** (`curl -i -X POST <url-del-webhook>`)
+- [ ] El simulador de notificaciones de MercadoPago responde **200**
 
 ---
 

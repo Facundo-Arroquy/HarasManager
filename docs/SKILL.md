@@ -332,6 +332,85 @@ Si la verificación falla (red, RLS), no se bloquea al vet: el gate del alta
 sigue viviendo en `crear_caballo_veterinario`, así que un error acá no habilita
 nada que no estuviera habilitado.
 
+**Fase 2: cobro con MercadoPago** (migraciones `20260813120000`–`20260813120100`)
+
+```sql
+-- Cuánto sale la membresía. El precio vive en la base y no en el código para
+-- que cambiarlo no requiera un deploy; el checkout lee siempre la fila activa.
+CREATE TABLE plan_suscripcion_vet (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  codigo TEXT NOT NULL UNIQUE,          -- 'mensual'
+  nombre TEXT NOT NULL,                 -- lo ve el vet en el checkout de MP
+  precio NUMERIC(12,2) NOT NULL CHECK (precio > 0),
+  moneda TEXT NOT NULL DEFAULT 'ARS',   -- currency_id de MercadoPago
+  frecuencia INTEGER NOT NULL DEFAULT 1,
+  frecuencia_tipo TEXT NOT NULL DEFAULT 'months' CHECK (frecuencia_tipo IN ('days','months')),
+  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- Índice único parcial ((TRUE)) WHERE activo: un solo plan vigente por vez.
+
+-- Auditoría de cobros. No es tabla de estado — el estado sigue siendo el de
+-- suscripcion_veterinario. UNIQUE(proveedor, external_payment_id) hace que el
+-- webhook sea idempotente: MercadoPago reintenta hasta recibir un 200.
+CREATE TABLE pago_veterinario (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id UUID NOT NULL REFERENCES usuario(id),
+  suscripcion_id UUID REFERENCES suscripcion_veterinario(id),
+  proveedor TEXT NOT NULL DEFAULT 'mercadopago',
+  external_payment_id TEXT NOT NULL,
+  external_preapproval_id TEXT,
+  estado TEXT NOT NULL,                 -- estado crudo de MP (approved, rejected, …)
+  monto NUMERIC(12,2), moneda TEXT, fecha_pago TIMESTAMPTZ,
+  payload JSONB,                        -- respuesta cruda del recurso consultado
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+`suscripcion_veterinario` suma `plan_id`, `fecha_cancelacion` y el estado
+`'pendiente'` (preapproval creado, medio de pago sin cargar — no habilita nada).
+
+El flujo:
+
+1. El vet toca "Retomar membresía" (modal del límite) o "Suscribirme"
+   (`MembresiaVetCard` en `/panel-vet`). Ambos llaman a la Edge Function
+   **`crear-suscripcion-vet`**, que crea un preapproval en MercadoPago con
+   `status: 'pending'` y devuelve el `init_point` del checkout. El `usuario_id`
+   sale del JWT: acá no se tocan datos de tarjeta, así que el proyecto queda
+   fuera del alcance de PCI.
+2. `mp_registrar_preapproval()` guarda el id **antes** de mandar al vet al
+   checkout — es lo que después le permite al webhook saber de quién es el
+   evento.
+3. El vet paga en MercadoPago y vuelve a `/suscripcion/resultado`, que consulta
+   el estado en intervalos. Esa ruta vive **fuera de `RequireAuth`** a propósito:
+   ese guard monta el modal bloqueante del límite, y el vet que acaba de pagar
+   quedaría atrapado detrás justo mientras se espera la confirmación.
+4. Quien activa la membresía es la Edge Function **`mercadopago-webhook`**, no
+   el redirect (que el vet puede no completar nunca). Valida la firma HMAC del
+   header `x-signature` antes de mirar el contenido, y **no confía en el body**:
+   consulta `GET /preapproval/{id}` o `/authorized_payments/{id}` con el access
+   token. Se despliega con `--no-verify-jwt` — MercadoPago no manda JWT de
+   Supabase, y con la verificación puesta Supabase rechazaría todas las
+   notificaciones antes de que la función corra.
+5. `mp_sincronizar_suscripcion()` mapea el estado (`pending`→`pendiente`,
+   `authorized`→`activa`, `paused`→`inactiva`, `cancelled`→`cancelada`) y pone
+   `fecha_vencimiento = next_payment_date + 3 días` de gracia: con la fecha
+   pelada, entre el vencimiento y la llegada del webhook del cobro nuevo habría
+   una ventana en la que un vet al día se come el modal bloqueante.
+
+`vet_suscripcion_activa()` cambió con esto: ahora una suscripción `'cancelada'`
+**con `fecha_vencimiento` futura sigue contando como activa**. Cancelar no debe
+cortar el acceso en el acto — el vet ya pagó ese mes. Una cancelación de Fase 1
+(manual del superadmin, sin vencimiento) sigue cortando ya.
+
+Las tres funciones `mp_*` están revocadas de `PUBLIC`/`anon`/`authenticated` y
+solo las puede ejecutar `service_role`: si `authenticated` pudiera llamarlas,
+cualquier vet se activaría la membresía pasando un id de preapproval.
+
+Secrets de las Edge Functions: `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `APP_URL`.
+Ninguna es `VITE_*` — no van al build del frontend. El paso a paso de
+configuración está en `docs/specs/mercadopago-setup.md`.
+
 ### Torneos (asignación de caballos por jugador)
 
 ```sql
