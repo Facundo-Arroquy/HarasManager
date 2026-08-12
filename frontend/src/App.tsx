@@ -30,6 +30,7 @@ import ConfigPage from './pages/config/ConfigPage'
 import RevisionPreVentaPage from './pages/vet/RevisionPreVentaPage'
 import PanelVetPage from './pages/vet/PanelVetPage'
 import SuscripcionResultadoPage from './pages/vet/SuscripcionResultadoPage'
+import SuscripcionVetPage from './pages/vet/SuscripcionVetPage'
 import RecordatoriosPage from './pages/centro-cria/RecordatoriosPage'
 import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
 import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
@@ -230,6 +231,10 @@ export default function App() {
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
           <Route path="/sanidad" element={<SanidadPage />} />
           <Route path="/panel-vet" element={<PanelVetPage />} />
+          {/* Configuración del vet independiente. Por ahora un solo apartado,
+              con la ruta ya anidada para que sumar otros no mueva URLs. */}
+          <Route path="/config-vet" element={<Navigate to="/config-vet/suscripcion" replace />} />
+          <Route path="/config-vet/suscripcion" element={<SuscripcionVetPage />} />
           <Route path="/revision-preventa" element={<RevisionPreVentaPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/config" element={<ConfigPage />} />

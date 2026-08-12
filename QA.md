@@ -197,8 +197,12 @@
 > Requiere la configuración de `docs/specs/mercadopago-setup.md` hecha en modo
 > prueba, y los usuarios de prueba de MercadoPago creados.
 
-- [ ] `/panel-vet` muestra la tarjeta "Membresía" con la etiqueta gris **Plan gratuito** y el botón `Suscribirme — $X/mes` con el precio real de `plan_suscripcion_vet`
-- [ ] Un admin de haras o un superadmin **no** ve la tarjeta de membresía (no tienen fila de suscripción)
+- [ ] El sidebar del vet muestra **Configuración** al pie, arriba de "Cerrar sesión", y al desplegarlo aparece **Suscripción**
+- [ ] Un admin, jugador, piloto o peticero **no** ve el menú Configuración del vet en el sidebar
+- [ ] Lo mismo en mobile: el menú aparece dentro del drawer y al tocar "Suscripción" el drawer se cierra
+- [ ] Entrar a `/config-vet` redirige a `/config-vet/suscripcion`
+- [ ] `/config-vet/suscripcion` muestra la tarjeta "Membresía" con la etiqueta gris **Plan gratuito** y el botón `Suscribirme — $X/mes` con el precio real de `plan_suscripcion_vet`
+- [ ] Un admin de haras o un superadmin que entre por URL directa a `/config-vet/suscripcion` no ve la tarjeta (no tienen fila de suscripción)
 - [ ] Clic en "Suscribirme" abre el checkout de MercadoPago con el nombre del plan y el importe correctos
 - [ ] Pagando con tarjeta de prueba y titular `APRO`, vuelve a `/suscripcion/resultado` mostrando "Confirmando tu pago" y en segundos cambia a **Membresía activa**
 - [ ] La tarjeta del panel pasa a **Activa** y muestra la fecha de renovación

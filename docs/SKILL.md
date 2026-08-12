@@ -375,7 +375,7 @@ CREATE TABLE pago_veterinario (
 El flujo:
 
 1. El vet toca "Retomar membresía" (modal del límite) o "Suscribirme"
-   (`MembresiaVetCard` en `/panel-vet`). Ambos llaman a la Edge Function
+   (`MembresiaVetCard`, en `/config-vet/suscripcion`). Ambos llaman a la Edge Function
    **`crear-suscripcion-vet`**, que crea un preapproval en MercadoPago con
    `status: 'pending'` y devuelve el `init_point` del checkout. El `usuario_id`
    sale del JWT: acá no se tocan datos de tarjeta, así que el proyecto queda

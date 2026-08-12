@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { X, LogOut } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useVisibleNavGroups } from '../../hooks/useVisibleNavGroups'
+import ConfigVetMenu from './ConfigVetMenu'
 import logoUrl from '../../assets/logo.png'
 
 interface Props {
@@ -108,6 +109,10 @@ export default function MobileDrawer({ open, onClose }: Props) {
             <p className="text-sm font-medium text-slate-700 truncate">{user?.email ?? '—'}</p>
             <p className="text-xs text-slate-400 capitalize">{rol ?? '—'}</p>
           </div>
+
+          {/* Solo el vet independiente tiene qué configurar acá: la membresía. */}
+          {rol === 'veterinario' && <ConfigVetMenu />}
+
           <button
             onClick={signOut}
             className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
