@@ -8,6 +8,7 @@ import {
   type PlanSuscripcionVet,
 } from '../../services/suscripcionVetService'
 import { mensajeError } from '../../utils/error'
+import { mailtoSoporte } from '../../utils/contacto'
 import Spinner from '../ui/Spinner'
 
 interface Props {
@@ -255,8 +256,15 @@ export default function LimiteCaballosVetModal({ estado, onResuelto }: Props) {
                   tiene membresía y se pasó de los 25, ofrecerle "retomar
                   membresía" sería venderle lo que ya compró. */}
               {estado.suscripcion_activa ? (
-                <p className="text-center text-[10px] text-zinc-600 pt-1">
-                  Tu membresía ya está activa: el tope de {estado.limite} es el máximo del plan.
+                <p className="text-center text-[10px] text-zinc-600 pt-1 leading-relaxed">
+                  {estado.limite} es el máximo que incluye la membresía.{' '}
+                  <a
+                    href={mailtoSoporte('Límite de caballos de la membresía de veterinario')}
+                    className="text-zinc-400 underline underline-offset-2 hover:text-zinc-200"
+                  >
+                    Escribinos
+                  </a>{' '}
+                  si necesitás más.
                 </p>
               ) : (
                 <>

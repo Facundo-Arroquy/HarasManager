@@ -13,7 +13,8 @@ import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { fotoService } from '../../services/fotoService'
 import { CATEGORIAS_CON_TAGS, tagService } from '../../services/tagService'
-import { mensajeError, esLimiteCaballosVet } from '../../utils/error'
+import { mensajeError, esLimiteCaballosVet, esLimiteMembresiaVet } from '../../utils/error'
+import { mailtoSoporte } from '../../utils/contacto'
 import PedigreeCombobox, { type HorseRef } from './PedigreeCombobox'
 import TagSelector from './TagSelector'
 
@@ -64,7 +65,9 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
 
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
-  const [limiteAlcanzado, setLimiteAlcanzado] = useState(false)
+  // Cuál de los dos topes se alcanzó. Cambia la salida que se le ofrece al vet:
+  // con el plan gratuito lleno, pagar; con la membresía llena, escribirnos.
+  const [tope, setTope] = useState<'gratuito' | 'membresia' | null>(null)
 
   function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -108,7 +111,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
 
     setSaving(true)
     setError('')
-    setLimiteAlcanzado(false)
+    setTope(null)
 
     const payload: NuevoCaballoPayload = {
       nombre:           form.nombre.trim(),
@@ -145,8 +148,10 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       }
       onSuccess()
     } catch (err: unknown) {
-      if (vetMode && esLimiteCaballosVet(err)) {
-        setLimiteAlcanzado(true)
+      if (vetMode && esLimiteMembresiaVet(err)) {
+        setTope('membresia')
+      } else if (vetMode && esLimiteCaballosVet(err)) {
+        setTope('gratuito')
       } else {
         setError(mensajeError(err))
       }
@@ -389,15 +394,34 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
             </div>
           </div>
 
-          {limiteAlcanzado && (
+          {tope === 'gratuito' && (
             <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
               <p className="text-sm font-medium text-amber-800">
-                Alcanzaste el límite de 5 caballos propios gratis.
+                Alcanzaste el límite de caballos propios del plan gratuito.
               </p>
               <p className="mt-1 text-xs text-amber-700 leading-relaxed">
-                Para seguir agregando caballos necesitás una suscripción activa.
-                Contactá a HarasManager para activarla.
+                Activá tu membresía desde <strong>Panel</strong> para seguir agregando.
               </p>
+            </div>
+          )}
+
+          {/* Ya paga: no hay nada que ofrecerle comprar. La única salida real
+              es que hablemos nosotros con él. */}
+          {tope === 'membresia' && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-medium text-amber-800">
+                Llegaste al límite de caballos de tu membresía.
+              </p>
+              <p className="mt-1 text-xs text-amber-700 leading-relaxed">
+                Es el máximo que incluye la membresía de veterinario. Escribinos y
+                vemos cómo resolverlo.
+              </p>
+              <a
+                href={mailtoSoporte('Límite de caballos de la membresía de veterinario')}
+                className="mt-2 inline-block text-xs font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
+              >
+                Comunicarme con soporte
+              </a>
             </div>
           )}
           {error && <p className="text-xs text-rose-600">{error}</p>}

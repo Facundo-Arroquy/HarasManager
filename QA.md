@@ -204,7 +204,8 @@
 - [ ] La tarjeta del panel pasa a **Activa** y muestra la fecha de renovación
 - [ ] En la base: `suscripcion_veterinario.estado = 'activa'`, `external_subscription_id` cargado, y una fila en `pago_veterinario` con `estado = 'approved'`
 - [ ] Con la membresía activa, el vet puede crear más de 5 caballos propios
-- [ ] Con la membresía activa, al llegar a **25** el alta se bloquea y el mensaje habla del límite de la membresía, no de "activá tu suscripción"
+- [ ] Con la membresía activa, al llegar a **25** el alta se bloquea y el cartel dice que es el máximo de la membresía, con un link **"Comunicarme con soporte"** que abre el mail — **no** debe ofrecer activar nada
+- [ ] Con el plan gratuito lleno (5), el cartel del alta sigue siendo el de siempre: invita a activar la membresía, sin link de soporte
 - [ ] La tarjeta de membresía muestra el conteo real ("Estás usando 7 de 25 caballos") y no un número escrito a mano
 - [ ] Un vet con membresía que supere los 25 (dándose de alta antes del tope) ve el modal bloqueante con el texto de membresía, **sin** el botón de pago — no tiene sentido venderle lo que ya tiene
 - [ ] Reactivar caballos con membresía activa respeta el tope de 25 (antes con suscripción se podían reactivar todos)

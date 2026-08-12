@@ -879,7 +879,7 @@ CREATE TABLE lead (
 
 | Función | Descripción |
 |---------|-------------|
-| `crear_caballo_veterinario(...)` | Crea caballo sin `sociedad_id` + inserta en `acceso_vet` automáticamente. Rechaza con `RAISE EXCEPTION` si `vet_puede_agregar_caballo(auth.uid())` da falso (límite freemium, migración `20260811150200`) — **es el enforcement real del límite**, no una policy RLS: la función es `SECURITY DEFINER` con dueño `postgres` (`rolbypassrls = true`), así que su INSERT interno nunca pasa por RLS de `caballo` |
+| `crear_caballo_veterinario(...)` | Crea caballo sin `sociedad_id` + inserta en `acceso_vet` automáticamente. Rechaza con `RAISE EXCEPTION` si `vet_puede_agregar_caballo(auth.uid())` da falso (migración `20260811150200`) — **es el enforcement real del límite**, no una policy RLS: la función es `SECURITY DEFINER` con dueño `postgres` (`rolbypassrls = true`), así que su INSERT interno nunca pasa por RLS de `caballo`. Levanta **dos SQLSTATE distintos** porque la salida de cada tope es distinta: `HM001` cuando se llenó el plan gratuito (el front ofrece el checkout) y `HM002` cuando se llenó la membresía (el vet ya paga, no hay nada que venderle: el front lo manda a soporte). El frontend los distingue por código y no por texto — `esLimiteCaballosVet` / `esLimiteMembresiaVet` en `utils/error.ts` (migración `20260813120300`) |
 | `actualizar_caballo_veterinario(p_caballo_id, ...)` | Actualiza caballo si el vet tiene acceso verificado |
 | `toggle_prenada_veterinario(p_caballo_id, p_prenada, p_fecha_prenez)` | Marca/desmarca preñez; solo para Yeguas |
 | `transferir_caballos_vet(p_caballo_ids, p_sociedad_destino_id)` | Asigna caballos del vet a una sociedad |

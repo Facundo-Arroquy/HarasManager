@@ -41,6 +41,7 @@ Verificación posterior a la aplicación:
 | 11 | `UPDATE plan_suscripcion_vet SET precio = 100` y limpieza del preapproval de prueba que había quedado en la fila del vet `@testuser.com` | **dato** | **sí** |
 | 12 | `mp_sincronizar_suscripcion()` a mano para el vet `facarroquy@gmail.com`, con el estado real leído de la API de MercadoPago (el webhook todavía no llegaba) | **dato** | **sí** |
 | 13 | `apply_migration` de `tope_pago_vet` — la membresía deja de ser ilimitada y pasa a 25 caballos | **DDL** | **sí** |
+| 14 | `apply_migration` de `soporte_al_tope_de_membresia` — el alta levanta `HM002` en vez de `HM001` cuando el tope alcanzado es el de la membresía | **DDL** | **sí** |
 
 El punto 10 no tiene nada que ver con las migraciones: es un usuario de prueba
 creado a mano para el QA, cuyo email `@testuser.com` no puede recibir el mail de
