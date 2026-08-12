@@ -40,7 +40,7 @@ propietarios y usuarios con control total de permisos.
 | Capa | Tecnología | Justificación |
 |------|-----------|---------------|
 | Base de datos | PostgreSQL vía Supabase | Relacional, 3FN, multi-tenant con RLS |
-| Auth | Supabase Auth | Sin registro público; usuarios creados solo por admin |
+| Auth | Supabase Auth | Sin registro público salvo vets independientes; resto de usuarios creados solo por admin |
 | Frontend | React + Vite | Web responsiva, táctil-friendly |
 | Deployment | Supabase + Vercel | Simplicidad, escalabilidad |
 
@@ -64,8 +64,11 @@ propietarios y usuarios con control total de permisos.
    editado por el veterinario que lo creó. Nadie más puede modificarlo ni eliminarlo.
    Se registra `creado_por` en cada registro.
 
-5. **Registro de usuarios solo por administrador** — No hay signup público.
-   El admin de cada sociedad crea los usuarios y asigna roles.
+5. **Registro de usuarios solo por administrador, con una excepción** — Para
+   usuarios de una sociedad, no hay signup público: el admin los crea y les
+   asigna rol. Única excepción: veterinarios independientes vía
+   `/registro-veterinario` (ver "Suscripción de veterinarios independientes"
+   más abajo), que se autoregistran sin pertenecer a ninguna sociedad.
 
 6. **Auditoría básica** — Toda tabla principal tiene `created_at` y `updated_at`.
    Tablas críticas tienen además `creado_por`/`registrado_por`.
@@ -302,6 +305,27 @@ el trigger `handle_new_auth_user` lee `rol_solicitado` del metadata de
 `auth.signUp()` — si es `'veterinario'`, pone `usuario.rol = 'veterinario'`
 e inserta la fila inicial `'inactiva'` acá mismo, en la misma transacción.
 Sin ese flag, el comportamiento es idéntico al de antes (`rol = 'admin'`).
+
+**Dependencia de infraestructura (no vive en migraciones):** este flujo asume
+"Confirm email" prendido en el Dashboard de Supabase (Authentication → Sign
+In / Providers → Email). Con eso prendido, `signUp()` no devuelve sesión y
+`RegistroVeterinarioPage` muestra el paso "revisá tu email"; con eso apagado,
+el usuario queda logueado al instante sin verificar nada (el código soporta
+ambos casos, ver comentario en `RegistroVeterinarioPage.tsx::handleSubmit`).
+No hay ninguna tool de MCP que exponga este toggle ni el SMTP config del
+proyecto — es 100% manual en el Dashboard.
+
+El 2026-08-12 el toggle estuvo apagado sin documentar en ningún lado
+(confirmado por logs de Auth: un signup a las 16:13 exigió confirmación y
+bloqueó el login siguiente con `email_not_confirmed`; otro a las 16:30 tuvo
+`immediate_login_after_signup`). Se reactivó ese mismo día. Verificado con un
+signup real vía `POST /auth/v1/signup`: con dominio `gmail.com` responde 200,
+sin sesión, con `confirmation_sent_at` seteado y `confirmed_at` en null — el
+mailer del proyecto sí encola el correo (no se confirmó visualmente que
+llegue a una bandeja de entrada real, pero no hay error del lado de GoTrue).
+Ojo: con dominios claramente falsos (`example.com`) devuelve `500
+unexpected_failure` con el mensaje de gomail rechazando el destinatario — es
+esperable, no es un bug. Si se vuelve a tocar el toggle, dejar rastro acá.
 
 **Downgrade: qué pasa cuando la suscripción deja de estar activa**
 (migraciones `20260812120000`–`20260812120300`)
