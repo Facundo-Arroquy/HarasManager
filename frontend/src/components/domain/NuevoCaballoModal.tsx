@@ -13,6 +13,7 @@ import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { fotoService } from '../../services/fotoService'
 import { CATEGORIAS_CON_TAGS, tagService } from '../../services/tagService'
+import { vetLimiteService } from '../../services/vetLimiteService'
 import { mensajeError, esLimiteCaballosVet } from '../../utils/error'
 import PedigreeCombobox, { type HorseRef } from './PedigreeCombobox'
 import TagSelector from './TagSelector'
@@ -65,6 +66,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
   const [limiteAlcanzado, setLimiteAlcanzado] = useState(false)
+  const [limiteGratis, setLimiteGratis] = useState<number | null>(null)
 
   function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -147,6 +149,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
     } catch (err: unknown) {
       if (vetMode && esLimiteCaballosVet(err)) {
         setLimiteAlcanzado(true)
+        vetLimiteService.limiteGratis().then(setLimiteGratis).catch(() => {})
       } else {
         setError(mensajeError(err))
       }
@@ -392,7 +395,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
           {limiteAlcanzado && (
             <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
               <p className="text-sm font-medium text-amber-800">
-                Alcanzaste el límite de 5 caballos propios gratis.
+                Alcanzaste el límite de {limiteGratis ?? ''} caballos propios gratis.
               </p>
               <p className="mt-1 text-xs text-amber-700 leading-relaxed">
                 Para seguir agregando caballos necesitás una suscripción activa.

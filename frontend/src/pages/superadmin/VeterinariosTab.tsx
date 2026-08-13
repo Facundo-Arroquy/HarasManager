@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { FlaskConical, Stethoscope, LayoutGrid } from 'lucide-react'
 import { superAdminService, type VeterinarioAcceso } from '../../services/superAdminService'
 import { listarModulos } from '../../services/moduloService'
+import { vetLimiteService } from '../../services/vetLimiteService'
 import { useToastStore } from '../../store/toastStore'
 import { mensajeError } from '../../utils/error'
 import type { Modulo, ModuloCodigo } from '../../types/modulo'
@@ -11,8 +12,6 @@ import Spinner from '../../components/ui/Spinner'
 // que mostrar ese toggle acá sería UI muerta. Se filtra el catálogo en vez de
 // agregar una columna nueva en cat_modulo para este único caso.
 const MODULOS_VETERINARIO: ModuloCodigo[] = ['centro_cria']
-
-const LIMITE_GRATIS = 5
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
 
@@ -35,9 +34,10 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
   )
 }
 
-function BadgeSuscripcion({ estado, caballosPropios }: {
+function BadgeSuscripcion({ estado, caballosPropios, limiteGratis }: {
   estado: VeterinarioAcceso['suscripcionEstado']
   caballosPropios: number
+  limiteGratis: number | null
 }) {
   if (estado === 'activa') {
     return (
@@ -46,7 +46,7 @@ function BadgeSuscripcion({ estado, caballosPropios }: {
       </span>
     )
   }
-  if (caballosPropios >= LIMITE_GRATIS) {
+  if (limiteGratis !== null && caballosPropios >= limiteGratis) {
     return (
       <span className="rounded border border-amber-800/50 bg-amber-900/30 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
         Límite alcanzado
@@ -55,7 +55,7 @@ function BadgeSuscripcion({ estado, caballosPropios }: {
   }
   return (
     <span className="text-[10px] text-zinc-500">
-      {caballosPropios}/{LIMITE_GRATIS} caballos gratis
+      {caballosPropios}{limiteGratis !== null ? `/${limiteGratis}` : ''} caballos gratis
     </span>
   )
 }
@@ -65,6 +65,7 @@ function BadgeSuscripcion({ estado, caballosPropios }: {
 export default function VeterinariosTab() {
   const [veterinarios, setVeterinarios] = useState<VeterinarioAcceso[]>([])
   const [catalogo, setCatalogo] = useState<Modulo[]>([])
+  const [limiteGratis, setLimiteGratis] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [mutando, setMutando] = useState<string | null>(null)
   const pushToast = useToastStore((s) => s.pushToast)
@@ -82,7 +83,10 @@ export default function VeterinariosTab() {
     }
   }
 
-  useEffect(() => { recargar() }, [])
+  useEffect(() => {
+    recargar()
+    vetLimiteService.limiteGratis().then(setLimiteGratis).catch(() => {})
+  }, [])
 
   async function handleToggleModulo(usuarioId: string, codigo: ModuloCodigo, valor: boolean) {
     setMutando(usuarioId)
@@ -179,7 +183,7 @@ export default function VeterinariosTab() {
                       <LayoutGrid size={13} className="text-zinc-600" />
                       {v.caballosPropios} propio{v.caballosPropios !== 1 ? 's' : ''}
                     </div>
-                    <BadgeSuscripcion estado={v.suscripcionEstado} caballosPropios={v.caballosPropios} />
+                    <BadgeSuscripcion estado={v.suscripcionEstado} caballosPropios={v.caballosPropios} limiteGratis={limiteGratis} />
                   </div>
                   {v.suscripcionEstado === 'activa' ? (
                     <button

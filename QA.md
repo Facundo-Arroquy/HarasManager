@@ -169,6 +169,29 @@
 - [ ] Superadmin activa la suscripción (`/superadmin` → Veterinarios) → el mismo vet ya puede crear el 6to
 - [ ] Un vet con acceso clínico otorgado en un haras (`acceso_vet`) que además tiene caballos propios: ve ambos contextos sin que se mezclen (caballos propios + los que tiene acceso clínico)
 
+**Downgrade (caer del plan pago al gratuito)**
+- [ ] Vet con suscripción activa y 8 caballos propios: entra normal, sin modal
+- [ ] Superadmin le desactiva la suscripción → al volver a entrar aparece el modal bloqueante, y no hay forma de cerrarlo ni de navegar a otra ruta
+- [ ] El modal lista **solo** los caballos propios: los de haras a los que tiene acceso clínico no aparecen
+- [ ] El botón "Dar de baja" queda deshabilitado hasta que la selección deje 5 o menos; el contador indica cuántos faltan
+- [ ] Confirmar las bajas → el modal desaparece y el vet puede usar la app
+- [ ] Los caballos dados de baja no aparecen más en `/panel-vet` ni en el listado de caballos
+- [ ] Sus alertas de próxima consulta tampoco aparecen más en el panel
+- [ ] El historial clínico de esos caballos **no** se borró (verificar en la base, no hay UI para verlos)
+- [ ] Después de regularizar, el vet puede volver a crear un caballo hasta llegar de nuevo a 5
+- [ ] Un vet con 5 o menos caballos propios y sin suscripción: nunca ve el modal
+- [ ] Un admin de haras o un superadmin: nunca ve el modal (el chequeo solo corre para `rol = 'veterinario'`)
+- [ ] "Retomar membresía" está visible pero deshabilitado (placeholder de MercadoPago)
+
+**Reactivación de caballos dados de baja**
+- [ ] Tras dar de baja, aparece la sección "Dados de baja" en `/panel-vet` con los caballos y su fecha de baja
+- [ ] Un vet sin caballos dados de baja no ve la sección (no debe quedar una tarjeta vacía)
+- [ ] Con el plan gratuito lleno (5 activos): el aviso explica que hay que dar de baja otro o activar la membresía, y los checkboxes quedan bloqueados
+- [ ] Con cupo libre (ej. 4 activos): se puede reactivar 1; seleccionar 2 avisa "solo podés reactivar 1" y el botón queda deshabilitado
+- [ ] Con suscripción activa: se pueden reactivar todos de una
+- [ ] Al reactivar, el caballo vuelve al listado y al contador del panel, con su historial clínico intacto
+- [ ] El acceso clínico del vet sobre el caballo reactivado sigue funcionando (se puede abrir su historial y cargar una consulta)
+
 ---
 
 ## 6. Alertas

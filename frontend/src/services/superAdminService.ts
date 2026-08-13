@@ -234,17 +234,23 @@ export const superAdminService = {
     if (filas.length === 0) return []
     const vetIds = filas.map((u) => u.id)
 
+    // El conteo usa la RPC `superadmin_caballos_propios_por_vet` en vez de una
+    // query directa a `caballo`, para no duplicar en el cliente el predicado
+    // de "caballo propio activo" que ya vive en `vet_caballos_propios` — esa
+    // función quedó restringida a llamadas internas (`REVOKE ... FROM
+    // authenticated`), así que esta RPC es la única fuente de verdad para el
+    // superadmin.
     const [modulosPorUsuario, caballosRes, suscripcionesRes] = await Promise.all([
       modulosPorIds('usuario_modulo', 'usuario_id', vetIds),
-      supabase.from('caballo').select('vet_owner_id').is('sociedad_id', null).eq('activo', true).in('vet_owner_id', vetIds),
+      supabase.rpc('superadmin_caballos_propios_por_vet', { p_vet_ids: vetIds }),
       supabase.from('suscripcion_veterinario').select('usuario_id, estado').in('usuario_id', vetIds),
     ])
     if (caballosRes.error) throw caballosRes.error
     if (suscripcionesRes.error) throw suscripcionesRes.error
 
     const cantidadPorVet = new Map<string, number>()
-    for (const c of (caballosRes.data ?? []) as { vet_owner_id: string }[]) {
-      cantidadPorVet.set(c.vet_owner_id, (cantidadPorVet.get(c.vet_owner_id) ?? 0) + 1)
+    for (const c of (caballosRes.data ?? []) as { vet_owner_id: string; cantidad: number }[]) {
+      cantidadPorVet.set(c.vet_owner_id, c.cantidad)
     }
     const estadoPorVet = new Map<string, VeterinarioAcceso['suscripcionEstado']>()
     for (const s of (suscripcionesRes.data ?? []) as { usuario_id: string; estado: VeterinarioAcceso['suscripcionEstado'] }[]) {
