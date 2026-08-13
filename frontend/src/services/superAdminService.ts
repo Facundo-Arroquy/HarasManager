@@ -71,6 +71,27 @@ async function modulosPorIds(
   return mapa
 }
 
+/**
+ * Invoca una Edge Function y propaga el mensaje de error real.
+ *
+ * `functions.invoke` colapsa cualquier respuesta no-2xx en un error genérico
+ * ("Edge Function returned a non-2xx status code") y deja la respuesta original
+ * en `context`. Sin desenvolverla, el detalle de por qué no se pudo eliminar un
+ * usuario —que es toda la utilidad del mensaje— nunca llega a la pantalla.
+ */
+async function invocarFuncion(nombre: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase.functions.invoke(nombre, { body })
+  if (!error) return (data ?? {}) as Record<string, unknown>
+
+  const respuesta = (error as { context?: unknown }).context
+  if (respuesta instanceof Response) {
+    const cuerpo = await respuesta.json().catch(() => null) as { error?: string } | null
+    if (cuerpo?.error) throw new Error(cuerpo.error)
+  }
+  throw new Error(error.message)
+}
+
 // ── Servicio ──────────────────────────────────────────────────────────────────
 
 export const superAdminService = {
@@ -294,6 +315,20 @@ export const superAdminService = {
       .from('suscripcion_veterinario')
       .upsert({ usuario_id: usuarioId, estado: 'cancelada' }, { onConflict: 'usuario_id' })
     if (error) throw error
+  },
+
+  /**
+   * Borra al veterinario de forma definitiva: sus caballos propios, su
+   * suscripción (cancelándola antes en MercadoPago si estaba viva) y su login,
+   * para que el email quede libre y pueda registrarse de cero.
+   *
+   * No es un soft delete y no hay vuelta atrás. Falla —sin borrar nada— si el
+   * usuario dejó datos que no le pertenecen o que no pueden destruirse; el
+   * mensaje enumera cuáles. El historial clínico entra siempre en esa
+   * categoría: sobrevive al vet que lo escribió.
+   */
+  async eliminarVeterinarioDefinitivo(usuarioId: string): Promise<void> {
+    await invocarFuncion('eliminar-usuario', { usuario_id: usuarioId })
   },
 
   // ── Helpers ───────────────────────────────────────────────────────────────────

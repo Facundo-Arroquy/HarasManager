@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FlaskConical, Stethoscope, LayoutGrid } from 'lucide-react'
+import { FlaskConical, Stethoscope, LayoutGrid, Trash2, X, AlertTriangle } from 'lucide-react'
 import { superAdminService, type VeterinarioAcceso } from '../../services/superAdminService'
 import { listarModulos } from '../../services/moduloService'
 import { vetLimiteService } from '../../services/vetLimiteService'
@@ -68,6 +68,12 @@ export default function VeterinariosTab() {
   const [limiteGratis, setLimiteGratis] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [mutando, setMutando] = useState<string | null>(null)
+  // Veterinario en proceso de baja definitiva, junto con el email que el
+  // superadmin va tipeando para confirmar. La acción no tiene vuelta atrás, así
+  // que no alcanza con un click.
+  const [aEliminar, setAEliminar] = useState<VeterinarioAcceso | null>(null)
+  const [emailConfirmacion, setEmailConfirmacion] = useState('')
+  const [eliminando, setEliminando] = useState(false)
   const pushToast = useToastStore((s) => s.pushToast)
 
   async function recargar() {
@@ -115,6 +121,24 @@ export default function VeterinariosTab() {
       pushToast('error', mensajeError(e, 'No se pudo actualizar la suscripción.'))
     } finally {
       setMutando(null)
+    }
+  }
+
+  async function handleEliminar() {
+    if (!aEliminar) return
+    setEliminando(true)
+    try {
+      await superAdminService.eliminarVeterinarioDefinitivo(aEliminar.id)
+      pushToast('success', `${aEliminar.email} fue eliminado. El email quedó libre para registrarse de nuevo.`)
+      setAEliminar(null)
+      setEmailConfirmacion('')
+      await recargar()
+    } catch (e) {
+      // El mensaje de la función enumera qué impide el borrado, así que se
+      // muestra tal cual y el modal queda abierto para poder leerlo.
+      pushToast('error', mensajeError(e, 'No se pudo eliminar el veterinario.'))
+    } finally {
+      setEliminando(false)
     }
   }
 
@@ -185,29 +209,134 @@ export default function VeterinariosTab() {
                     </div>
                     <BadgeSuscripcion estado={v.suscripcionEstado} caballosPropios={v.caballosPropios} limiteGratis={limiteGratis} />
                   </div>
-                  {v.suscripcionEstado === 'activa' ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    {v.suscripcionEstado === 'activa' ? (
+                      <button
+                        onClick={() => handleToggleSuscripcion(v.id, false)}
+                        disabled={enMutacion}
+                        className="rounded-md border border-zinc-700 px-2.5 py-1 text-[11px] font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-40"
+                      >
+                        Desactivar suscripción
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleToggleSuscripcion(v.id, true)}
+                        disabled={enMutacion}
+                        className="rounded-md border border-emerald-700/50 bg-emerald-900/30 px-2.5 py-1 text-[11px] font-medium text-emerald-400 hover:bg-emerald-900/50 transition-colors disabled:opacity-40"
+                      >
+                        Activar suscripción
+                      </button>
+                    )}
                     <button
-                      onClick={() => handleToggleSuscripcion(v.id, false)}
+                      onClick={() => { setAEliminar(v); setEmailConfirmacion('') }}
                       disabled={enMutacion}
-                      className="shrink-0 rounded-md border border-zinc-700 px-2.5 py-1 text-[11px] font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors disabled:opacity-40"
+                      title="Eliminar definitivamente"
+                      aria-label={`Eliminar definitivamente a ${v.email}`}
+                      className="rounded-md border border-zinc-700 p-1.5 text-zinc-500 hover:border-red-800/60 hover:bg-red-900/30 hover:text-red-400 transition-colors disabled:opacity-40"
                     >
-                      Desactivar suscripción
+                      <Trash2 size={13} />
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => handleToggleSuscripcion(v.id, true)}
-                      disabled={enMutacion}
-                      className="shrink-0 rounded-md border border-emerald-700/50 bg-emerald-900/30 px-2.5 py-1 text-[11px] font-medium text-emerald-400 hover:bg-emerald-900/50 transition-colors disabled:opacity-40"
-                    >
-                      Activar suscripción
-                    </button>
-                  )}
+                  </div>
                 </div>
               </div>
             )
           })}
         </div>
       )}
+
+      {aEliminar && (
+        <ModalEliminar
+          vet={aEliminar}
+          emailConfirmacion={emailConfirmacion}
+          onEmailChange={setEmailConfirmacion}
+          eliminando={eliminando}
+          onCancelar={() => { setAEliminar(null); setEmailConfirmacion('') }}
+          onConfirmar={handleEliminar}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Modal de baja definitiva ──────────────────────────────────────────────────
+// Pide tipear el email completo: es la única acción del panel que destruye datos
+// sin vuelta atrás, y el botón vive al lado de los toggles de uso cotidiano.
+
+function ModalEliminar({ vet, emailConfirmacion, onEmailChange, eliminando, onCancelar, onConfirmar }: {
+  vet: VeterinarioAcceso
+  emailConfirmacion: string
+  onEmailChange: (v: string) => void
+  eliminando: boolean
+  onCancelar: () => void
+  onConfirmar: () => void
+}) {
+  const confirmado = emailConfirmacion.trim().toLowerCase() === vet.email.toLowerCase()
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      onMouseDown={(e) => { if (e.target === e.currentTarget && !eliminando) onCancelar() }}
+    >
+      <div className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-red-400" />
+            <h2 className="text-sm font-semibold text-zinc-100">Eliminar veterinario</h2>
+          </div>
+          <button
+            onClick={onCancelar}
+            disabled={eliminando}
+            className="text-zinc-500 hover:text-zinc-300 disabled:opacity-40"
+            aria-label="Cerrar"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-sm text-zinc-300">
+            Se va a eliminar a <strong className="text-zinc-100">{vet.nombre} {vet.apellido}</strong> de
+            forma definitiva: sus datos, su suscripción y su acceso. El email queda libre para
+            volver a registrarse desde cero.
+          </p>
+
+          <ul className="space-y-1 text-xs text-zinc-500">
+            <li>· Se cancela primero la suscripción en MercadoPago, si tiene una activa.</li>
+            <li>· Se eliminan sus {vet.caballosPropios} caballo{vet.caballosPropios !== 1 ? 's' : ''} propio{vet.caballosPropios !== 1 ? 's' : ''}.</li>
+            <li>· El historial clínico <strong className="text-zinc-400">no se elimina</strong>: si escribió alguno, la baja se cancela y te avisa.</li>
+          </ul>
+
+          <p className="text-xs text-zinc-400 pt-1">
+            Escribí <span className="font-mono text-zinc-200">{vet.email}</span> para confirmar:
+          </p>
+          <input
+            type="text"
+            value={emailConfirmacion}
+            onChange={(e) => onEmailChange(e.target.value)}
+            disabled={eliminando}
+            autoFocus
+            placeholder={vet.email}
+            className="w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:ring-1 focus:ring-red-700 disabled:opacity-50"
+          />
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-zinc-800 px-5 py-3">
+          <button
+            onClick={onCancelar}
+            disabled={eliminando}
+            className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-40"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirmar}
+            disabled={!confirmado || eliminando}
+            className="rounded-md bg-red-900/60 border border-red-800 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {eliminando ? 'Eliminando…' : 'Eliminar definitivamente'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
