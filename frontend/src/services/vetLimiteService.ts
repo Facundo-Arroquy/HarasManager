@@ -1,14 +1,17 @@
 import { getSupabaseClient } from '../lib/supabase'
 
-/** Estado del límite freemium del vet logueado (RPC `vet_estado_limite`). */
+/** Estado del límite del vet logueado (RPC `vet_estado_limite`). */
 export interface EstadoLimiteVet {
-  caballos_propios:   number
-  limite:             number
-  suscripcion_activa: boolean
-  /** Cuántos caballos sobran por encima del plan gratuito. 0 si está en regla. */
-  excedente:          number
-  /** true → excedió el plan gratuito y no tiene suscripción vigente. */
-  debe_regularizar:   boolean
+  caballos_propios:     number
+  /** El límite que le aplica hoy: el gratuito o el de la membresía. */
+  limite:               number
+  limite_gratuito:      number
+  limite_con_membresia: number
+  suscripcion_activa:   boolean
+  /** Cuántos caballos sobran por encima del límite aplicable. 0 si está en regla. */
+  excedente:            number
+  /** true → se pasó del límite que le corresponde, pague o no. */
+  debe_regularizar:     boolean
 }
 
 /** Caballo propio del vet, con lo necesario para decidir cuál dar de baja. */
