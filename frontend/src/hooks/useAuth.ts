@@ -100,6 +100,33 @@ export function useAuth() {
     // el perfil se carga via onAuthStateChange — también aplica setRolVeterinario si corresponde
   }
 
+  // Autoregistro público de veterinarios independientes (RegistroVeterinarioPage).
+  // `rol_solicitado` en el metadata lo consume el trigger `handle_new_auth_user`
+  // (migración `20260811160000_self_registro_vet`) para asignar rol y crear la
+  // suscripción inicial. Devuelve `session` para que el caller decida si hay
+  // sesión activa (confirmación de email desactivada) o hay que esperarla.
+  const signUp = async (params: {
+    email: string
+    password: string
+    nombre: string
+    apellido: string
+  }) => {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.auth.signUp({
+      email: params.email,
+      password: params.password,
+      options: {
+        data: {
+          nombre: params.nombre,
+          apellido: params.apellido,
+          rol_solicitado: 'veterinario',
+        },
+      },
+    })
+    if (error) throw error
+    return { session: data.session }
+  }
+
   const signOut = async () => {
     const supabase = getSupabaseClient()
     await supabase.auth.signOut()
@@ -115,6 +142,7 @@ export function useAuth() {
     tieneModulo: (codigo: ModuloCodigo) => tieneAccesoModulo(store.rol, store.modulos, codigo),
     isAuthenticated: !!store.session,
     signIn,
+    signUp,
     signOut,
   }
 }

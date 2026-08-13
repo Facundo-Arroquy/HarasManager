@@ -42,6 +42,18 @@ export interface CaballoInactivoVet {
 
 export const vetLimiteService = {
   /**
+   * Límite del plan gratuito, en un solo lugar (`vet_limite_gratuito()` en
+   * la base). Evita hardcodear el número en el frontend, donde puede
+   * desincronizarse silenciosamente si el plan cambia.
+   */
+  async limiteGratis(): Promise<number> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('vet_limite_gratuito')
+    if (error) throw error
+    return data as number
+  },
+
+  /**
    * Se consulta al entrar a la app. Devuelve null si el usuario no es un vet
    * con caballos propios — la RPC responde igual, pero para un vet de haras
    * el conteo es 0 y `debe_regularizar` siempre false.

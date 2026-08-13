@@ -1,15 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
-import { getSupabaseClient } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
+import { vetLimiteService } from '../../services/vetLimiteService'
 import logoUrl from '../../assets/logo.png'
 
 type Paso = 'form' | 'revisa-email'
 
+const PASSWORD_ESPECIALES = `!@#$%^&*()_+-=[]{};':"|<>?,./` + '`~'
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"|<>?,./`~]).{8,}$/
+
 export default function RegistroVeterinarioPage() {
   const navigate = useNavigate()
+  const { signUp } = useAuth()
 
   const [paso, setPaso] = useState<Paso>('form')
+  const [limiteGratis, setLimiteGratis] = useState<number | null>(null)
   const [nombre, setNombre] = useState('')
   const [apellido, setApellido] = useState('')
   const [email, setEmail] = useState('')
@@ -19,37 +25,37 @@ export default function RegistroVeterinarioPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    vetLimiteService.limiteGratis().then(setLimiteGratis).catch(() => {})
+  }, [])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (submitting) return
     setError('')
 
-    if (password.length < 6) return setError('La contraseña debe tener al menos 6 caracteres.')
+    if (!PASSWORD_REGEX.test(password)) {
+      return setError('La contraseña debe tener al menos 8 caracteres, con mayúsculas, minúsculas, números y un símbolo.')
+    }
     if (password !== confirmar) return setError('Las contraseñas no coinciden.')
 
     setSubmitting(true)
     try {
-      const supabase = getSupabaseClient()
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { session } = await signUp({
         email: email.trim(),
         password,
-        options: {
-          data: {
-            nombre: nombre.trim(),
-            apellido: apellido.trim(),
-            rol_solicitado: 'veterinario',
-          },
-        },
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
       })
-      if (signUpError) throw signUpError
 
       // La aceptación de T&C queda pendiente para RequireAuth (App.tsx), que
       // se la pide a cualquier usuario logueado sin la versión vigente
-      // aceptada — mismo mecanismo que usa el resto de la app. Este proyecto
-      // siempre exige confirmación de email, así que acá nunca hay sesión
-      // activa todavía; si en algún momento se desactivara, igual entra
-      // directo y el modal aparece apenas cargue la próxima pantalla.
-      if (data.session) {
+      // aceptada — mismo mecanismo que usa el resto de la app. `session` va a
+      // venir null si "Confirm email" está prendido en el Dashboard de
+      // Supabase (estado esperado, ver docs/SKILL.md → "Suscripción de
+      // veterinarios independientes"); si estuviera apagado, entra directo y
+      // el modal de T&C aparece apenas cargue la próxima pantalla.
+      if (session) {
         navigate('/', { replace: true })
       } else {
         setPaso('revisa-email')
@@ -75,7 +81,7 @@ export default function RegistroVeterinarioPage() {
             <div className="text-center">
               <h1 className="text-xl font-bold text-zinc-100 tracking-tight">Registro de veterinario</h1>
               <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
-                Gratis hasta 5 caballos propios, sin necesidad de pertenecer a un haras.
+                Gratis hasta {limiteGratis ?? 'unos pocos'} caballos propios, sin necesidad de pertenecer a un haras.
               </p>
             </div>
           </div>
@@ -154,6 +160,9 @@ export default function RegistroVeterinarioPage() {
                     {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
+                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                  Mínimo 8 caracteres, con mayúsculas, minúsculas, números y un símbolo ({PASSWORD_ESPECIALES}).
+                </p>
               </div>
 
               <div className="space-y-1.5">

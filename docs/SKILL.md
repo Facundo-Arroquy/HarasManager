@@ -40,7 +40,7 @@ propietarios y usuarios con control total de permisos.
 | Capa | Tecnología | Justificación |
 |------|-----------|---------------|
 | Base de datos | PostgreSQL vía Supabase | Relacional, 3FN, multi-tenant con RLS |
-| Auth | Supabase Auth | Sin registro público; usuarios creados solo por admin |
+| Auth | Supabase Auth | Sin registro público salvo vets independientes; resto de usuarios creados solo por admin |
 | Frontend | React + Vite | Web responsiva, táctil-friendly |
 | Deployment | Supabase + Vercel | Simplicidad, escalabilidad |
 
@@ -64,8 +64,11 @@ propietarios y usuarios con control total de permisos.
    editado por el veterinario que lo creó. Nadie más puede modificarlo ni eliminarlo.
    Se registra `creado_por` en cada registro.
 
-5. **Registro de usuarios solo por administrador** — No hay signup público.
-   El admin de cada sociedad crea los usuarios y asigna roles.
+5. **Registro de usuarios solo por administrador, con una excepción** — Para
+   usuarios de una sociedad, no hay signup público: el admin los crea y les
+   asigna rol. Única excepción: veterinarios independientes vía
+   `/registro-veterinario` (ver "Suscripción de veterinarios independientes"
+   más abajo), que se autoregistran sin pertenecer a ninguna sociedad.
 
 6. **Auditoría básica** — Toda tabla principal tiene `created_at` y `updated_at`.
    Tablas críticas tienen además `creado_por`/`registrado_por`.
@@ -303,6 +306,27 @@ el trigger `handle_new_auth_user` lee `rol_solicitado` del metadata de
 `auth.signUp()` — si es `'veterinario'`, pone `usuario.rol = 'veterinario'`
 e inserta la fila inicial `'inactiva'` acá mismo, en la misma transacción.
 Sin ese flag, el comportamiento es idéntico al de antes (`rol = 'admin'`).
+
+**Dependencia de infraestructura (no vive en migraciones):** este flujo asume
+"Confirm email" prendido en el Dashboard de Supabase (Authentication → Sign
+In / Providers → Email). Con eso prendido, `signUp()` no devuelve sesión y
+`RegistroVeterinarioPage` muestra el paso "revisá tu email"; con eso apagado,
+el usuario queda logueado al instante sin verificar nada (el código soporta
+ambos casos, ver comentario en `RegistroVeterinarioPage.tsx::handleSubmit`).
+No hay ninguna tool de MCP que exponga este toggle ni el SMTP config del
+proyecto — es 100% manual en el Dashboard.
+
+El 2026-08-12 el toggle estuvo apagado sin documentar en ningún lado
+(confirmado por logs de Auth: un signup a las 16:13 exigió confirmación y
+bloqueó el login siguiente con `email_not_confirmed`; otro a las 16:30 tuvo
+`immediate_login_after_signup`). Se reactivó ese mismo día. Verificado con un
+signup real vía `POST /auth/v1/signup`: con dominio `gmail.com` responde 200,
+sin sesión, con `confirmation_sent_at` seteado y `confirmed_at` en null — el
+mailer del proyecto sí encola el correo (no se confirmó visualmente que
+llegue a una bandeja de entrada real, pero no hay error del lado de GoTrue).
+Ojo: con dominios claramente falsos (`example.com`) devuelve `500
+unexpected_failure` con el mensaje de gomail rechazando el destinatario — es
+esperable, no es un bug. Si se vuelve a tocar el toggle, dejar rastro acá.
 
 **Downgrade: qué pasa cuando la suscripción deja de estar activa**
 (migraciones `20260812120000`–`20260812120300`)
@@ -871,9 +895,10 @@ CREATE TABLE lead (
 | `puede_gestionar_campo(sociedad_id)` | Tiene rol admin, jugador o piloto activo en esa sociedad |
 | `vet_tiene_acceso(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo **y** que el usuario sea veterinario activo; usado en políticas de centro de embriones (corregida en `20260611155651` — antes ignoraba el parámetro) |
 | `vet_tiene_acceso_caballo(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo específico |
-| `vet_limite_gratuito()` | Constante del plan gratuito (hoy 5). Única fuente del número (migración `20260812120000`) |
+| `vet_limite_gratuito()` | Constante del plan gratuito (hoy 5). Única fuente del número: la comparten `vet_puede_agregar_caballo` y `vet_estado_limite` para que no se desincronicen (migración `20260812120000`). **Con EXECUTE para `anon`** (migración `20260812130000`): es solo un entero sin datos de usuario, y la página pública de registro la necesita para no hardcodear el número en el marketing copy |
 | `vet_limite_pago()` | Constante del plan con membresía (hoy 25). La membresía **no es ilimitada** (migración `20260813120200`) |
 | `vet_limite_aplicable(usuario_id)` | Devuelve 25 o 5 según haya membresía vigente. Es la única fuente del tope: la consultan el alta, la reactivación y el chequeo retroactivo. **Revocada de `authenticated`**: toma el usuario por parámetro y es `SECURITY DEFINER`, así que abierta permitiría deducir si otro vet paga (migración `20260813120200`) |
+| `_vet_valida_propios(p_caballo_ids, p_activo_esperado)` | Helper interno: aborta si algún id no es un caballo propio del vet en el estado esperado. Compartido por `dar_de_baja_caballos_veterinario` y `reactivar_caballos_veterinario` para no duplicar el bloque de validación (antes estaba copiado literal en ambas). **Sin EXECUTE para nadie** — solo se llama desde esas dos funciones, que corren como `postgres` (migración `20260812130000`) |
 | `vet_suscripcion_activa(usuario_id)` | TRUE si el vet tiene `suscripcion_veterinario` en estado `activa` y no vencida. **Sin EXECUTE para `authenticated`** (migración `20260812120500`): es `SECURITY DEFINER` y toma el usuario por parámetro, así que expuesta al cliente dejaba a cualquier logueado averiguar si otro paga. Solo se llama desde adentro de otras `SECURITY DEFINER`, que corren como `postgres` |
 | `vet_caballos_propios(usuario_id)` | Cantidad de caballos propios **activos** del vet (`vet_owner_id`, `sociedad_id IS NULL`, `activo = true`). Que cuente solo activos es lo que hace que la baja lógica alcance para regularizar el límite. **Sin EXECUTE para `authenticated`**, por lo mismo que la anterior |
 | `vet_puede_agregar_caballo(usuario_id)` | TRUE si `vet_caballos_propios < vet_limite_aplicable()`. Gate al **crear** (migración `20260811150100`, reescrita en `20260812120000` y `20260813120200`) |
@@ -882,7 +907,7 @@ CREATE TABLE lead (
 
 | Función | Descripción |
 |---------|-------------|
-| `crear_caballo_veterinario(...)` | Crea caballo sin `sociedad_id` + inserta en `acceso_vet` automáticamente. Rechaza con `RAISE EXCEPTION` si `vet_puede_agregar_caballo(auth.uid())` da falso (migración `20260811150200`) — **es el enforcement real del límite**, no una policy RLS: la función es `SECURITY DEFINER` con dueño `postgres` (`rolbypassrls = true`), así que su INSERT interno nunca pasa por RLS de `caballo`. Levanta **dos SQLSTATE distintos** porque la salida de cada tope es distinta: `HM001` cuando se llenó el plan gratuito (el front ofrece el checkout) y `HM002` cuando se llenó la membresía (el vet ya paga, no hay nada que venderle: el front lo manda a soporte). El frontend los distingue por código y no por texto — `esLimiteCaballosVet` / `esLimiteMembresiaVet` en `utils/error.ts` (migración `20260813120300`) |
+| `crear_caballo_veterinario(...)` | Crea caballo sin `sociedad_id` + inserta en `acceso_vet` automáticamente. Toma `pg_advisory_xact_lock` por vet antes de chequear el cupo (migración `20260812130000`) — sin eso, doble clic o dos pestañas podían leer el mismo conteo antes de que cualquiera de las dos commiteara y evadir el límite. Rechaza con `RAISE EXCEPTION` si `vet_puede_agregar_caballo(auth.uid())` da falso (migración `20260811150200`) — **es el enforcement real del límite**, no una policy RLS: la función es `SECURITY DEFINER` con dueño `postgres` (`rolbypassrls = true`), así que su INSERT interno nunca pasa por RLS de `caballo`. Levanta **dos SQLSTATE distintos** porque la salida de cada tope es distinta: `HM001` cuando se llenó el plan gratuito (el front ofrece el checkout) y `HM002` cuando se llenó la membresía (el vet ya paga, no hay nada que venderle: el front lo manda a soporte) — el código de error estable es de `20260812130000`, antes el frontend matcheaba el texto del mensaje. El frontend distingue por código y no por texto — `esLimiteCaballosVet` / `esLimiteMembresiaVet` en `utils/error.ts` (migración `20260813120300`) |
 | `actualizar_caballo_veterinario(p_caballo_id, ...)` | Actualiza caballo si el vet tiene acceso verificado |
 | `toggle_prenada_veterinario(p_caballo_id, p_prenada, p_fecha_prenez)` | Marca/desmarca preñez; solo para Yeguas |
 | `transferir_caballos_vet(p_caballo_ids, p_sociedad_destino_id)` | Asigna caballos del vet a una sociedad |
@@ -903,8 +928,9 @@ CREATE TABLE lead (
 | `vet_estado_limite()` | Estado del límite del vet autenticado: `caballos_propios`, `limite` (el aplicable), `limite_gratuito`, `limite_con_membresia`, `suscripcion_activa`, `excedente`, `debe_regularizar`. Es el chequeo **retroactivo** que faltaba — `vet_puede_agregar_caballo` solo mira al crear, así que un vet que pagó un mes, cargó de más y dejó de pagar se quedaba con el excedente para siempre. El frontend la llama en `RequireAuth` y, si `debe_regularizar`, muestra el modal bloqueante. Desde `20260813120200` devuelve los dos topes por separado —para que la UI no repita los números— y `debe_regularizar` ya no exige que la suscripción esté inactiva: también se pasa un vet que paga y superó los 25 (migraciones `20260812120000` / `20260813120200`) |
 | `get_caballos_propios_vet()` | Caballos propios del vet con `consultas` y `ultima_consulta`, para que pueda elegir cuáles dar de baja en el modal de regularización. A diferencia de `get_caballos_veterinario()`, **no** incluye los caballos de haras a los que tiene acceso clínico: esos no cuentan para el límite ni puede darlos de baja (migración `20260812120200`) |
 | `get_caballos_propios_vet_inactivos()` | Caballos propios **dados de baja** del vet, con `fecha_baja` (aproximada por `updated_at`, no hay columna de baja en `caballo`). Alimenta la sección "Dados de baja" de `/panel-vet` (migración `20260812120400`) |
-| `reactivar_caballos_veterinario(p_caballo_ids)` | Vuelve a poner `activo = true`. Aplica el **mismo gate que el alta**: solo se puede reactivar hasta llenar el cupo del límite aplicable — si no, dar de baja los 50 para pasar el modal y reactivarlos enseguida sería una evasión trivial. Desde `20260813120200` el cupo se controla también con membresía activa, porque el plan pago dejó de ser ilimitado (migraciones `20260812120400` / `20260813120200`) |
-| `dar_de_baja_caballos_veterinario(p_caballo_ids)` | Baja lógica en lote (`activo = false`) de caballos propios del vet. Hace falta como `SECURITY DEFINER` porque la única policy de UPDATE sobre `caballo` es `es_admin(sociedad_id)` y los caballos de vet tienen `sociedad_id IS NULL` — el vet no puede darlos de baja con un update directo. Si algún id no es propio o ya está inactivo, **aborta la operación entera** en vez de saltearlo. No toca `acceso_vet`, para que reactivarlos sea un solo UPDATE (migración `20260812120100`) |
+| `reactivar_caballos_veterinario(p_caballo_ids)` | Vuelve a poner `activo = true`. Aplica el **mismo gate que el alta**: solo se puede reactivar hasta llenar el cupo del límite aplicable — si no, dar de baja los 50 para pasar el modal y reactivarlos enseguida sería una evasión trivial. Desde `20260813120200` el cupo se controla también con membresía activa, porque el plan pago dejó de ser ilimitado (migraciones `20260812120400` / `20260813120200`). Toma el mismo `pg_advisory_xact_lock` por vet que `crear_caballo_veterinario` antes de calcular el cupo, y delega la validación de ownership en `_vet_valida_propios` (migración `20260812130000`) — sin el lock, reactivar en paralelo desde dos pestañas podía superar el cupo igual que el alta |
+| `dar_de_baja_caballos_veterinario(p_caballo_ids)` | Baja lógica en lote (`activo = false`) de caballos propios del vet. Hace falta como `SECURITY DEFINER` porque la única policy de UPDATE sobre `caballo` es `es_admin(sociedad_id)` y los caballos de vet tienen `sociedad_id IS NULL` — el vet no puede darlos de baja con un update directo. Si algún id no es propio o ya está inactivo, **aborta la operación entera** en vez de saltearlo (delegado en `_vet_valida_propios` desde `20260812130000`). No toca `acceso_vet`, para que reactivarlos sea un solo UPDATE (migración `20260812120100`) |
+| `superadmin_caballos_propios_por_vet(p_vet_ids)` | RPC en lote: cantidad de caballos propios activos por cada id de `p_vet_ids`. Restringida a `is_superadmin()` (`RAISE EXCEPTION` si no). Única fuente de verdad para el panel de superadmin — antes `superAdminService.listarVeterinarios()` reimplementaba el mismo predicado con una query directa a `caballo` desde el cliente (migración `20260812130000`) |
 | `guardar_asignaciones_torneo(p_torneo_id, p_jugador_id, p_caballo_ids)` | Reescribe la columna de un jugador en el kanban del torneo, en una transacción: suelta los caballos de su jugador anterior, borra la columna y reinserta con el orden del array. `p_jugador_id` NULL devuelve los caballos a "Disponibles". Valida torneo `activo`, admin de la sociedad, jugador del torneo, sin repetidos, y caballo activo + de la sociedad + con tag "Jugador" (migración `20260803120000`) |
 | `completar_trabajo_sanitario(p_trabajo_id)` | Marca un `trabajo_sanitario` como realizado e inserta una fila en `historial_clinico` por cada caballo no excluido (asegura el `cat_tipo_consulta` con el nombre del trabajo). Valida `tiene_membresia`. Solo `authenticated`. Devuelve la cantidad cargada (migración `20260728181738`). Es el flujo viejo, el de la sección Sanidad |
 | `cerrar_plan_sanitario(p_items jsonb)` | Cierra la grilla de un plan en una transacción: `p_items` es `[{caballo_row_id, estado}]` sobre `trabajo_sanitario_caballo`. Guarda el `estado` de cada celda (sincronizando `excluido`) y escribe `historial_clinico` **solo** para los `'realizado'` sin historial previo. Cada `trabajo_sanitario` pasa a `'realizado'` cuando ya no le quedan celdas en NULL. Permiso: `tiene_membresia` **o** `is_superadmin()` **o** `creado_por = auth.uid()` (a diferencia de la anterior, deja cerrar al vet que lo creó). Solo `authenticated`. Devuelve cuántos historiales creó (migración `20260806130000`) |
@@ -969,7 +995,7 @@ CREATE TABLE lead (
 **`caballo`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(id)` o `vet_tiene_acceso_caballo(id)` o superadmin
 - INSERT admin: `es_admin(sociedad_id)`
-- INSERT vet: `vet_owner_id = auth.uid() AND sociedad_id IS NULL` (vet crea sin sociedad)
+- INSERT vet: `vet_owner_id = auth.uid() AND sociedad_id IS NULL AND vet_puede_agregar_caballo(auth.uid())` (vet crea sin sociedad, con gate del límite freemium — defensa en profundidad: el enforcement real vive en `crear_caballo_veterinario`, ver más abajo; migración `20260811150200`)
 - UPDATE admin: `es_admin(sociedad_id)`
 - UPDATE vet: `vet_tiene_acceso(id)`
 
