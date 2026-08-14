@@ -7,7 +7,7 @@
  * personales de Tomás y Facundo), que es otra cosa: esto es soporte de
  * producto, y por eso va a una casilla del equipo y no a una persona.
  */
-export const EMAIL_SOPORTE = 'admin@harasmanager.com'
+export const EMAIL_SOPORTE = 'admin.haras@harasmanager.com'
 
 /** `mailto:` con asunto, para que la consulta llegue ya clasificada. */
 export function mailtoSoporte(asunto: string): string {
