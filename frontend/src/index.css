@@ -46,6 +46,18 @@
   }
 }
 
+/* iOS Safari hace auto-zoom al enfocar un input con font-size < 16px, y como
+   la navegación post-login es client-side (SPA), ese zoom queda pegado en la
+   pantalla siguiente. Fuera de @layer para que gane por encima de las
+   utilities de Tailwind (text-sm, etc.) sin necesidad de tocar cada input. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Animaciones de scroll reveal para la landing */
 [data-reveal] {
   opacity: 0;
