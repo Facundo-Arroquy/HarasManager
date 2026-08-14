@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { Settings, ChevronDown, ChevronUp, CreditCard } from 'lucide-react'
+import { Settings, ChevronDown, ChevronUp, CreditCard, MapPin, IdCard } from 'lucide-react'
 
-/** Apartados de la configuración del vet. Hoy hay uno solo. */
+/** Apartados de la configuración del vet. */
 const ITEMS = [
+  { to: '/config-vet/datos',       label: 'Mis datos',   icon: <IdCard size={15} /> },
+  { to: '/config-vet/campos',      label: 'Mis campos',  icon: <MapPin size={15} /> },
   { to: '/config-vet/suscripcion', label: 'Suscripción', icon: <CreditCard size={15} /> },
 ]
 

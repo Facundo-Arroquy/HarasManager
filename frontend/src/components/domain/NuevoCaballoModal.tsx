@@ -88,7 +88,9 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
     Promise.all([
       catalogoService.razas(),
       catalogoService.pelajes(),
-      (!vetMode && sociedadActiva) ? campoService.listar(sociedadActiva.id) : Promise.resolve([]),
+      vetMode
+        ? (userId ? campoService.listarDelVeterinario(userId) : Promise.resolve([]))
+        : (sociedadActiva ? campoService.listar(sociedadActiva.id) : Promise.resolve([])),
       pedigreePromise.catch(() => [] as CaballoPedigree[]),
     ]).then(([r, p, c, cabs]) => {
       setRazas(r)
@@ -124,7 +126,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       fecha_nacimiento: form.fecha_nacimiento || null,
       numero_chip:      form.numero_chip.trim() || undefined,
       numero_registro:  form.numero_registro.trim() || undefined,
-      campo_id:         vetMode ? null : (form.campo_id || null),
+      campo_id:         form.campo_id || null,
       padre_id:         padre.id    ?? null,
       padre_nombre:     padre.nombre ?? null,
       madre_id:         madre.id    ?? null,
@@ -320,8 +322,8 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
             </div>
           </div>
 
-          {/* Campo / Caballeriza — solo en modo org */}
-          {!vetMode && <div className="space-y-1.5">
+          {/* Campo / Caballeriza. En modo vet son sus campos propios. */}
+          <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500">Campo / Caballeriza</label>
             <div className="flex gap-2">
               <select
@@ -355,8 +357,12 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
                   type="button"
                   disabled={!nuevoCampo.trim()}
                   onClick={async () => {
-                    if (!nuevoCampo.trim() || !sociedadActiva) return
-                    const c = await campoService.crear(nuevoCampo.trim(), undefined, sociedadActiva.id)
+                    if (!nuevoCampo.trim()) return
+                    if (vetMode && !userId)          return
+                    if (!vetMode && !sociedadActiva) return
+                    const c = vetMode
+                      ? await campoService.crearParaVet(nuevoCampo.trim(), undefined, userId!)
+                      : await campoService.crear(nuevoCampo.trim(), undefined, sociedadActiva!.id)
                     setCampos((prev) => [...prev, c])
                     set('campo_id', c.id)
                     setNuevoCampo('')
@@ -368,7 +374,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
                 </button>
               </div>
             )}
-          </div>}
+          </div>
 
           {/* Chip + Registro */}
           <div className="grid grid-cols-2 gap-3">

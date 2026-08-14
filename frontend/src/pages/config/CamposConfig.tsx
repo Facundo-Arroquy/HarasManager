@@ -4,8 +4,15 @@ import { useAuth } from '../../hooks/useAuth'
 import { campoService, type CampoConConteo } from '../../services/campoService'
 import { mensajeError } from '../../utils/error'
 
-export default function CamposConfig() {
-  const { sociedadActiva } = useAuth()
+/**
+ * Gestión de campos. En `modoVet` los campos son propios del veterinario
+ * (sin sociedad) y sirven para agrupar los caballos que maneja por su cuenta.
+ */
+export default function CamposConfig({ modoVet = false }: { modoVet?: boolean }) {
+  const { sociedadActiva, user } = useAuth()
+  const vetId = user?.id ?? null
+  // El dueño del campo: el vet en su panel, la sociedad activa en el resto.
+  const duenioListo = modoVet ? Boolean(vetId) : Boolean(sociedadActiva)
 
   const [campos,   setCampos]   = useState<CampoConConteo[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -22,14 +29,18 @@ export default function CamposConfig() {
   const [newDesc,   setNewDesc]   = useState('')
 
   async function cargar() {
-    if (!sociedadActiva) return
+    if (!duenioListo) return
     setLoading(true)
-    campoService.listarConConteo(sociedadActiva.id)
+    const pedido = modoVet
+      ? campoService.listarConConteoDelVeterinario(vetId!)
+      : campoService.listarConConteo(sociedadActiva!.id)
+    pedido
       .then(setCampos)
+      .catch((err) => setError(mensajeError(err, 'Error al cargar los campos.')))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { cargar() }, [sociedadActiva]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { cargar() }, [sociedadActiva, vetId, modoVet]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function startEdit(campo: CampoConConteo) {
     setEditId(campo.id)
@@ -74,11 +85,15 @@ export default function CamposConfig() {
 
   async function handleCrear(e: React.FormEvent) {
     e.preventDefault()
-    if (!newNombre.trim() || !sociedadActiva) return
+    if (!newNombre.trim() || !duenioListo) return
     setSaving(true)
     setError('')
     try {
-      await campoService.crear(newNombre.trim(), newDesc.trim() || undefined, sociedadActiva.id)
+      if (modoVet) {
+        await campoService.crearParaVet(newNombre.trim(), newDesc.trim() || undefined, vetId!)
+      } else {
+        await campoService.crear(newNombre.trim(), newDesc.trim() || undefined, sociedadActiva!.id)
+      }
       await cargar()
       setNewNombre('')
       setNewDesc('')

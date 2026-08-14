@@ -110,11 +110,21 @@ CREATE TABLE usuario (
   nombre VARCHAR(100) NOT NULL, apellido VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE, telefono VARCHAR(30),
   rol TEXT DEFAULT 'admin',
+  -- Identidad profesional del vet (migración `usuario_dni_y_matricula_vet`).
+  -- Nullable las dos: los usuarios previos al cambio no las tienen. El DNI es
+  -- obligatorio SOLO en el alta de veterinario, y eso lo exige el trigger
+  -- `handle_new_auth_user`, no un NOT NULL.
+  dni VARCHAR(20),                             -- obligatorio al registrarse como vet
+  matricula VARCHAR(50),                       -- matrícula profesional, opcional
   activo BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
--- Trigger: handle_new_auth_user → INSERT en usuario al crear en auth.users
--- Trigger: bloquear_self_escalation → impide que usuario edite su propio rol/activo/email
+-- Trigger: handle_new_auth_user → INSERT en usuario al crear en auth.users.
+--   Si `rol_solicitado = 'veterinario'` exige `dni` en el metadata (error HM003)
+--   y guarda `matricula` si vino. Hace TRIM y convierte '' en NULL.
+-- Trigger: bloquear_self_escalation → impide que usuario edite su propio
+--   rol/activo/email, y también su dni/matricula (son datos de identidad: se
+--   cargan al registrarse y no se editan desde la app)
 
 -- Membresía: relación usuario <-> sociedad con rol
 CREATE TABLE membresia (
@@ -127,13 +137,21 @@ CREATE TABLE membresia (
   UNIQUE(usuario_id, sociedad_id, rol_id)
 );
 
--- Campos / potreros dentro de una sociedad
+-- Campos / potreros. Pertenecen a una sociedad O a un veterinario, nunca a
+-- ambos: los campos de vet agrupan los caballos que maneja por su cuenta
+-- (los que tienen `sociedad_id IS NULL`). Migración `campo_propio_de_veterinario`.
 CREATE TABLE campo (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  sociedad_id UUID REFERENCES sociedad(id),    -- NULL si el campo es de un vet
+  vet_owner_id UUID REFERENCES usuario(id),    -- NULL si el campo es de una sociedad
   nombre VARCHAR(200) NOT NULL,
   descripcion TEXT,
-  created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ,
+  CONSTRAINT campo_duenio_check CHECK (
+    (sociedad_id IS NOT NULL AND vet_owner_id IS NULL)
+    OR
+    (sociedad_id IS NULL AND vet_owner_id IS NOT NULL)
+  )
 );
 
 -- Propietarios de caballos (persona física o jurídica)
@@ -983,6 +1001,7 @@ CREATE TABLE lead (
 | `set_updated_at_sociedad_modulo` / `set_updated_at_membresia_modulo` / `set_updated_at_usuario_modulo` | `trigger_set_updated_at()` | BEFORE UPDATE en las 3 tablas puente de módulos (migración `20260810140000`) |
 | `trg_bloquear_padrillo_familiar` | `bloquear_padrillo_familiar()` | BEFORE INSERT OR UPDATE OF padrillo_id, caballo_id en `cria_registro_clinico` → rechaza si el padrillo es familiar directo (2 generaciones) de la yegua. El frontend además deshabilita la opción, pero la regla vive acá (migración `20260802120100`) |
 | `trg_cancelar_pendientes_baja` | `cancelar_pendientes_por_baja()` | AFTER UPDATE OF activo en `caballo` (cuando `activo` → false) → cancela `cria_recordatorio` pendientes/vencidos y excluye al caballo de `trabajo_sanitario` pendientes. Conserva el historial (migración `20260729144522`) |
+| `trg_validar_campo_caballo` | `validar_campo_caballo()` | BEFORE INSERT OR UPDATE OF campo_id, sociedad_id, vet_owner_id en `caballo` → un caballo solo puede estar en un campo de su mismo dueño (sociedad con sociedad, vet con vet). Si el caballo **cambia de dueño** (transferencia entre sociedades, o de vet a organización) el `campo_id` se pone en NULL en vez de abortar; asignar a mano un campo ajeno sí es error (migración `caballo_campo_mismo_duenio` + `caballo_campo_limpiar_al_cambiar_duenio`) |
 
 ### Quién ve qué
 
@@ -1014,8 +1033,12 @@ CREATE TABLE lead (
 - DELETE: `is_superadmin()`
 
 **`campo`**
-- SELECT: `tiene_membresia(sociedad_id)` o vet activo o superadmin
+- SELECT: `tiene_membresia(sociedad_id)` o superadmin
+- SELECT vet: vet activo, solo sobre campos de sociedad (`vet_owner_id IS NULL`)
+- SELECT vet propio: `vet_owner_id = auth.uid()` — un vet no ve los campos de otro vet
 - INSERT/UPDATE: `puede_gestionar_campo(sociedad_id)`
+- INSERT vet: `vet_owner_id = auth.uid() AND sociedad_id IS NULL` y rol veterinario activo
+- UPDATE/DELETE vet: `vet_owner_id = auth.uid()`
 - DELETE: miembro con rol admin/jugador/piloto
 
 **`propietario`**
@@ -1030,8 +1053,14 @@ CREATE TABLE lead (
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(id)` o `vet_tiene_acceso_caballo(id)` o superadmin
 - INSERT admin: `es_admin(sociedad_id)`
 - INSERT vet: `vet_owner_id = auth.uid() AND sociedad_id IS NULL AND vet_puede_agregar_caballo(auth.uid())` (vet crea sin sociedad, con gate del límite freemium — defensa en profundidad: el enforcement real vive en `crear_caballo_veterinario`, ver más abajo; migración `20260811150200`)
-- UPDATE admin: `es_admin(sociedad_id)`
-- UPDATE vet: `vet_tiene_acceso(id)`
+- UPDATE admin: `es_admin(sociedad_id)` — **es la única policy de UPDATE de la tabla**
+- UPDATE vet: no existe como policy. Un caballo propio del vet tiene `sociedad_id NULL`,
+  con lo que `es_admin(NULL)` es false y **todo UPDATE directo del vet no afecta ninguna
+  fila y no da error** (la RLS filtra en silencio). El vet escribe siempre por RPC
+  `SECURITY DEFINER`: `actualizar_caballo_veterinario`, `toggle_prenada_veterinario`,
+  `dar_de_baja_caballos_veterinario`, `reactivar_caballos_veterinario`.
+  Verificado contra producción el 2026-08-14; antes este documento afirmaba que existía
+  una policy `vet_tiene_acceso(id)` para UPDATE, que no está en la base.
 
 **`acceso_vet`**
 - SELECT admin: miembro activo de la sociedad del caballo
@@ -1233,7 +1262,8 @@ No se usa `supabase db push` ni `supabase migration up`.
 | Otorgar acceso a vet | ✅ | ✅ | ❌ | ❌ |
 | Crear usuarios en la sociedad | ✅ | ✅ | ❌ | ❌ |
 | Vender caballos | ✅ | ✅ | ❌ | ❌ |
-| Gestionar campos/potreros | ✅ | ✅ | ❌ (solo lectura) | ✅ |
+| Gestionar campos/potreros de la sociedad | ✅ | ✅ | ❌ (solo lectura) | ✅ |
+| Gestionar sus propios campos (`/config-vet/campos`) | — | — | ✅ | ❌ |
 | Crear torneos y asignar caballos | ✅ | ✅ | ❌ | ❌ (solo lectura) |
 | Acceso centro de embriones | — | Según `sociedad_modulo`+`membresia_modulo` ('centro_cria') | Según `usuario_modulo` ('centro_cria') | ❌ |
 | Acceso Polo / Torneos | — | Según `sociedad_modulo`+`membresia_modulo` ('polo') | ❌ | ✅ jugador/piloto según módulo; peticero ❌ (roles fijos, no depende del módulo) |
@@ -1245,6 +1275,13 @@ No se usa `supabase db push` ni `supabase migration up`.
 No hay mock system: el frontend siempre habla con Supabase. Para probar se usan
 sociedades reales de demo en el proyecto de producción (`Demo 1` y `Demo 2`),
 con usuarios reales invitados a cada una.
+
+**DNI y matrícula de los vets previos son ficticios.** Los 7 veterinarios que
+existían antes de que el DNI fuera obligatorio se completaron a mano el
+2026-08-14 con `dni` en el rango `99000001`–`99000007` y `matricula`
+`MP-9001`–`MP-9007`. Se eligió el rango 99.000.000 justamente porque los DNI
+argentinos reales no llegan a esa cifra: son inequívocamente de relleno, incluso
+en las cuentas de personas reales. No usarlos como si fueran datos válidos.
 
 ---
 
