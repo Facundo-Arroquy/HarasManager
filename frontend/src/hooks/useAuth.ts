@@ -110,6 +110,9 @@ export function useAuth() {
     password: string
     nombre: string
     apellido: string
+    /** Obligatorio: el trigger rechaza el alta de un vet sin DNI. */
+    dni: string
+    matricula?: string
   }) => {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.auth.signUp({
@@ -119,6 +122,8 @@ export function useAuth() {
         data: {
           nombre: params.nombre,
           apellido: params.apellido,
+          dni: params.dni,
+          matricula: params.matricula ?? null,
           rol_solicitado: 'veterinario',
         },
       },

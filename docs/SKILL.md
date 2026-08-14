@@ -110,11 +110,21 @@ CREATE TABLE usuario (
   nombre VARCHAR(100) NOT NULL, apellido VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE, telefono VARCHAR(30),
   rol TEXT DEFAULT 'admin',
+  -- Identidad profesional del vet (migración `usuario_dni_y_matricula_vet`).
+  -- Nullable las dos: los usuarios previos al cambio no las tienen. El DNI es
+  -- obligatorio SOLO en el alta de veterinario, y eso lo exige el trigger
+  -- `handle_new_auth_user`, no un NOT NULL.
+  dni VARCHAR(20),                             -- obligatorio al registrarse como vet
+  matricula VARCHAR(50),                       -- matrícula profesional, opcional
   activo BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
--- Trigger: handle_new_auth_user → INSERT en usuario al crear en auth.users
--- Trigger: bloquear_self_escalation → impide que usuario edite su propio rol/activo/email
+-- Trigger: handle_new_auth_user → INSERT en usuario al crear en auth.users.
+--   Si `rol_solicitado = 'veterinario'` exige `dni` en el metadata (error HM003)
+--   y guarda `matricula` si vino. Hace TRIM y convierte '' en NULL.
+-- Trigger: bloquear_self_escalation → impide que usuario edite su propio
+--   rol/activo/email, y también su dni/matricula (son datos de identidad: se
+--   cargan al registrarse y no se editan desde la app)
 
 -- Membresía: relación usuario <-> sociedad con rol
 CREATE TABLE membresia (

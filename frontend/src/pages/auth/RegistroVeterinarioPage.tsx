@@ -18,6 +18,8 @@ export default function RegistroVeterinarioPage() {
   const [limiteGratis, setLimiteGratis] = useState<number | null>(null)
   const [nombre, setNombre] = useState('')
   const [apellido, setApellido] = useState('')
+  const [dni, setDni] = useState('')
+  const [matricula, setMatricula] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmar, setConfirmar] = useState('')
@@ -34,6 +36,7 @@ export default function RegistroVeterinarioPage() {
     if (submitting) return
     setError('')
 
+    if (!dni.trim()) return setError('El DNI es obligatorio.')
     if (!PASSWORD_REGEX.test(password)) {
       return setError('La contraseña debe tener al menos 8 caracteres, con mayúsculas, minúsculas, números y un símbolo.')
     }
@@ -46,6 +49,8 @@ export default function RegistroVeterinarioPage() {
         password,
         nombre: nombre.trim(),
         apellido: apellido.trim(),
+        dni: dni.trim(),
+        matricula: matricula.trim() || undefined,
       })
 
       // La aceptación de T&C queda pendiente para RequireAuth (App.tsx), que
@@ -119,6 +124,35 @@ export default function RegistroVeterinarioPage() {
                     required
                     value={apellido}
                     onChange={(e) => setApellido(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 transition focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-400" htmlFor="dni">DNI</label>
+                  <input
+                    id="dni"
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    value={dni}
+                    onChange={(e) => setDni(e.target.value)}
+                    placeholder="30123456"
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 transition focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-400" htmlFor="matricula">
+                    Matrícula <span className="text-zinc-600">(opcional)</span>
+                  </label>
+                  <input
+                    id="matricula"
+                    type="text"
+                    value={matricula}
+                    onChange={(e) => setMatricula(e.target.value)}
+                    placeholder="MP 12345"
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-600 transition focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                   />
                 </div>
