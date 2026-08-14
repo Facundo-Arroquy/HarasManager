@@ -69,6 +69,7 @@ export default function SanidadPage() {
               className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 px-3 py-2 text-sm font-medium text-white transition-colors"
             >
               <Plus size={15} />
+              <span className="sm:hidden">Consulta</span>
               <span className="hidden sm:inline">Nueva consulta</span>
             </button>
           )}
@@ -81,6 +82,7 @@ export default function SanidadPage() {
             }`}
           >
             <Plus size={15} />
+            <span className="sm:hidden">Plan</span>
             <span className="hidden sm:inline">Nuevo plan sanitario</span>
           </button>
         </div>
