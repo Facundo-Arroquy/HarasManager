@@ -259,7 +259,10 @@ export default function LimiteCaballosVetModal({ estado, onResuelto }: Props) {
                 <p className="text-center text-[10px] text-zinc-600 pt-1 leading-relaxed">
                   {estado.limite} es el máximo que incluye la membresía.{' '}
                   <a
-                    href={mailtoSoporte('Límite de caballos de la membresía de veterinario')}
+                    href={mailtoSoporte(
+                      'Límite de caballos de la membresía de veterinario',
+                      'Hola, llegué al límite de caballos que incluye mi membresía y necesito sumar más. ¿Cómo puedo hacerlo?',
+                    )}
                     className="text-zinc-400 underline underline-offset-2 hover:text-zinc-200"
                   >
                     Escribinos
