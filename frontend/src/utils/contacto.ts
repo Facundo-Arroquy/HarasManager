@@ -11,7 +11,7 @@ export const EMAIL_SOPORTE = 'admin.haras@harasmanager.com'
 
 /** `mailto:` con asunto y cuerpo, para que la consulta llegue ya clasificada. */
 export function mailtoSoporte(asunto: string, cuerpo?: string): string {
-  const params = new URLSearchParams({ subject: asunto })
-  if (cuerpo) params.set('body', cuerpo)
-  return `mailto:${EMAIL_SOPORTE}?${params.toString()}`
+  const params = [`subject=${encodeURIComponent(asunto)}`]
+  if (cuerpo) params.push(`body=${encodeURIComponent(cuerpo)}`)
+  return `mailto:${EMAIL_SOPORTE}?${params.join('&')}`
 }
