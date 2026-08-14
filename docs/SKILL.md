@@ -1043,8 +1043,14 @@ CREATE TABLE lead (
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(id)` o `vet_tiene_acceso_caballo(id)` o superadmin
 - INSERT admin: `es_admin(sociedad_id)`
 - INSERT vet: `vet_owner_id = auth.uid() AND sociedad_id IS NULL AND vet_puede_agregar_caballo(auth.uid())` (vet crea sin sociedad, con gate del límite freemium — defensa en profundidad: el enforcement real vive en `crear_caballo_veterinario`, ver más abajo; migración `20260811150200`)
-- UPDATE admin: `es_admin(sociedad_id)`
-- UPDATE vet: `vet_tiene_acceso(id)`
+- UPDATE admin: `es_admin(sociedad_id)` — **es la única policy de UPDATE de la tabla**
+- UPDATE vet: no existe como policy. Un caballo propio del vet tiene `sociedad_id NULL`,
+  con lo que `es_admin(NULL)` es false y **todo UPDATE directo del vet no afecta ninguna
+  fila y no da error** (la RLS filtra en silencio). El vet escribe siempre por RPC
+  `SECURITY DEFINER`: `actualizar_caballo_veterinario`, `toggle_prenada_veterinario`,
+  `dar_de_baja_caballos_veterinario`, `reactivar_caballos_veterinario`.
+  Verificado contra producción el 2026-08-14; antes este documento afirmaba que existía
+  una policy `vet_tiene_acceso(id)` para UPDATE, que no está en la base.
 
 **`acceso_vet`**
 - SELECT admin: miembro activo de la sociedad del caballo
