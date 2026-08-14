@@ -1276,6 +1276,13 @@ No hay mock system: el frontend siempre habla con Supabase. Para probar se usan
 sociedades reales de demo en el proyecto de producción (`Demo 1` y `Demo 2`),
 con usuarios reales invitados a cada una.
 
+**DNI y matrícula de los vets previos son ficticios.** Los 7 veterinarios que
+existían antes de que el DNI fuera obligatorio se completaron a mano el
+2026-08-14 con `dni` en el rango `99000001`–`99000007` y `matricula`
+`MP-9001`–`MP-9007`. Se eligió el rango 99.000.000 justamente porque los DNI
+argentinos reales no llegan a esa cifra: son inequívocamente de relleno, incluso
+en las cuentas de personas reales. No usarlos como si fueran datos válidos.
+
 ---
 
 ## Funcionalidades Futuras (no implementar aún)
