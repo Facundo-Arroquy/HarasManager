@@ -417,7 +417,10 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
                 vemos cómo resolverlo.
               </p>
               <a
-                href={mailtoSoporte('Límite de caballos de la membresía de veterinario')}
+                href={mailtoSoporte(
+                  'Límite de caballos de la membresía de veterinario',
+                  'Hola, llegué al límite de caballos que incluye mi membresía y necesito sumar más. ¿Cómo puedo hacerlo?',
+                )}
                 className="mt-2 inline-block text-xs font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
               >
                 Comunicarme con soporte
