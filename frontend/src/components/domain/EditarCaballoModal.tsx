@@ -25,6 +25,8 @@ interface CaballoEditProps {
   numero_chip?: string | null
   numero_registro?: string | null
   campo_id?: string | null
+  /** NULL en los caballos propios de un vet (no pertenecen a ningún establecimiento). */
+  sociedad_id?: string | null
   padre_id?: string | null
   padre_nombre?: string | null
   madre_id?: string | null
@@ -41,8 +43,10 @@ interface Props {
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
 
 export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMode = false }: Props) {
-  const { sociedadActiva, rol } = useAuth()
+  const { sociedadActiva, rol, user } = useAuth()
   const esAdmin = rol === 'admin'
+  // Caballo que el vet maneja por su cuenta: se agrupa con sus campos propios.
+  const esPropioDelVet = vetMode && !caballo.sociedad_id
 
   const [razas,   setRazas]   = useState<{ id: number; nombre: string }[]>([])
   const [pelajes, setPelajes] = useState<{ id: number; nombre: string }[]>([])
@@ -93,7 +97,9 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
     Promise.all([
       catalogoService.razas(),
       catalogoService.pelajes(),
-      sociedadActiva ? campoService.listar(sociedadActiva.id) : Promise.resolve([]),
+      esPropioDelVet
+        ? (user?.id ? campoService.listarDelVeterinario(user.id) : Promise.resolve([]))
+        : (sociedadActiva ? campoService.listar(sociedadActiva.id) : Promise.resolve([])),
       pedigreePromise.catch(() => [] as CaballoPedigree[]),
     ]).then(([r, p, c, ped]) => {
       setRazas(r)
@@ -273,8 +279,9 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
             </div>
           </div>
 
-          {/* Campo / Caballeriza — solo en modo org */}
-          {!vetMode && <div className="space-y-1.5">
+          {/* Campo / Caballeriza. El vet solo agrupa sus propios caballos:
+              los de un establecimiento los ordena el establecimiento. */}
+          {(!vetMode || esPropioDelVet) && <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500">Campo / Caballeriza</label>
             <select
               value={form.campo_id}

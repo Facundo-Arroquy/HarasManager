@@ -239,15 +239,28 @@ export const caballoService = {
     if (error) throw error
 
     const nuevoId = data as string
-    // El RPC no soporta padre/madre — actualizamos si hay datos genealógicos
+    // `crear_caballo_veterinario` no toma padre/madre ni campo. Se completan con
+    // la RPC de edición y no con un UPDATE directo: la única policy de UPDATE
+    // sobre `caballo` es `es_admin(sociedad_id)`, y los caballos propios del vet
+    // tienen `sociedad_id NULL`, así que el update directo no afectaba ninguna
+    // fila y los datos se perdían en silencio.
     const tieneGenealogia = payload.padre_id || payload.padre_nombre || payload.madre_id || payload.madre_nombre
-    if (tieneGenealogia) {
-      await supabase.from('caballo').update({
-        padre_id:     payload.padre_id    ?? null,
-        padre_nombre: payload.padre_nombre ?? null,
-        madre_id:     payload.madre_id    ?? null,
-        madre_nombre: payload.madre_nombre ?? null,
-      }).eq('id', nuevoId)
+    if (tieneGenealogia || payload.campo_id) {
+      await caballoService.actualizarComoVet(nuevoId, {
+        nombre:           payload.nombre,
+        fecha_nacimiento: payload.fecha_nacimiento,
+        categoria:        payload.categoria,
+        rol_reproductivo: payload.rol_reproductivo ?? null,
+        raza_id:          payload.raza_id,
+        pelaje_id:        payload.pelaje_id,
+        numero_chip:      payload.numero_chip     ?? undefined,
+        numero_registro:  payload.numero_registro ?? undefined,
+        campo_id:         payload.campo_id        ?? null,
+        padre_id:         payload.padre_id        ?? null,
+        padre_nombre:     payload.padre_nombre    ?? null,
+        madre_id:         payload.madre_id        ?? null,
+        madre_nombre:     payload.madre_nombre    ?? null,
+      })
     }
 
     return { id: nuevoId }
@@ -349,6 +362,7 @@ export const caballoService = {
       p_padre_nombre:     payload.padre_nombre    ?? null,
       p_madre_id:         payload.madre_id        ?? null,
       p_madre_nombre:     payload.madre_nombre    ?? null,
+      p_campo_id:         payload.campo_id        ?? null,
     })
     if (error) throw error
   },

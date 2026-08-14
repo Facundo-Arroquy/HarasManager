@@ -130,9 +130,15 @@ export default function CaballosPage() {
     setLoading(true)
     try {
       if (esVet && userId) {
-        const c = await caballoService.listarDelVeterinario()
+        // Los campos propios del vet agrupan sus caballos sin sociedad. Los
+        // campos de las sociedades donde tiene acceso llegan con cada caballo
+        // (`campo_nombre` del RPC), así que no hace falta pedirlos aparte.
+        const [c, f] = await Promise.all([
+          caballoService.listarDelVeterinario(),
+          campoService.listarDelVeterinario(userId).catch(() => [] as Campo[]),
+        ])
         setCaballos(c)
-        setCampos([])
+        setCampos(f)
       } else {
         if (!sociedadId) return
         const [c, f, baja] = await Promise.all([

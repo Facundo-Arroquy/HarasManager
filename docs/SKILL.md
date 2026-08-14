@@ -127,13 +127,21 @@ CREATE TABLE membresia (
   UNIQUE(usuario_id, sociedad_id, rol_id)
 );
 
--- Campos / potreros dentro de una sociedad
+-- Campos / potreros. Pertenecen a una sociedad O a un veterinario, nunca a
+-- ambos: los campos de vet agrupan los caballos que maneja por su cuenta
+-- (los que tienen `sociedad_id IS NULL`). Migración `campo_propio_de_veterinario`.
 CREATE TABLE campo (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  sociedad_id UUID REFERENCES sociedad(id),    -- NULL si el campo es de un vet
+  vet_owner_id UUID REFERENCES usuario(id),    -- NULL si el campo es de una sociedad
   nombre VARCHAR(200) NOT NULL,
   descripcion TEXT,
-  created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ,
+  CONSTRAINT campo_duenio_check CHECK (
+    (sociedad_id IS NOT NULL AND vet_owner_id IS NULL)
+    OR
+    (sociedad_id IS NULL AND vet_owner_id IS NOT NULL)
+  )
 );
 
 -- Propietarios de caballos (persona física o jurídica)
@@ -983,6 +991,7 @@ CREATE TABLE lead (
 | `set_updated_at_sociedad_modulo` / `set_updated_at_membresia_modulo` / `set_updated_at_usuario_modulo` | `trigger_set_updated_at()` | BEFORE UPDATE en las 3 tablas puente de módulos (migración `20260810140000`) |
 | `trg_bloquear_padrillo_familiar` | `bloquear_padrillo_familiar()` | BEFORE INSERT OR UPDATE OF padrillo_id, caballo_id en `cria_registro_clinico` → rechaza si el padrillo es familiar directo (2 generaciones) de la yegua. El frontend además deshabilita la opción, pero la regla vive acá (migración `20260802120100`) |
 | `trg_cancelar_pendientes_baja` | `cancelar_pendientes_por_baja()` | AFTER UPDATE OF activo en `caballo` (cuando `activo` → false) → cancela `cria_recordatorio` pendientes/vencidos y excluye al caballo de `trabajo_sanitario` pendientes. Conserva el historial (migración `20260729144522`) |
+| `trg_validar_campo_caballo` | `validar_campo_caballo()` | BEFORE INSERT OR UPDATE OF campo_id, sociedad_id, vet_owner_id en `caballo` → un caballo solo puede estar en un campo de su mismo dueño (sociedad con sociedad, vet con vet). Si el caballo **cambia de dueño** (transferencia entre sociedades, o de vet a organización) el `campo_id` se pone en NULL en vez de abortar; asignar a mano un campo ajeno sí es error (migración `caballo_campo_mismo_duenio` + `caballo_campo_limpiar_al_cambiar_duenio`) |
 
 ### Quién ve qué
 
@@ -1014,8 +1023,12 @@ CREATE TABLE lead (
 - DELETE: `is_superadmin()`
 
 **`campo`**
-- SELECT: `tiene_membresia(sociedad_id)` o vet activo o superadmin
+- SELECT: `tiene_membresia(sociedad_id)` o superadmin
+- SELECT vet: vet activo, solo sobre campos de sociedad (`vet_owner_id IS NULL`)
+- SELECT vet propio: `vet_owner_id = auth.uid()` — un vet no ve los campos de otro vet
 - INSERT/UPDATE: `puede_gestionar_campo(sociedad_id)`
+- INSERT vet: `vet_owner_id = auth.uid() AND sociedad_id IS NULL` y rol veterinario activo
+- UPDATE/DELETE vet: `vet_owner_id = auth.uid()`
 - DELETE: miembro con rol admin/jugador/piloto
 
 **`propietario`**
@@ -1233,7 +1246,8 @@ No se usa `supabase db push` ni `supabase migration up`.
 | Otorgar acceso a vet | ✅ | ✅ | ❌ | ❌ |
 | Crear usuarios en la sociedad | ✅ | ✅ | ❌ | ❌ |
 | Vender caballos | ✅ | ✅ | ❌ | ❌ |
-| Gestionar campos/potreros | ✅ | ✅ | ❌ (solo lectura) | ✅ |
+| Gestionar campos/potreros de la sociedad | ✅ | ✅ | ❌ (solo lectura) | ✅ |
+| Gestionar sus propios campos (`/config-vet/campos`) | — | — | ✅ | ❌ |
 | Crear torneos y asignar caballos | ✅ | ✅ | ❌ | ❌ (solo lectura) |
 | Acceso centro de embriones | — | Según `sociedad_modulo`+`membresia_modulo` ('centro_cria') | Según `usuario_modulo` ('centro_cria') | ❌ |
 | Acceso Polo / Torneos | — | Según `sociedad_modulo`+`membresia_modulo` ('polo') | ❌ | ✅ jugador/piloto según módulo; peticero ❌ (roles fijos, no depende del módulo) |

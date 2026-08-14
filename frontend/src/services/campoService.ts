@@ -8,7 +8,27 @@ export interface Campo {
   id: string
   nombre: string
   descripcion?: string | null
-  sociedad_id: string
+  /** NULL en los campos propios de un veterinario. */
+  sociedad_id: string | null
+  /** NULL en los campos de una sociedad. Un campo tiene sociedad o vet, nunca ambos. */
+  vet_owner_id?: string | null
+}
+
+const COLUMNAS = 'id, nombre, descripcion, sociedad_id, vet_owner_id'
+
+/** Cuenta los caballos activos asignados a cada campo. */
+async function conConteo(campos: Campo[]): Promise<CampoConConteo[]> {
+  const supabase = getSupabaseClient()
+  return Promise.all(
+    campos.map(async (c) => {
+      const { count } = await supabase
+        .from('caballo')
+        .select('*', { count: 'exact', head: true })
+        .eq('campo_id', c.id)
+        .eq('activo', true)
+      return { ...c, caballos_count: count ?? 0 }
+    })
+  )
 }
 
 export const campoService = {
@@ -16,8 +36,20 @@ export const campoService = {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('campo')
-      .select('id, nombre, descripcion, sociedad_id')
+      .select(COLUMNAS)
       .eq('sociedad_id', sociedadId)
+      .order('nombre')
+    if (error) throw error
+    return data ?? []
+  },
+
+  /** Campos propios del veterinario, para agrupar sus caballos sin sociedad. */
+  async listarDelVeterinario(vetId: string): Promise<Campo[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('campo')
+      .select(COLUMNAS)
+      .eq('vet_owner_id', vetId)
       .order('nombre')
     if (error) throw error
     return data ?? []
@@ -28,32 +60,29 @@ export const campoService = {
     const { data, error } = await supabase
       .from('campo')
       .insert({ nombre: nombre.trim(), descripcion: descripcion?.trim() || null, sociedad_id: sociedadId })
-      .select()
+      .select(COLUMNAS)
+      .single()
+    if (error) throw error
+    return data
+  },
+
+  async crearParaVet(nombre: string, descripcion: string | undefined, vetId: string): Promise<Campo> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('campo')
+      .insert({ nombre: nombre.trim(), descripcion: descripcion?.trim() || null, vet_owner_id: vetId })
+      .select(COLUMNAS)
       .single()
     if (error) throw error
     return data
   },
 
   async listarConConteo(sociedadId: string): Promise<CampoConConteo[]> {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('campo')
-      .select('id, nombre, descripcion, sociedad_id')
-      .eq('sociedad_id', sociedadId)
-      .order('nombre')
-    if (error) throw error
+    return conConteo(await campoService.listar(sociedadId))
+  },
 
-    const campos = await Promise.all(
-      (data ?? []).map(async (c: { id: string; nombre: string; descripcion: string | null; sociedad_id: string }) => {
-        const { count } = await supabase
-          .from('caballo')
-          .select('*', { count: 'exact', head: true })
-          .eq('campo_id', c.id)
-          .eq('activo', true)
-        return { ...c, caballos_count: count ?? 0 }
-      })
-    )
-    return campos
+  async listarConConteoDelVeterinario(vetId: string): Promise<CampoConConteo[]> {
+    return conConteo(await campoService.listarDelVeterinario(vetId))
   },
 
   async actualizar(id: string, nombre: string, descripcion: string | undefined): Promise<void> {
