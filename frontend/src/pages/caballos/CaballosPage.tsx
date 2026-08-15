@@ -329,9 +329,10 @@ export default function CaballosPage() {
             <button
               onClick={() => setShowNuevo(true)}
               className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 px-3 py-2 text-sm font-medium text-slate-700 transition-colors"
+              title="Agregar caballo"
             >
               <Plus size={15} />
-              <span className="hidden sm:inline">Nuevo caballo</span>
+              <span>Nuevo caballo</span>
             </button>
           )}
           {rol === 'veterinario' && !modoSeleccion && !verBaja && (
