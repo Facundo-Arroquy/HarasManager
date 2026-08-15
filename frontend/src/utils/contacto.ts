@@ -15,3 +15,23 @@ export function mailtoSoporte(asunto: string, cuerpo?: string): string {
   if (cuerpo) params.push(`body=${encodeURIComponent(cuerpo)}`)
   return `mailto:${EMAIL_SOPORTE}?${params.join('&')}`
 }
+
+/**
+ * WhatsApps a los que puede escribir el usuario.
+ *
+ * A diferencia de `EMAIL_SOPORTE`, que va a una casilla del equipo, acá no hay
+ * un número de producto: son los celulares personales de Tomás y Facundo, los
+ * mismos dos contactos comerciales que ya lista `LandingPage`.
+ *
+ * Formato `wa.me`: sin `+` ni separadores — 54 + 9 (móvil) + característica sin
+ * el 0 + número sin el 15.
+ */
+export const WHATSAPP_CONTACTO = [
+  { nombre: 'Facundo', numero: '5492281588804' },
+  { nombre: 'Tomás',   numero: '5491123021297' },
+] as const
+
+/** Link de `wa.me` con el mensaje ya escrito. */
+export function whatsappLink(numero: string, mensaje: string): string {
+  return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`
+}
