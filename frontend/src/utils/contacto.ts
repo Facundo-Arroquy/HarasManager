@@ -17,24 +17,21 @@ export function mailtoSoporte(asunto: string, cuerpo?: string): string {
 }
 
 /**
- * WhatsApp de soporte, en formato internacional sin `+` ni separadores
- * (como lo pide `wa.me`). Ej: `5491112345678`.
+ * WhatsApps a los que puede escribir el usuario.
  *
- * TODO: falta cargar el número real. Mientras esté vacío, la UI no ofrece el
- * canal — ver `HAY_WHATSAPP_SOPORTE`.
- */
-export const WHATSAPP_SOPORTE = ''
-
-/**
- * `true` solo si hay un número plausible cargado.
+ * A diferencia de `EMAIL_SOPORTE`, que va a una casilla del equipo, acá no hay
+ * un número de producto: son los celulares personales de Tomás y Facundo, los
+ * mismos dos contactos comerciales que ya lista `LandingPage`.
  *
- * La guarda existe para que un placeholder no llegue a la pantalla: sin esto,
- * el botón de WhatsApp mandaría al usuario a un `wa.me/` roto, que es peor que
- * no ofrecer el canal.
+ * Formato `wa.me`: sin `+` ni separadores — 54 + 9 (móvil) + característica sin
+ * el 0 + número sin el 15.
  */
-export const HAY_WHATSAPP_SOPORTE = /^\d{8,15}$/.test(WHATSAPP_SOPORTE)
+export const WHATSAPP_CONTACTO = [
+  { nombre: 'Facundo', numero: '5492281588804' },
+  { nombre: 'Tomás',   numero: '5491123021297' },
+] as const
 
 /** Link de `wa.me` con el mensaje ya escrito. */
-export function whatsappSoporte(mensaje: string): string {
-  return `https://wa.me/${WHATSAPP_SOPORTE}?text=${encodeURIComponent(mensaje)}`
+export function whatsappLink(numero: string, mensaje: string): string {
+  return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`
 }

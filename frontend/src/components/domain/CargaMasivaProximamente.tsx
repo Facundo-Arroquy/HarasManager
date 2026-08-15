@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Mail, MessageCircle, Upload } from 'lucide-react'
-import { HAY_WHATSAPP_SOPORTE, mailtoSoporte, whatsappSoporte } from '../../utils/contacto'
+import { WHATSAPP_CONTACTO, mailtoSoporte, whatsappLink } from '../../utils/contacto'
 
 /** Mismo texto para los dos canales, así la consulta llega igual por donde venga. */
 const CONSULTA =
@@ -147,28 +147,34 @@ export default function CargaMasivaProximamente() {
             Estamos preparando la importación para cargar todos tus caballos de una
             sola vez. Mientras tanto, escribinos y los cargamos por vos.
           </p>
-          <div className="mt-2.5 flex items-center gap-2">
-            {HAY_WHATSAPP_SOPORTE && (
+          {/* El ícono solo no alcanza para que se entienda que los dos botones
+              oscuros son WhatsApp y no dos acciones distintas. */}
+          <p className="mt-2.5 mb-1.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+            <MessageCircle size={11} className="shrink-0" />
+            WhatsApp
+          </p>
+          <div className="flex items-center gap-2">
+            {WHATSAPP_CONTACTO.map((c) => (
               <a
-                href={whatsappSoporte(CONSULTA)}
+                key={c.numero}
+                href={whatsappLink(c.numero, CONSULTA)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={cerrar}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+                className="flex flex-1 items-center justify-center rounded-lg bg-slate-900 px-2.5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
               >
-                <MessageCircle size={14} className="shrink-0" />
-                WhatsApp
+                {c.nombre}
               </a>
-            )}
-            <a
-              href={mailtoSoporte('Carga masiva de caballos', CONSULTA)}
-              onClick={cerrar}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-slate-400 transition-colors"
-            >
-              <Mail size={14} className="shrink-0" />
-              Email
-            </a>
+            ))}
           </div>
+          <a
+            href={mailtoSoporte('Carga masiva de caballos', CONSULTA)}
+            onClick={cerrar}
+            className="mt-2 flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-slate-400 transition-colors"
+          >
+            <Mail size={14} className="shrink-0" />
+            Email
+          </a>
         </div>,
         document.body,
       )}
