@@ -14,6 +14,7 @@ import { textoBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
 import ImportarCaballosModal from '../../components/domain/ImportarCaballosModal'
+import CargaMasivaProximamente from '../../components/domain/CargaMasivaProximamente'
 import Spinner from '../../components/ui/Spinner'
 
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
@@ -332,6 +333,9 @@ export default function CaballosPage() {
               <Plus size={15} />
               <span className="hidden sm:inline">Nuevo caballo</span>
             </button>
+          )}
+          {rol === 'veterinario' && !modoSeleccion && !verBaja && (
+            <CargaMasivaProximamente />
           )}
           {canManageCampos(rol) && !modoSeleccion && !verBaja && (
             <button
