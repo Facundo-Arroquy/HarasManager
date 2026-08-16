@@ -31,6 +31,22 @@ export interface NuevoUsuarioPayload {
   modulos: Partial<Record<ModuloCodigo, boolean>>
 }
 
+export interface ActividadUsuario {
+  usuario_id: string
+  nombre: string | null
+  apellido: string | null
+  email: string
+  rol: string | null
+  activo: boolean
+  email_confirmado: boolean
+  email_confirmado_at: string | null
+  creado_at: string | null
+  ultimo_login: string | null
+  /** NULL si el usuario nunca creó nada — no significa que no haya usado la app. */
+  ultima_accion: string | null
+  ultima_accion_at: string | null
+}
+
 export interface VeterinarioAcceso {
   id: string
   nombre: string
@@ -329,6 +345,20 @@ export const superAdminService = {
    */
   async eliminarVeterinarioDefinitivo(usuarioId: string): Promise<void> {
     await invocarFuncion('eliminar-usuario', { usuario_id: usuarioId })
+  },
+
+  /**
+   * Confirmación de email y última actividad de cada usuario.
+   *
+   * Va por RPC y no por query directa porque `email_confirmed_at` y
+   * `last_sign_in_at` viven en `auth.users`, fuera del alcance de la anon key.
+   * La función valida adentro que quien llama sea superadmin.
+   */
+  async listarActividad(): Promise<ActividadUsuario[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('superadmin_actividad_usuarios')
+    if (error) throw error
+    return (data ?? []) as ActividadUsuario[]
   },
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
