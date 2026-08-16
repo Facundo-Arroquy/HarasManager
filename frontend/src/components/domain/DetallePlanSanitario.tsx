@@ -12,12 +12,13 @@ interface Props {
   /** Plan a mostrar: sus trabajos son las columnas de la grilla. */
   planId: string
   /**
-   * Trabajo por el que se entró. Un plan puede tener trabajos en distintas
-   * fechas, así que abierto desde el calendario la grilla muestra columnas de
-   * otros días: esta se resalta para que quede claro cuál es la del día que se
-   * estaba mirando.
+   * Día que se está mirando. Un plan puede tener trabajos en varias fechas
+   * (vacunar el 27, herrar el 28) y cada uno se cierra el día que se hizo, así
+   * que la grilla se acota a esa fecha. Sin esto pedía marcar también las
+   * columnas de días futuros para poder guardar, y marcarlas como "posponer"
+   * disparaba una reprogramación que partía el plan en dos.
    */
-  destacarTrabajoId?: string
+  fecha?: string
   /** Se dispara al cerrar el plan o al reprogramar, para refrescar el calendario. */
   onCambio?: () => void
 }
@@ -37,10 +38,10 @@ const OPCIONES: { estado: EstadoCaballoTrabajo; icono: typeof Check; titulo: str
 /** Clave de una celda de la grilla. */
 const celda = (trabajoId: string, caballoId: string) => `${trabajoId}|${caballoId}`
 
-export default function DetallePlanSanitario({ planId, destacarTrabajoId, onCambio }: Props) {
+export default function DetallePlanSanitario({ planId, fecha, onCambio }: Props) {
   const userId = useAuthStore((s) => s.user?.id)
 
-  const [trabajos, setTrabajos] = useState<TrabajoSanitario[]>([])
+  const [todos, setTodos] = useState<TrabajoSanitario[]>([])
   const [cargando, setCargando] = useState(true)
   const [error,    setError]    = useState('')
 
@@ -57,7 +58,7 @@ export default function DetallePlanSanitario({ planId, destacarTrabajoId, onCamb
     sanidadService.listarPlan(planId)
       .then((t) => {
         if (!vigente) return
-        setTrabajos(t)
+        setTodos(t)
         const previas: Record<string, EstadoCaballoTrabajo> = {}
         t.forEach((tr) => tr.caballos?.forEach((c) => {
           if (c.estado) previas[celda(tr.id, c.caballo_id)] = c.estado
@@ -68,6 +69,21 @@ export default function DetallePlanSanitario({ planId, destacarTrabajoId, onCamb
       .finally(() => { if (vigente) setCargando(false) })
     return () => { vigente = false }
   }, [planId])
+
+  /**
+   * Las columnas son solo los trabajos del día que se está mirando: cada fecha
+   * del plan se cierra por separado, el día que se hizo.
+   */
+  const trabajos = useMemo(
+    () => fecha ? todos.filter((t) => t.fecha_programada === fecha) : todos,
+    [todos, fecha],
+  )
+
+  /** Las otras fechas del plan, para avisar que existen y no se cierran acá. */
+  const otrasFechas = useMemo(
+    () => [...new Set(todos.filter((t) => t.fecha_programada !== fecha).map((t) => t.fecha_programada))].sort(),
+    [todos, fecha],
+  )
 
   /** Filas de la grilla: un caballo por fila, aunque no esté en todos los trabajos. */
   const caballos = useMemo(() => {
@@ -109,7 +125,7 @@ export default function DetallePlanSanitario({ planId, destacarTrabajoId, onCamb
       const nHist = await sanidadService.cerrarPlan(items)
       setAviso(`Plan guardado. Se cargaron ${nHist} registro${nHist !== 1 ? 's' : ''} en el historial.`)
       const frescos = await sanidadService.listarPlan(planId)
-      setTrabajos(frescos)
+      setTodos(frescos)
       // Guardado el resultado, lo que quedó pendiente se lleva a una fecha nueva.
       // El aviso al calendario se difiere hasta cerrar ese paso: recargarlo ahora
       // desmontaría este panel junto con la fecha a medio elegir.
@@ -155,15 +171,8 @@ export default function DetallePlanSanitario({ planId, destacarTrabajoId, onCamb
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Caballo</th>
               {trabajos.map((t) => (
-                <th
-                  key={t.id}
-                  className={`px-3 py-2 text-center text-xs font-semibold whitespace-nowrap ${
-                    t.id === destacarTrabajoId ? 'bg-brand-50 text-brand-700' : 'text-slate-500'
-                  }`}
-                >
+                <th key={t.id} className="px-3 py-2 text-center text-xs font-semibold text-slate-500 whitespace-nowrap">
                   {t.nombre}
-                  {/* Sin la fecha, dos trabajos del mismo plan en días distintos
-                      se leen como si fueran los dos del día que se está mirando. */}
                   <span className="mt-0.5 block text-[10px] font-normal text-slate-400">
                     {fechaCorta(t.fecha_programada)}
                   </span>
@@ -211,6 +220,13 @@ export default function DetallePlanSanitario({ planId, destacarTrabajoId, onCamb
           </tbody>
         </table>
       </div>
+
+      {otrasFechas.length > 0 && (
+        <p className="text-[11px] text-slate-400">
+          Este plan también tiene trabajos el {otrasFechas.map(fechaCorta).join(', ')}.
+          Se cierran desde su propio día en el calendario.
+        </p>
+      )}
 
       {error && (
         <div className="flex items-center gap-2 text-xs text-red-600">

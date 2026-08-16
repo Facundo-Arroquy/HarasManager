@@ -372,7 +372,7 @@ export default function CalendarioPage() {
                     <div className="border-t border-slate-100 bg-slate-50/60">
                       <DetallePlanSanitario
                         planId={t.plan_id}
-                        destacarTrabajoId={t.id}
+                        fecha={t.fecha_programada}
                         onCambio={() => setRecarga((n) => n + 1)}
                       />
                     </div>
