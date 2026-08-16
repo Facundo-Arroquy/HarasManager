@@ -119,6 +119,10 @@ export function useAuth() {
       email: params.email,
       password: params.password,
       options: {
+        // Sin esto el link del mail de confirmación usa el Site URL global del
+        // proyecto Supabase (que apunta a localhost). Con el origen actual, el
+        // vet vuelve al mismo entorno donde se registró.
+        emailRedirectTo: `${window.location.origin}/login`,
         data: {
           nombre: params.nombre,
           apellido: params.apellido,
