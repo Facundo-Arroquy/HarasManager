@@ -4,10 +4,12 @@ import { useAuth } from '../../hooks/useAuth'
 import { useAuthStore } from '../../store/authStore'
 import {
   caballoService,
+  categoriaRequiereSexo,
   CATEGORIAS_MADRE,
   CATEGORIAS_PADRE,
   type NuevoCaballoPayload,
   type CaballoPedigree,
+  type Sexo,
 } from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
@@ -42,6 +44,8 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
     fecha_nacimiento: '',
     categoria: 'Caballo' as NuevoCaballoPayload['categoria'],
     subcategoria: '' as string,
+    sexo: '' as '' | Sexo,
+    observaciones: '',
     raza_id: 0,    // 0 = sin selección
     pelaje_id: 0,  // 0 = sin selección
     numero_chip: '',
@@ -58,6 +62,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
   const padresPosibles = pedigree.filter((c) => CATEGORIAS_PADRE.includes(c.categoria))
   const madresPosibles = pedigree.filter((c) => CATEGORIAS_MADRE.includes(c.categoria))
   const admiteTags     = CATEGORIAS_CON_TAGS.includes(form.categoria)
+  const pideSexo       = categoriaRequiereSexo(form.categoria)
 
   const [fotoFile, setFotoFile]       = useState<File | null>(null)
   const [fotoPreview, setFotoPreview] = useState<string | null>(null)
@@ -118,6 +123,10 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
     const payload: NuevoCaballoPayload = {
       nombre:           form.nombre.trim(),
       categoria:        form.categoria,
+      // Solo viaja lo que el usuario eligió: el service deriva el sexo de la
+      // categoría cuando ésta ya lo determina.
+      sexo:             form.sexo || null,
+      observaciones:    form.observaciones.trim() || null,
       rol_reproductivo: form.categoria === 'Yegua' && form.subcategoria
                           ? form.subcategoria as 'Donante' | 'Receptora'
                           : null,
@@ -253,6 +262,30 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
             </div>
           </div>
 
+          {/* Sexo — solo cuando la categoría no lo determina (Potrillo). En el
+              resto se deriva sola: una Yegua es H, un Padrillo o Caballo es M. */}
+          {pideSexo && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-500">Sexo</label>
+              <div className="flex gap-2">
+                {([['H', 'Hembra'], ['M', 'Macho']] as const).map(([valor, etiqueta]) => (
+                  <button
+                    key={valor}
+                    type="button"
+                    onClick={() => set('sexo', form.sexo === valor ? '' : valor)}
+                    className={`flex-1 rounded-md border px-3 py-2 text-sm transition ${
+                      form.sexo === valor
+                        ? 'border-brand-500 bg-brand-50 font-medium text-brand-700'
+                        : 'border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {etiqueta}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Subcategoría (solo Yegua) */}
           {form.categoria === 'Yegua' && (
             <div className="space-y-1.5">
@@ -320,6 +353,18 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
                 {pelajes.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* Observaciones — notas libres: lesiones, marcas, nacido en manada. */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Observaciones</label>
+            <textarea
+              value={form.observaciones}
+              onChange={(e) => set('observaciones', e.target.value)}
+              rows={2}
+              placeholder="Lesiones, marcas, defectos, nacido en manada…"
+              className="w-full resize-y rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
           </div>
 
           {/* Campo / Caballeriza. En modo vet son sus campos propios. */}

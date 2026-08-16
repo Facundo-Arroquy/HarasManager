@@ -10,6 +10,8 @@ interface Caballo {
   nombre: string
   fecha_nacimiento?: string | null
   categoria?: string | null
+  sexo?: string | null
+  observaciones?: string | null
   rol_reproductivo?: string | null
   prenada?: boolean | null
   fecha_prenez?: string | null
@@ -135,6 +137,7 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
         {/* Detalles */}
         <dl className="px-5 py-4 space-y-2.5 text-sm">
           <Row label="Edad"    value={calcularEdad(caballo.fecha_nacimiento)} />
+          {caballo.sexo && <Row label="Sexo" value={caballo.sexo === 'H' ? 'Hembra' : 'Macho'} />}
           {caballo.empresa_nombre     && <Row label="Empresa" value={caballo.empresa_nombre} />}
           {caballo.propietario_nombre && <Row label="Propietario" value={caballo.propietario_nombre} />}
           {caballo.cat_raza   && <Row label="Raza"   value={caballo.cat_raza.nombre} />}
@@ -153,6 +156,12 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
           )}
           {caballo.numero_registro && (
             <Row label="Registro" value={caballo.numero_registro} mono />
+          )}
+          {caballo.observaciones && (
+            <div className="pt-1">
+              <dt className="text-slate-400 mb-1">Observaciones</dt>
+              <dd className="text-slate-600 whitespace-pre-wrap">{caballo.observaciones}</dd>
+            </div>
           )}
         </dl>
 
