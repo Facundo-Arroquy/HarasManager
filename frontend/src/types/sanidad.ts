@@ -52,10 +52,28 @@ export interface TrabajoSanitario {
   observaciones:    string | null
   fecha_realizado:  string | null
   creado_por:       string
+  /** Veterinario con el que se compartió: lo ve en su panel y puede cerrarlo. */
+  compartido_con:   string | null
   created_at:       string
   updated_at:       string
   // agregado en el cliente
   caballos?:        TrabajoSanitarioCaballo[]
+}
+
+/** Caballo del plan al que el veterinario elegido todavía no tiene acceso. */
+export interface CaballoSinAcceso {
+  caballo_id: string
+  nombre:     string
+}
+
+/** Un trabajo a crear, tal como lo espera `crear_plan_sanitario_compartido`. */
+export interface ItemPlanSanitario {
+  sociedad_id:      string
+  nombre:           string
+  fecha_programada: string
+  tratamiento:      string | null
+  observaciones:    string | null
+  caballo_ids:      string[]
 }
 
 export interface NuevoTrabajoSanitarioPayload {
@@ -67,4 +85,6 @@ export interface NuevoTrabajoSanitarioPayload {
   tratamiento:      string | null
   observaciones:    string | null
   creado_por:       string
+  /** Se arrastra al reprogramar pendientes: el vet asignado sigue siéndolo. */
+  compartido_con?:  string | null
 }

@@ -5,6 +5,8 @@ import type {
   TrabajoSanitario,
   NuevoTrabajoSanitarioPayload,
   EstadoCaballoTrabajo,
+  CaballoSinAcceso,
+  ItemPlanSanitario,
 } from '../types/sanidad'
 
 export const sanidadService = {
@@ -131,6 +133,62 @@ export const sanidadService = {
     return trabajos as TrabajoSanitario[]
   },
 
+  /**
+   * Caballos del grupo a los que `vetId` todavía no tiene acceso. Es lo que
+   * alimenta el cartel de confirmación antes de compartir un plan.
+   */
+  async caballosSinAcceso(vetId: string, caballoIds: string[]): Promise<CaballoSinAcceso[]> {
+    if (caballoIds.length === 0) return []
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('caballos_sin_acceso_vet', {
+      p_vet_id:      vetId,
+      p_caballo_ids: caballoIds,
+    })
+    if (error) throw error
+    return (data ?? []) as CaballoSinAcceso[]
+  },
+
+  /**
+   * Crea el plan entero y, si viene `vetId`, lo comparte con ese veterinario en
+   * la misma transacción: plan + caballos + accesos + notificación. Si el vet no
+   * tiene acceso a algún caballo y `otorgarAcceso` es false, la función levanta
+   * excepción y no queda nada creado.
+   *
+   * Devuelve el `plan_id` que agrupa los trabajos.
+   */
+  async crearPlanCompartido(
+    items: ItemPlanSanitario[],
+    vetId: string | null,
+    otorgarAcceso: boolean,
+  ): Promise<string> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('crear_plan_sanitario_compartido', {
+      p_items:          items,
+      p_vet_id:         vetId,
+      p_otorgar_acceso: otorgarAcceso,
+    })
+    if (error) throw error
+    return data as string
+  },
+
+  /**
+   * Comparte trabajos ya creados. Devuelve cuántos accesos nuevos se otorgaron.
+   */
+  async compartirTrabajos(
+    trabajoIds: string[],
+    vetId: string,
+    otorgarAcceso: boolean,
+  ): Promise<number> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('compartir_trabajos_con_vet', {
+      p_trabajo_ids:    trabajoIds,
+      p_vet_id:         vetId,
+      p_otorgar_acceso: otorgarAcceso,
+    })
+    if (error) throw error
+    return (data as number) ?? 0
+  },
+
   /** Los trabajos de un plan, con sus caballos: las columnas de la grilla. */
   async listarPlan(planId: string): Promise<TrabajoSanitario[]> {
     const supabase = getSupabaseClient()
@@ -184,6 +242,7 @@ export const sanidadService = {
           tratamiento:      g.trabajo.tratamiento,
           observaciones:    g.trabajo.observaciones,
           creado_por:       creadoPor,
+          compartido_con:   g.trabajo.compartido_con,
         },
         caballoIds: g.caballoIds,
       })),

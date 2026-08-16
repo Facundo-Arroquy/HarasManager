@@ -3,6 +3,7 @@ import { LogOut } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useVisibleNavGroups } from '../../hooks/useVisibleNavGroups'
 import ConfigVetMenu from './ConfigVetMenu'
+import CampanaNotificaciones from './CampanaNotificaciones'
 import logoUrl from '../../assets/logo.png'
 
 export default function Sidebar() {
@@ -18,6 +19,7 @@ export default function Sidebar() {
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-slate-100">
         <img src={logoUrl} alt="HarasManager" className="h-8 w-8 object-contain" />
         <span className="text-sm font-bold text-slate-800">HarasManager</span>
+        <div className="ml-auto"><CampanaNotificaciones /></div>
       </div>
 
       {/* Establecimiento */}

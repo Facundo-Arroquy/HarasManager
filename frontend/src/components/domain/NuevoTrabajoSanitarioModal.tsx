@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { X, AlertCircle, Syringe, Search, MapPin, Building2, Layers, Plus, Trash2, ChevronDown } from 'lucide-react'
+import { X, AlertCircle, Syringe, Search, MapPin, Building2, Layers, Plus, Trash2, ChevronDown, Stethoscope } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { sanidadService } from '../../services/sanidadService'
+import { getVeterinariosPlataforma, type VeterinarioPlataforma } from '../../services/adminService'
 import { nombreCaballo, textoBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
-import type { CatTrabajoSanitario, NuevoTrabajoSanitarioPayload } from '../../types/sanidad'
+import type { CaballoSinAcceso, CatTrabajoSanitario, ItemPlanSanitario } from '../../types/sanidad'
+import ConfirmarAccesoVetModal from './ConfirmarAccesoVetModal'
 import Spinner from '../ui/Spinner'
 import { hoyAR } from '../../utils/fecha'
 
@@ -54,8 +56,21 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
   const [filtroCamadas,  setFiltroCamadas]  = useState<Set<string>>(new Set())
   const [filtroCampos,   setFiltroCampos]   = useState<Set<string>>(new Set())
 
+  // Compartir con un veterinario (solo desde el lado de la empresa: un vet que
+  // carga su propio plan ya lo ve, no tiene a quién compartírselo).
+  const [vets,      setVets]      = useState<VeterinarioPlataforma[]>([])
+  const [vetId,     setVetId]     = useState('')
+  const [sinAcceso, setSinAcceso] = useState<CaballoSinAcceso[] | null>(null)
+
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
+
+  useEffect(() => {
+    if (esVet) return
+    getVeterinariosPlataforma()
+      .then(setVets)
+      .catch(() => setVets([]))   // sin lista, el plan igual se puede crear
+  }, [esVet])
 
   useEffect(() => {
     if (esVet) {
@@ -190,6 +205,44 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
 
   // ── Guardar ────────────────────────────────────────────────────────────────
 
+  const vetElegido = vets.find((v) => v.id === vetId) ?? null
+
+  /** Los items tal como los espera `crear_plan_sanitario_compartido`. */
+  function armarItems(): ItemPlanSanitario[] {
+    const items: ItemPlanSanitario[] = []
+    for (const fila of filasValidas) {
+      for (const [soc, ids] of gruposPorEmpresa) {
+        items.push({
+          sociedad_id:      soc,
+          nombre:           nombreDeFila(fila),
+          fecha_programada: fila.fecha,
+          tratamiento:      fila.tratamiento.trim() || null,
+          observaciones:    observaciones.trim() || null,
+          caballo_ids:      ids,
+        })
+      }
+    }
+    return items
+  }
+
+  /**
+   * Plan + caballos + accesos + notificación salen en una sola transacción del
+   * lado de la base: si algo falla no queda nada a medias y no hay que deshacer.
+   */
+  async function guardar(otorgarAcceso: boolean) {
+    setSaving(true)
+    try {
+      await sanidadService.crearPlanCompartido(armarItems(), vetId || null, otorgarAcceso)
+    } catch (err) {
+      setError(mensajeError(err, 'Error al guardar.'))
+      setSaving(false)
+      setSinAcceso(null)
+      return
+    }
+    onSuccess?.()
+    onClose()
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -200,37 +253,29 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
       return setError('No se pudo determinar la empresa de algunos caballos.')
     }
 
-    const items: { payload: NuevoTrabajoSanitarioPayload; caballoIds: string[] }[] = []
-    for (const fila of filasValidas) {
-      for (const [soc, ids] of gruposPorEmpresa) {
-        items.push({
-          payload: {
-            sociedad_id:      soc,
-            nombre:           nombreDeFila(fila),
-            fecha_programada: fila.fecha,
-            tratamiento:      fila.tratamiento.trim() || null,
-            observaciones:    observaciones.trim() || null,
-            creado_por:       user.id,
-          },
-          caballoIds: ids,
-        })
+    // Se pregunta antes de escribir nada: si el admin dice que no, no hay plan
+    // que borrar.
+    if (vetId) {
+      setSaving(true)
+      try {
+        const faltantes = await sanidadService.caballosSinAcceso(vetId, [...seleccionados])
+        if (faltantes.length > 0) {
+          setSinAcceso(faltantes)
+          setSaving(false)
+          return
+        }
+      } catch (err) {
+        setError(mensajeError(err, 'No se pudo verificar el acceso del veterinario.'))
+        setSaving(false)
+        return
       }
     }
 
-    setSaving(true)
-    try {
-      await sanidadService.crearTrabajos(items)
-    } catch (err) {
-      setError(mensajeError(err, 'Error al guardar.'))
-      setSaving(false)
-      return
-    }
-
-    onSuccess?.()
-    onClose()
+    await guardar(false)
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
@@ -332,6 +377,30 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500 resize-none"
               />
             </div>
+
+            {/* Compartir con un veterinario */}
+            {!esVet && (
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                  <Stethoscope size={12} /> Compartir con un veterinario
+                </label>
+                <select
+                  value={vetId}
+                  onChange={(e) => setVetId(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                >
+                  <option value="">— No compartir —</option>
+                  {vets.map((v) => (
+                    <option key={v.id} value={v.id}>{v.apellido}, {v.nombre}</option>
+                  ))}
+                </select>
+                {vetId && (
+                  <p className="text-[11px] text-slate-400">
+                    Va a ver el plan en su panel y va a poder marcarlo como realizado.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Selector de caballos */}
             <div className="space-y-2">
@@ -467,6 +536,18 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
         </div>
       </div>
     </div>
+
+    {sinAcceso && vetElegido && (
+      <ConfirmarAccesoVetModal
+        vetNombre={`${vetElegido.nombre} ${vetElegido.apellido}`}
+        caballos={sinAcceso}
+        textoConfirmar={totalPlanes > 1 ? 'Otorgar acceso y crear los planes' : 'Otorgar acceso y crear el plan'}
+        saving={saving}
+        onConfirmar={() => guardar(true)}
+        onCancelar={() => setSinAcceso(null)}
+      />
+    )}
+    </>
   )
 }
 

@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Syringe, Check, X, CheckCircle2, CalendarDays } from 'lucide-react'
+import { Plus, Syringe, Check, X, CheckCircle2, CalendarDays, Stethoscope, Share2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { sanidadService } from '../../services/sanidadService'
+import { getVeterinariosPlataforma, type VeterinarioPlataforma } from '../../services/adminService'
 import { nombreCaballo } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
-import { LABEL_ESTADO_TRABAJO, type TrabajoSanitario } from '../../types/sanidad'
+import {
+  LABEL_ESTADO_TRABAJO,
+  type CaballoSinAcceso,
+  type TrabajoSanitario,
+} from '../../types/sanidad'
 import NuevoTrabajoSanitarioModal from '../../components/domain/NuevoTrabajoSanitarioModal'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
+import ConfirmarAccesoVetModal from '../../components/domain/ConfirmarAccesoVetModal'
 import Spinner from '../../components/ui/Spinner'
 
 const ESTADO_BADGE: Record<string, string> = {
@@ -31,6 +37,19 @@ export default function SanidadPage() {
   const [showNuevo, setShowNuevo] = useState(false)
   const [showConsulta, setShowConsulta] = useState(false)
   const [completar, setCompletar] = useState<TrabajoSanitario | null>(null)
+  const [compartir, setCompartir] = useState<TrabajoSanitario | null>(null)
+  const [vets,      setVets]      = useState<VeterinarioPlataforma[]>([])
+
+  useEffect(() => {
+    if (esVet) return
+    getVeterinariosPlataforma().then(setVets).catch(() => setVets([]))
+  }, [esVet])
+
+  const nombreVet = useCallback((id: string | null) => {
+    if (!id) return null
+    const v = vets.find((x) => x.id === id)
+    return v ? `${v.nombre} ${v.apellido}` : 'un veterinario'
+  }, [vets])
 
   const cargar = useCallback(async () => {
     if (!esVet && !sociedadId) return
@@ -103,13 +122,21 @@ export default function SanidadPage() {
           {pendientes.length > 0 && (
             <Seccion titulo="Pendientes">
               {pendientes.map((t) => (
-                <TrabajoRow key={t.id} trabajo={t} onCompletar={() => setCompletar(t)} />
+                <TrabajoRow
+                  key={t.id}
+                  trabajo={t}
+                  vetNombre={nombreVet(t.compartido_con)}
+                  onCompletar={() => setCompletar(t)}
+                  onCompartir={esVet ? undefined : () => setCompartir(t)}
+                />
               ))}
             </Seccion>
           )}
           {historial.length > 0 && (
             <Seccion titulo="Realizados / cancelados">
-              {historial.map((t) => <TrabajoRow key={t.id} trabajo={t} />)}
+              {historial.map((t) => (
+                <TrabajoRow key={t.id} trabajo={t} vetNombre={nombreVet(t.compartido_con)} />
+              ))}
             </Seccion>
           )}
         </div>
@@ -125,6 +152,15 @@ export default function SanidadPage() {
         <NuevaConsultaModal
           onClose={() => setShowConsulta(false)}
           onSuccess={() => setShowConsulta(false)}
+        />
+      )}
+      {compartir && (
+        <CompartirModal
+          trabajo={compartir}
+          trabajos={trabajos}
+          vets={vets}
+          onClose={() => setCompartir(null)}
+          onSuccess={() => { setCompartir(null); cargar() }}
         />
       )}
       {completar && (
@@ -149,7 +185,12 @@ function Seccion({ titulo, children }: { titulo: string; children: React.ReactNo
   )
 }
 
-function TrabajoRow({ trabajo, onCompletar }: { trabajo: TrabajoSanitario; onCompletar?: () => void }) {
+function TrabajoRow({ trabajo, vetNombre, onCompletar, onCompartir }: {
+  trabajo:      TrabajoSanitario
+  vetNombre?:   string | null
+  onCompletar?: () => void
+  onCompartir?: () => void
+}) {
   const total     = trabajo.caballos?.length ?? 0
   const incluidos = trabajo.caballos?.filter((c) => !c.excluido).length ?? total
   return (
@@ -160,6 +201,11 @@ function TrabajoRow({ trabajo, onCompletar }: { trabajo: TrabajoSanitario; onCom
           <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTADO_BADGE[trabajo.estado]}`}>
             {LABEL_ESTADO_TRABAJO[trabajo.estado]}
           </span>
+          {vetNombre && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+              <Stethoscope size={10} /> {vetNombre}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3 mt-1 flex-wrap text-xs text-slate-400">
           <span className="inline-flex items-center gap-1"><CalendarDays size={12} /> {formatFecha(trabajo.fecha_programada)}</span>
@@ -168,15 +214,146 @@ function TrabajoRow({ trabajo, onCompletar }: { trabajo: TrabajoSanitario; onCom
         </div>
         {trabajo.observaciones && <p className="text-xs text-slate-400 mt-1">{trabajo.observaciones}</p>}
       </div>
-      {onCompletar && (
-        <button
-          onClick={onCompletar}
-          className="shrink-0 flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors"
-        >
-          <Check size={13} /> Realizado
-        </button>
-      )}
+      <div className="shrink-0 flex items-center gap-1.5">
+        {onCompartir && (
+          <button
+            onClick={onCompartir}
+            title={trabajo.compartido_con ? 'Cambiar el veterinario' : 'Compartir con un veterinario'}
+            className="flex items-center gap-1 rounded-md border border-slate-300 hover:border-slate-400 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors"
+          >
+            <Share2 size={13} /> {trabajo.compartido_con ? 'Cambiar' : 'Compartir'}
+          </button>
+        )}
+        {onCompletar && (
+          <button
+            onClick={onCompletar}
+            className="flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors"
+          >
+            <Check size={13} /> Realizado
+          </button>
+        )}
+      </div>
     </div>
+  )
+}
+
+// ── Modal: compartir un plan ya creado con un veterinario ────────────────────
+function CompartirModal({
+  trabajo, trabajos, vets, onClose, onSuccess,
+}: {
+  trabajo:  TrabajoSanitario
+  /** Todos los trabajos cargados: se comparte el plan entero, no la fila sola. */
+  trabajos: TrabajoSanitario[]
+  vets:     VeterinarioPlataforma[]
+  onClose:   () => void
+  onSuccess: () => void
+}) {
+  const [vetId,     setVetId]     = useState(trabajo.compartido_con ?? '')
+  const [sinAcceso, setSinAcceso] = useState<CaballoSinAcceso[] | null>(null)
+  const [saving,    setSaving]    = useState(false)
+  const [error,     setError]     = useState('')
+
+  const delPlan     = trabajos.filter((t) => t.plan_id === trabajo.plan_id)
+  const trabajoIds  = delPlan.map((t) => t.id)
+  const caballoIds  = [...new Set(delPlan.flatMap((t) => (t.caballos ?? []).map((c) => c.caballo_id)))]
+  const vetElegido  = vets.find((v) => v.id === vetId) ?? null
+
+  async function compartir(otorgarAcceso: boolean) {
+    setSaving(true)
+    try {
+      await sanidadService.compartirTrabajos(trabajoIds, vetId, otorgarAcceso)
+      onSuccess()
+    } catch (e) {
+      setError(mensajeError(e, 'Error al compartir.'))
+      setSaving(false)
+      setSinAcceso(null)
+    }
+  }
+
+  async function confirmar() {
+    setError('')
+    if (!vetId) return setError('Elegí un veterinario.')
+    setSaving(true)
+    try {
+      const faltantes = await sanidadService.caballosSinAcceso(vetId, caballoIds)
+      if (faltantes.length > 0) {
+        setSinAcceso(faltantes)
+        setSaving(false)
+        return
+      }
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo verificar el acceso del veterinario.'))
+      setSaving(false)
+      return
+    }
+    await compartir(false)
+  }
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+        onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) onClose() }}
+      >
+        <div className="w-full max-w-md sm:mx-4 rounded-t-2xl sm:rounded-xl border border-slate-300 bg-white shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div className="flex items-center gap-2">
+              <Share2 size={16} className="text-brand-600" />
+              <h2 className="text-sm font-semibold text-slate-900">Compartir plan sanitario</h2>
+            </div>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={16} /></button>
+          </div>
+
+          <div className="px-5 py-4 space-y-3">
+            <p className="text-xs text-slate-500">
+              {delPlan.length > 1
+                ? `Se comparten los ${delPlan.length} trabajos del plan`
+                : `Se comparte “${trabajo.nombre}”`}
+              {' '}sobre {caballoIds.length} caballo{caballoIds.length !== 1 ? 's' : ''}.
+            </p>
+
+            <select
+              value={vetId}
+              onChange={(e) => setVetId(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            >
+              <option value="">— Elegí un veterinario —</option>
+              {vets.map((v) => <option key={v.id} value={v.id}>{v.apellido}, {v.nombre}</option>)}
+            </select>
+
+            {error && <p className="text-xs text-red-600">{error}</p>}
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-3">
+            <button
+              onClick={onClose}
+              disabled={saving}
+              className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmar}
+              disabled={saving || !vetId}
+              className="px-4 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Guardando…' : 'Compartir'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {sinAcceso && vetElegido && (
+        <ConfirmarAccesoVetModal
+          vetNombre={`${vetElegido.nombre} ${vetElegido.apellido}`}
+          caballos={sinAcceso}
+          textoConfirmar="Otorgar acceso y compartir"
+          saving={saving}
+          onConfirmar={() => compartir(true)}
+          onCancelar={() => setSinAcceso(null)}
+        />
+      )}
+    </>
   )
 }
 
