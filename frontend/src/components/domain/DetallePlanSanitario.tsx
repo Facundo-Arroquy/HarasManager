@@ -11,8 +11,21 @@ import Spinner from '../ui/Spinner'
 interface Props {
   /** Plan a mostrar: sus trabajos son las columnas de la grilla. */
   planId: string
+  /**
+   * Trabajo por el que se entró. Un plan puede tener trabajos en distintas
+   * fechas, así que abierto desde el calendario la grilla muestra columnas de
+   * otros días: esta se resalta para que quede claro cuál es la del día que se
+   * estaba mirando.
+   */
+  destacarTrabajoId?: string
   /** Se dispara al cerrar el plan o al reprogramar, para refrescar el calendario. */
   onCambio?: () => void
+}
+
+/** DD/MM, para diferenciar columnas del mismo plan en distintas fechas. */
+function fechaCorta(iso: string): string {
+  const [, m, d] = iso.split('-')
+  return `${d}/${m}`
 }
 
 const OPCIONES: { estado: EstadoCaballoTrabajo; icono: typeof Check; titulo: string; activo: string }[] = [
@@ -24,7 +37,7 @@ const OPCIONES: { estado: EstadoCaballoTrabajo; icono: typeof Check; titulo: str
 /** Clave de una celda de la grilla. */
 const celda = (trabajoId: string, caballoId: string) => `${trabajoId}|${caballoId}`
 
-export default function DetallePlanSanitario({ planId, onCambio }: Props) {
+export default function DetallePlanSanitario({ planId, destacarTrabajoId, onCambio }: Props) {
   const userId = useAuthStore((s) => s.user?.id)
 
   const [trabajos, setTrabajos] = useState<TrabajoSanitario[]>([])
@@ -142,8 +155,18 @@ export default function DetallePlanSanitario({ planId, onCambio }: Props) {
             <tr className="border-b border-slate-200 bg-slate-50">
               <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Caballo</th>
               {trabajos.map((t) => (
-                <th key={t.id} className="px-3 py-2 text-center text-xs font-semibold text-slate-500 whitespace-nowrap">
+                <th
+                  key={t.id}
+                  className={`px-3 py-2 text-center text-xs font-semibold whitespace-nowrap ${
+                    t.id === destacarTrabajoId ? 'bg-brand-50 text-brand-700' : 'text-slate-500'
+                  }`}
+                >
                   {t.nombre}
+                  {/* Sin la fecha, dos trabajos del mismo plan en días distintos
+                      se leen como si fueran los dos del día que se está mirando. */}
+                  <span className="mt-0.5 block text-[10px] font-normal text-slate-400">
+                    {fechaCorta(t.fecha_programada)}
+                  </span>
                 </th>
               ))}
             </tr>

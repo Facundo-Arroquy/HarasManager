@@ -312,7 +312,10 @@ export default function CalendarioPage() {
           <div className="divide-y divide-slate-100">
             {trabajosDia.map((t) => {
               const total    = t.caballos?.length ?? 0
-              const abierto  = planAbierto === t.plan_id
+              // Por trabajo y no por plan: dos trabajos del mismo plan pueden caer
+              // el mismo día, y con la clave del plan se abrían los dos a la vez,
+              // mostrando la misma grilla repetida.
+              const abierto  = planAbierto === t.id
               const propio   = t.creado_por === userId
               // Sin empresa = plan sobre los caballos propios del vet.
               const empresa  = t.sociedad_id ? empresas.get(t.sociedad_id) : undefined
@@ -323,7 +326,7 @@ export default function CalendarioPage() {
                     <Syringe size={14} className="mt-0.5 shrink-0 text-brand-500" />
                     <button
                       type="button"
-                      onClick={() => setPlanAbierto(abierto ? null : t.plan_id)}
+                      onClick={() => setPlanAbierto(abierto ? null : t.id)}
                       className="flex-1 min-w-0 text-left"
                     >
                       <span className="flex items-center gap-2 flex-wrap">
@@ -369,6 +372,7 @@ export default function CalendarioPage() {
                     <div className="border-t border-slate-100 bg-slate-50/60">
                       <DetallePlanSanitario
                         planId={t.plan_id}
+                        destacarTrabajoId={t.id}
                         onCambio={() => setRecarga((n) => n + 1)}
                       />
                     </div>
