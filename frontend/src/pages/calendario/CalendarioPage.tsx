@@ -314,7 +314,9 @@ export default function CalendarioPage() {
               const total    = t.caballos?.length ?? 0
               const abierto  = planAbierto === t.plan_id
               const propio   = t.creado_por === userId
-              const empresa  = empresas.get(t.sociedad_id)
+              // Sin empresa = plan sobre los caballos propios del vet.
+              const empresa  = t.sociedad_id ? empresas.get(t.sociedad_id) : undefined
+              const esPropia = t.vet_owner_id !== null
               return (
                 <div key={t.id}>
                   <div className="flex items-start gap-3 px-4 py-3 text-sm hover:bg-slate-50">
@@ -326,7 +328,11 @@ export default function CalendarioPage() {
                     >
                       <span className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-slate-900">{t.nombre}</span>
-                        {esVet && (propio ? (
+                        {esVet && (esPropia ? (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                            Tus caballos
+                          </span>
+                        ) : propio ? (
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
                             Creado por vos
                           </span>

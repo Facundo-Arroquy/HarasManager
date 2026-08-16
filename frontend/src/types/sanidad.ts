@@ -44,7 +44,10 @@ export interface TrabajoSanitario {
   id:               string
   /** Agrupa los trabajos cargados juntos: son las columnas de una misma grilla. */
   plan_id:          string
-  sociedad_id:      string
+  /** `null` cuando el plan es sobre los caballos propios de un veterinario. */
+  sociedad_id:      string | null
+  /** Veterinario dueño del plan. Excluyente con `sociedad_id`. */
+  vet_owner_id:     string | null
   nombre:           string
   fecha_programada: string        // YYYY-MM-DD
   estado:           EstadoTrabajoSanitario
@@ -68,7 +71,8 @@ export interface CaballoSinAcceso {
 
 /** Un trabajo a crear, tal como lo espera `crear_plan_sanitario_compartido`. */
 export interface ItemPlanSanitario {
-  sociedad_id:      string
+  /** `null` = plan sobre los caballos propios del veterinario. */
+  sociedad_id:      string | null
   nombre:           string
   fecha_programada: string
   tratamiento:      string | null
@@ -79,7 +83,8 @@ export interface ItemPlanSanitario {
 export interface NuevoTrabajoSanitarioPayload {
   /** Se omite al crear un plan nuevo: lo asigna `sanidadService.crearTrabajos`. */
   plan_id?:         string
-  sociedad_id:      string
+  sociedad_id:      string | null
+  vet_owner_id?:    string | null
   nombre:           string
   fecha_programada: string
   tratamiento:      string | null

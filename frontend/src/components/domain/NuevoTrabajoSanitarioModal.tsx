@@ -190,7 +190,11 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
 
   // ── Resumen de lo que se va a crear ────────────────────────────────────────
 
-  /** Los caballos elegidos, agrupados por empresa: cada grupo es un plan aparte. */
+  /**
+   * Los caballos elegidos, agrupados por dueño: cada grupo es un plan aparte.
+   * La clave `''` son los caballos propios del veterinario (`sociedad_id` NULL),
+   * que van a un plan con `vet_owner_id` en vez de empresa.
+   */
   const gruposPorEmpresa = useMemo(() => {
     const map = new Map<string, string[]>()
     caballos.forEach((c) => {
@@ -213,7 +217,9 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
     for (const fila of filasValidas) {
       for (const [soc, ids] of gruposPorEmpresa) {
         items.push({
-          sociedad_id:      soc,
+          // `null` = plan sobre los caballos propios del vet: la función le pone
+          // `vet_owner_id` en vez de empresa.
+          sociedad_id:      soc || null,
           nombre:           nombreDeFila(fila),
           fecha_programada: fila.fecha,
           tratamiento:      fila.tratamiento.trim() || null,
@@ -249,7 +255,10 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
     if (filasValidas.length === 0)  return setError('Cargá al menos un trabajo con su fecha.')
     if (seleccionados.size === 0)   return setError('Seleccioná al menos un caballo.')
     if (!user?.id) return
-    if ([...gruposPorEmpresa.keys()].some((soc) => !soc)) {
+    // El admin siempre trabaja sobre su sociedad activa; si falta, algo se rompió
+    // antes de llegar acá. Para el vet, la clave vacía son sus caballos propios y
+    // es un caso válido.
+    if (!esVet && [...gruposPorEmpresa.keys()].some((soc) => !soc)) {
       return setError('No se pudo determinar la empresa de algunos caballos.')
     }
 

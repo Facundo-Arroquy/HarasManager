@@ -236,7 +236,9 @@ export const sanidadService = {
     return sanidadService.crearTrabajos(
       conCaballos.map((g) => ({
         payload: {
+          // Uno de los dos va en NULL — lo exige `trabajo_sanitario_duenio_check`.
           sociedad_id:      g.trabajo.sociedad_id,
+          vet_owner_id:     g.trabajo.vet_owner_id,
           nombre:           g.trabajo.nombre,
           fecha_programada: fecha,
           tratamiento:      g.trabajo.tratamiento,
