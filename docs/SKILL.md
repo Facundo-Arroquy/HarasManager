@@ -185,6 +185,11 @@ CREATE TABLE caballo (
   fecha_nacimiento DATE,
   categoria VARCHAR(20) CHECK (categoria IN ('Yegua','Padrillo','Caballo','Potrillo')),
   subcategoria TEXT,                           -- texto libre por categoría
+  -- Sexo explícito (migración caballo_sexo_y_observaciones). Antes quedaba
+  -- implícito en `categoria`, pero las crías entran todas como 'Potrillo' y ahí
+  -- el dato se perdía. NULL cuando no se conoce.
+  sexo TEXT CHECK (sexo IS NULL OR sexo IN ('H','M')),
+  observaciones TEXT,                          -- notas libres: lesiones, marcas, nacido en manada
   raza_id INTEGER REFERENCES cat_raza(id),
   pelaje_id INTEGER REFERENCES cat_pelaje(id),
   numero_chip VARCHAR(50), numero_registro VARCHAR(50),
