@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import Sidebar from './Sidebar'
 import MobileDrawer from './MobileDrawer'
+import CampanaNotificaciones from './CampanaNotificaciones'
 import logoUrl from '../../assets/logo.png'
 
 export default function AppLayout() {
@@ -34,6 +35,7 @@ export default function AppLayout() {
               <img src={logoUrl} alt="HarasManager" className="h-7 w-7 object-contain" />
               <span className="text-sm font-bold text-slate-800">HarasManager</span>
             </div>
+            <div className="ml-auto"><CampanaNotificaciones /></div>
           </header>
         )}
 

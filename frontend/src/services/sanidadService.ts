@@ -5,6 +5,8 @@ import type {
   TrabajoSanitario,
   NuevoTrabajoSanitarioPayload,
   EstadoCaballoTrabajo,
+  CaballoSinAcceso,
+  ItemPlanSanitario,
 } from '../types/sanidad'
 
 export const sanidadService = {
@@ -51,13 +53,23 @@ export const sanidadService = {
     return data as TrabajoSanitario[]
   },
 
-  /** Trabajos de la sociedad con su lista de caballos. */
+  /**
+   * Trabajos de la sociedad con su lista de caballos.
+   *
+   * Trae el creador para que el admin vea qué veterinario le programó un
+   * trabajo sobre sus caballos. El embed funciona porque
+   * `authenticated_read_veterinarios` deja leer las filas de vets, y
+   * `usuario_select_admin` las de la propia sociedad — al revés (un vet
+   * leyendo a un admin) la RLS lo niega, por eso `listarTrabajosVet` resuelve
+   * el origen por empresa y no por persona.
+   */
   async listarTrabajos(sociedadId: string): Promise<TrabajoSanitario[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('trabajo_sanitario')
       .select(`
         *,
+        creador:usuario!creado_por(nombre, apellido, rol),
         caballos:trabajo_sanitario_caballo(
           id, trabajo_id, caballo_id, excluido, estado, historial_id,
           caballo:caballo_id(nombre, numero_registro)
@@ -131,6 +143,62 @@ export const sanidadService = {
     return trabajos as TrabajoSanitario[]
   },
 
+  /**
+   * Caballos del grupo a los que `vetId` todavía no tiene acceso. Es lo que
+   * alimenta el cartel de confirmación antes de compartir un plan.
+   */
+  async caballosSinAcceso(vetId: string, caballoIds: string[]): Promise<CaballoSinAcceso[]> {
+    if (caballoIds.length === 0) return []
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('caballos_sin_acceso_vet', {
+      p_vet_id:      vetId,
+      p_caballo_ids: caballoIds,
+    })
+    if (error) throw error
+    return (data ?? []) as CaballoSinAcceso[]
+  },
+
+  /**
+   * Crea el plan entero y, si viene `vetId`, lo comparte con ese veterinario en
+   * la misma transacción: plan + caballos + accesos + notificación. Si el vet no
+   * tiene acceso a algún caballo y `otorgarAcceso` es false, la función levanta
+   * excepción y no queda nada creado.
+   *
+   * Devuelve el `plan_id` que agrupa los trabajos.
+   */
+  async crearPlanCompartido(
+    items: ItemPlanSanitario[],
+    vetId: string | null,
+    otorgarAcceso: boolean,
+  ): Promise<string> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('crear_plan_sanitario_compartido', {
+      p_items:          items,
+      p_vet_id:         vetId,
+      p_otorgar_acceso: otorgarAcceso,
+    })
+    if (error) throw error
+    return data as string
+  },
+
+  /**
+   * Comparte trabajos ya creados. Devuelve cuántos accesos nuevos se otorgaron.
+   */
+  async compartirTrabajos(
+    trabajoIds: string[],
+    vetId: string,
+    otorgarAcceso: boolean,
+  ): Promise<number> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('compartir_trabajos_con_vet', {
+      p_trabajo_ids:    trabajoIds,
+      p_vet_id:         vetId,
+      p_otorgar_acceso: otorgarAcceso,
+    })
+    if (error) throw error
+    return (data as number) ?? 0
+  },
+
   /** Los trabajos de un plan, con sus caballos: las columnas de la grilla. */
   async listarPlan(planId: string): Promise<TrabajoSanitario[]> {
     const supabase = getSupabaseClient()
@@ -178,12 +246,15 @@ export const sanidadService = {
     return sanidadService.crearTrabajos(
       conCaballos.map((g) => ({
         payload: {
+          // Uno de los dos va en NULL — lo exige `trabajo_sanitario_duenio_check`.
           sociedad_id:      g.trabajo.sociedad_id,
+          vet_owner_id:     g.trabajo.vet_owner_id,
           nombre:           g.trabajo.nombre,
           fecha_programada: fecha,
           tratamiento:      g.trabajo.tratamiento,
           observaciones:    g.trabajo.observaciones,
           creado_por:       creadoPor,
+          compartido_con:   g.trabajo.compartido_con,
         },
         caballoIds: g.caballoIds,
       })),

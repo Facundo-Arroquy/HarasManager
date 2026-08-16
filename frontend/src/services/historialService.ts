@@ -45,6 +45,8 @@ export interface ConsultaCalendario {
   estado:         EstadoConsulta
   caballo_id:     string
   caballo_nombre: string
+  /** Empresa dueña del caballo. El vet la usa para saber de dónde viene. */
+  sociedad_id:    string | null
   tipo:           string
   diagnostico:    string | null
   veterinario:    string | null
@@ -154,7 +156,7 @@ export const historialService = {
     return ((data ?? []) as unknown as {
       id: string; fecha_consulta: string; estado: EstadoConsulta
       diagnostico: string | null; caballo_id: string; creado_por: string
-      caballo?: { nombre?: string | null; numero_registro?: string | null } | null
+      caballo?: { nombre?: string | null; numero_registro?: string | null; sociedad_id?: string | null } | null
       cat_tipo_consulta?: { nombre?: string } | null
       usuario?: { nombre?: string; apellido?: string } | null
     }[]).map((h) => ({
@@ -163,6 +165,7 @@ export const historialService = {
       estado:         h.estado,
       caballo_id:     h.caballo_id,
       caballo_nombre: nombreCaballo(h.caballo ?? {}),
+      sociedad_id:    h.caballo?.sociedad_id ?? null,
       tipo:           h.cat_tipo_consulta?.nombre ?? 'Consulta',
       diagnostico:    h.diagnostico ?? null,
       veterinario:    h.usuario ? `${h.usuario.nombre ?? ''} ${h.usuario.apellido ?? ''}`.trim() : null,

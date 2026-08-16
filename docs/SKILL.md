@@ -606,15 +606,45 @@ CREATE TABLE trabajo_sanitario (
   -- Los trabajos cargados juntos desde "Nuevo plan sanitario" comparten plan_id:
   -- son las columnas de una misma grilla caballo × trabajo (migración 20260806130000)
   plan_id UUID NOT NULL DEFAULT gen_random_uuid(),
-  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  -- Nullable desde la migración 20260815000003: o el plan es de una empresa, o
+  -- es de un veterinario sobre sus caballos propios. Antes era NOT NULL y por
+  -- eso el vet no podía programarle nada a su propia clientela (`caballo`
+  -- propio = sociedad_id NULL + vet_owner_id)
+  sociedad_id UUID REFERENCES sociedad(id),
+  vet_owner_id UUID REFERENCES usuario(id),
+  CONSTRAINT trabajo_sanitario_duenio_check
+    CHECK (num_nonnulls(sociedad_id, vet_owner_id) = 1),
   nombre TEXT NOT NULL,
   fecha_programada DATE NOT NULL,
   estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','realizado','cancelado')),
   tratamiento TEXT, observaciones TEXT,
   fecha_realizado DATE,
   creado_por UUID NOT NULL REFERENCES usuario(id),
+  -- Veterinario con el que se compartió el plan (uno solo por plan). Es lo que
+  -- lo hace visible para él: tener acceso_vet a los caballos NO alcanza, la RLS
+  -- del trabajo mira membresía y autoría, nunca los caballos de adentro
+  -- (migración 20260815000001)
+  compartido_con UUID REFERENCES usuario(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+-- Trigger trabajo_sanitario_compartir_guard: el vet compartido puede cerrar el
+-- plan (policy de UPDATE) pero no re-compartirlo — solo la empresa o el autor
+-- pueden cambiar `compartido_con`.
+
+CREATE TABLE notificacion (                      -- migración 20260815000001
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id UUID NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+  -- Nullable a propósito, a diferencia del resto del modelo multi-tenant: la
+  -- notificación es de un usuario, y el veterinario no tiene sociedad
+  sociedad_id UUID REFERENCES sociedad(id) ON DELETE SET NULL,
+  tipo TEXT NOT NULL,                            -- 'plan_sanitario_compartido'
+  titulo TEXT NOT NULL, cuerpo TEXT, link TEXT,
+  leida BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+-- Tabla genérica a propósito: el plan sanitario es el primer emisor, la idea es
+-- que después la usen transferencias, accesos y vencimientos. Las escriben solo
+-- funciones SECURITY DEFINER — no hay policy de INSERT.
 
 CREATE TABLE trabajo_sanitario_caballo (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -984,8 +1014,12 @@ CREATE TABLE lead (
 | `superadmin_caballos_propios_por_vet(p_vet_ids)` | RPC en lote: cantidad de caballos propios activos por cada id de `p_vet_ids`. Restringida a `is_superadmin()` (`RAISE EXCEPTION` si no). Única fuente de verdad para el panel de superadmin — antes `superAdminService.listarVeterinarios()` reimplementaba el mismo predicado con una query directa a `caballo` desde el cliente (migración `20260812130000`) |
 | `superadmin_eliminar_usuario(p_usuario_id)` | Borrado **definitivo** de un usuario y sus datos propios, en una transacción. Restringida a `is_superadmin()`; rechaza borrarse a uno mismo y borrar a otro superadmin. **El historial clínico nunca se elimina**: `historial_clinico.creado_por` es NOT NULL, así que no se puede desvincular la autoría, y el registro es del animal —le sobrevive al vet que lo escribió—; siempre bloquea, sea de quien sea el caballo. Los planes sanitarios (`trabajo_sanitario.creado_por`) y el centro de cría (`cria_registro_clinico`/`cria_ecografia`/`cria_flushing`/`cria_transferencia`/`cria_estado_transicion`/`cria_recordatorio`/`cria_padrillo_preferido`) son distintos: si el vet solo es el **autor** sobre un caballo que no es suyo, la autoría se desvincula (columna a `NULL`) y el registro queda intacto — es del caballo, no del usuario (migración `20260814130000`, esas columnas dejaron de ser NOT NULL). Solo bloquea si el registro está sobre uno de sus **propios** caballos, porque ese caballo se borra con él y ahí no hay forma segura de decidir en automático. Los demás bloqueos (membresías, pagos, propiedades, torneos, caballos de terceros que usan los suyos en el pedigree) siguen abortando la baja entera con `HM409` y el detalle de qué la frena. **No toca `auth.users`** — eso lo hace la Edge Function `eliminar-usuario` (migración `20260814120000`) |
 | `guardar_asignaciones_torneo(p_torneo_id, p_jugador_id, p_caballo_ids)` | Reescribe la columna de un jugador en el kanban del torneo, en una transacción: suelta los caballos de su jugador anterior, borra la columna y reinserta con el orden del array. `p_jugador_id` NULL devuelve los caballos a "Disponibles". Valida torneo `activo`, admin de la sociedad, jugador del torneo, sin repetidos, y caballo activo + de la sociedad + con tag "Jugador" (migración `20260803120000`) |
-| `completar_trabajo_sanitario(p_trabajo_id)` | Marca un `trabajo_sanitario` como realizado e inserta una fila en `historial_clinico` por cada caballo no excluido (asegura el `cat_tipo_consulta` con el nombre del trabajo). Valida `tiene_membresia`. Solo `authenticated`. Devuelve la cantidad cargada (migración `20260728181738`). Es el flujo viejo, el de la sección Sanidad |
-| `cerrar_plan_sanitario(p_items jsonb)` | Cierra la grilla de un plan en una transacción: `p_items` es `[{caballo_row_id, estado}]` sobre `trabajo_sanitario_caballo`. Guarda el `estado` de cada celda (sincronizando `excluido`) y escribe `historial_clinico` **solo** para los `'realizado'` sin historial previo. Cada `trabajo_sanitario` pasa a `'realizado'` cuando ya no le quedan celdas en NULL. Permiso: `tiene_membresia` **o** `is_superadmin()` **o** `creado_por = auth.uid()` (a diferencia de la anterior, deja cerrar al vet que lo creó). Solo `authenticated`. Devuelve cuántos historiales creó (migración `20260806130000`) |
+| `completar_trabajo_sanitario(p_trabajo_id)` | Marca un `trabajo_sanitario` como realizado e inserta una fila en `historial_clinico` por cada caballo no excluido (asegura el `cat_tipo_consulta` con el nombre del trabajo). Valida `tiene_membresia`, `is_superadmin()` o `compartido_con = auth.uid()` (migración `20260815000001`: sin esto, el vet con quien se comparte el plan lo veía pero no lo podía cerrar). Solo `authenticated`. Devuelve la cantidad cargada (migración `20260728181738`). Es el flujo viejo, el de la sección Sanidad |
+| `get_empresas_visibles()` | `(id, nombre)` de las sociedades donde el que pregunta tiene membresía **o** un `acceso_vet` activo sobre algún caballo. Existe porque la RLS de `sociedad` es `tiene_membresia(id)`: sin esto el veterinario no puede leer el nombre de las empresas con las que trabaja, y en el calendario veía un trabajo sin saber de qué haras venía. Mismo criterio que `get_caballos_veterinario` (migración `20260815000002`) |
+| `caballos_sin_acceso_vet(p_vet_id, p_caballo_ids)` | Los caballos del array a los que el vet **no** tiene `acceso_vet` activo. Lo consulta el front antes de crear o compartir un plan, para armar el cartel de confirmación. Filtra por `tiene_membresia` del que pregunta: no sirve para espiar el padrón de otra empresa (migración `20260815000001`) |
+| `compartir_trabajos_con_vet(p_trabajo_ids, p_vet_id, p_otorgar_acceso)` | Asigna `compartido_con` a un lote de trabajos, otorga los `acceso_vet` faltantes si `p_otorgar_acceso` y deja **una** `notificacion` por lote. Si faltan accesos y no se autorizó otorgarlos, aborta. Valida que el destinatario sea un vet activo y que el que comparte tenga membresía / sea el autor. **Rechaza los planes con `vet_owner_id`**: `caballos_sin_acceso_vet` filtra por membresía, así que sobre caballos propios de un vet no detectaría los accesos faltantes y el destinatario terminaría viendo el plan pero no los caballos (migraciones `20260815000001` / `20260815000003`) |
+| `crear_plan_sanitario_compartido(p_items, p_vet_id, p_otorgar_acceso)` | Crea el plan entero y lo comparte en **una sola transacción**: `trabajo_sanitario` × N + `trabajo_sanitario_caballo` + `acceso_vet` + `notificacion`. `p_items` es `[{sociedad_id, nombre, fecha_programada, tratamiento, observaciones, caballo_ids}]` con `sociedad_id` NULL = plan sobre los caballos propios del vet (les pone `vet_owner_id`); todos los trabajos comparten `plan_id`. Reemplaza los N inserts sueltos que hacía `sanidadService.crearTrabajos()` desde el front. Valida que cada caballo pertenezca al dueño del trabajo — la función es `SECURITY DEFINER`, así que la RLS de `trabajo_sanitario_caballo` no alcanza para impedir mezclar padrones. Si el vet no tiene acceso a algún caballo y no se autorizó otorgarlo, la excepción se lleva puesta también la creación del plan — que es el "rollback" del flujo, sin nada que deshacer del lado del cliente. Devuelve el `plan_id` (migraciones `20260815000001` / `20260815000003`) |
+| `cerrar_plan_sanitario(p_items jsonb)` | Cierra la grilla de un plan en una transacción: `p_items` es `[{caballo_row_id, estado}]` sobre `trabajo_sanitario_caballo`. Guarda el `estado` de cada celda (sincronizando `excluido`) y escribe `historial_clinico` **solo** para los `'realizado'` sin historial previo. Cada `trabajo_sanitario` pasa a `'realizado'` cuando ya no le quedan celdas en NULL. Permiso: `tiene_membresia` **o** `is_superadmin()` **o** `creado_por = auth.uid()` **o** `compartido_con = auth.uid()` (migración `20260815000001`). Solo `authenticated`. Devuelve cuántos historiales creó (migración `20260806130000`) |
 | `set_sociedad_modulo(p_sociedad_id, p_modulo_codigo, p_habilitado)` | Resuelve `codigo → modulo_id` e inserta/actualiza `sociedad_modulo`. `SECURITY INVOKER` — la RLS de `sociedad_modulo` (solo superadmin escribe) hace la autorización real (migración `20260810140000`) |
 | `set_membresia_modulo(p_membresia_id, p_modulo_codigo, p_habilitado)` | Igual que la anterior pero sobre `membresia_modulo`. `SECURITY INVOKER` (migración `20260810140000`) |
 | `set_usuario_modulo(p_usuario_id, p_modulo_codigo, p_habilitado)` | Igual pero sobre `usuario_modulo` (veterinarios globales). `SECURITY INVOKER` (migración `20260810140000`) |
@@ -1082,13 +1116,19 @@ CREATE TABLE lead (
 - SELECT: `sociedad_id IS NULL` (globales) o `tiene_membresia(sociedad_id)` o `is_superadmin()`
 - INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` para los propios; globales solo `is_superadmin()`
 
-**`trabajo_sanitario`** (migración `20260729150553` sumó acceso de veterinarios)
-- SELECT/UPDATE: `tiene_membresia(sociedad_id)` o `is_superadmin()` o `creado_por = auth.uid()`
-- INSERT: `creado_por = auth.uid()` **y** (`tiene_membresia(sociedad_id)` o el vet tiene un `acceso_vet` activo sobre algún caballo de esa sociedad)
-- DELETE: `es_admin(sociedad_id)` o `is_superadmin()`
+**`trabajo_sanitario`** (migración `20260729150553` sumó acceso de veterinarios; `20260815000001`, el plan compartido; `20260815000003`, los caballos propios del vet)
+- SELECT/UPDATE: `tiene_membresia(sociedad_id)` o `is_superadmin()` o `creado_por = auth.uid()` o `compartido_con = auth.uid()` o `vet_owner_id = auth.uid()`
+- INSERT: `creado_por = auth.uid()` **y** (`tiene_membresia(sociedad_id)` o `vet_owner_id = auth.uid()` o el vet tiene un `acceso_vet` activo sobre algún caballo de esa sociedad)
+- DELETE: `es_admin(sociedad_id)` o `is_superadmin()` o `vet_owner_id = auth.uid()`
+- ⚠️ Toda rama que arranque en `tiene_membresia(sociedad_id)` da **false** para los planes de caballos propios, porque ahí `sociedad_id` es NULL. Cada policy y cada función de negocio necesita explícitamente la rama `vet_owner_id`
+- El trigger `trabajo_sanitario_compartir_guard` acota el UPDATE: cambiar `compartido_con` requiere membresía, superadmin, ser el autor o el dueño vet
 
 **`trabajo_sanitario_caballo`**
-- ALL: `vet_tiene_acceso(caballo_id)` o (vía `trabajo_sanitario` padre) `tiene_membresia(t.sociedad_id)` / `is_superadmin()` / `t.creado_por = auth.uid()`
+- ALL: `vet_tiene_acceso(caballo_id)` o (vía `trabajo_sanitario` padre) `tiene_membresia(t.sociedad_id)` / `is_superadmin()` / `t.creado_por = auth.uid()` / `t.compartido_con = auth.uid()` / `t.vet_owner_id = auth.uid()`
+
+**`notificacion`** (migración `20260815000001`)
+- SELECT/UPDATE: `usuario_id = auth.uid()`
+- Sin INSERT ni DELETE: las escriben las funciones `SECURITY DEFINER`, el cliente solo lee y marca leídas
 
 **`cria_registro_clinico` / `cria_recordatorio` / `cria_flushing` / `cria_transferencia`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_id)`

@@ -44,7 +44,10 @@ export interface TrabajoSanitario {
   id:               string
   /** Agrupa los trabajos cargados juntos: son las columnas de una misma grilla. */
   plan_id:          string
-  sociedad_id:      string
+  /** `null` cuando el plan es sobre los caballos propios de un veterinario. */
+  sociedad_id:      string | null
+  /** Veterinario dueño del plan. Excluyente con `sociedad_id`. */
+  vet_owner_id:     string | null
   nombre:           string
   fecha_programada: string        // YYYY-MM-DD
   estado:           EstadoTrabajoSanitario
@@ -52,19 +55,47 @@ export interface TrabajoSanitario {
   observaciones:    string | null
   fecha_realizado:  string | null
   creado_por:       string
+  /** Veterinario con el que se compartió: lo ve en su panel y puede cerrarlo. */
+  compartido_con:   string | null
   created_at:       string
   updated_at:       string
-  // agregado en el cliente
+  // joins opcionales
   caballos?:        TrabajoSanitarioCaballo[]
+  /**
+   * Solo viaja en `listarTrabajos` (el lado de la empresa): un veterinario no
+   * puede leer la fila de `usuario` de un admin, así que en su listado el
+   * origen se resuelve por empresa.
+   */
+  creador?:         { nombre: string; apellido: string; rol: string | null } | null
+}
+
+/** Caballo del plan al que el veterinario elegido todavía no tiene acceso. */
+export interface CaballoSinAcceso {
+  caballo_id: string
+  nombre:     string
+}
+
+/** Un trabajo a crear, tal como lo espera `crear_plan_sanitario_compartido`. */
+export interface ItemPlanSanitario {
+  /** `null` = plan sobre los caballos propios del veterinario. */
+  sociedad_id:      string | null
+  nombre:           string
+  fecha_programada: string
+  tratamiento:      string | null
+  observaciones:    string | null
+  caballo_ids:      string[]
 }
 
 export interface NuevoTrabajoSanitarioPayload {
   /** Se omite al crear un plan nuevo: lo asigna `sanidadService.crearTrabajos`. */
   plan_id?:         string
-  sociedad_id:      string
+  sociedad_id:      string | null
+  vet_owner_id?:    string | null
   nombre:           string
   fecha_programada: string
   tratamiento:      string | null
   observaciones:    string | null
   creado_por:       string
+  /** Se arrastra al reprogramar pendientes: el vet asignado sigue siéndolo. */
+  compartido_con?:  string | null
 }

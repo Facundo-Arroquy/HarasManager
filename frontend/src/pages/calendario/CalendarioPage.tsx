@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ChevronDown, Syringe, Stethoscope, CalendarDays, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Syringe, Stethoscope, CalendarDays, X, Building2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { sanidadService } from '../../services/sanidadService'
 import { historialService, type ConsultaCalendario } from '../../services/historialService'
+import { empresaService } from '../../services/empresaService'
 import { LABEL_ESTADO_TRABAJO, type TrabajoSanitario } from '../../types/sanidad'
 import { diaAR, hoyAR } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
@@ -86,6 +87,9 @@ export default function CalendarioPage() {
 
   const [trabajos,  setTrabajos]  = useState<TrabajoSanitario[]>([])
   const [consultas, setConsultas] = useState<ConsultaCalendario[]>([])
+  // Solo para el vet: trabaja con varias empresas y necesita saber de cuál
+  // viene cada cosa. El admin ve una sola, mostrárselo sería ruido.
+  const [empresas,  setEmpresas]  = useState<Map<string, string>>(new Map())
   const [loading,   setLoading]   = useState(true)
   // Solo la primera carga tapa la lista: en las recargas el detalle abierto de un
   // plan tiene que seguir montado, con lo que el usuario esté completando.
@@ -109,6 +113,11 @@ export default function CalendarioPage() {
       .catch((e) => { if (vigente) setError(mensajeError(e)) })
     return () => { vigente = false }
   }, [sociedadId, esVet, recarga])
+
+  useEffect(() => {
+    if (!esVet) return
+    empresaService.mapaNombres().then(setEmpresas).catch(() => {})
+  }, [esVet])
 
   // Las consultas sí se piden por mes visible, con un día de margen a cada lado:
   // `fecha_consulta` es TIMESTAMPTZ y el corte por día se hace en hora argentina.
@@ -303,20 +312,50 @@ export default function CalendarioPage() {
           <div className="divide-y divide-slate-100">
             {trabajosDia.map((t) => {
               const total    = t.caballos?.length ?? 0
-              const abierto  = planAbierto === t.plan_id
+              // Por trabajo y no por plan: dos trabajos del mismo plan pueden caer
+              // el mismo día, y con la clave del plan se abrían los dos a la vez,
+              // mostrando la misma grilla repetida.
+              const abierto  = planAbierto === t.id
+              const propio   = t.creado_por === userId
+              // Sin empresa = plan sobre los caballos propios del vet.
+              const empresa  = t.sociedad_id ? empresas.get(t.sociedad_id) : undefined
+              const esPropia = t.vet_owner_id !== null
               return (
                 <div key={t.id}>
                   <div className="flex items-start gap-3 px-4 py-3 text-sm hover:bg-slate-50">
                     <Syringe size={14} className="mt-0.5 shrink-0 text-brand-500" />
                     <button
                       type="button"
-                      onClick={() => setPlanAbierto(abierto ? null : t.plan_id)}
+                      onClick={() => setPlanAbierto(abierto ? null : t.id)}
                       className="flex-1 min-w-0 text-left"
                     >
-                      <span className="block font-medium text-slate-900">{t.nombre}</span>
+                      <span className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-slate-900">{t.nombre}</span>
+                        {/* El admin ve quién se lo programó; los suyos, sin chip. */}
+                        {!esVet && !propio && t.creador && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                            {t.creador.rol === 'veterinario' && <Stethoscope size={10} />}
+                            {t.creador.nombre} {t.creador.apellido}
+                          </span>
+                        )}
+                        {esVet && (esPropia ? (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                            Tus caballos
+                          </span>
+                        ) : propio ? (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                            Creado por vos
+                          </span>
+                        ) : empresa && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                            <Building2 size={10} /> {empresa}
+                          </span>
+                        ))}
+                      </span>
                       <span className="mt-1 flex items-center gap-3 flex-wrap text-xs text-slate-400">
                         <span>{total} caballo{total !== 1 ? 's' : ''}</span>
                         {t.tratamiento && <span>· {t.tratamiento}</span>}
+                        {esVet && propio && empresa && <span>· {empresa}</span>}
                       </span>
                     </button>
                     <div className="flex items-center gap-2 shrink-0">
@@ -333,6 +372,7 @@ export default function CalendarioPage() {
                     <div className="border-t border-slate-100 bg-slate-50/60">
                       <DetallePlanSanitario
                         planId={t.plan_id}
+                        fecha={t.fecha_programada}
                         onCambio={() => setRecarga((n) => n + 1)}
                       />
                     </div>
@@ -356,10 +396,17 @@ export default function CalendarioPage() {
                     <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700">
                       {c.tipo}
                     </span>
+                    {esVet && c.sociedad_id && empresas.get(c.sociedad_id) && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                        <Building2 size={10} /> {empresas.get(c.sociedad_id)}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 mt-1 flex-wrap text-xs text-slate-400">
                     <span>{horaAR(c.fecha_consulta)}</span>
-                    {c.veterinario && <span>· {c.veterinario}</span>}
+                    {c.veterinario && (
+                      <span>· {c.creado_por === userId ? 'Vos' : c.veterinario}</span>
+                    )}
                     {c.diagnostico && <span>· {c.diagnostico}</span>}
                   </div>
                 </button>
