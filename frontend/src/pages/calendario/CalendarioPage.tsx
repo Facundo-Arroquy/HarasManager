@@ -328,6 +328,13 @@ export default function CalendarioPage() {
                     >
                       <span className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-slate-900">{t.nombre}</span>
+                        {/* El admin ve quién se lo programó; los suyos, sin chip. */}
+                        {!esVet && !propio && t.creador && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                            {t.creador.rol === 'veterinario' && <Stethoscope size={10} />}
+                            {t.creador.nombre} {t.creador.apellido}
+                          </span>
+                        )}
                         {esVet && (esPropia ? (
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
                             Tus caballos

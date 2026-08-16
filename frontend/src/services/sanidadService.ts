@@ -53,13 +53,23 @@ export const sanidadService = {
     return data as TrabajoSanitario[]
   },
 
-  /** Trabajos de la sociedad con su lista de caballos. */
+  /**
+   * Trabajos de la sociedad con su lista de caballos.
+   *
+   * Trae el creador para que el admin vea qué veterinario le programó un
+   * trabajo sobre sus caballos. El embed funciona porque
+   * `authenticated_read_veterinarios` deja leer las filas de vets, y
+   * `usuario_select_admin` las de la propia sociedad — al revés (un vet
+   * leyendo a un admin) la RLS lo niega, por eso `listarTrabajosVet` resuelve
+   * el origen por empresa y no por persona.
+   */
   async listarTrabajos(sociedadId: string): Promise<TrabajoSanitario[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('trabajo_sanitario')
       .select(`
         *,
+        creador:usuario!creado_por(nombre, apellido, rol),
         caballos:trabajo_sanitario_caballo(
           id, trabajo_id, caballo_id, excluido, estado, historial_id,
           caballo:caballo_id(nombre, numero_registro)

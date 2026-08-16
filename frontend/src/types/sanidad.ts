@@ -59,8 +59,14 @@ export interface TrabajoSanitario {
   compartido_con:   string | null
   created_at:       string
   updated_at:       string
-  // agregado en el cliente
+  // joins opcionales
   caballos?:        TrabajoSanitarioCaballo[]
+  /**
+   * Solo viaja en `listarTrabajos` (el lado de la empresa): un veterinario no
+   * puede leer la fila de `usuario` de un admin, así que en su listado el
+   * origen se resuelve por empresa.
+   */
+  creador?:         { nombre: string; apellido: string; rol: string | null } | null
 }
 
 /** Caballo del plan al que el veterinario elegido todavía no tiene acceso. */
