@@ -65,8 +65,13 @@ export default function CampanaNotificaciones() {
         )}
       </button>
 
+      {/* En mobile la campana está en un header de ancho completo y el panel abre
+          hacia la izquierda. En desktop vive en el sidebar (w-60 = 240px), que es
+          más angosto que el panel (w-80 = 320px): anclado a la derecha se salía
+          ~100px por el borde izquierdo de la pantalla y el `overflow-hidden` del
+          layout lo recortaba. En md+ abre hacia el contenido. */}
       {abierto && (
-        <div className="absolute right-0 z-50 mt-1.5 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white shadow-lg">
+        <div className="absolute right-0 md:right-auto md:left-0 z-50 mt-1.5 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white shadow-lg">
           <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
             <span className="text-xs font-semibold text-slate-600">Notificaciones</span>
             {sinLeer > 0 && (
