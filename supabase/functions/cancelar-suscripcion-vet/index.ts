@@ -24,30 +24,64 @@ function json(body: unknown, status: number) {
   })
 }
 
-/**
- * La documentación de MercadoPago se contradice: la referencia de la API solo
- * enumera `pending` y `authorized`, y la guía de gestión escribe el cancelado
- * con una y con dos eles según el párrafo. Se prueban los dos antes de dar el
- * error por bueno.
- */
-async function cancelarEnMercadoPago(preapprovalId: string, accessToken: string) {
-  let ultimo: { status: number; body: unknown } = { status: 0, body: null }
+type Preapproval = Record<string, unknown> | null
 
-  for (const valor of ['cancelled', 'canceled']) {
-    const res = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ status: valor }),
-    })
-    const body = await res.json().catch(() => null)
-    if (res.ok) return { ok: true as const, preapproval: body }
-    ultimo = { status: res.status, body }
+type ResultadoCancelacion =
+  | { ok: true; preapproval: Preapproval }
+  | { ok: false; status: number; body: unknown; etapa: string }
+
+/** El mensaje que manda MercadoPago en el cuerpo del error, si lo hay. */
+function mensajeDeMercadoPago(body: unknown): string | null {
+  const m = (body as { message?: unknown } | null)?.message
+  return typeof m === 'string' && m.trim() ? m : null
+}
+
+/**
+ * Cancela el preapproval, consultándolo primero.
+ *
+ * El único valor válido es `cancelled` con dos eles — la guía de MercadoPago lo
+ * escribe con una en algunos párrafos, pero la API responde
+ * `Invalid preapproval status param: canceled`.
+ *
+ * Se consulta antes de escribir porque MercadoPago rechaza con 400 el PUT sobre
+ * un preapproval que ya está cancelado, y ese caso no es un error: la baja que
+ * el vet pide ya está hecha. Pasaba con las suscripciones que un superadmin
+ * reactivó a mano dejando el id del preapproval viejo. Lo mismo con el 404: si
+ * el preapproval no existe, no hay nada que pueda cobrar.
+ */
+async function cancelarEnMercadoPago(
+  preapprovalId: string,
+  accessToken: string,
+): Promise<ResultadoCancelacion> {
+  const auth = { 'Authorization': `Bearer ${accessToken}` }
+  const url = `https://api.mercadopago.com/preapproval/${preapprovalId}`
+
+  const resGet = await fetch(url, { headers: auth })
+  const actual = await resGet.json().catch(() => null) as Preapproval
+
+  if (resGet.status === 404) {
+    console.warn('El preapproval no existe en MercadoPago, se da de baja solo local', preapprovalId)
+    return { ok: true, preapproval: { status: 'cancelled' } }
+  }
+  if (!resGet.ok) {
+    return { ok: false, status: resGet.status, body: actual, etapa: 'consulta' }
   }
 
-  return { ok: false as const, ...ultimo }
+  const estadoMp = String(actual?.status ?? '')
+  if (estadoMp === 'cancelled' || estadoMp === 'canceled') {
+    console.log('El preapproval ya estaba cancelado en MercadoPago', preapprovalId)
+    return { ok: true, preapproval: actual }
+  }
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { ...auth, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'cancelled' }),
+  })
+  const body = await res.json().catch(() => null) as Preapproval
+  if (res.ok) return { ok: true, preapproval: body }
+
+  return { ok: false, status: res.status, body, etapa: `baja desde estado "${estadoMp}"` }
 }
 
 Deno.serve(async (req) => {
@@ -100,8 +134,13 @@ Deno.serve(async (req) => {
 
     if (!resultado.ok) {
       console.error('MercadoPago rechazó la cancelación',
-        suscripcion.external_subscription_id, resultado.status, resultado.body)
-      return json({ error: 'No se pudo cancelar la membresía. Probá de nuevo en unos minutos.' }, 502)
+        suscripcion.external_subscription_id, resultado.etapa, resultado.status, resultado.body)
+      const detalle = mensajeDeMercadoPago(resultado.body)
+      return json({
+        error: detalle
+          ? `No se pudo cancelar la membresía en MercadoPago: ${detalle}`
+          : 'No se pudo cancelar la membresía. Probá de nuevo en unos minutos.',
+      }, 502)
     }
 
     // El webhook va a llegar igual con el mismo evento, pero sincronizar acá

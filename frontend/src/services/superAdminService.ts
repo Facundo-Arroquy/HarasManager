@@ -310,9 +310,33 @@ export const superAdminService = {
     return moduloService.toggleUsuarioModulo(usuarioId, codigo, valor)
   },
 
+  /**
+   * Activa la membresía a mano, sin cobro.
+   *
+   * Se limpia el preapproval de MercadoPago que hubiera quedado de una
+   * suscripción anterior: si queda pegado, la membresía figura como paga y el
+   * botón "cancelar" del vet apunta a un preapproval muerto, que MercadoPago
+   * rechaza con 400. No se toca la suscripción que todavía está viva en
+   * MercadoPago —se aborta— porque borrarle el id acá dejaría un cobro
+   * recurrente sin registro local.
+   */
   async activarSuscripcionVeterinario(usuarioId: string): Promise<void> {
     const supabase = getSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
+
+    const { data: actual, error: errorLectura } = await supabase
+      .from('suscripcion_veterinario')
+      .select('estado, external_subscription_id')
+      .eq('usuario_id', usuarioId)
+      .maybeSingle()
+    if (errorLectura) throw errorLectura
+
+    if (actual?.external_subscription_id && actual.estado !== 'cancelada') {
+      throw new Error(
+        'Este veterinario tiene una suscripción viva en MercadoPago. Hay que darla de baja ahí antes de activarle la membresía a mano.'
+      )
+    }
+
     const { error } = await supabase
       .from('suscripcion_veterinario')
       .upsert({
@@ -321,6 +345,9 @@ export const superAdminService = {
         activado_por: user?.id ?? null,
         fecha_activacion: new Date().toISOString(),
         fecha_vencimiento: null,
+        fecha_cancelacion: null,
+        proveedor_pago: 'manual',
+        external_subscription_id: null,
       }, { onConflict: 'usuario_id' })
     if (error) throw error
   },
