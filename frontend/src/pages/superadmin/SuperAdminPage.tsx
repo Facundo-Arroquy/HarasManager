@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { LogOut, Building2, Users, Mail, Stethoscope } from 'lucide-react'
+import { LogOut, Building2, Users, Mail, Stethoscope, Activity } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import EmpresasTab from './EmpresasTab'
 import UsuariosEmpresaTab from './UsuariosEmpresaTab'
 import VeterinariosTab from './VeterinariosTab'
 import LeadsTab from './LeadsTab'
+import ActividadTab from './ActividadTab'
 
-type Tab = 'empresas' | 'usuarios' | 'veterinarios' | 'leads'
+type Tab = 'empresas' | 'usuarios' | 'veterinarios' | 'actividad' | 'leads'
 
 export default function SuperAdminPage() {
   const { signOut } = useAuth()
@@ -68,6 +69,12 @@ export default function SuperAdminPage() {
             onClick={() => setTab('veterinarios')}
           />
           <TabButton
+            active={tab === 'actividad'}
+            icon={<Activity size={13} />}
+            label="Actividad"
+            onClick={() => setTab('actividad')}
+          />
+          <TabButton
             active={tab === 'leads'}
             icon={<Mail size={13} />}
             label="Leads"
@@ -85,6 +92,7 @@ export default function SuperAdminPage() {
           <UsuariosEmpresaTab sociedadIdInicial={empresaSeleccionada} />
         )}
         {tab === 'veterinarios' && <VeterinariosTab />}
+        {tab === 'actividad' && <ActividadTab />}
         {tab === 'leads' && <LeadsTab />}
       </main>
     </div>

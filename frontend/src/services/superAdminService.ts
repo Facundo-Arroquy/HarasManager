@@ -31,6 +31,22 @@ export interface NuevoUsuarioPayload {
   modulos: Partial<Record<ModuloCodigo, boolean>>
 }
 
+export interface ActividadUsuario {
+  usuario_id: string
+  nombre: string | null
+  apellido: string | null
+  email: string
+  rol: string | null
+  activo: boolean
+  email_confirmado: boolean
+  email_confirmado_at: string | null
+  creado_at: string | null
+  ultimo_login: string | null
+  /** NULL si el usuario nunca creó nada — no significa que no haya usado la app. */
+  ultima_accion: string | null
+  ultima_accion_at: string | null
+}
+
 export interface VeterinarioAcceso {
   id: string
   nombre: string
@@ -294,9 +310,33 @@ export const superAdminService = {
     return moduloService.toggleUsuarioModulo(usuarioId, codigo, valor)
   },
 
+  /**
+   * Activa la membresía a mano, sin cobro.
+   *
+   * Se limpia el preapproval de MercadoPago que hubiera quedado de una
+   * suscripción anterior: si queda pegado, la membresía figura como paga y el
+   * botón "cancelar" del vet apunta a un preapproval muerto, que MercadoPago
+   * rechaza con 400. No se toca la suscripción que todavía está viva en
+   * MercadoPago —se aborta— porque borrarle el id acá dejaría un cobro
+   * recurrente sin registro local.
+   */
   async activarSuscripcionVeterinario(usuarioId: string): Promise<void> {
     const supabase = getSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
+
+    const { data: actual, error: errorLectura } = await supabase
+      .from('suscripcion_veterinario')
+      .select('estado, external_subscription_id')
+      .eq('usuario_id', usuarioId)
+      .maybeSingle()
+    if (errorLectura) throw errorLectura
+
+    if (actual?.external_subscription_id && actual.estado !== 'cancelada') {
+      throw new Error(
+        'Este veterinario tiene una suscripción viva en MercadoPago. Hay que darla de baja ahí antes de activarle la membresía a mano.'
+      )
+    }
+
     const { error } = await supabase
       .from('suscripcion_veterinario')
       .upsert({
@@ -305,6 +345,9 @@ export const superAdminService = {
         activado_por: user?.id ?? null,
         fecha_activacion: new Date().toISOString(),
         fecha_vencimiento: null,
+        fecha_cancelacion: null,
+        proveedor_pago: 'manual',
+        external_subscription_id: null,
       }, { onConflict: 'usuario_id' })
     if (error) throw error
   },
@@ -329,6 +372,20 @@ export const superAdminService = {
    */
   async eliminarVeterinarioDefinitivo(usuarioId: string): Promise<void> {
     await invocarFuncion('eliminar-usuario', { usuario_id: usuarioId })
+  },
+
+  /**
+   * Confirmación de email y última actividad de cada usuario.
+   *
+   * Va por RPC y no por query directa porque `email_confirmed_at` y
+   * `last_sign_in_at` viven en `auth.users`, fuera del alcance de la anon key.
+   * La función valida adentro que quien llama sea superadmin.
+   */
+  async listarActividad(): Promise<ActividadUsuario[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('superadmin_actividad_usuarios')
+    if (error) throw error
+    return (data ?? []) as ActividadUsuario[]
   },
 
   // ── Helpers ───────────────────────────────────────────────────────────────────

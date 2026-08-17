@@ -33,28 +33,36 @@ function json(body: unknown, status: number) {
 }
 
 /**
- * Mismo doble intento que `cancelar-suscripcion-vet`: la documentación de
- * MercadoPago escribe el estado cancelado con una y con dos eles según la
- * página, así que se prueban los dos antes de darlo por fallido.
+ * Misma cancelación que `cancelar-suscripcion-vet`: se consulta el preapproval
+ * antes de escribirlo, porque MercadoPago rechaza con 400 el PUT sobre uno que
+ * ya está cancelado y ese caso no debe frenar el borrado del usuario. El único
+ * valor de estado válido es `cancelled` con dos eles.
  */
 async function cancelarEnMercadoPago(preapprovalId: string, accessToken: string) {
-  let ultimo: { status: number; body: unknown } = { status: 0, body: null }
+  const auth = { 'Authorization': `Bearer ${accessToken}` }
+  const url = `https://api.mercadopago.com/preapproval/${preapprovalId}`
 
-  for (const valor of ['cancelled', 'canceled']) {
-    const res = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ status: valor }),
-    })
-    const body = await res.json().catch(() => null)
-    if (res.ok) return { ok: true as const }
-    ultimo = { status: res.status, body }
+  const resGet = await fetch(url, { headers: auth })
+  const actual = await resGet.json().catch(() => null) as Record<string, unknown> | null
+
+  // El preapproval no existe: no hay nada que pueda seguir cobrando.
+  if (resGet.status === 404) return { ok: true as const }
+  if (!resGet.ok) {
+    return { ok: false as const, status: resGet.status, body: actual, etapa: 'consulta' }
   }
 
-  return { ok: false as const, ...ultimo }
+  const estadoMp = String(actual?.status ?? '')
+  if (estadoMp === 'cancelled' || estadoMp === 'canceled') return { ok: true as const }
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { ...auth, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'cancelled' }),
+  })
+  const body = await res.json().catch(() => null)
+  if (res.ok) return { ok: true as const }
+
+  return { ok: false as const, status: res.status, body, etapa: `baja desde estado "${estadoMp}"` }
 }
 
 Deno.serve(async (req) => {
@@ -120,7 +128,7 @@ Deno.serve(async (req) => {
       )
       if (!resultado.ok) {
         console.error('No se pudo cancelar el preapproval antes de eliminar',
-          suscripcion.external_subscription_id, resultado.status, resultado.body)
+          suscripcion.external_subscription_id, resultado.etapa, resultado.status, resultado.body)
         return json({
           error: 'No se pudo cancelar la suscripción de MercadoPago, así que no se eliminó el usuario. Si se borrara igual, MercadoPago seguiría cobrando sin registro local. Probá de nuevo en unos minutos.',
         }, 502)
