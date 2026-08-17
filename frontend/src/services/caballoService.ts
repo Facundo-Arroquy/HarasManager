@@ -4,11 +4,40 @@ import { tagService, type Tag } from './tagService'
 
 export type Subcategoria = 'Donante' | 'Receptora'
 
+export type Sexo = 'H' | 'M'
+export type CategoriaCaballo = 'Caballo' | 'Yegua' | 'Padrillo' | 'Potrillo'
+
+/**
+ * Sexo que implica cada categoría. 'Potrillo' queda fuera a propósito: una cría
+ * puede ser de cualquier sexo y es el único caso donde hay que preguntarlo.
+ */
+const SEXO_POR_CATEGORIA: Partial<Record<CategoriaCaballo, Sexo>> = {
+  Yegua:    'H',
+  Padrillo: 'M',
+  Caballo:  'M',
+}
+
+/** True si la categoría no determina el sexo y hay que pedirlo en el formulario. */
+export function categoriaRequiereSexo(categoria: string): boolean {
+  return !(categoria in SEXO_POR_CATEGORIA)
+}
+
+/**
+ * Sexo definitivo de un caballo. Para Yegua/Padrillo/Caballo se deriva de la
+ * categoría —pedirlo sería redundante y admitiría contradicciones—, y solo en
+ * 'Potrillo' se respeta lo que haya elegido el usuario.
+ */
+export function resolverSexo(categoria: string, sexoElegido?: Sexo | null): Sexo | null {
+  return SEXO_POR_CATEGORIA[categoria as CategoriaCaballo] ?? sexoElegido ?? null
+}
+
 export interface Caballo {
   id: string
   nombre: string
   fecha_nacimiento: string | null
   categoria: string
+  sexo?: Sexo | null
+  observaciones?: string | null
   rol_reproductivo?: string | null
   estado_reproductivo?: string | null
   prenada?: boolean
@@ -70,7 +99,9 @@ interface CaballoVetRow {
 export interface ActualizarCaballoPayload {
   nombre: string
   fecha_nacimiento?: string | null
-  categoria: 'Caballo' | 'Yegua' | 'Padrillo' | 'Potrillo'
+  categoria: CategoriaCaballo
+  sexo?: Sexo | null
+  observaciones?: string | null
   rol_reproductivo?: Subcategoria | null
   prenada?: boolean
   fecha_prenez?: string | null
@@ -88,7 +119,9 @@ export interface ActualizarCaballoPayload {
 export interface NuevoCaballoPayload {
   nombre: string
   fecha_nacimiento?: string | null
-  categoria: 'Caballo' | 'Yegua' | 'Padrillo' | 'Potrillo'
+  categoria: CategoriaCaballo
+  sexo?: Sexo | null
+  observaciones?: string | null
   rol_reproductivo?: Subcategoria | null
   raza_id?: number | null
   pelaje_id?: number | null
@@ -169,6 +202,7 @@ export const caballoService = {
       .from('caballo')
       .select(`
         id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
+        sexo, observaciones,
         raza_id, pelaje_id, numero_chip, numero_registro, activo,
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
@@ -191,6 +225,7 @@ export const caballoService = {
       .from('caballo')
       .select(`
         id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
+        sexo, observaciones,
         raza_id, pelaje_id, numero_chip, numero_registro, activo,
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
@@ -211,7 +246,7 @@ export const caballoService = {
     const { data, error } = await supabase
       .from('caballo')
       .select(`
-        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez,
+        id, nombre, fecha_nacimiento, categoria, sexo, observaciones, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez,
         numero_chip, numero_registro, activo, sociedad_id, campo_id,
         raza_id, pelaje_id,
         padre_id, padre_nombre, madre_id, madre_nombre,
@@ -244,12 +279,17 @@ export const caballoService = {
     // sobre `caballo` es `es_admin(sociedad_id)`, y los caballos propios del vet
     // tienen `sociedad_id NULL`, así que el update directo no afectaba ninguna
     // fila y los datos se perdían en silencio.
+    // `sexo` y `observaciones` tampoco los toma la RPC de creación, así que se
+    // completan por el mismo camino.
     const tieneGenealogia = payload.padre_id || payload.padre_nombre || payload.madre_id || payload.madre_nombre
-    if (tieneGenealogia || payload.campo_id) {
+    const tieneSexo = resolverSexo(payload.categoria, payload.sexo) !== null
+    if (tieneGenealogia || payload.campo_id || tieneSexo || payload.observaciones) {
       await caballoService.actualizarComoVet(nuevoId, {
         nombre:           payload.nombre,
         fecha_nacimiento: payload.fecha_nacimiento,
         categoria:        payload.categoria,
+        sexo:             payload.sexo          ?? null,
+        observaciones:    payload.observaciones ?? null,
         rol_reproductivo: payload.rol_reproductivo ?? null,
         raza_id:          payload.raza_id,
         pelaje_id:        payload.pelaje_id,
@@ -285,6 +325,8 @@ export const caballoService = {
         padre_nombre:     payload.padre_nombre ?? null,
         madre_id:         payload.madre_id    ?? null,
         madre_nombre:     payload.madre_nombre ?? null,
+        sexo:             resolverSexo(payload.categoria, payload.sexo),
+        observaciones:    payload.observaciones ?? null,
       })
       .select()
       .single()
@@ -308,6 +350,8 @@ export const caballoService = {
       padre_nombre:     payload.padre_nombre ?? null,
       madre_id:         payload.madre_id    ?? null,
       madre_nombre:     payload.madre_nombre ?? null,
+      sexo:             resolverSexo(payload.categoria, payload.sexo),
+      observaciones:    payload.observaciones ?? null,
     }
     if (payload.categoria !== 'Yegua') {
       update.prenada      = false
@@ -363,6 +407,8 @@ export const caballoService = {
       p_madre_id:         payload.madre_id        ?? null,
       p_madre_nombre:     payload.madre_nombre    ?? null,
       p_campo_id:         payload.campo_id        ?? null,
+      p_sexo:             resolverSexo(payload.categoria, payload.sexo),
+      p_observaciones:    payload.observaciones   ?? null,
     })
     if (error) throw error
   },

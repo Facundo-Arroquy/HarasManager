@@ -3,10 +3,12 @@ import { X, AlertTriangle, GitBranch } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
   caballoService,
+  categoriaRequiereSexo,
   CATEGORIAS_MADRE,
   CATEGORIAS_PADRE,
   type NuevoCaballoPayload,
   type CaballoPedigree,
+  type Sexo,
 } from '../../services/caballoService'
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
@@ -19,6 +21,8 @@ interface CaballoEditProps {
   nombre: string
   fecha_nacimiento?: string | null
   categoria?: string | null
+  sexo?: string | null
+  observaciones?: string | null
   rol_reproductivo?: string | null
   raza_id?: number | null
   pelaje_id?: number | null
@@ -60,6 +64,8 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
     fecha_nacimiento: caballo.fecha_nacimiento ?? '',
     categoria:        (caballo.categoria ?? 'Caballo') as NuevoCaballoPayload['categoria'],
     subcategoria:     (caballo.rol_reproductivo ?? '') as string,
+    sexo:             (caballo.sexo ?? '') as '' | Sexo,
+    observaciones:    caballo.observaciones ?? '',
     raza_id:          caballo.raza_id ?? 0,
     pelaje_id:        caballo.pelaje_id ?? 0,
     numero_chip:      caballo.numero_chip ?? '',
@@ -86,6 +92,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
     (c) => c.id !== caballo.id && CATEGORIAS_MADRE.includes(c.categoria),
   )
   const admiteTags = CATEGORIAS_CON_TAGS.includes(form.categoria)
+  const pideSexo   = categoriaRequiereSexo(form.categoria)
 
   useEffect(() => {
     const pedigreePromise = vetMode
@@ -134,6 +141,8 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
         nombre:           form.nombre.trim(),
         fecha_nacimiento: form.fecha_nacimiento,
         categoria:        form.categoria,
+        sexo:             form.sexo || null,
+        observaciones:    form.observaciones.trim() || null,
         rol_reproductivo: form.categoria === 'Yegua' && form.subcategoria
                             ? form.subcategoria as 'Donante' | 'Receptora'
                             : null,
@@ -239,6 +248,29 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
             </div>
           </div>
 
+          {/* Sexo — solo cuando la categoría no lo determina (Potrillo). */}
+          {pideSexo && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-500">Sexo</label>
+              <div className="flex gap-2">
+                {([['H', 'Hembra'], ['M', 'Macho']] as const).map(([valor, etiqueta]) => (
+                  <button
+                    key={valor}
+                    type="button"
+                    onClick={() => set('sexo', form.sexo === valor ? '' : valor)}
+                    className={`flex-1 rounded-md border px-3 py-2 text-sm transition ${
+                      form.sexo === valor
+                        ? 'border-brand-500 bg-brand-50 font-medium text-brand-700'
+                        : 'border-slate-300 bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {etiqueta}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Subcategoría (solo Yegua) */}
           {form.categoria === 'Yegua' && (
             <div className="space-y-1.5">
@@ -254,6 +286,18 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
               </select>
             </div>
           )}
+
+          {/* Observaciones — notas libres: lesiones, marcas, nacido en manada. */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Observaciones</label>
+            <textarea
+              value={form.observaciones}
+              onChange={(e) => set('observaciones', e.target.value)}
+              rows={2}
+              placeholder="Lesiones, marcas, defectos, nacido en manada…"
+              className="w-full resize-y rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
 
           {/* Raza + Pelaje */}
           <div className="grid grid-cols-2 gap-3">
