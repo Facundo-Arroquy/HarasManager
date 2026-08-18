@@ -30,6 +30,8 @@ export default function SanidadPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const rol        = useAuthStore((s) => s.rol)
   const esVet      = rol === 'veterinario'
+  // El admin también carga consultas y tratamientos sobre los caballos de su empresa.
+  const puedeCargarConsulta = esVet || rol === 'admin'
 
   const [trabajos, setTrabajos] = useState<TrabajoSanitario[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -82,10 +84,14 @@ export default function SanidadPage() {
           </p>
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {esVet && (
+          {puedeCargarConsulta && (
             <button
               onClick={() => setShowConsulta(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 px-3 py-2 text-sm font-medium text-white transition-colors"
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                esVet
+                  ? 'bg-brand-500 hover:bg-brand-400 text-white'
+                  : 'border border-slate-300 hover:border-slate-400 text-slate-700'
+              }`}
             >
               <Plus size={15} />
               <span className="sm:hidden">Consulta</span>

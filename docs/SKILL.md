@@ -61,8 +61,10 @@ propietarios y usuarios con control total de permisos.
    del cuerpo, tipos de consulta, razas, pelajes, etc. viven en tablas de catálogo.
 
 4. **Inmutabilidad del historial clínico** — Un registro clínico solo puede ser
-   editado por el veterinario que lo creó. Nadie más puede modificarlo ni eliminarlo.
-   Se registra `creado_por` en cada registro.
+   editado por quien lo creó. Nadie más puede modificarlo ni eliminarlo.
+   Se registra `creado_por` en cada registro. Lo cargan el veterinario y el
+   admin de la sociedad del caballo (migración `20260818120000`); que el admin
+   pueda escribir no lo habilita a corregir lo que cargó un veterinario.
 
 5. **Registro de usuarios solo por administrador, con una excepción** — Para
    usuarios de una sociedad, no hay signup público: el admin los crea y les
@@ -579,7 +581,8 @@ CREATE TABLE historial_clinico (
     CHECK (estado IN ('pendiente','realizada')),
   creado_por UUID NOT NULL REFERENCES usuario(id),
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
-  -- REGLA RLS: solo creado_por puede hacer UPDATE
+  -- REGLA RLS: escriben el veterinario y el admin de la sociedad del caballo
+  -- (migración 20260818120000); solo creado_por puede hacer UPDATE
 );
 
 CREATE TABLE historial_parte_afectada (
@@ -1116,14 +1119,15 @@ CREATE TABLE lead (
 - INSERT vet: `vet_id = auth.uid()` (vet se auto-inserta via función)
 - UPDATE admin: miembro activo de la sociedad del caballo
 
-**`historial_clinico`**
+**`historial_clinico`** (migración `20260818120000` sumó al admin)
 - SELECT: `tiene_membresia` del caballo o fila activa en `acceso_vet`
-- INSERT: vet (`creado_por = auth.uid()` y rol veterinario)
-- UPDATE: solo `creado_por = auth.uid()`
+- INSERT: `creado_por = auth.uid()` **y** (`es_admin` de la sociedad del caballo, o rol veterinario por membresía, o `usuario.rol = 'veterinario'`)
+- UPDATE: solo `creado_por = auth.uid()` — no mira el rol, así que cada quien corrige lo suyo y nadie toca lo ajeno (inmutabilidad del historial). El admin **ve** las consultas del vet pero su UPDATE no afecta ninguna fila (la RLS filtra en silencio); el front solo ofrece "Editar" cuando `creado_por` es el usuario
 
 **`historial_parte_afectada` / `historial_medicamento`**
 - SELECT: `tiene_membresia` (vía caballo)
-- INSERT/UPDATE: `creado_por` del historial = `auth.uid()`
+- INSERT/UPDATE/DELETE: `creado_por` del historial = `auth.uid()`
+- El DELETE se agregó en `20260818120000`. Editar una consulta reescribe partes y medicamentos (borrar todo + reinsertar, en `historialService.actualizar`) y sin policy de DELETE ese borrado no afectaba ninguna fila ni daba error: las filas viejas quedaban duplicadas junto a las nuevas
 
 **`cat_trabajo_sanitario`**
 - SELECT: `sociedad_id IS NULL` (globales) o `tiene_membresia(sociedad_id)` o `is_superadmin()`
