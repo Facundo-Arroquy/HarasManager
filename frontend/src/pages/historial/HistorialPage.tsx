@@ -243,8 +243,8 @@ export default function HistorialPage() {
                 <Tooltip text="Descarga la ficha completa del caballo: datos generales, historial clínico y registros reproductivos." />
               </>
             )}
-            {/* Solo veterinario — caballo ya pre-seleccionado */}
-            {rol === 'veterinario' && (
+            {/* Veterinario y admin — caballo ya pre-seleccionado */}
+            {(rol === 'veterinario' || rol === 'admin') && (
               <button
                 onClick={() => setShowModal(true)}
                 className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-500 px-3 py-2 text-sm font-medium text-white transition-colors"
