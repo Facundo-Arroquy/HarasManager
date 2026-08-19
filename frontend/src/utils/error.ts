@@ -34,3 +34,12 @@ export function esLimiteMembresiaVet(e: unknown): boolean {
   if (tieneCodigo(e, 'HM002')) return true
   return /límite de \d+ caballos propios que incluye la membresía/.test(mensajeError(e, ''))
 }
+
+/**
+ * El N° de chip ya está cargado en otro caballo: choca con el índice único de
+ * `caballo.numero_chip` (23505 = unique_violation).
+ */
+export function esChipDuplicado(e: unknown): boolean {
+  if (!tieneCodigo(e, '23505')) return false
+  return /chip/i.test(mensajeError(e, ''))
+}

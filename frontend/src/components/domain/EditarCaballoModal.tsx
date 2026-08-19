@@ -13,6 +13,8 @@ import {
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { CATEGORIAS_CON_TAGS, tagService } from '../../services/tagService'
+import { CHIP_LARGO, esChipValido, normalizarChip } from '../../utils/caballo'
+import { esChipDuplicado } from '../../utils/error'
 import PedigreeCombobox from './PedigreeCombobox'
 import TagSelector from './TagSelector'
 
@@ -68,7 +70,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
     observaciones:    caballo.observaciones ?? '',
     raza_id:          caballo.raza_id ?? 0,
     pelaje_id:        caballo.pelaje_id ?? 0,
-    numero_chip:      caballo.numero_chip ?? '',
+    numero_chip:      normalizarChip(caballo.numero_chip),
     numero_registro:  caballo.numero_registro ?? '',
     campo_id:         caballo.campo_id ?? '',
   })
@@ -133,6 +135,10 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
     e.preventDefault()
     if (!form.nombre.trim())    return setError('El nombre es requerido.')
     if (!form.fecha_nacimiento) return setError('La fecha de nacimiento es requerida.')
+    const chip = normalizarChip(form.numero_chip)
+    if (chip && !esChipValido(chip)) {
+      return setError(`El N° de chip tiene que tener ${CHIP_LARGO} dígitos.`)
+    }
     setSaving(true)
     setError('')
     try {
@@ -148,7 +154,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
                             : null,
         raza_id:          Number(form.raza_id),
         pelaje_id:        Number(form.pelaje_id),
-        numero_chip:      form.numero_chip.trim()      || undefined,
+        numero_chip:      chip                          || undefined,
         numero_registro:  form.numero_registro.trim()  || undefined,
         campo_id:         form.campo_id                || null,
         padre_id:         genealogia.padre_id,
@@ -160,6 +166,10 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
       await tagService.guardar(caballo.id, admiteTags ? tagIds : [])
       onSuccess()
     } catch (err: unknown) {
+      if (esChipDuplicado(err)) {
+        setError('Ese N° de chip ya está cargado en otro caballo.')
+        return
+      }
       const msg =
         err instanceof Error
           ? err.message
@@ -343,8 +353,11 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
               <label className="text-xs font-medium text-slate-500">N° chip</label>
               <input
                 type="text"
+                inputMode="numeric"
+                maxLength={CHIP_LARGO}
+                placeholder="941000024850001"
                 value={form.numero_chip}
-                onChange={(e) => set('numero_chip', e.target.value)}
+                onChange={(e) => set('numero_chip', normalizarChip(e.target.value))}
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 font-mono focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>

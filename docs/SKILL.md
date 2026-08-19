@@ -194,7 +194,11 @@ CREATE TABLE caballo (
   observaciones TEXT,                          -- notas libres: lesiones, marcas, nacido en manada
   raza_id INTEGER REFERENCES cat_raza(id),
   pelaje_id INTEGER REFERENCES cat_pelaje(id),
-  numero_chip VARCHAR(50), numero_registro VARCHAR(50),
+  -- Chip implantado (ISO 11784/11785, ej. Datamars Animal iD): 15 dígitos y
+  -- único en el mundo, así que también es único acá — índice parcial
+  -- `caballo_numero_chip_uniq` (migración 20260819120000). NULL = sin chipear.
+  numero_chip VARCHAR(50) CHECK (numero_chip IS NULL OR numero_chip ~ '^\d{15}$'),
+  numero_registro VARCHAR(50),
   sociedad_id UUID REFERENCES sociedad(id),    -- NULL si es caballo de un vet sin sociedad asignada
   campo_id UUID REFERENCES campo(id),          -- potrero actual
   rol_reproductivo TEXT CHECK (rol_reproductivo IN ('Donante','Receptora')),  -- NULL = sin rol

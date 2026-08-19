@@ -30,7 +30,7 @@ const COLUMN_INFO = [
   { col: 'raza',             req: false, hint: 'Ver hoja "Catálogos"' },
   { col: 'pelaje',           req: false, hint: 'Ver hoja "Catálogos"' },
   { col: 'campo',            req: false, hint: 'Ver hoja "Catálogos"' },
-  { col: 'numero_chip',      req: false, hint: 'Texto libre' },
+  { col: 'numero_chip',      req: false, hint: '15 dígitos (ISO 11784/11785)' },
   { col: 'numero_registro',  req: false, hint: 'Texto libre' },
   { col: 'padre_nombre',     req: false, hint: 'Texto libre' },
   { col: 'madre_nombre',     req: false, hint: 'Texto libre' },
