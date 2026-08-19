@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import { CHIP_LARGO, esChipValido, normalizarChip } from './caballo'
 
 export interface BulkCaballoPayload {
   nombre: string
@@ -179,6 +180,17 @@ export function validarYMapear(rows: ExcelRow[], catalogs: CatalogContext): Pars
   const campoMap  = new Map(catalogs.campos.map((c) => [c.nombre.toLowerCase(), c.id]))
   const marcaMap  = new Map(catalogs.marcas.map((m) => [m.nombre.toLowerCase(), m.id]))
 
+  // Un chip identifica a un solo animal: si el archivo repite un número, alguna
+  // de las dos filas está mal y la base la rechazaría a mitad de la importación.
+  const chipsVistos    = new Set<string>()
+  const chipsRepetidos = new Set<string>()
+  for (const row of rows) {
+    const chip = normalizarChip(row.numero_chip)
+    if (!chip) continue
+    if (chipsVistos.has(chip)) chipsRepetidos.add(chip)
+    else chipsVistos.add(chip)
+  }
+
   return rows.map((raw, idx) => {
     const issues: RowIssue[] = []
     let hardError = false
@@ -252,6 +264,15 @@ export function validarYMapear(rows: ExcelRow[], catalogs: CatalogContext): Pars
       warn('fecha_nacimiento', `Fecha "${raw.fecha_nacimiento}" inválida — se importará sin fecha`)
     }
 
+    const chip = normalizarChip(raw.numero_chip)
+    const numero_chip = esChipValido(chip) ? chip : ''
+    if (raw.numero_chip?.trim() && !numero_chip) {
+      warn('numero_chip', `Chip "${raw.numero_chip}" inválido (son ${CHIP_LARGO} dígitos) — se importará sin chip`)
+    }
+    if (numero_chip && chipsRepetidos.has(numero_chip)) {
+      err('numero_chip', `El chip ${numero_chip} aparece en más de una fila del archivo`)
+    }
+
     if (hardError) {
       return { rowIndex: idx + 1, raw, issues, payload: null }
     }
@@ -269,7 +290,7 @@ export function validarYMapear(rows: ExcelRow[], catalogs: CatalogContext): Pars
         pelaje_id,
         campo_id,
         marca_id,
-        numero_chip:    raw.numero_chip?.trim()     || undefined,
+        numero_chip:    numero_chip                 || undefined,
         numero_registro: raw.numero_registro?.trim() || undefined,
         padre_nombre:   raw.padre_nombre?.trim()    || null,
         madre_nombre:   raw.madre_nombre?.trim()    || null,

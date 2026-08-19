@@ -6,7 +6,7 @@ import { caballoService, type Caballo } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { sanidadService } from '../../services/sanidadService'
 import { getVeterinariosPlataforma, type VeterinarioPlataforma } from '../../services/adminService'
-import { nombreCaballo, textoBusquedaCaballo, getCamada } from '../../utils/caballo'
+import { nombreCaballo, coincideBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import type { CaballoSinAcceso, CatTrabajoSanitario, ItemPlanSanitario } from '../../types/sanidad'
 import ConfirmarAccesoVetModal from './ConfirmarAccesoVetModal'
@@ -156,7 +156,7 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
     const q = busqueda.toLowerCase()
     return caballos
       .filter((c) => {
-        if (!textoBusquedaCaballo(c).includes(q)) return false
+        if (!coincideBusquedaCaballo(c, q)) return false
         if (filtroEmpresas.size > 0 && !filtroEmpresas.has(c.sociedad_id ?? '')) return false
         if (filtroCampos.size > 0   && !filtroCampos.has(c.campo_id ?? ''))      return false
         if (filtroCamadas.size > 0) {

@@ -15,7 +15,8 @@ import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { fotoService } from '../../services/fotoService'
 import { CATEGORIAS_CON_TAGS, tagService } from '../../services/tagService'
-import { mensajeError, esLimiteCaballosVet, esLimiteMembresiaVet } from '../../utils/error'
+import { CHIP_LARGO, esChipValido, normalizarChip } from '../../utils/caballo'
+import { mensajeError, esChipDuplicado, esLimiteCaballosVet, esLimiteMembresiaVet } from '../../utils/error'
 import { mailtoSoporte } from '../../utils/contacto'
 import PedigreeCombobox, { type HorseRef } from './PedigreeCombobox'
 import TagSelector from './TagSelector'
@@ -113,6 +114,10 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.nombre.trim())         return setError('El nombre es requerido.')
+    const chip = normalizarChip(form.numero_chip)
+    if (chip && !esChipValido(chip)) {
+      return setError(`El N° de chip tiene que tener ${CHIP_LARGO} dígitos.`)
+    }
     if (!vetMode && !sociedadActiva) return
     if (vetMode && !userId)          return
 
@@ -133,7 +138,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       raza_id:          form.raza_id   || null,
       pelaje_id:        form.pelaje_id || null,
       fecha_nacimiento: form.fecha_nacimiento || null,
-      numero_chip:      form.numero_chip.trim() || undefined,
+      numero_chip:      chip || undefined,
       numero_registro:  form.numero_registro.trim() || undefined,
       campo_id:         form.campo_id || null,
       padre_id:         padre.id    ?? null,
@@ -163,6 +168,8 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
         setTope('membresia')
       } else if (vetMode && esLimiteCaballosVet(err)) {
         setTope('gratuito')
+      } else if (esChipDuplicado(err)) {
+        setError('Ese N° de chip ya está cargado en otro caballo.')
       } else {
         setError(mensajeError(err))
       }
@@ -427,8 +434,10 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
               <label className="text-xs font-medium text-slate-500">N° chip</label>
               <input
                 type="text"
+                inputMode="numeric"
+                maxLength={CHIP_LARGO}
                 value={form.numero_chip}
-                onChange={(e) => set('numero_chip', e.target.value)}
+                onChange={(e) => set('numero_chip', normalizarChip(e.target.value))}
                 placeholder="941000024850001"
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 font-mono focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
