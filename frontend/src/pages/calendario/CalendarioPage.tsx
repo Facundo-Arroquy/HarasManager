@@ -7,6 +7,7 @@ import { historialService, type ConsultaCalendario } from '../../services/histor
 import { empresaService } from '../../services/empresaService'
 import { LABEL_ESTADO_TRABAJO, type TrabajoSanitario } from '../../types/sanidad'
 import { diaAR, hoyAR } from '../../utils/fecha'
+import { agruparPorPlan } from '../../utils/planSanitario'
 import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
@@ -62,54 +63,6 @@ function tituloDia(iso: string): string {
 function horaAR(iso: string): string {
   return new Date(iso).toLocaleTimeString('es-AR', {
     hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires',
-  })
-}
-
-// ── Agrupación de trabajos en planes ─────────────────────────────────────────
-
-/** Los trabajos de un plan que caen el mismo día, sobre el mismo padrón. */
-interface GrupoPlan {
-  clave:      string
-  /** Título combinado: "Vacuna 1 + Vacuna 2". */
-  titulo:     string
-  estado:     TrabajoSanitario['estado']
-  /** Caballos distintos alcanzados, aunque no estén en todos los trabajos. */
-  nCaballos:  number
-  tratamientos: string
-  trabajos:   TrabajoSanitario[]
-}
-
-/**
- * Junta los trabajos de un mismo plan y día en una sola entrada. Vienen
- * separados porque cada uno es una columna de la grilla (vacuna 1, vacuna 2),
- * pero para quien mira el calendario son una sola salida al campo.
- *
- * La clave incluye al dueño: un plan cargado por un veterinario puede mezclar
- * empresas, y cada padrón sigue siendo su propia entrada para que el chip de
- * empresa siga significando algo.
- */
-function agruparPorPlan(trabajos: TrabajoSanitario[]): GrupoPlan[] {
-  const mapa = new Map<string, TrabajoSanitario[]>()
-  for (const t of trabajos) {
-    const clave = `${t.plan_id}|${t.sociedad_id ?? t.vet_owner_id ?? ''}`
-    ;(mapa.get(clave) ?? mapa.set(clave, []).get(clave)!).push(t)
-  }
-
-  return [...mapa.entries()].map(([clave, ts]) => {
-    const nombres = [...new Set(ts.map((t) => t.nombre))]
-    return {
-      clave,
-      titulo: nombres.length <= 3
-        ? nombres.join(' + ')
-        : `${nombres.slice(0, 2).join(' + ')} +${nombres.length - 2} más`,
-      // Mientras quede un trabajo sin cerrar, el plan del día sigue pendiente.
-      estado: ts.some((t) => t.estado === 'pendiente')
-        ? 'pendiente'
-        : ts.every((t) => t.estado === 'cancelado') ? 'cancelado' : 'realizado',
-      nCaballos: new Set(ts.flatMap((t) => (t.caballos ?? []).map((c) => c.caballo_id))).size,
-      tratamientos: [...new Set(ts.map((t) => t.tratamiento).filter(Boolean))].join(' · '),
-      trabajos: ts,
-    }
   })
 }
 
