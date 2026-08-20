@@ -1123,6 +1123,7 @@ CREATE TABLE lead (
 - SELECT: `tiene_membresia` del caballo o fila activa en `acceso_vet`
 - INSERT: `creado_por = auth.uid()` **y** (`es_admin` de la sociedad del caballo, o rol veterinario por membresía, o `usuario.rol = 'veterinario'`)
 - UPDATE: solo `creado_por = auth.uid()` — no mira el rol, así que cada quien corrige lo suyo y nadie toca lo ajeno (inmutabilidad del historial). El admin **ve** las consultas del vet pero su UPDATE no afecta ninguna fila (la RLS filtra en silencio); el front solo ofrece "Editar" cuando `creado_por` es el usuario
+- DELETE: `creado_por = auth.uid()` **y** `estado = 'pendiente'` (migración `20260819120000`). Solo se borra lo **agendado que nunca se hizo** — una consulta `realizada` no tiene forma de eliminarse desde la app, la inmutabilidad del historial sigue intacta. Antes no había policy de DELETE y ninguna fila se borraba nunca, así que una consulta agendada por error quedaba para siempre en el calendario
 
 **`historial_parte_afectada` / `historial_medicamento`**
 - SELECT: `tiene_membresia` (vía caballo)
@@ -1136,7 +1137,8 @@ CREATE TABLE lead (
 **`trabajo_sanitario`** (migración `20260729150553` sumó acceso de veterinarios; `20260815000001`, el plan compartido; `20260815000003`, los caballos propios del vet)
 - SELECT/UPDATE: `tiene_membresia(sociedad_id)` o `is_superadmin()` o `creado_por = auth.uid()` o `compartido_con = auth.uid()` o `vet_owner_id = auth.uid()`
 - INSERT: `creado_por = auth.uid()` **y** (`tiene_membresia(sociedad_id)` o `vet_owner_id = auth.uid()` o el vet tiene un `acceso_vet` activo sobre algún caballo de esa sociedad)
-- DELETE: `es_admin(sociedad_id)` o `is_superadmin()` o `vet_owner_id = auth.uid()`
+- DELETE: `es_admin(sociedad_id)` o `is_superadmin()` o `vet_owner_id = auth.uid()` o (`creado_por = auth.uid()` **y** `estado = 'pendiente'`) — la última rama es de la migración `20260819120000`: el veterinario que programa un plan sobre caballos de una empresa no es admin ni `vet_owner`, así que no podía borrar su propio plan. Solo mientras siga pendiente: un trabajo ya realizado tiene historial clínico colgando de `trabajo_sanitario_caballo.historial_id`
+- El UPDATE alcanza para editar y reprogramar un trabajo (nombre, `fecha_programada`, tratamiento, observaciones); que solo se ofrezca sobre los `pendiente` lo decide el front
 - ⚠️ Toda rama que arranque en `tiene_membresia(sociedad_id)` da **false** para los planes de caballos propios, porque ahí `sociedad_id` es NULL. Cada policy y cada función de negocio necesita explícitamente la rama `vet_owner_id`
 - El trigger `trabajo_sanitario_compartir_guard` acota el UPDATE: cambiar `compartido_con` requiere membresía, superadmin, ser el autor o el dueño vet
 

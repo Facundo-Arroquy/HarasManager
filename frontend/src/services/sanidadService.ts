@@ -282,6 +282,81 @@ export const sanidadService = {
     return (data as number) ?? 0
   },
 
+  /**
+   * Edita un trabajo todavía pendiente: nombre, fecha, tratamiento u
+   * observaciones. No toca `compartido_con` (eso va por `compartirTrabajos`,
+   * que además resuelve los accesos del veterinario).
+   */
+  async actualizarTrabajo(
+    trabajoId: string,
+    campos: Partial<Pick<TrabajoSanitario, 'nombre' | 'fecha_programada' | 'tratamiento' | 'observaciones'>>,
+  ): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('trabajo_sanitario')
+      .update(campos)
+      .eq('id', trabajoId)
+    if (error) throw error
+  },
+
+  /**
+   * Mueve trabajos enteros a otra fecha, sin partir el plan ni tocar los
+   * caballos: es "posponer todo" en vez de marcar pendiente casillero por
+   * casillero. Solo aplica a los que siguen pendientes.
+   */
+  async reprogramarTrabajos(trabajoIds: string[], fecha: string): Promise<void> {
+    if (trabajoIds.length === 0) return
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('trabajo_sanitario')
+      .update({ fecha_programada: fecha })
+      .in('id', trabajoIds)
+      .eq('estado', 'pendiente')
+    if (error) throw error
+  },
+
+  /**
+   * Reemplaza la lista de caballos de un trabajo pendiente. Las filas que
+   * siguen se dejan como están para no perder lo ya marcado.
+   */
+  async sincronizarCaballos(trabajoId: string, caballoIds: string[]): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { data: actuales, error: errLeer } = await supabase
+      .from('trabajo_sanitario_caballo')
+      .select('id, caballo_id')
+      .eq('trabajo_id', trabajoId)
+    if (errLeer) throw errLeer
+
+    const previos  = (actuales ?? []) as { id: string; caballo_id: string }[]
+    const quedan   = new Set(caballoIds)
+    const aBorrar  = previos.filter((p) => !quedan.has(p.caballo_id)).map((p) => p.id)
+    const yaEstaban = new Set(previos.map((p) => p.caballo_id))
+    const aSumar   = caballoIds.filter((id) => !yaEstaban.has(id))
+
+    if (aBorrar.length > 0) {
+      const { error } = await supabase.from('trabajo_sanitario_caballo').delete().in('id', aBorrar)
+      if (error) throw error
+    }
+    if (aSumar.length > 0) {
+      const { error } = await supabase
+        .from('trabajo_sanitario_caballo')
+        .insert(aSumar.map((cid) => ({ trabajo_id: trabajoId, caballo_id: cid })))
+      if (error) throw error
+    }
+  },
+
+  /**
+   * Borra el trabajo y, en cascada, su lista de caballos. La RLS solo lo deja
+   * pasar si sigue pendiente (o si quien borra es el admin de la empresa / el
+   * vet dueño), así que nunca se lleva puesto un historial ya cargado.
+   */
+  async eliminarTrabajos(trabajoIds: string[]): Promise<void> {
+    if (trabajoIds.length === 0) return
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.from('trabajo_sanitario').delete().in('id', trabajoIds)
+    if (error) throw error
+  },
+
   async cancelarTrabajo(trabajoId: string): Promise<void> {
     const supabase = getSupabaseClient()
     const { error } = await supabase

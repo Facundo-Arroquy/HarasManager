@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ChevronDown, Syringe, Stethoscope, CalendarDays, X, Building2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Syringe, Stethoscope, CalendarDays, X, Building2, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { sanidadService } from '../../services/sanidadService'
 import { historialService, type ConsultaCalendario } from '../../services/historialService'
 import { empresaService } from '../../services/empresaService'
 import { LABEL_ESTADO_TRABAJO, type TrabajoSanitario } from '../../types/sanidad'
 import { diaAR, hoyAR } from '../../utils/fecha'
+import { agruparPorPlan } from '../../utils/planSanitario'
 import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
@@ -98,6 +99,9 @@ export default function CalendarioPage() {
 
   const [reagendando, setReagendando] = useState<ConsultaCalendario | null>(null)
   const [completando, setCompletando] = useState<(HistorialEntry & { caballo_id: string }) | null>(null)
+  // Corregir una agendada sin darla por hecha: mismo modal, otra intención.
+  const [editando,    setEditando]    = useState<(HistorialEntry & { caballo_id: string }) | null>(null)
+  const [borrandoId,  setBorrandoId]  = useState<string | null>(null)
   const [abriendoId,  setAbriendoId]  = useState<string | null>(null)
   const [planAbierto, setPlanAbierto] = useState<string | null>(null)
   const [recarga,     setRecarga]     = useState(0)
@@ -149,9 +153,24 @@ export default function CalendarioPage() {
     return mapa
   }, [consultas])
 
-  const trabajosDia  = trabajosPorDia[diaSelec]  ?? []
+  const trabajosDia  = useMemo(() => trabajosPorDia[diaSelec] ?? [], [trabajosPorDia, diaSelec])
   const consultasDia = consultasPorDia[diaSelec] ?? []
   const esHoySelec   = diaSelec === hoy
+
+  /**
+   * Lo que se lista y se cuenta es el plan del día, no cada trabajo suelto:
+   * tres vacunas cargadas juntas para el mismo grupo de caballos son **una**
+   * salida al campo. Si dos caen el 20 y la tercera el 21, el 20 muestra una
+   * entrada con las dos y el 21 otra con la que queda.
+   */
+  const gruposDia = useMemo(() => agruparPorPlan(trabajosDia), [trabajosDia])
+
+  /** Misma cuenta, para el número que va en la celda del mes. */
+  const planesPorDia = useMemo(() => {
+    const mapa: Record<string, number> = {}
+    for (const [dia, ts] of Object.entries(trabajosPorDia)) mapa[dia] = agruparPorPlan(ts).length
+    return mapa
+  }, [trabajosPorDia])
 
   function cambiarMes(delta: number) {
     setMesRef((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1))
@@ -179,6 +198,36 @@ export default function CalendarioPage() {
       setError(mensajeError(e, 'No se pudo abrir la consulta.'))
     } finally {
       setAbriendoId(null)
+    }
+  }
+
+  /** Corregir los datos de una consulta agendada, sin marcarla como hecha. */
+  async function editarConsulta(c: ConsultaCalendario) {
+    setAbriendoId(c.id)
+    try {
+      const entry = await historialService.obtenerPorId(c.id)
+      setEditando(entry as unknown as HistorialEntry & { caballo_id: string })
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo abrir la consulta.'))
+    } finally {
+      setAbriendoId(null)
+    }
+  }
+
+  /** Solo para las agendadas: una consulta ya hecha es historial y no se borra. */
+  async function eliminarConsulta(c: ConsultaCalendario) {
+    const ok = window.confirm(
+      `¿Eliminar la consulta agendada de ${c.caballo_nombre} (${c.tipo})?\n\nNo se puede deshacer.`,
+    )
+    if (!ok) return
+    setBorrandoId(c.id)
+    try {
+      await historialService.eliminar(c.id)
+      setRecarga((n) => n + 1)
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo eliminar la consulta.'))
+    } finally {
+      setBorrandoId(null)
     }
   }
 
@@ -242,7 +291,7 @@ export default function CalendarioPage() {
               const delMes     = dia.getMonth() === mesRef.getMonth()
               const esHoy      = iso === hoy
               const esSelec    = iso === diaSelec
-              const nTrabajos  = (trabajosPorDia[iso]  ?? []).length
+              const nTrabajos  = planesPorDia[iso] ?? 0
               const nConsultas = (consultasPorDia[iso] ?? []).length
 
               return (
@@ -294,7 +343,7 @@ export default function CalendarioPage() {
           </div>
           <div className="flex items-center gap-3 shrink-0 text-xs">
             <span className="inline-flex items-center gap-1 text-slate-500">
-              <Syringe size={12} className="text-brand-500" /> {trabajosDia.length}
+              <Syringe size={12} className="text-brand-500" /> {gruposDia.length}
             </span>
             <span className="inline-flex items-center gap-1 text-slate-500">
               <Stethoscope size={12} className="text-blue-500" /> {consultasDia.length}
@@ -310,27 +359,26 @@ export default function CalendarioPage() {
           </p>
         ) : (
           <div className="divide-y divide-slate-100">
-            {trabajosDia.map((t) => {
-              const total    = t.caballos?.length ?? 0
-              // Por trabajo y no por plan: dos trabajos del mismo plan pueden caer
-              // el mismo día, y con la clave del plan se abrían los dos a la vez,
-              // mostrando la misma grilla repetida.
-              const abierto  = planAbierto === t.id
+            {gruposDia.map((g) => {
+              // Todos los trabajos del grupo comparten plan, día y dueño: para el
+              // encabezado alcanza con mirar el primero.
+              const t        = g.trabajos[0]
+              const abierto  = planAbierto === g.clave
               const propio   = t.creado_por === userId
               // Sin empresa = plan sobre los caballos propios del vet.
               const empresa  = t.sociedad_id ? empresas.get(t.sociedad_id) : undefined
               const esPropia = t.vet_owner_id !== null
               return (
-                <div key={t.id}>
+                <div key={g.clave}>
                   <div className="flex items-start gap-3 px-4 py-3 text-sm hover:bg-slate-50">
                     <Syringe size={14} className="mt-0.5 shrink-0 text-brand-500" />
                     <button
                       type="button"
-                      onClick={() => setPlanAbierto(abierto ? null : t.id)}
+                      onClick={() => setPlanAbierto(abierto ? null : g.clave)}
                       className="flex-1 min-w-0 text-left"
                     >
                       <span className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-slate-900">{t.nombre}</span>
+                        <span className="font-medium text-slate-900">{g.titulo}</span>
                         {/* El admin ve quién se lo programó; los suyos, sin chip. */}
                         {!esVet && !propio && t.creador && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
@@ -353,14 +401,15 @@ export default function CalendarioPage() {
                         ))}
                       </span>
                       <span className="mt-1 flex items-center gap-3 flex-wrap text-xs text-slate-400">
-                        <span>{total} caballo{total !== 1 ? 's' : ''}</span>
-                        {t.tratamiento && <span>· {t.tratamiento}</span>}
+                        <span>{g.nCaballos} caballo{g.nCaballos !== 1 ? 's' : ''}</span>
+                        {g.trabajos.length > 1 && <span>· {g.trabajos.length} trabajos</span>}
+                        {g.tratamientos && <span>· {g.tratamientos}</span>}
                         {esVet && propio && empresa && <span>· {empresa}</span>}
                       </span>
                     </button>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTADO_BADGE[t.estado]}`}>
-                        {LABEL_ESTADO_TRABAJO[t.estado]}
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTADO_BADGE[g.estado]}`}>
+                        {LABEL_ESTADO_TRABAJO[g.estado]}
                       </span>
                       <ChevronDown
                         size={15}
@@ -373,6 +422,7 @@ export default function CalendarioPage() {
                       <DetallePlanSanitario
                         planId={t.plan_id}
                         fecha={t.fecha_programada}
+                        trabajoIds={g.trabajos.map((x) => x.id)}
                         onCambio={() => setRecarga((n) => n + 1)}
                       />
                     </div>
@@ -419,16 +469,38 @@ export default function CalendarioPage() {
                   }`}>
                     {c.estado === 'pendiente' ? 'Pendiente' : 'Realizada'}
                   </span>
-                  {/* Una consulta ya hecha no se reagenda: su fecha es un dato del historial. */}
+                  {/* Una consulta ya hecha no se toca: su ficha es historial clínico. */}
                   {c.estado === 'pendiente' && c.creado_por === userId && (
-                    <button
-                      type="button"
-                      onClick={() => setReagendando(c)}
-                      className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700"
-                      title="Cambiar fecha y horario"
-                    >
-                      Reagendar
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setReagendando(c)}
+                        className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700"
+                        title="Cambiar fecha y horario"
+                      >
+                        Reagendar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => editarConsulta(c)}
+                        disabled={abriendoId === c.id}
+                        className="rounded-md border border-slate-300 p-1 text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700 disabled:opacity-50"
+                        title="Editar la consulta agendada"
+                        aria-label="Editar la consulta agendada"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => eliminarConsulta(c)}
+                        disabled={borrandoId === c.id}
+                        className="rounded-md border border-slate-300 p-1 text-slate-500 transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-50"
+                        title="Eliminar la consulta agendada"
+                        aria-label="Eliminar la consulta agendada"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </>
                   )}
                   <ChevronRight size={15} className="text-slate-300 group-hover:text-brand-500" />
                 </div>
@@ -452,6 +524,16 @@ export default function CalendarioPage() {
           entryToEdit={completando}
           onClose={() => setCompletando(null)}
           onSuccess={() => { setCompletando(null); setRecarga((n) => n + 1) }}
+        />
+      )}
+
+      {editando && (
+        <NuevaConsultaModal
+          caballoId={editando.caballo_id}
+          entryToEdit={editando}
+          soloEditar
+          onClose={() => setEditando(null)}
+          onSuccess={() => { setEditando(null); setRecarga((n) => n + 1) }}
         />
       )}
     </div>

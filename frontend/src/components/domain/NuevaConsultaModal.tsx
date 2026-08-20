@@ -14,6 +14,11 @@ interface Props {
   caballoId?: string
   /** Si se pasa, el modal opera en modo edición */
   entryToEdit?: HistorialEntry
+  /**
+   * Corregir una consulta agendada sin darla por hecha. Sin esto, abrir una
+   * pendiente es "completarla" y guardarla la marca realizada.
+   */
+  soloEditar?: boolean
   onClose: () => void
   onSuccess: () => void
 }
@@ -26,7 +31,7 @@ const LADOS = ['izquierdo', 'derecho', 'bilateral', 'no aplica']
 let _id = 0
 const uid = () => String(++_id)
 
-export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, onSuccess }: Props) {
+export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar, onClose, onSuccess }: Props) {
   const user    = useAuthStore((s) => s.user)
   const sociedad = useAuthStore((s) => s.sociedadActiva)
   const rol      = useAuthStore((s) => s.rol)
@@ -94,7 +99,9 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
   }
 
   /** Se está cargando la ficha de una consulta que estaba agendada. */
-  const esCompletar = entryToEdit?.estado === 'pendiente'
+  const esCompletar = entryToEdit?.estado === 'pendiente' && !soloEditar
+  /** Se está corrigiendo una agendada: al guardar sigue pendiente. */
+  const esAgendada  = entryToEdit?.estado === 'pendiente' && !!soloEditar
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState<string | null>(null)
@@ -258,7 +265,9 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
           <h2 className="text-base font-semibold text-slate-900">
             {esCompletar
               ? 'Completar consulta'
-              : entryToEdit ? 'Editar consulta clínica' : 'Nueva consulta clínica'}
+              : esAgendada
+                ? 'Editar consulta agendada'
+                : entryToEdit ? 'Editar consulta clínica' : 'Nueva consulta clínica'}
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors">
             <X size={18} />
@@ -599,7 +608,9 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, onClose, on
             {submitting && <Spinner size="sm" />}
             {esCompletar
               ? 'Marcar como realizada'
-              : entryToEdit ? 'Guardar cambios' : agendar ? 'Agendar consulta' : 'Guardar consulta'}
+              : esAgendada
+                ? 'Guardar y dejar agendada'
+                : entryToEdit ? 'Guardar cambios' : agendar ? 'Agendar consulta' : 'Guardar consulta'}
           </button>
         </div>
       </div>

@@ -183,6 +183,17 @@ export const historialService = {
     if (error) throw error
   },
 
+  /**
+   * Borra una consulta agendada que nunca se hizo. La RLS solo lo permite sobre
+   * las `pendiente` propias: el historial ya cargado es inmutable y no se borra.
+   * Partes afectadas y medicamentos se van en cascada.
+   */
+  async eliminar(historialId: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.from('historial_clinico').delete().eq('id', historialId)
+    if (error) throw error
+  },
+
   /** Una consulta con todo su detalle, para completarla desde el calendario. */
   async obtenerPorId(historialId: string) {
     const supabase = getSupabaseClient()

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Syringe, Check, X, CheckCircle2, CalendarDays, Stethoscope, Share2 } from 'lucide-react'
+import { Plus, Syringe, Check, X, CheckCircle2, CalendarDays, Stethoscope, Share2, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { sanidadService } from '../../services/sanidadService'
 import { getVeterinariosPlataforma, type VeterinarioPlataforma } from '../../services/adminService'
@@ -10,7 +10,9 @@ import {
   type CaballoSinAcceso,
   type TrabajoSanitario,
 } from '../../types/sanidad'
+import { agruparPorPlan, type GrupoPlan } from '../../utils/planSanitario'
 import NuevoTrabajoSanitarioModal from '../../components/domain/NuevoTrabajoSanitarioModal'
+import EditarTrabajoSanitarioModal from '../../components/domain/EditarTrabajoSanitarioModal'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import ConfirmarAccesoVetModal from '../../components/domain/ConfirmarAccesoVetModal'
 import Spinner from '../../components/ui/Spinner'
@@ -28,8 +30,10 @@ function formatFecha(fecha: string): string {
 
 export default function SanidadPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
+  const userId     = useAuthStore((s) => s.user?.id)
   const rol        = useAuthStore((s) => s.rol)
   const esVet      = rol === 'veterinario'
+  const esAdmin    = rol === 'admin' || rol === 'superadmin'
   // El admin también carga consultas y tratamientos sobre los caballos de su empresa.
   const puedeCargarConsulta = esVet || rol === 'admin'
 
@@ -38,8 +42,9 @@ export default function SanidadPage() {
   const [error,    setError]    = useState<string | null>(null)
   const [showNuevo, setShowNuevo] = useState(false)
   const [showConsulta, setShowConsulta] = useState(false)
-  const [completar, setCompletar] = useState<TrabajoSanitario | null>(null)
+  const [completar, setCompletar] = useState<GrupoPlan | null>(null)
   const [compartir, setCompartir] = useState<TrabajoSanitario | null>(null)
+  const [editar,    setEditar]    = useState<TrabajoSanitario | null>(null)
   const [vets,      setVets]      = useState<VeterinarioPlataforma[]>([])
 
   useEffect(() => {
@@ -70,8 +75,44 @@ export default function SanidadPage() {
 
   useEffect(() => { cargar() }, [cargar])
 
-  const pendientes = useMemo(() => trabajos.filter((t) => t.estado === 'pendiente'), [trabajos])
-  const historial  = useMemo(() => trabajos.filter((t) => t.estado !== 'pendiente'), [trabajos])
+  // Se lista el plan del día, no cada trabajo suelto: tres vacunas cargadas
+  // juntas para el mismo grupo de caballos son una sola salida al campo.
+  const pendientes = useMemo(
+    () => agruparPorPlan(trabajos.filter((t) => t.estado === 'pendiente')),
+    [trabajos],
+  )
+  const historial = useMemo(
+    () => agruparPorPlan(trabajos.filter((t) => t.estado !== 'pendiente')),
+    [trabajos],
+  )
+
+  /**
+   * Corregir un trabajo que todavía no se hizo lo puede el autor, la empresa
+   * dueña y el vet al que se le asignó. Borrarlo, solo los tres primeros: es lo
+   * que deja pasar la RLS.
+   */
+  const puedeEditar = useCallback((t: TrabajoSanitario) =>
+    t.creado_por === userId || esAdmin || t.vet_owner_id === userId || t.compartido_con === userId,
+  [userId, esAdmin])
+
+  const puedeEliminar = useCallback((t: TrabajoSanitario) =>
+    t.creado_por === userId || esAdmin || t.vet_owner_id === userId,
+  [userId, esAdmin])
+
+  const eliminarTrabajo = useCallback(async (t: TrabajoSanitario) => {
+    const cuantos = t.caballos?.length ?? 0
+    const ok = window.confirm(
+      `¿Eliminar el trabajo “${t.nombre}” del ${formatFecha(t.fecha_programada)}?\n\n` +
+      `Se borra para los ${cuantos} caballo${cuantos !== 1 ? 's' : ''} del trabajo. No se puede deshacer.`,
+    )
+    if (!ok) return
+    try {
+      await sanidadService.eliminarTrabajos([t.id])
+      await cargar()
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo eliminar el trabajo.'))
+    }
+  }, [cargar])
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto pb-24">
@@ -127,21 +168,23 @@ export default function SanidadPage() {
         <div className="space-y-6">
           {pendientes.length > 0 && (
             <Seccion titulo="Pendientes">
-              {pendientes.map((t) => (
-                <TrabajoRow
-                  key={t.id}
-                  trabajo={t}
-                  vetNombre={nombreVet(t.compartido_con)}
-                  onCompletar={() => setCompletar(t)}
-                  onCompartir={esVet ? undefined : () => setCompartir(t)}
+              {pendientes.map((g) => (
+                <PlanRow
+                  key={g.clave}
+                  grupo={g}
+                  vetNombre={nombreVet(g.trabajos[0].compartido_con)}
+                  onCompletar={() => setCompletar(g)}
+                  onCompartir={esVet ? undefined : () => setCompartir(g.trabajos[0])}
+                  onEditar={puedeEditar(g.trabajos[0]) ? (t) => setEditar(t) : undefined}
+                  onEliminar={puedeEliminar(g.trabajos[0]) ? eliminarTrabajo : undefined}
                 />
               ))}
             </Seccion>
           )}
           {historial.length > 0 && (
             <Seccion titulo="Realizados / cancelados">
-              {historial.map((t) => (
-                <TrabajoRow key={t.id} trabajo={t} vetNombre={nombreVet(t.compartido_con)} />
+              {historial.map((g) => (
+                <PlanRow key={g.clave} grupo={g} vetNombre={nombreVet(g.trabajos[0].compartido_con)} />
               ))}
             </Seccion>
           )}
@@ -169,9 +212,19 @@ export default function SanidadPage() {
           onSuccess={() => { setCompartir(null); cargar() }}
         />
       )}
+      {editar && (
+        <EditarTrabajoSanitarioModal
+          trabajo={editar}
+          onEliminar={puedeEliminar(editar)
+            ? () => { const t = editar; setEditar(null); eliminarTrabajo(t) }
+            : undefined}
+          onClose={() => setEditar(null)}
+          onSuccess={() => { setEditar(null); cargar() }}
+        />
+      )}
       {completar && (
         <CompletarModal
-          trabajo={completar}
+          grupo={completar}
           onClose={() => setCompletar(null)}
           onSuccess={() => { setCompletar(null); cargar() }}
         />
@@ -191,54 +244,125 @@ function Seccion({ titulo, children }: { titulo: string; children: React.ReactNo
   )
 }
 
-function TrabajoRow({ trabajo, vetNombre, onCompletar, onCompartir }: {
-  trabajo:      TrabajoSanitario
+/**
+ * Un plan de un día: el título combina lo que se hace ese día ("Vacuna 1 +
+ * Vacuna 2") y las acciones son del plan entero. Editar y eliminar sí van por
+ * trabajo — son columnas distintas de la grilla —, así que con más de uno se
+ * muestra un chip por trabajo con sus dos botones.
+ */
+function PlanRow({ grupo, vetNombre, onCompletar, onCompartir, onEditar, onEliminar }: {
+  grupo:        GrupoPlan
   vetNombre?:   string | null
   onCompletar?: () => void
   onCompartir?: () => void
+  onEditar?:    (t: TrabajoSanitario) => void
+  onEliminar?:  (t: TrabajoSanitario) => void
 }) {
-  const total     = trabajo.caballos?.length ?? 0
-  const incluidos = trabajo.caballos?.filter((c) => !c.excluido).length ?? total
+  const uno       = grupo.trabajos.length === 1 ? grupo.trabajos[0] : null
+  // Realizado: los que efectivamente lo recibieron. Pendiente: los convocados.
+  const incluidos = new Set(
+    grupo.trabajos.flatMap((t) => (t.caballos ?? []).filter((c) => !c.excluido).map((c) => c.caballo_id)),
+  ).size
+  const nCaballos = grupo.estado === 'realizado' ? incluidos : grupo.nCaballos
+  const observaciones = [...new Set(grupo.trabajos.map((t) => t.observaciones).filter(Boolean))].join(' · ')
+
   return (
-    <div className="flex items-start gap-3 px-4 py-3 text-sm">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-slate-900">{trabajo.nombre}</span>
-          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTADO_BADGE[trabajo.estado]}`}>
-            {LABEL_ESTADO_TRABAJO[trabajo.estado]}
-          </span>
-          {vetNombre && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
-              <Stethoscope size={10} /> {vetNombre}
+    <div className="px-4 py-3 text-sm">
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-slate-900">{grupo.titulo}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTADO_BADGE[grupo.estado]}`}>
+              {LABEL_ESTADO_TRABAJO[grupo.estado]}
             </span>
+            {vetNombre && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+                <Stethoscope size={10} /> {vetNombre}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-1 flex-wrap text-xs text-slate-400">
+            <span className="inline-flex items-center gap-1"><CalendarDays size={12} /> {formatFecha(grupo.fecha)}</span>
+            <span>{nCaballos} caballo{nCaballos !== 1 ? 's' : ''}</span>
+            {grupo.trabajos.length > 1 && <span>· {grupo.trabajos.length} trabajos</span>}
+            {grupo.tratamientos && <span>· {grupo.tratamientos}</span>}
+          </div>
+          {observaciones && <p className="text-xs text-slate-400 mt-1">{observaciones}</p>}
+        </div>
+        <div className="shrink-0 flex items-center gap-1.5">
+          {uno && onEditar && (
+            <button
+              onClick={() => onEditar(uno)}
+              title="Editar el trabajo programado"
+              aria-label="Editar el trabajo programado"
+              className="rounded-md border border-slate-300 p-1.5 text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-800"
+            >
+              <Pencil size={13} />
+            </button>
+          )}
+          {uno && onEliminar && (
+            <button
+              onClick={() => onEliminar(uno)}
+              title="Eliminar el trabajo programado"
+              aria-label="Eliminar el trabajo programado"
+              className="rounded-md border border-slate-300 p-1.5 text-slate-500 transition-colors hover:border-red-300 hover:text-red-600"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
+          {onCompartir && (
+            <button
+              onClick={onCompartir}
+              title={vetNombre ? 'Cambiar el veterinario' : 'Compartir con un veterinario'}
+              className="flex items-center gap-1 rounded-md border border-slate-300 hover:border-slate-400 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors"
+            >
+              <Share2 size={13} /> {vetNombre ? 'Cambiar' : 'Compartir'}
+            </button>
+          )}
+          {onCompletar && (
+            <button
+              onClick={onCompletar}
+              className="flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors"
+            >
+              <Check size={13} /> Realizado
+            </button>
           )}
         </div>
-        <div className="flex items-center gap-3 mt-1 flex-wrap text-xs text-slate-400">
-          <span className="inline-flex items-center gap-1"><CalendarDays size={12} /> {formatFecha(trabajo.fecha_programada)}</span>
-          <span>{trabajo.estado === 'realizado' ? `${incluidos} caballo${incluidos !== 1 ? 's' : ''}` : `${total} caballo${total !== 1 ? 's' : ''}`}</span>
-          {trabajo.tratamiento && <span>· {trabajo.tratamiento}</span>}
+      </div>
+
+      {/* Con varios trabajos el mismo día, editar y eliminar van por columna */}
+      {!uno && (onEditar || onEliminar) && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {grupo.trabajos.map((t) => (
+            <span
+              key={t.id}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 py-0.5 pl-2.5 pr-1.5 text-[11px] text-slate-600"
+            >
+              {t.nombre}
+              {onEditar && (
+                <button
+                  onClick={() => onEditar(t)}
+                  title={`Editar ${t.nombre}`}
+                  aria-label={`Editar ${t.nombre}`}
+                  className="rounded p-0.5 text-slate-400 transition-colors hover:text-brand-600"
+                >
+                  <Pencil size={12} />
+                </button>
+              )}
+              {onEliminar && (
+                <button
+                  onClick={() => onEliminar(t)}
+                  title={`Eliminar ${t.nombre}`}
+                  aria-label={`Eliminar ${t.nombre}`}
+                  className="rounded p-0.5 text-slate-400 transition-colors hover:text-red-600"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </span>
+          ))}
         </div>
-        {trabajo.observaciones && <p className="text-xs text-slate-400 mt-1">{trabajo.observaciones}</p>}
-      </div>
-      <div className="shrink-0 flex items-center gap-1.5">
-        {onCompartir && (
-          <button
-            onClick={onCompartir}
-            title={trabajo.compartido_con ? 'Cambiar el veterinario' : 'Compartir con un veterinario'}
-            className="flex items-center gap-1 rounded-md border border-slate-300 hover:border-slate-400 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors"
-          >
-            <Share2 size={13} /> {trabajo.compartido_con ? 'Cambiar' : 'Compartir'}
-          </button>
-        )}
-        {onCompletar && (
-          <button
-            onClick={onCompletar}
-            className="flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1.5 text-xs font-medium text-white transition-colors"
-          >
-            <Check size={13} /> Realizado
-          </button>
-        )}
-      </div>
+      )}
     </div>
   )
 }
@@ -364,15 +488,37 @@ function CompartirModal({
 }
 
 // ── Modal: marcar realizado (con exclusión) ──────────────────────────────────
+/**
+ * Cierra el plan del día entero: si ese día había vacuna 1 y vacuna 2, se
+ * marcan las dos sobre los caballos tildados. La exclusión es por caballo, no
+ * por trabajo — "fui, y a este no se lo di" vale para todo lo de ese día.
+ */
 function CompletarModal({
-  trabajo, onClose, onSuccess,
+  grupo, onClose, onSuccess,
 }: {
-  trabajo: TrabajoSanitario
+  grupo: GrupoPlan
   onClose: () => void
   onSuccess: () => void
 }) {
-  const caballos = trabajo.caballos ?? []
-  // incluidos = los que reciben el trabajo. Arrancan todos incluidos.
+  /** Un renglón por caballo, con las filas que le corresponden en cada trabajo. */
+  const caballos = useMemo(() => {
+    const mapa = new Map<string, { nombre: string; excluido: boolean }>()
+    for (const t of grupo.trabajos) {
+      for (const c of t.caballos ?? []) {
+        const previo = mapa.get(c.caballo_id)
+        mapa.set(c.caballo_id, {
+          nombre:   c.caballo ? nombreCaballo(c.caballo) : c.caballo_id,
+          // Alcanza con estar incluido en un trabajo para arrancar tildado.
+          excluido: (previo?.excluido ?? true) && c.excluido,
+        })
+      }
+    }
+    return [...mapa.entries()]
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [grupo.trabajos])
+
+  // incluidos = los caballos que reciben el trabajo. Arrancan todos incluidos.
   const [incluidos, setIncluidos] = useState<Set<string>>(
     () => new Set(caballos.filter((c) => !c.excluido).map((c) => c.id)),
   )
@@ -393,8 +539,13 @@ function CompletarModal({
     if (incluidos.size === 0) return setError('Seleccioná al menos un caballo, o cancelá.')
     setSaving(true)
     try {
-      const excluidoRowIds = caballos.filter((c) => !incluidos.has(c.id)).map((c) => c.id)
-      await sanidadService.completarTrabajo(trabajo.id, excluidoRowIds)
+      // Uno por uno: cada trabajo escribe su propia fila de historial por caballo.
+      for (const t of grupo.trabajos) {
+        const excluidoRowIds = (t.caballos ?? [])
+          .filter((c) => !incluidos.has(c.caballo_id))
+          .map((c) => c.id)
+        await sanidadService.completarTrabajo(t.id, excluidoRowIds)
+      }
       onSuccess()
     } catch (e) {
       setError(mensajeError(e, 'Error al completar.'))
@@ -413,7 +564,7 @@ function CompletarModal({
             <CheckCircle2 size={16} className="text-emerald-600" />
             <div>
               <h2 className="text-sm font-semibold text-slate-900">Marcar realizado</h2>
-              <p className="text-xs text-slate-500 mt-0.5">{trabajo.nombre}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{grupo.titulo}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={16} /></button>
@@ -421,8 +572,10 @@ function CompletarModal({
 
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
           <p className="text-xs text-slate-500">
-            Se cargará en el historial de los caballos marcados. Destildá los que no
-            corresponda (quedan excluidos).
+            {grupo.trabajos.length > 1
+              ? `Se marcan los ${grupo.trabajos.length} trabajos del día y se cargan en el historial de los caballos tildados. `
+              : 'Se cargará en el historial de los caballos marcados. '}
+            Destildá los que no corresponda (quedan excluidos).
           </p>
           <div className="rounded-lg border border-slate-200 divide-y divide-slate-100">
             {caballos.map((c) => (
@@ -433,9 +586,7 @@ function CompletarModal({
                   onChange={() => toggle(c.id)}
                   className="rounded border-slate-300 text-emerald-500 focus:ring-emerald-500"
                 />
-                <span className="text-slate-700">
-                  {c.caballo ? nombreCaballo(c.caballo) : c.caballo_id}
-                </span>
+                <span className="text-slate-700">{c.nombre}</span>
               </label>
             ))}
           </div>

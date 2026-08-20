@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, X, Clock, AlertCircle, CalendarPlus } from 'lucide-react'
+import { Check, X, Clock, AlertCircle, CalendarPlus, CalendarClock, Pencil, Trash2 } from 'lucide-react'
 import { sanidadService } from '../../services/sanidadService'
 import { useAuthStore } from '../../store/authStore'
+import EditarTrabajoSanitarioModal from './EditarTrabajoSanitarioModal'
 import { nombreCaballo } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import { hoyAR } from '../../utils/fecha'
@@ -19,6 +20,12 @@ interface Props {
    * disparaba una reprogramación que partía el plan en dos.
    */
   fecha?: string
+  /**
+   * Columnas exactas a mostrar. El calendario lista un plan por día y pasa los
+   * trabajos de esa entrada: sin esto, un plan que mezcla empresas mostraría en
+   * cada una las columnas de las dos.
+   */
+  trabajoIds?: string[]
   /** Se dispara al cerrar el plan o al reprogramar, para refrescar el calendario. */
   onCambio?: () => void
 }
@@ -38,17 +45,22 @@ const OPCIONES: { estado: EstadoCaballoTrabajo; icono: typeof Check; titulo: str
 /** Clave de una celda de la grilla. */
 const celda = (trabajoId: string, caballoId: string) => `${trabajoId}|${caballoId}`
 
-export default function DetallePlanSanitario({ planId, fecha, onCambio }: Props) {
+export default function DetallePlanSanitario({ planId, fecha, trabajoIds, onCambio }: Props) {
   const userId = useAuthStore((s) => s.user?.id)
+  const rol    = useAuthStore((s) => s.rol)
+  const esAdmin = rol === 'admin' || rol === 'superadmin'
 
   const [todos, setTodos] = useState<TrabajoSanitario[]>([])
   const [cargando, setCargando] = useState(true)
   const [error,    setError]    = useState('')
+  const [recarga,  setRecarga]  = useState(0)
 
   /** Estado elegido en pantalla por celda; arranca de lo guardado. */
   const [marcas, setMarcas] = useState<Record<string, EstadoCaballoTrabajo>>({})
   const [guardando,   setGuardando]   = useState(false)
   const [reprogramar, setReprogramar] = useState(false)
+  const [moviendo,    setMoviendo]    = useState(false)
+  const [editando,    setEditando]    = useState<TrabajoSanitario | null>(null)
   const [fechaNueva,  setFechaNueva]  = useState(hoyAR())
   const [aviso,       setAviso]       = useState('')
 
@@ -68,16 +80,22 @@ export default function DetallePlanSanitario({ planId, fecha, onCambio }: Props)
       .catch((e) => { if (vigente) setError(mensajeError(e, 'No se pudo cargar el plan.')) })
       .finally(() => { if (vigente) setCargando(false) })
     return () => { vigente = false }
-  }, [planId])
+  }, [planId, recarga])
 
   /**
    * Las columnas son solo los trabajos del día que se está mirando: cada fecha
    * del plan se cierra por separado, el día que se hizo.
    */
-  const trabajos = useMemo(
-    () => fecha ? todos.filter((t) => t.fecha_programada === fecha) : todos,
-    [todos, fecha],
-  )
+  const trabajos = useMemo(() => {
+    // Los ids mandan cuando vienen: ya identifican el día y el padrón. Se
+    // reconfirma la fecha porque al reprogramar uno de ellos deja de ser de
+    // este día y su columna no va más acá.
+    if (trabajoIds) {
+      const delGrupo = new Set(trabajoIds)
+      return todos.filter((t) => delGrupo.has(t.id) && (!fecha || t.fecha_programada === fecha))
+    }
+    return fecha ? todos.filter((t) => t.fecha_programada === fecha) : todos
+  }, [todos, fecha, trabajoIds])
 
   /** Las otras fechas del plan, para avisar que existen y no se cierran acá. */
   const otrasFechas = useMemo(
@@ -108,6 +126,59 @@ export default function DetallePlanSanitario({ planId, fecha, onCambio }: Props)
   const sinMarcar  = celdasTotales.filter((k) => !marcas[k])
   const pendientes = celdasTotales.filter((k) => marcas[k] === 'pendiente')
   const cerrado    = trabajos.length > 0 && trabajos.every((t) => t.estado !== 'pendiente')
+
+  /**
+   * Mover o corregir un trabajo lo puede quien lo programó, la empresa dueña y
+   * el veterinario al que se le asignó — el que va a ir a hacerlo. Borrarlo no:
+   * la RLS solo deja al autor, al admin de la empresa y al vet dueño.
+   */
+  function puedeTocar(t: TrabajoSanitario): boolean {
+    return t.estado === 'pendiente' &&
+      (t.creado_por === userId || esAdmin || t.vet_owner_id === userId || t.compartido_con === userId)
+  }
+  function puedeBorrar(t: TrabajoSanitario): boolean {
+    return t.estado === 'pendiente' &&
+      (t.creado_por === userId || esAdmin || t.vet_owner_id === userId)
+  }
+
+  const gestionables = trabajos.filter(puedeTocar)
+
+  /** Mueve el día entero de una: todos los trabajos, con todos sus caballos. */
+  async function moverTodo() {
+    setError('')
+    setGuardando(true)
+    try {
+      await sanidadService.reprogramarTrabajos(gestionables.map((t) => t.id), fechaNueva)
+      setMoviendo(false)
+      setAviso(`Se movieron ${gestionables.length} trabajo${gestionables.length !== 1 ? 's' : ''} al ${fechaNueva}.`)
+      onCambio?.()
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo reprogramar.'))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  async function eliminarTrabajo(t: TrabajoSanitario) {
+    const cuantos = t.caballos?.length ?? 0
+    const ok = window.confirm(
+      `¿Eliminar el trabajo “${t.nombre}” del ${t.fecha_programada}?\n\n` +
+      `Se borra para los ${cuantos} caballo${cuantos !== 1 ? 's' : ''} del trabajo. No se puede deshacer.`,
+    )
+    if (!ok) return
+    setError('')
+    setGuardando(true)
+    try {
+      await sanidadService.eliminarTrabajos([t.id])
+      setAviso(`Se eliminó “${t.nombre}”.`)
+      onCambio?.()
+      setRecarga((n) => n + 1)
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo eliminar.'))
+    } finally {
+      setGuardando(false)
+    }
+  }
 
   async function guardar() {
     if (sinMarcar.length > 0) {
@@ -228,6 +299,89 @@ export default function DetallePlanSanitario({ planId, fecha, onCambio }: Props)
         </p>
       )}
 
+      {/* Acciones sobre el trabajo entero, sin tener que marcar casillero por casillero */}
+      {!cerrado && gestionables.length > 0 && (
+        <div className="space-y-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setMoviendo((v) => !v); setReprogramar(false) }}
+              disabled={guardando}
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-slate-400 hover:text-slate-900 disabled:opacity-50"
+            >
+              <CalendarClock size={13} />
+              {gestionables.length > 1 ? `Reprogramar los ${gestionables.length} trabajos` : 'Reprogramar el trabajo'}
+            </button>
+            <span className="text-[11px] text-slate-400">
+              Mueve el trabajo completo, con todos sus caballos, a otra fecha.
+            </span>
+          </div>
+
+          {moviendo && (
+            <div className="flex flex-wrap items-end gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-slate-500">Nueva fecha</label>
+                <input
+                  type="date"
+                  value={fechaNueva}
+                  onChange={(e) => setFechaNueva(e.target.value)}
+                  className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={moverTodo}
+                disabled={guardando}
+                className="rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-400 disabled:opacity-50"
+              >
+                {guardando ? 'Moviendo…' : 'Mover a esa fecha'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMoviendo(false)}
+                className="px-2 py-1.5 text-xs text-slate-500 transition-colors hover:text-slate-700"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+
+          {/* Editar / eliminar, por trabajo: cada columna de la grilla es uno */}
+          <div className="flex flex-wrap gap-1.5">
+            {gestionables.map((t) => (
+              <span
+                key={t.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 py-0.5 pl-2.5 pr-1.5 text-[11px] text-slate-600"
+              >
+                {t.nombre}
+                <button
+                  type="button"
+                  onClick={() => setEditando(t)}
+                  disabled={guardando}
+                  title={`Editar ${t.nombre}`}
+                  aria-label={`Editar ${t.nombre}`}
+                  className="rounded p-0.5 text-slate-400 transition-colors hover:text-brand-600 disabled:opacity-50"
+                >
+                  <Pencil size={12} />
+                </button>
+                {puedeBorrar(t) && (
+                  <button
+                    type="button"
+                    onClick={() => eliminarTrabajo(t)}
+                    disabled={guardando}
+                    title={`Eliminar ${t.nombre}`}
+                    aria-label={`Eliminar ${t.nombre}`}
+                    className="rounded p-0.5 text-slate-400 transition-colors hover:text-red-600 disabled:opacity-50"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="flex items-center gap-2 text-xs text-red-600">
           <AlertCircle size={13} /> {error}
@@ -291,6 +445,22 @@ export default function DetallePlanSanitario({ planId, fecha, onCambio }: Props)
             {pendientes.length !== 1 ? 's' : ''} que quedaron pendientes.
           </p>
         </div>
+      )}
+
+      {editando && (
+        <EditarTrabajoSanitarioModal
+          trabajo={editando}
+          onEliminar={puedeBorrar(editando)
+            ? () => { const t = editando; setEditando(null); eliminarTrabajo(t) }
+            : undefined}
+          onClose={() => setEditando(null)}
+          onSuccess={() => {
+            setEditando(null)
+            setAviso('Trabajo actualizado.')
+            setRecarga((n) => n + 1)
+            onCambio?.()
+          }}
+        />
       )}
     </div>
   )
