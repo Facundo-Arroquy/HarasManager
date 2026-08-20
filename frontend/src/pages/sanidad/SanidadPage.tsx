@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Syringe, Check, X, CheckCircle2, CalendarDays, Stethoscope, Share2 } from 'lucide-react'
+import { Plus, Syringe, Check, X, CheckCircle2, CalendarDays, Stethoscope, Share2, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { sanidadService } from '../../services/sanidadService'
 import { getVeterinariosPlataforma, type VeterinarioPlataforma } from '../../services/adminService'
@@ -11,6 +11,7 @@ import {
   type TrabajoSanitario,
 } from '../../types/sanidad'
 import NuevoTrabajoSanitarioModal from '../../components/domain/NuevoTrabajoSanitarioModal'
+import EditarTrabajoSanitarioModal from '../../components/domain/EditarTrabajoSanitarioModal'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import ConfirmarAccesoVetModal from '../../components/domain/ConfirmarAccesoVetModal'
 import Spinner from '../../components/ui/Spinner'
@@ -28,8 +29,10 @@ function formatFecha(fecha: string): string {
 
 export default function SanidadPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
+  const userId     = useAuthStore((s) => s.user?.id)
   const rol        = useAuthStore((s) => s.rol)
   const esVet      = rol === 'veterinario'
+  const esAdmin    = rol === 'admin' || rol === 'superadmin'
   // El admin también carga consultas y tratamientos sobre los caballos de su empresa.
   const puedeCargarConsulta = esVet || rol === 'admin'
 
@@ -40,6 +43,7 @@ export default function SanidadPage() {
   const [showConsulta, setShowConsulta] = useState(false)
   const [completar, setCompletar] = useState<TrabajoSanitario | null>(null)
   const [compartir, setCompartir] = useState<TrabajoSanitario | null>(null)
+  const [editar,    setEditar]    = useState<TrabajoSanitario | null>(null)
   const [vets,      setVets]      = useState<VeterinarioPlataforma[]>([])
 
   useEffect(() => {
@@ -72,6 +76,34 @@ export default function SanidadPage() {
 
   const pendientes = useMemo(() => trabajos.filter((t) => t.estado === 'pendiente'), [trabajos])
   const historial  = useMemo(() => trabajos.filter((t) => t.estado !== 'pendiente'), [trabajos])
+
+  /**
+   * Corregir un trabajo que todavía no se hizo lo puede el autor, la empresa
+   * dueña y el vet al que se le asignó. Borrarlo, solo los tres primeros: es lo
+   * que deja pasar la RLS.
+   */
+  const puedeEditar = useCallback((t: TrabajoSanitario) =>
+    t.creado_por === userId || esAdmin || t.vet_owner_id === userId || t.compartido_con === userId,
+  [userId, esAdmin])
+
+  const puedeEliminar = useCallback((t: TrabajoSanitario) =>
+    t.creado_por === userId || esAdmin || t.vet_owner_id === userId,
+  [userId, esAdmin])
+
+  const eliminarTrabajo = useCallback(async (t: TrabajoSanitario) => {
+    const cuantos = t.caballos?.length ?? 0
+    const ok = window.confirm(
+      `¿Eliminar el trabajo “${t.nombre}” del ${formatFecha(t.fecha_programada)}?\n\n` +
+      `Se borra para los ${cuantos} caballo${cuantos !== 1 ? 's' : ''} del trabajo. No se puede deshacer.`,
+    )
+    if (!ok) return
+    try {
+      await sanidadService.eliminarTrabajos([t.id])
+      await cargar()
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo eliminar el trabajo.'))
+    }
+  }, [cargar])
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto pb-24">
@@ -134,6 +166,8 @@ export default function SanidadPage() {
                   vetNombre={nombreVet(t.compartido_con)}
                   onCompletar={() => setCompletar(t)}
                   onCompartir={esVet ? undefined : () => setCompartir(t)}
+                  onEditar={puedeEditar(t) ? () => setEditar(t) : undefined}
+                  onEliminar={puedeEliminar(t) ? () => eliminarTrabajo(t) : undefined}
                 />
               ))}
             </Seccion>
@@ -169,6 +203,16 @@ export default function SanidadPage() {
           onSuccess={() => { setCompartir(null); cargar() }}
         />
       )}
+      {editar && (
+        <EditarTrabajoSanitarioModal
+          trabajo={editar}
+          onEliminar={puedeEliminar(editar)
+            ? () => { const t = editar; setEditar(null); eliminarTrabajo(t) }
+            : undefined}
+          onClose={() => setEditar(null)}
+          onSuccess={() => { setEditar(null); cargar() }}
+        />
+      )}
       {completar && (
         <CompletarModal
           trabajo={completar}
@@ -191,11 +235,13 @@ function Seccion({ titulo, children }: { titulo: string; children: React.ReactNo
   )
 }
 
-function TrabajoRow({ trabajo, vetNombre, onCompletar, onCompartir }: {
+function TrabajoRow({ trabajo, vetNombre, onCompletar, onCompartir, onEditar, onEliminar }: {
   trabajo:      TrabajoSanitario
   vetNombre?:   string | null
   onCompletar?: () => void
   onCompartir?: () => void
+  onEditar?:    () => void
+  onEliminar?:  () => void
 }) {
   const total     = trabajo.caballos?.length ?? 0
   const incluidos = trabajo.caballos?.filter((c) => !c.excluido).length ?? total
@@ -221,6 +267,26 @@ function TrabajoRow({ trabajo, vetNombre, onCompletar, onCompartir }: {
         {trabajo.observaciones && <p className="text-xs text-slate-400 mt-1">{trabajo.observaciones}</p>}
       </div>
       <div className="shrink-0 flex items-center gap-1.5">
+        {onEditar && (
+          <button
+            onClick={onEditar}
+            title="Editar el trabajo programado"
+            aria-label="Editar el trabajo programado"
+            className="rounded-md border border-slate-300 p-1.5 text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-800"
+          >
+            <Pencil size={13} />
+          </button>
+        )}
+        {onEliminar && (
+          <button
+            onClick={onEliminar}
+            title="Eliminar el trabajo programado"
+            aria-label="Eliminar el trabajo programado"
+            className="rounded-md border border-slate-300 p-1.5 text-slate-500 transition-colors hover:border-red-300 hover:text-red-600"
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
         {onCompartir && (
           <button
             onClick={onCompartir}

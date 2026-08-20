@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ChevronDown, Syringe, Stethoscope, CalendarDays, X, Building2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Syringe, Stethoscope, CalendarDays, X, Building2, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { sanidadService } from '../../services/sanidadService'
 import { historialService, type ConsultaCalendario } from '../../services/historialService'
@@ -98,6 +98,9 @@ export default function CalendarioPage() {
 
   const [reagendando, setReagendando] = useState<ConsultaCalendario | null>(null)
   const [completando, setCompletando] = useState<(HistorialEntry & { caballo_id: string }) | null>(null)
+  // Corregir una agendada sin darla por hecha: mismo modal, otra intención.
+  const [editando,    setEditando]    = useState<(HistorialEntry & { caballo_id: string }) | null>(null)
+  const [borrandoId,  setBorrandoId]  = useState<string | null>(null)
   const [abriendoId,  setAbriendoId]  = useState<string | null>(null)
   const [planAbierto, setPlanAbierto] = useState<string | null>(null)
   const [recarga,     setRecarga]     = useState(0)
@@ -179,6 +182,36 @@ export default function CalendarioPage() {
       setError(mensajeError(e, 'No se pudo abrir la consulta.'))
     } finally {
       setAbriendoId(null)
+    }
+  }
+
+  /** Corregir los datos de una consulta agendada, sin marcarla como hecha. */
+  async function editarConsulta(c: ConsultaCalendario) {
+    setAbriendoId(c.id)
+    try {
+      const entry = await historialService.obtenerPorId(c.id)
+      setEditando(entry as unknown as HistorialEntry & { caballo_id: string })
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo abrir la consulta.'))
+    } finally {
+      setAbriendoId(null)
+    }
+  }
+
+  /** Solo para las agendadas: una consulta ya hecha es historial y no se borra. */
+  async function eliminarConsulta(c: ConsultaCalendario) {
+    const ok = window.confirm(
+      `¿Eliminar la consulta agendada de ${c.caballo_nombre} (${c.tipo})?\n\nNo se puede deshacer.`,
+    )
+    if (!ok) return
+    setBorrandoId(c.id)
+    try {
+      await historialService.eliminar(c.id)
+      setRecarga((n) => n + 1)
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo eliminar la consulta.'))
+    } finally {
+      setBorrandoId(null)
     }
   }
 
@@ -419,16 +452,38 @@ export default function CalendarioPage() {
                   }`}>
                     {c.estado === 'pendiente' ? 'Pendiente' : 'Realizada'}
                   </span>
-                  {/* Una consulta ya hecha no se reagenda: su fecha es un dato del historial. */}
+                  {/* Una consulta ya hecha no se toca: su ficha es historial clínico. */}
                   {c.estado === 'pendiente' && c.creado_por === userId && (
-                    <button
-                      type="button"
-                      onClick={() => setReagendando(c)}
-                      className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700"
-                      title="Cambiar fecha y horario"
-                    >
-                      Reagendar
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setReagendando(c)}
+                        className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700"
+                        title="Cambiar fecha y horario"
+                      >
+                        Reagendar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => editarConsulta(c)}
+                        disabled={abriendoId === c.id}
+                        className="rounded-md border border-slate-300 p-1 text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700 disabled:opacity-50"
+                        title="Editar la consulta agendada"
+                        aria-label="Editar la consulta agendada"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => eliminarConsulta(c)}
+                        disabled={borrandoId === c.id}
+                        className="rounded-md border border-slate-300 p-1 text-slate-500 transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-50"
+                        title="Eliminar la consulta agendada"
+                        aria-label="Eliminar la consulta agendada"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </>
                   )}
                   <ChevronRight size={15} className="text-slate-300 group-hover:text-brand-500" />
                 </div>
@@ -452,6 +507,16 @@ export default function CalendarioPage() {
           entryToEdit={completando}
           onClose={() => setCompletando(null)}
           onSuccess={() => { setCompletando(null); setRecarga((n) => n + 1) }}
+        />
+      )}
+
+      {editando && (
+        <NuevaConsultaModal
+          caballoId={editando.caballo_id}
+          entryToEdit={editando}
+          soloEditar
+          onClose={() => setEditando(null)}
+          onSuccess={() => { setEditando(null); setRecarga((n) => n + 1) }}
         />
       )}
     </div>
