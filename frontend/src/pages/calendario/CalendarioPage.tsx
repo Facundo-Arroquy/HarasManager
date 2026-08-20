@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, ChevronDown, Syringe, Stethoscope, CalendarDays, X, Building2, Pencil, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Syringe, Stethoscope, X, Building2, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { sanidadService } from '../../services/sanidadService'
 import { historialService, type ConsultaCalendario } from '../../services/historialService'
 import { empresaService } from '../../services/empresaService'
-import { LABEL_ESTADO_TRABAJO, type TrabajoSanitario } from '../../types/sanidad'
+import { type TrabajoSanitario } from '../../types/sanidad'
 import { diaAR, hoyAR } from '../../utils/fecha'
-import { agruparPorPlan } from '../../utils/planSanitario'
 import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
-import DetallePlanSanitario from '../../components/domain/DetallePlanSanitario'
+import TrabajosDelDia from '../../components/domain/TrabajosDelDia'
 import type { HistorialEntry } from '../../components/domain/HistorialCard'
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────
@@ -66,12 +65,6 @@ function horaAR(iso: string): string {
   })
 }
 
-const ESTADO_BADGE: Record<string, string> = {
-  pendiente: 'bg-amber-100 text-amber-700',
-  realizado: 'bg-emerald-100 text-emerald-700',
-  cancelado: 'bg-slate-100 text-slate-500',
-}
-
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function CalendarioPage() {
@@ -103,7 +96,6 @@ export default function CalendarioPage() {
   const [editando,    setEditando]    = useState<(HistorialEntry & { caballo_id: string }) | null>(null)
   const [borrandoId,  setBorrandoId]  = useState<string | null>(null)
   const [abriendoId,  setAbriendoId]  = useState<string | null>(null)
-  const [planAbierto, setPlanAbierto] = useState<string | null>(null)
   const [recarga,     setRecarga]     = useState(0)
 
   const dias = useMemo(() => grillaMes(mesRef), [mesRef])
@@ -118,10 +110,11 @@ export default function CalendarioPage() {
     return () => { vigente = false }
   }, [sociedadId, esVet, recarga])
 
+  // También para el admin: los trabajos del día se agrupan por empresa y el
+  // encabezado de cada grupo necesita el nombre, no solo el id.
   useEffect(() => {
-    if (!esVet) return
     empresaService.mapaNombres().then(setEmpresas).catch(() => {})
-  }, [esVet])
+  }, [])
 
   // Las consultas sí se piden por mes visible, con un día de margen a cada lado:
   // `fecha_consulta` es TIMESTAMPTZ y el corte por día se hace en hora argentina.
@@ -156,21 +149,6 @@ export default function CalendarioPage() {
   const trabajosDia  = useMemo(() => trabajosPorDia[diaSelec] ?? [], [trabajosPorDia, diaSelec])
   const consultasDia = consultasPorDia[diaSelec] ?? []
   const esHoySelec   = diaSelec === hoy
-
-  /**
-   * Lo que se lista y se cuenta es el plan del día, no cada trabajo suelto:
-   * tres vacunas cargadas juntas para el mismo grupo de caballos son **una**
-   * salida al campo. Si dos caen el 20 y la tercera el 21, el 20 muestra una
-   * entrada con las dos y el 21 otra con la que queda.
-   */
-  const gruposDia = useMemo(() => agruparPorPlan(trabajosDia), [trabajosDia])
-
-  /** Misma cuenta, para el número que va en la celda del mes. */
-  const planesPorDia = useMemo(() => {
-    const mapa: Record<string, number> = {}
-    for (const [dia, ts] of Object.entries(trabajosPorDia)) mapa[dia] = agruparPorPlan(ts).length
-    return mapa
-  }, [trabajosPorDia])
 
   function cambiarMes(delta: number) {
     setMesRef((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1))
@@ -256,8 +234,9 @@ export default function CalendarioPage() {
         </div>
       )}
 
-      {/* Calendario mensual — queda fijo arriba mientras se scrollea el detalle */}
-      <section className="md:sticky md:top-0 md:z-10 md:-mx-6 md:bg-slate-50 md:px-6 md:pt-4 md:pb-3">
+      {/* Calendario mensual. No va fijo: los trabajos del día son tablas largas y
+          el mes pegado arriba se comía media pantalla al scrollearlas. */}
+      <section>
         <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
           <div className="flex items-center justify-between gap-2 mb-3">
             <button
@@ -291,7 +270,8 @@ export default function CalendarioPage() {
               const delMes     = dia.getMonth() === mesRef.getMonth()
               const esHoy      = iso === hoy
               const esSelec    = iso === diaSelec
-              const nTrabajos  = planesPorDia[iso] ?? 0
+              // Se cuenta cada trabajo suelto, que es una fila de la tabla del día.
+              const nTrabajos  = (trabajosPorDia[iso] ?? []).length
               const nConsultas = (consultasPorDia[iso] ?? []).length
 
               return (
@@ -327,109 +307,57 @@ export default function CalendarioPage() {
         </div>
       </section>
 
-      {/* Detalle del día seleccionado — arranca en hoy */}
+      {/* Trabajos del día — todos juntos en una tabla, sin desplegables */}
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div className="flex items-center gap-2 min-w-0">
-            <CalendarDays size={16} className={esHoySelec ? 'text-brand-600' : 'text-slate-400'} />
-            <h2 className="text-sm font-semibold text-slate-900 first-letter:uppercase truncate">
-              {esHoySelec ? 'Hoy' : tituloDia(diaSelec)}
+            <Syringe size={16} className={esHoySelec ? 'text-brand-600' : 'text-slate-400'} />
+            <h2 className="text-sm font-semibold text-slate-900 truncate">
+              {esHoySelec ? 'Trabajos de hoy' : 'Trabajos del día'}
             </h2>
-            {esHoySelec && (
-              <span className="text-xs text-slate-400 first-letter:uppercase hidden sm:inline">
-                · {tituloDia(diaSelec)}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 shrink-0 text-xs">
-            <span className="inline-flex items-center gap-1 text-slate-500">
-              <Syringe size={12} className="text-brand-500" /> {gruposDia.length}
-            </span>
-            <span className="inline-flex items-center gap-1 text-slate-500">
-              <Stethoscope size={12} className="text-blue-500" /> {consultasDia.length}
+            <span className="text-xs text-slate-400 first-letter:uppercase hidden sm:inline">
+              · {tituloDia(diaSelec)}
             </span>
           </div>
+          <span className="shrink-0 text-xs text-slate-500">
+            {trabajosDia.length} trabajo{trabajosDia.length !== 1 ? 's' : ''}
+          </span>
         </div>
 
         {loading && primeraCarga ? (
           <div className="flex justify-center py-12"><Spinner size="lg" /></div>
-        ) : trabajosDia.length === 0 && consultasDia.length === 0 ? (
+        ) : (
+          <TrabajosDelDia
+            trabajos={trabajosDia}
+            esVet={esVet}
+            empresas={empresas}
+            onCambio={() => setRecarga((n) => n + 1)}
+          />
+        )}
+      </section>
+
+      {/* Consultas del día */}
+      <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Stethoscope size={16} className={esHoySelec ? 'text-blue-500' : 'text-slate-400'} />
+            <h2 className="text-sm font-semibold text-slate-900 truncate">
+              {esHoySelec ? 'Consultas de hoy' : 'Consultas del día'}
+            </h2>
+          </div>
+          <span className="shrink-0 text-xs text-slate-500">
+            {consultasDia.length} consulta{consultasDia.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {loading && primeraCarga ? (
+          <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+        ) : consultasDia.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-slate-400">
-            Sin trabajos para este día.
+            Sin consultas para este día.
           </p>
         ) : (
           <div className="divide-y divide-slate-100">
-            {gruposDia.map((g) => {
-              // Todos los trabajos del grupo comparten plan, día y dueño: para el
-              // encabezado alcanza con mirar el primero.
-              const t        = g.trabajos[0]
-              const abierto  = planAbierto === g.clave
-              const propio   = t.creado_por === userId
-              // Sin empresa = plan sobre los caballos propios del vet.
-              const empresa  = t.sociedad_id ? empresas.get(t.sociedad_id) : undefined
-              const esPropia = t.vet_owner_id !== null
-              return (
-                <div key={g.clave}>
-                  <div className="flex items-start gap-3 px-4 py-3 text-sm hover:bg-slate-50">
-                    <Syringe size={14} className="mt-0.5 shrink-0 text-brand-500" />
-                    <button
-                      type="button"
-                      onClick={() => setPlanAbierto(abierto ? null : g.clave)}
-                      className="flex-1 min-w-0 text-left"
-                    >
-                      <span className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-slate-900">{g.titulo}</span>
-                        {/* El admin ve quién se lo programó; los suyos, sin chip. */}
-                        {!esVet && !propio && t.creador && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
-                            {t.creador.rol === 'veterinario' && <Stethoscope size={10} />}
-                            {t.creador.nombre} {t.creador.apellido}
-                          </span>
-                        )}
-                        {esVet && (esPropia ? (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-                            Tus caballos
-                          </span>
-                        ) : propio ? (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-                            Creado por vos
-                          </span>
-                        ) : empresa && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
-                            <Building2 size={10} /> {empresa}
-                          </span>
-                        ))}
-                      </span>
-                      <span className="mt-1 flex items-center gap-3 flex-wrap text-xs text-slate-400">
-                        <span>{g.nCaballos} caballo{g.nCaballos !== 1 ? 's' : ''}</span>
-                        {g.trabajos.length > 1 && <span>· {g.trabajos.length} trabajos</span>}
-                        {g.tratamientos && <span>· {g.tratamientos}</span>}
-                        {esVet && propio && empresa && <span>· {empresa}</span>}
-                      </span>
-                    </button>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTADO_BADGE[g.estado]}`}>
-                        {LABEL_ESTADO_TRABAJO[g.estado]}
-                      </span>
-                      <ChevronDown
-                        size={15}
-                        className={`text-slate-300 transition-transform ${abierto ? 'rotate-180' : ''}`}
-                      />
-                    </div>
-                  </div>
-                  {abierto && (
-                    <div className="border-t border-slate-100 bg-slate-50/60">
-                      <DetallePlanSanitario
-                        planId={t.plan_id}
-                        fecha={t.fecha_programada}
-                        trabajoIds={g.trabajos.map((x) => x.id)}
-                        onCambio={() => setRecarga((n) => n + 1)}
-                      />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
             {consultasDia.map((c) => (
               <div key={c.id} className="group flex items-start gap-3 px-4 py-3 text-sm hover:bg-slate-50">
                 <Stethoscope size={14} className="mt-0.5 shrink-0 text-blue-500" />
