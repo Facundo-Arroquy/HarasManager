@@ -20,6 +20,12 @@ interface Props {
    * disparaba una reprogramación que partía el plan en dos.
    */
   fecha?: string
+  /**
+   * Columnas exactas a mostrar. El calendario lista un plan por día y pasa los
+   * trabajos de esa entrada: sin esto, un plan que mezcla empresas mostraría en
+   * cada una las columnas de las dos.
+   */
+  trabajoIds?: string[]
   /** Se dispara al cerrar el plan o al reprogramar, para refrescar el calendario. */
   onCambio?: () => void
 }
@@ -39,7 +45,7 @@ const OPCIONES: { estado: EstadoCaballoTrabajo; icono: typeof Check; titulo: str
 /** Clave de una celda de la grilla. */
 const celda = (trabajoId: string, caballoId: string) => `${trabajoId}|${caballoId}`
 
-export default function DetallePlanSanitario({ planId, fecha, onCambio }: Props) {
+export default function DetallePlanSanitario({ planId, fecha, trabajoIds, onCambio }: Props) {
   const userId = useAuthStore((s) => s.user?.id)
   const rol    = useAuthStore((s) => s.rol)
   const esAdmin = rol === 'admin' || rol === 'superadmin'
@@ -80,10 +86,16 @@ export default function DetallePlanSanitario({ planId, fecha, onCambio }: Props)
    * Las columnas son solo los trabajos del día que se está mirando: cada fecha
    * del plan se cierra por separado, el día que se hizo.
    */
-  const trabajos = useMemo(
-    () => fecha ? todos.filter((t) => t.fecha_programada === fecha) : todos,
-    [todos, fecha],
-  )
+  const trabajos = useMemo(() => {
+    // Los ids mandan cuando vienen: ya identifican el día y el padrón. Se
+    // reconfirma la fecha porque al reprogramar uno de ellos deja de ser de
+    // este día y su columna no va más acá.
+    if (trabajoIds) {
+      const delGrupo = new Set(trabajoIds)
+      return todos.filter((t) => delGrupo.has(t.id) && (!fecha || t.fecha_programada === fecha))
+    }
+    return fecha ? todos.filter((t) => t.fecha_programada === fecha) : todos
+  }, [todos, fecha, trabajoIds])
 
   /** Las otras fechas del plan, para avisar que existen y no se cierran acá. */
   const otrasFechas = useMemo(

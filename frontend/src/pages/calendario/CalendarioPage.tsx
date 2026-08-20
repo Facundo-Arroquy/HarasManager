@@ -65,6 +65,54 @@ function horaAR(iso: string): string {
   })
 }
 
+// ── Agrupación de trabajos en planes ─────────────────────────────────────────
+
+/** Los trabajos de un plan que caen el mismo día, sobre el mismo padrón. */
+interface GrupoPlan {
+  clave:      string
+  /** Título combinado: "Vacuna 1 + Vacuna 2". */
+  titulo:     string
+  estado:     TrabajoSanitario['estado']
+  /** Caballos distintos alcanzados, aunque no estén en todos los trabajos. */
+  nCaballos:  number
+  tratamientos: string
+  trabajos:   TrabajoSanitario[]
+}
+
+/**
+ * Junta los trabajos de un mismo plan y día en una sola entrada. Vienen
+ * separados porque cada uno es una columna de la grilla (vacuna 1, vacuna 2),
+ * pero para quien mira el calendario son una sola salida al campo.
+ *
+ * La clave incluye al dueño: un plan cargado por un veterinario puede mezclar
+ * empresas, y cada padrón sigue siendo su propia entrada para que el chip de
+ * empresa siga significando algo.
+ */
+function agruparPorPlan(trabajos: TrabajoSanitario[]): GrupoPlan[] {
+  const mapa = new Map<string, TrabajoSanitario[]>()
+  for (const t of trabajos) {
+    const clave = `${t.plan_id}|${t.sociedad_id ?? t.vet_owner_id ?? ''}`
+    ;(mapa.get(clave) ?? mapa.set(clave, []).get(clave)!).push(t)
+  }
+
+  return [...mapa.entries()].map(([clave, ts]) => {
+    const nombres = [...new Set(ts.map((t) => t.nombre))]
+    return {
+      clave,
+      titulo: nombres.length <= 3
+        ? nombres.join(' + ')
+        : `${nombres.slice(0, 2).join(' + ')} +${nombres.length - 2} más`,
+      // Mientras quede un trabajo sin cerrar, el plan del día sigue pendiente.
+      estado: ts.some((t) => t.estado === 'pendiente')
+        ? 'pendiente'
+        : ts.every((t) => t.estado === 'cancelado') ? 'cancelado' : 'realizado',
+      nCaballos: new Set(ts.flatMap((t) => (t.caballos ?? []).map((c) => c.caballo_id))).size,
+      tratamientos: [...new Set(ts.map((t) => t.tratamiento).filter(Boolean))].join(' · '),
+      trabajos: ts,
+    }
+  })
+}
+
 const ESTADO_BADGE: Record<string, string> = {
   pendiente: 'bg-amber-100 text-amber-700',
   realizado: 'bg-emerald-100 text-emerald-700',
@@ -152,9 +200,24 @@ export default function CalendarioPage() {
     return mapa
   }, [consultas])
 
-  const trabajosDia  = trabajosPorDia[diaSelec]  ?? []
+  const trabajosDia  = useMemo(() => trabajosPorDia[diaSelec] ?? [], [trabajosPorDia, diaSelec])
   const consultasDia = consultasPorDia[diaSelec] ?? []
   const esHoySelec   = diaSelec === hoy
+
+  /**
+   * Lo que se lista y se cuenta es el plan del día, no cada trabajo suelto:
+   * tres vacunas cargadas juntas para el mismo grupo de caballos son **una**
+   * salida al campo. Si dos caen el 20 y la tercera el 21, el 20 muestra una
+   * entrada con las dos y el 21 otra con la que queda.
+   */
+  const gruposDia = useMemo(() => agruparPorPlan(trabajosDia), [trabajosDia])
+
+  /** Misma cuenta, para el número que va en la celda del mes. */
+  const planesPorDia = useMemo(() => {
+    const mapa: Record<string, number> = {}
+    for (const [dia, ts] of Object.entries(trabajosPorDia)) mapa[dia] = agruparPorPlan(ts).length
+    return mapa
+  }, [trabajosPorDia])
 
   function cambiarMes(delta: number) {
     setMesRef((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1))
@@ -275,7 +338,7 @@ export default function CalendarioPage() {
               const delMes     = dia.getMonth() === mesRef.getMonth()
               const esHoy      = iso === hoy
               const esSelec    = iso === diaSelec
-              const nTrabajos  = (trabajosPorDia[iso]  ?? []).length
+              const nTrabajos  = planesPorDia[iso] ?? 0
               const nConsultas = (consultasPorDia[iso] ?? []).length
 
               return (
@@ -327,7 +390,7 @@ export default function CalendarioPage() {
           </div>
           <div className="flex items-center gap-3 shrink-0 text-xs">
             <span className="inline-flex items-center gap-1 text-slate-500">
-              <Syringe size={12} className="text-brand-500" /> {trabajosDia.length}
+              <Syringe size={12} className="text-brand-500" /> {gruposDia.length}
             </span>
             <span className="inline-flex items-center gap-1 text-slate-500">
               <Stethoscope size={12} className="text-blue-500" /> {consultasDia.length}
@@ -343,27 +406,26 @@ export default function CalendarioPage() {
           </p>
         ) : (
           <div className="divide-y divide-slate-100">
-            {trabajosDia.map((t) => {
-              const total    = t.caballos?.length ?? 0
-              // Por trabajo y no por plan: dos trabajos del mismo plan pueden caer
-              // el mismo día, y con la clave del plan se abrían los dos a la vez,
-              // mostrando la misma grilla repetida.
-              const abierto  = planAbierto === t.id
+            {gruposDia.map((g) => {
+              // Todos los trabajos del grupo comparten plan, día y dueño: para el
+              // encabezado alcanza con mirar el primero.
+              const t        = g.trabajos[0]
+              const abierto  = planAbierto === g.clave
               const propio   = t.creado_por === userId
               // Sin empresa = plan sobre los caballos propios del vet.
               const empresa  = t.sociedad_id ? empresas.get(t.sociedad_id) : undefined
               const esPropia = t.vet_owner_id !== null
               return (
-                <div key={t.id}>
+                <div key={g.clave}>
                   <div className="flex items-start gap-3 px-4 py-3 text-sm hover:bg-slate-50">
                     <Syringe size={14} className="mt-0.5 shrink-0 text-brand-500" />
                     <button
                       type="button"
-                      onClick={() => setPlanAbierto(abierto ? null : t.id)}
+                      onClick={() => setPlanAbierto(abierto ? null : g.clave)}
                       className="flex-1 min-w-0 text-left"
                     >
                       <span className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-slate-900">{t.nombre}</span>
+                        <span className="font-medium text-slate-900">{g.titulo}</span>
                         {/* El admin ve quién se lo programó; los suyos, sin chip. */}
                         {!esVet && !propio && t.creador && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">
@@ -386,14 +448,15 @@ export default function CalendarioPage() {
                         ))}
                       </span>
                       <span className="mt-1 flex items-center gap-3 flex-wrap text-xs text-slate-400">
-                        <span>{total} caballo{total !== 1 ? 's' : ''}</span>
-                        {t.tratamiento && <span>· {t.tratamiento}</span>}
+                        <span>{g.nCaballos} caballo{g.nCaballos !== 1 ? 's' : ''}</span>
+                        {g.trabajos.length > 1 && <span>· {g.trabajos.length} trabajos</span>}
+                        {g.tratamientos && <span>· {g.tratamientos}</span>}
                         {esVet && propio && empresa && <span>· {empresa}</span>}
                       </span>
                     </button>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTADO_BADGE[t.estado]}`}>
-                        {LABEL_ESTADO_TRABAJO[t.estado]}
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ESTADO_BADGE[g.estado]}`}>
+                        {LABEL_ESTADO_TRABAJO[g.estado]}
                       </span>
                       <ChevronDown
                         size={15}
@@ -406,6 +469,7 @@ export default function CalendarioPage() {
                       <DetallePlanSanitario
                         planId={t.plan_id}
                         fecha={t.fecha_programada}
+                        trabajoIds={g.trabajos.map((x) => x.id)}
                         onCambio={() => setRecarga((n) => n + 1)}
                       />
                     </div>
