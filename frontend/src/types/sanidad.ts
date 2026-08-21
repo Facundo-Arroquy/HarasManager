@@ -36,8 +36,13 @@ export interface TrabajoSanitarioCaballo {
   excluido:     boolean
   estado:       EstadoCaballoTrabajo | null
   historial_id: string | null
-  // join opcional
-  caballo?:     { nombre: string; numero_registro?: string | null }
+  // join opcional. `campo` es el potrero donde está el animal: sale del caballo,
+  // no del trabajo, y en el calendario dice a qué campo hay que ir ese día.
+  caballo?:     {
+    nombre:          string
+    numero_registro?: string | null
+    campo?:          { nombre: string } | null
+  }
 }
 
 export interface TrabajoSanitario {

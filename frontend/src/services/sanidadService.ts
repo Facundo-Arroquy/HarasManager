@@ -45,7 +45,7 @@ export const sanidadService = {
         *,
         caballos:trabajo_sanitario_caballo(
           id, trabajo_id, caballo_id, excluido, estado, historial_id,
-          caballo:caballo_id(nombre, numero_registro)
+          caballo:caballo_id(nombre, numero_registro, campo:campo_id(nombre))
         )
       `)
       .order('fecha_programada', { ascending: false })
@@ -72,7 +72,7 @@ export const sanidadService = {
         creador:usuario!creado_por(nombre, apellido, rol),
         caballos:trabajo_sanitario_caballo(
           id, trabajo_id, caballo_id, excluido, estado, historial_id,
-          caballo:caballo_id(nombre, numero_registro)
+          caballo:caballo_id(nombre, numero_registro, campo:campo_id(nombre))
         )
       `)
       .eq('sociedad_id', sociedadId)
@@ -208,7 +208,7 @@ export const sanidadService = {
         *,
         caballos:trabajo_sanitario_caballo(
           id, trabajo_id, caballo_id, excluido, estado, historial_id,
-          caballo:caballo_id(nombre, numero_registro)
+          caballo:caballo_id(nombre, numero_registro, campo:campo_id(nombre))
         )
       `)
       .eq('plan_id', planId)
