@@ -10,6 +10,7 @@ import { calcularEdad, formatFecha as formatFechaAR } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
 import { exportarFichaCaballo } from '../../utils/exportarFichaCaballo'
 import Spinner from '../../components/ui/Spinner'
+import DeslizarParaEliminar from '../../components/ui/DeslizarParaEliminar'
 import FotoCaballo from '../../components/domain/FotoCaballo'
 import HistorialCard, { type HistorialEntry } from '../../components/domain/HistorialCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
@@ -434,19 +435,27 @@ export default function HistorialPage() {
             <div className="space-y-3">
               {historial.map((entry) => {
                 const e = entry as HistorialEntry
-                return (
+                // Lo único que se borra: lo agendado que nunca se hizo, y propio.
+                const borrable = e.estado === 'pendiente' && e.creado_por === user?.id
+                const card = (
                   <HistorialCard
-                    key={e.id}
                     entry={e}
                     destacada={e.id === consultaDestacada}
                     onEditar={e.creado_por === user?.id ? () => setEntryToEdit(e) : undefined}
-                    onEliminar={
-                      e.estado === 'pendiente' && e.creado_por === user?.id
-                        ? () => eliminarConsulta(e)
-                        : undefined
-                    }
+                    onEliminar={borrable ? () => eliminarConsulta(e) : undefined}
                     eliminando={borrandoId === e.id}
                   />
+                )
+                return borrable ? (
+                  <DeslizarParaEliminar
+                    key={e.id}
+                    etiqueta={`la consulta agendada del ${formatFechaAR(e.fecha_consulta)}`}
+                    onEliminar={() => eliminarConsulta(e)}
+                  >
+                    {card}
+                  </DeslizarParaEliminar>
+                ) : (
+                  <div key={e.id}>{card}</div>
                 )
               })}
             </div>

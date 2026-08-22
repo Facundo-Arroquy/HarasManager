@@ -69,7 +69,7 @@ export default function HistorialCard({
     <div
       id={`consulta-${entry.id}`}
       className={`rounded-xl border bg-white overflow-hidden ${
-        destacada ? 'border-brand-500 ring-2 ring-brand-500/30' : 'border-slate-200'
+        destacada ? 'border-brand-500 ring-2 ring-inset ring-brand-500/30' : 'border-slate-200'
       }`}
     >
       {/* Header: área clickeable para expandir + acciones separadas */}
@@ -162,7 +162,8 @@ export default function HistorialCard({
             <button
               onClick={onEliminar}
               disabled={eliminando}
-              className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+              // Con dedo se borra deslizando la fila; el tacho es para mouse y teclado.
+              className="hidden pointer-fine:block p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
               title="Eliminar la consulta agendada"
               aria-label="Eliminar la consulta agendada"
             >
