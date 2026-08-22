@@ -291,7 +291,7 @@ export const historialService = {
     const { data, error } = await supabase
       .from('historial_clinico')
       .select(`
-        id, fecha_consulta, diagnostico, tratamiento, creado_por,
+        id, fecha_consulta, estado, diagnostico, tratamiento, creado_por,
         observaciones, proxima_consulta, imagen_url, created_at, trabajo_externo,
         cat_tipo_consulta(id, nombre),
         usuario!creado_por(nombre, apellido),

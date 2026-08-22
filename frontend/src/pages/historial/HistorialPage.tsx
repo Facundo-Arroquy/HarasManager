@@ -6,7 +6,8 @@ import { caballoService, type Caballo } from '../../services/caballoService'
 import { historialService } from '../../services/historialService'
 import { crianzaService } from '../../services/crianzaService'
 import { useAuthStore } from '../../store/authStore'
-import { calcularEdad } from '../../utils/fecha'
+import { calcularEdad, formatFecha as formatFechaAR } from '../../utils/fecha'
+import { mensajeError } from '../../utils/error'
 import { exportarFichaCaballo } from '../../utils/exportarFichaCaballo'
 import Spinner from '../../components/ui/Spinner'
 import FotoCaballo from '../../components/domain/FotoCaballo'
@@ -44,6 +45,7 @@ export default function HistorialPage() {
   const [showEditar,  setShowEditar]  = useState(false)
   const [showRegCria, setShowRegCria] = useState(false)
   const [entryToEdit, setEntryToEdit] = useState<HistorialEntry | null>(null)
+  const [borrandoId,  setBorrandoId]  = useState<string | null>(null)
 
   // ── Preñada ─────────────────────────────────────────────────────────────────
   const [prenada,       setPrenada]       = useState(false)
@@ -82,6 +84,28 @@ export default function HistorialPage() {
       .listarPorCaballo(id)
       .then((h) => setHistorial(h as object[]))
       .catch((e: Error) => setError(e.message))
+  }
+
+  /**
+   * Borrar solo lo agendado que nunca se hizo, y solo lo propio: es lo único
+   * que deja pasar la RLS de `historial_clinico`. Una consulta ya cargada es
+   * historial clínico y no se borra desde ningún lado de la app.
+   */
+  async function eliminarConsulta(e: HistorialEntry) {
+    const ok = window.confirm(
+      `¿Eliminar la consulta agendada del ${formatFechaAR(e.fecha_consulta)} (${e.cat_tipo_consulta.nombre})?\n\n` +
+      'No se puede deshacer.',
+    )
+    if (!ok) return
+    setBorrandoId(e.id)
+    try {
+      await historialService.eliminar(e.id)
+      cargarHistorial()
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo eliminar la consulta.'))
+    } finally {
+      setBorrandoId(null)
+    }
   }
 
   async function cargarReproductivo() {
@@ -416,6 +440,12 @@ export default function HistorialPage() {
                     entry={e}
                     destacada={e.id === consultaDestacada}
                     onEditar={e.creado_por === user?.id ? () => setEntryToEdit(e) : undefined}
+                    onEliminar={
+                      e.estado === 'pendiente' && e.creado_por === user?.id
+                        ? () => eliminarConsulta(e)
+                        : undefined
+                    }
+                    eliminando={borrandoId === e.id}
                   />
                 )
               })}
@@ -599,6 +629,11 @@ export default function HistorialPage() {
         <NuevaConsultaModal
           caballoId={id}
           entryToEdit={entryToEdit ?? undefined}
+          // Desde la ficha se corrige lo agendado, no se completa: una pendiente
+          // sigue pendiente al guardar. Sin esto la ficha empezaría a cerrar
+          // consultas por el solo hecho de que ahora sabe que están pendientes
+          // (`listarPorCaballo` no traía `estado` hasta este cambio).
+          soloEditar
           onClose={() => { setShowModal(false); setEntryToEdit(null) }}
           onSuccess={cargarHistorial}
         />
