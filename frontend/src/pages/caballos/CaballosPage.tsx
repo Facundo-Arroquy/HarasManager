@@ -10,7 +10,7 @@ import CaballoGridCard from '../../components/domain/CaballoGridCard'
 import CaballoDetalleModal from '../../components/domain/CaballoDetalleModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import { tagService, type Tag } from '../../services/tagService'
-import { textoBusquedaCaballo, getCamada } from '../../utils/caballo'
+import { coincideBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
 import ImportarCaballosModal from '../../components/domain/ImportarCaballosModal'
@@ -290,7 +290,7 @@ export default function CaballosPage() {
       vistos.add(c.id)
       return true
     }).filter((c) => {
-      const okNombre   = textoBusquedaCaballo(c).includes(busqueda.toLowerCase())
+      const okNombre   = coincideBusquedaCaballo(c, busqueda)
       const okCat      = filtro === 'Todos' || c.categoria === filtro
       const okEmpresa  = filtroEmpresaIds.size === 0 || filtroEmpresaIds.has(c.sociedad_id ?? '')
       const okCampo    = filtroCamposIds.size === 0  || filtroCamposIds.has(c.campo_id ?? '')
@@ -390,7 +390,7 @@ export default function CaballosPage() {
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por nombre o RP…"
+              placeholder="Buscar por nombre, RP o chip…"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
