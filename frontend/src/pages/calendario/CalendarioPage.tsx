@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Syringe, Stethoscope, X, Building2, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
@@ -48,6 +48,9 @@ function grillaMes(mes: Date): Date[] {
 }
 
 const DIAS_SEMANA = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM']
+
+/** Píxeles de recorrido horizontal a partir de los cuales es un deslizamiento y no un toque. */
+const DESLIZ_MINIMO = 50
 
 function tituloMes(d: Date): string {
   return d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
@@ -154,6 +157,43 @@ export default function CalendarioPage() {
     setMesRef((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1))
   }
 
+  // ── Deslizar de costado para cambiar de mes ────────────────────────────────
+  // No se llama a `preventDefault()` en ningún momento: el scroll vertical de la
+  // página sigue siendo el nativo y bajar a los trabajos del día no cambia el mes.
+
+  /** Punto donde arrancó el dedo, y si ya se pasó el umbral horizontal. */
+  const gesto = useRef<{ x: number; y: number; deslizo: boolean } | null>(null)
+
+  function tocarInicio(e: React.TouchEvent) {
+    const t = e.touches[0]
+    gesto.current = { x: t.clientX, y: t.clientY, deslizo: false }
+  }
+
+  function tocarMover(e: React.TouchEvent) {
+    const g = gesto.current
+    if (!g || g.deslizo) return
+    const t  = e.touches[0]
+    const dx = t.clientX - g.x
+    const dy = t.clientY - g.y
+    // Horizontal y más largo que lo vertical: si el dedo bajó, es scroll.
+    if (Math.abs(dx) > DESLIZ_MINIMO && Math.abs(dx) > Math.abs(dy)) g.deslizo = true
+  }
+
+  function tocarFin(e: React.TouchEvent) {
+    const g = gesto.current
+    if (!g?.deslizo) return
+    // Izquierda = mes siguiente, como pasar una hoja.
+    cambiarMes(e.changedTouches[0].clientX < g.x ? 1 : -1)
+  }
+
+  /**
+   * El día que quedó abajo del dedo no se selecciona al soltar. La marca se
+   * limpia en el toque siguiente, así el tap normal sigue funcionando.
+   */
+  function esDesliz(): boolean {
+    return gesto.current?.deslizo ?? false
+  }
+
   function irAHoy() {
     setMesRef(primerDiaMes(fechaDesdeISO(hoy)))
     setDiaSelec(hoy)
@@ -237,7 +277,13 @@ export default function CalendarioPage() {
       {/* Calendario mensual. No va fijo: los trabajos del día son tablas largas y
           el mes pegado arriba se comía media pantalla al scrollearlas. */}
       <section>
-        <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+        <div
+          onTouchStart={tocarInicio}
+          onTouchMove={tocarMover}
+          onTouchEnd={tocarFin}
+          // `pan-y`: el dedo en vertical scrollea la página, en horizontal cambia el mes.
+          className="touch-pan-y rounded-xl border border-slate-200 bg-white p-3 sm:p-4"
+        >
           <div className="flex items-center justify-between gap-2 mb-3">
             <button
               onClick={() => cambiarMes(-1)}
@@ -278,7 +324,7 @@ export default function CalendarioPage() {
                 <button
                   key={iso}
                   type="button"
-                  onClick={() => setDiaSelec(iso)}
+                  onClick={() => { if (!esDesliz()) setDiaSelec(iso) }}
                   className={`flex min-h-[3.25rem] sm:min-h-[4rem] flex-col items-center rounded-lg border p-1 transition-colors ${
                     esSelec
                       ? 'border-brand-500 bg-brand-50 ring-1 ring-brand-500/30'
@@ -304,6 +350,10 @@ export default function CalendarioPage() {
               )
             })}
           </div>
+
+          <p className="mt-2 text-center text-[10px] text-slate-300 sm:hidden">
+            Deslizá de costado para cambiar de mes
+          </p>
         </div>
       </section>
 
