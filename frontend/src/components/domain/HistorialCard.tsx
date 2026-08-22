@@ -27,6 +27,8 @@ export interface HistorialEntry {
   observaciones?: string | null
   proxima_consulta?: string | null
   creado_por?: string | null
+  /** Lo hizo un profesional de afuera: se cargó solo para dejar constancia. */
+  trabajo_externo?: boolean | null
   imagen_url?: string | null
   cat_tipo_consulta: { id?: number; nombre: string }
   usuario: { nombre: string; apellido: string }
@@ -89,6 +91,11 @@ export default function HistorialCard({ entry, onEditar, destacada = false }: Pr
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200">
                 {entry.cat_tipo_consulta.nombre}
               </span>
+              {entry.trabajo_externo && (
+                <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-medium text-orange-700 ring-1 ring-orange-200">
+                  Externo
+                </span>
+              )}
               <span className="text-[11px] text-slate-400">
                 Dr/a. {entry.usuario.nombre} {entry.usuario.apellido}
               </span>

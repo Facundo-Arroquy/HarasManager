@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Syringe, Check, X, CheckCircle2, CalendarDays, Stethoscope, Share2, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { sanidadService } from '../../services/sanidadService'
+import { historialService, type TrabajoRealizado } from '../../services/historialService'
 import { getVeterinariosPlataforma, type VeterinarioPlataforma } from '../../services/adminService'
 import { nombreCaballo } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
@@ -28,6 +30,29 @@ function formatFecha(fecha: string): string {
   return `${d}/${m}/${y.slice(2)}`
 }
 
+/** El día de un TIMESTAMPTZ, leído en hora argentina. */
+function formatFechaHora(iso: string): string {
+  return new Date(iso).toLocaleDateString('es-AR', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    timeZone: 'America/Argentina/Buenos_Aires',
+  })
+}
+
+type FiltroExterno = 'todos' | 'externos' | 'propios'
+
+const FILTROS_EXTERNO: { valor: FiltroExterno; label: string }[] = [
+  { valor: 'todos',    label: 'Todos' },
+  { valor: 'externos', label: 'Externos' },
+  { valor: 'propios',  label: 'Del equipo' },
+]
+
+/** `undefined` = sin filtrar por origen. */
+function externoDelFiltro(f: FiltroExterno): boolean | undefined {
+  if (f === 'externos') return true
+  if (f === 'propios')  return false
+  return undefined
+}
+
 export default function SanidadPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const userId     = useAuthStore((s) => s.user?.id)
@@ -46,6 +71,12 @@ export default function SanidadPage() {
   const [compartir, setCompartir] = useState<TrabajoSanitario | null>(null)
   const [editar,    setEditar]    = useState<TrabajoSanitario | null>(null)
   const [vets,      setVets]      = useState<VeterinarioPlataforma[]>([])
+
+  // ── Trabajos realizados (consultas del historial clínico) ─────────────────
+  const [realizados,     setRealizados]     = useState<TrabajoRealizado[]>([])
+  const [filtroExterno,  setFiltroExterno]  = useState<FiltroExterno>('todos')
+  const [loadingReal,    setLoadingReal]    = useState(true)
+  const [errorReal,      setErrorReal]      = useState<string | null>(null)
 
   useEffect(() => {
     if (esVet) return
@@ -74,6 +105,26 @@ export default function SanidadPage() {
   }, [sociedadId, esVet])
 
   useEffect(() => { cargar() }, [cargar])
+
+  // El filtro vuelve a pedir al servidor: ver "solo externos" tiene que llegar
+  // a los viejos, no quedarse con los que entraron en el tope de la lista.
+  const cargarRealizados = useCallback(async () => {
+    if (!esVet && !sociedadId) return
+    setLoadingReal(true)
+    setErrorReal(null)
+    try {
+      setRealizados(await historialService.listarRealizadas({
+        sociedadId: esVet ? undefined : sociedadId,
+        externo:    externoDelFiltro(filtroExterno),
+      }))
+    } catch (e) {
+      setErrorReal(mensajeError(e))
+    } finally {
+      setLoadingReal(false)
+    }
+  }, [sociedadId, esVet, filtroExterno])
+
+  useEffect(() => { cargarRealizados() }, [cargarRealizados])
 
   // Se lista el plan del día, no cada trabajo suelto: tres vacunas cargadas
   // juntas para el mismo grupo de caballos son una sola salida al campo.
@@ -157,37 +208,49 @@ export default function SanidadPage() {
       {loading && <div className="flex justify-center py-20"><Spinner size="lg" /></div>}
       {error   && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600">Error: {error}</div>}
 
-      {!loading && !error && trabajos.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-sm">
-          <Syringe size={28} className="mb-2 opacity-30" />
-          Sin trabajos sanitarios. Creá el primero con “Nuevo plan sanitario”.
-        </div>
-      )}
-
-      {!loading && !error && trabajos.length > 0 && (
+      {!loading && !error && (
         <div className="space-y-6">
-          {pendientes.length > 0 && (
-            <Seccion titulo="Pendientes">
-              {pendientes.map((g) => (
-                <PlanRow
-                  key={g.clave}
-                  grupo={g}
-                  vetNombre={nombreVet(g.trabajos[0].compartido_con)}
-                  onCompletar={() => setCompletar(g)}
-                  onCompartir={esVet ? undefined : () => setCompartir(g.trabajos[0])}
-                  onEditar={puedeEditar(g.trabajos[0]) ? (t) => setEditar(t) : undefined}
-                  onEliminar={puedeEliminar(g.trabajos[0]) ? eliminarTrabajo : undefined}
-                />
-              ))}
-            </Seccion>
+          {trabajos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-400 text-sm">
+              <Syringe size={28} className="mb-2 opacity-30" />
+              Sin trabajos sanitarios. Creá el primero con “Nuevo plan sanitario”.
+            </div>
+          ) : (
+            <>
+              {pendientes.length > 0 && (
+                <Seccion titulo="Pendientes">
+                  {pendientes.map((g) => (
+                    <PlanRow
+                      key={g.clave}
+                      grupo={g}
+                      vetNombre={nombreVet(g.trabajos[0].compartido_con)}
+                      onCompletar={() => setCompletar(g)}
+                      onCompartir={esVet ? undefined : () => setCompartir(g.trabajos[0])}
+                      onEditar={puedeEditar(g.trabajos[0]) ? (t) => setEditar(t) : undefined}
+                      onEliminar={puedeEliminar(g.trabajos[0]) ? eliminarTrabajo : undefined}
+                    />
+                  ))}
+                </Seccion>
+              )}
+              {historial.length > 0 && (
+                <Seccion titulo="Planes realizados / cancelados">
+                  {historial.map((g) => (
+                    <PlanRow key={g.clave} grupo={g} vetNombre={nombreVet(g.trabajos[0].compartido_con)} />
+                  ))}
+                </Seccion>
+              )}
+            </>
           )}
-          {historial.length > 0 && (
-            <Seccion titulo="Realizados / cancelados">
-              {historial.map((g) => (
-                <PlanRow key={g.clave} grupo={g} vetNombre={nombreVet(g.trabajos[0].compartido_con)} />
-              ))}
-            </Seccion>
-          )}
+
+          {/* Lo que efectivamente se le hizo a cada animal: las consultas ya
+              cargadas, sean del equipo o de un profesional de afuera. */}
+          <TrabajosRealizados
+            trabajos={realizados}
+            filtro={filtroExterno}
+            onFiltro={setFiltroExterno}
+            loading={loadingReal}
+            error={errorReal}
+          />
         </div>
       )}
 
@@ -200,7 +263,7 @@ export default function SanidadPage() {
       {showConsulta && (
         <NuevaConsultaModal
           onClose={() => setShowConsulta(false)}
-          onSuccess={() => setShowConsulta(false)}
+          onSuccess={() => { setShowConsulta(false); cargarRealizados() }}
         />
       )}
       {compartir && (
@@ -226,10 +289,114 @@ export default function SanidadPage() {
         <CompletarModal
           grupo={completar}
           onClose={() => setCompletar(null)}
-          onSuccess={() => { setCompletar(null); cargar() }}
+          // Cerrar el plan escribe una fila de historial por caballo: es lo que
+          // lista "Trabajos realizados", así que también se relee.
+          onSuccess={() => { setCompletar(null); cargar(); cargarRealizados() }}
         />
       )}
     </div>
+  )
+}
+
+// ── Trabajos realizados (consultas del historial clínico) ────────────────────
+
+/**
+ * Los planes sanitarios de arriba son lo que se programó; esto es lo que quedó
+ * escrito en el historial de cada animal, incluida la consulta que hizo alguien
+ * de afuera y se cargó solo para dejar constancia. El filtro por origen es el
+ * motivo de la sección: sirve para saber qué se le pagó a un tercero.
+ */
+function TrabajosRealizados({
+  trabajos, filtro, onFiltro, loading, error,
+}: {
+  trabajos: TrabajoRealizado[]
+  filtro:   FiltroExterno
+  onFiltro: (f: FiltroExterno) => void
+  loading:  boolean
+  error:    string | null
+}) {
+  return (
+    <section>
+      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-slate-600">Trabajos realizados</h2>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            {FILTROS_EXTERNO.map((f) => (
+              <button
+                key={f.valor}
+                onClick={() => onFiltro(f.valor)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                  filtro === f.valor
+                    ? 'bg-slate-200 text-slate-900'
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {!loading && (
+            <span className="text-xs text-slate-400">
+              {trabajos.length} trabajo{trabajos.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+          Error: {error}
+        </div>
+      ) : loading ? (
+        <div className="flex justify-center py-10"><Spinner /></div>
+      ) : trabajos.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
+          {filtro === 'externos'
+            ? 'Sin trabajos externos cargados.'
+            : filtro === 'propios'
+              ? 'Sin trabajos del equipo cargados.'
+              : 'Todavía no hay trabajos realizados.'}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
+          {trabajos.map((t) => (
+            <Link
+              key={t.id}
+              to={`/caballos/${t.caballo_id}/historial?consulta=${t.id}`}
+              className="block px-4 py-3 text-sm transition-colors hover:bg-slate-50"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-slate-900">{t.caballo_nombre}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                      {t.tipo}
+                    </span>
+                    {t.trabajo_externo && (
+                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700">
+                        Externo
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarDays size={12} /> {formatFechaHora(t.fecha_consulta)}
+                    </span>
+                    {t.veterinario && (
+                      <span className="inline-flex items-center gap-1">
+                        <Stethoscope size={12} /> {t.veterinario}
+                      </span>
+                    )}
+                  </div>
+                  {t.diagnostico && <p className="mt-1 text-xs text-slate-500">{t.diagnostico}</p>}
+                  {t.tratamiento && <p className="text-xs text-slate-400">{t.tratamiento}</p>}
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 
