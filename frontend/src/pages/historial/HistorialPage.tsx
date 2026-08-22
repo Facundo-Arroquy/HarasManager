@@ -14,6 +14,9 @@ import HistorialCard, { type HistorialEntry } from '../../components/domain/Hist
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import ArbolGenealogico from '../../components/domain/ArbolGenealogico'
+import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
+import { tieneAccesoModulo } from '../../utils/modulos'
+import { admiteRegistroCria } from '../../types/crianza'
 import type { RegistroClinicoCria, Flushing, TransferenciaEmbrionaria } from '../../types/crianza'
 
 const CATEGORIA_STYLE: Record<string, string> = {
@@ -29,6 +32,7 @@ export default function HistorialPage() {
   const [searchParams] = useSearchParams()
   const rol  = useAuthStore((s) => s.rol)
   const user = useAuthStore((s) => s.user)
+  const modulos = useAuthStore((s) => s.modulos)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [caballo,    setCaballo]    = useState<any>(null)
@@ -38,6 +42,7 @@ export default function HistorialPage() {
   const [error,      setError]      = useState<string | null>(null)
   const [showModal,   setShowModal]   = useState(false)
   const [showEditar,  setShowEditar]  = useState(false)
+  const [showRegCria, setShowRegCria] = useState(false)
   const [entryToEdit, setEntryToEdit] = useState<HistorialEntry | null>(null)
 
   // ── Preñada ─────────────────────────────────────────────────────────────────
@@ -172,6 +177,14 @@ export default function HistorialPage() {
 
   const badgeClass = CATEGORIA_STYLE[caballo?.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
 
+  // El registro reproductivo lo firma el vet que revisa —lleva su id y sus
+  // plazos—, así que el botón es solo para él. Antes había que arrancarlo sí o
+  // sí desde el programa semanal, aunque ya estuvieras parado en el animal.
+  const puedeRegistrarCria =
+    rol === 'veterinario' &&
+    tieneAccesoModulo(rol, modulos, 'centro_cria') &&
+    admiteRegistroCria(caballo?.categoria)
+
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
       {/* Volver */}
@@ -214,7 +227,7 @@ export default function HistorialPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {/* Editar caballo — admin, jugador, piloto y veterinario */}
             {(rol === 'admin' || rol === 'jugador' || rol === 'piloto' || rol === 'veterinario') && (
               <button
@@ -250,6 +263,15 @@ export default function HistorialPage() {
                 className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-500 px-3 py-2 text-sm font-medium text-white transition-colors"
               >
                 <Plus size={15} /> Nueva consulta
+              </button>
+            )}
+            {/* Registro reproductivo del centro de cría, con el animal ya elegido */}
+            {puedeRegistrarCria && (
+              <button
+                onClick={() => setShowRegCria(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors"
+              >
+                <FlaskConical size={15} /> Nuevo registro
               </button>
             )}
           </div>
@@ -579,6 +601,20 @@ export default function HistorialPage() {
           entryToEdit={entryToEdit ?? undefined}
           onClose={() => { setShowModal(false); setEntryToEdit(null) }}
           onSuccess={cargarHistorial}
+        />
+      )}
+
+      {/* Modal registro reproductivo — el animal viene fijado desde la ficha */}
+      {showRegCria && id && (
+        <RegistroCriaModal
+          caballoIdInicial={id}
+          onClose={() => setShowRegCria(false)}
+          onSuccess={() => {
+            // El registro recién cargado se ve enseguida: se abre el tab que lo
+            // lista y se relee, en vez de dejarlo escondido detrás de un clic.
+            setTab('reproductivo')
+            cargarReproductivo().catch(() => {})
+          }}
         />
       )}
 

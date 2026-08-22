@@ -4,7 +4,7 @@ import { X, AlertCircle, Settings2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
-import { CHIPS_OI_OD, CHIPS_UTERO } from '../../types/crianza'
+import { CHIPS_OI_OD, CHIPS_UTERO, admiteRegistroCria } from '../../types/crianza'
 import type { RolReproductivo, PlazosVet } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import PadrilloSelect from './PadrilloSelect'
@@ -29,7 +29,7 @@ type AnimalItem = {
 
 export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial }: Props) {
   const { user, sociedadActiva, rol } = useAuth()
-  const { crearRegistro, plazos } = useCrianzaStore()
+  const { crearRegistro, plazos, cargarPlazos } = useCrianzaStore()
 
   const [animales, setAnimales] = useState<AnimalItem[]>([])
   const [cargandoAnimales, setCargandoAnimales] = useState(true)
@@ -103,6 +103,12 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
     return () => { cancelado = true }
   }, [sociedadActiva, rol])
+
+  // Los plazos son del vet que firma el registro y salen de su configuración.
+  // El modal se los pide él mismo porque ya no se abre solo desde el programa
+  // semanal: entrando por la ficha del caballo el store todavía está en los
+  // valores por defecto y los recordatorios caerían en la fecha equivocada.
+  useEffect(() => { cargarPlazos().catch(() => {}) }, [cargarPlazos])
 
   // ── Carga del catálogo de acciones del vet autenticado ────────────────────
   // La lista es propia de cada veterinario (RLS filtra por auth.uid()) y viaja
@@ -266,7 +272,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
               >
                 <option value="">— Seleccioná —</option>
-                {animales.filter((a) => a.categoria !== 'Padrillo').map((a) => (
+                {animales.filter((a) => admiteRegistroCria(a.categoria)).map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.nombre}
                     {a.rol_reproductivo ? ` (${a.rol_reproductivo})` : ''}
