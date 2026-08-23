@@ -12,6 +12,8 @@ export interface NuevaConsultaPayload {
   creadoPor: string            // usuario.id
   /** 'pendiente' = consulta agendada, todavía sin hacer. Por defecto 'realizada'. */
   estado?: EstadoConsulta
+  /** Lo hizo un profesional de afuera: se carga solo para dejar constancia. */
+  trabajoExterno?: boolean
   imagenUrl?: string
   partesAfectadas: Array<{
     parteCuerpoId: number
@@ -51,6 +53,19 @@ export interface ConsultaCalendario {
   diagnostico:    string | null
   veterinario:    string | null
   creado_por:     string
+}
+
+/** Una consulta ya hecha, como la lista la sección "Trabajos realizados". */
+export interface TrabajoRealizado {
+  id:              string
+  fecha_consulta:  string
+  caballo_id:      string
+  caballo_nombre:  string
+  tipo:            string
+  diagnostico:     string | null
+  tratamiento:     string | null
+  veterinario:     string | null
+  trabajo_externo: boolean
 }
 
 export interface AlertaVet {
@@ -173,6 +188,58 @@ export const historialService = {
     }))
   },
 
+  /**
+   * Consultas ya hechas, de la más nueva a la más vieja. `externo` filtra en el
+   * servidor y no sobre la lista traída: con el tope puesto, filtrar acá
+   * escondería los trabajos externos viejos que quedaron fuera del corte.
+   * Sin `sociedadId` (veterinario) el alcance lo decide la RLS: ve las de los
+   * caballos donde tiene acceso.
+   */
+  async listarRealizadas(
+    { sociedadId, externo, limit = 100 }: {
+      sociedadId?: string
+      /** `undefined` = todas; `true`/`false` = solo externas / solo propias. */
+      externo?: boolean
+      limit?: number
+    },
+  ): Promise<TrabajoRealizado[]> {
+    const supabase = getSupabaseClient()
+    let query = supabase
+      .from('historial_clinico')
+      .select(`
+        id, fecha_consulta, diagnostico, tratamiento, caballo_id, trabajo_externo,
+        caballo!inner(nombre, numero_registro, sociedad_id),
+        cat_tipo_consulta(nombre),
+        usuario!creado_por(nombre, apellido)
+      `)
+      .eq('estado', 'realizada')
+      .order('fecha_consulta', { ascending: false })
+      .limit(limit)
+    if (sociedadId)         query = query.eq('caballo.sociedad_id', sociedadId)
+    if (externo !== undefined) query = query.eq('trabajo_externo', externo)
+
+    const { data, error } = await query
+    if (error) throw error
+
+    return ((data ?? []) as unknown as {
+      id: string; fecha_consulta: string; diagnostico: string | null
+      tratamiento: string | null; caballo_id: string; trabajo_externo: boolean | null
+      caballo?: { nombre?: string | null; numero_registro?: string | null } | null
+      cat_tipo_consulta?: { nombre?: string } | null
+      usuario?: { nombre?: string; apellido?: string } | null
+    }[]).map((h) => ({
+      id:              h.id,
+      fecha_consulta:  h.fecha_consulta,
+      caballo_id:      h.caballo_id,
+      caballo_nombre:  nombreCaballo(h.caballo ?? {}),
+      tipo:            h.cat_tipo_consulta?.nombre ?? 'Consulta',
+      diagnostico:     h.diagnostico ?? null,
+      tratamiento:     h.tratamiento ?? null,
+      veterinario:     h.usuario ? `${h.usuario.nombre ?? ''} ${h.usuario.apellido ?? ''}`.trim() : null,
+      trabajo_externo: h.trabajo_externo ?? false,
+    }))
+  },
+
   /** Mueve una consulta a otra fecha y horario. Solo puede su autor (RLS). */
   async reagendar(historialId: string, fechaISO: string): Promise<void> {
     const supabase = getSupabaseClient()
@@ -202,6 +269,7 @@ export const historialService = {
       .select(`
         id, fecha_consulta, estado, diagnostico, tratamiento, creado_por,
         observaciones, proxima_consulta, imagen_url, caballo_id, created_at,
+        trabajo_externo,
         cat_tipo_consulta(id, nombre),
         usuario!creado_por(nombre, apellido),
         historial_parte_afectada(
@@ -223,8 +291,8 @@ export const historialService = {
     const { data, error } = await supabase
       .from('historial_clinico')
       .select(`
-        id, fecha_consulta, diagnostico, tratamiento, creado_por,
-        observaciones, proxima_consulta, imagen_url, created_at,
+        id, fecha_consulta, estado, diagnostico, tratamiento, creado_por,
+        observaciones, proxima_consulta, imagen_url, created_at, trabajo_externo,
         cat_tipo_consulta(id, nombre),
         usuario!creado_por(nombre, apellido),
         historial_parte_afectada(
@@ -256,6 +324,7 @@ export const historialService = {
         observaciones:    payload.observaciones ?? null,
         proxima_consulta: payload.proximaConsulta ?? null,
         imagen_url:       payload.imagenUrl ?? null,
+        trabajo_externo:  payload.trabajoExterno ?? false,
         // Completar una consulta agendada es guardarla con la ficha cargada.
         ...(payload.estado ? { estado: payload.estado } : {}),
       })
@@ -307,6 +376,7 @@ export const historialService = {
         creado_por: payload.creadoPor,
         imagen_url: payload.imagenUrl ?? null,
         estado: payload.estado ?? 'realizada',
+        trabajo_externo: payload.trabajoExterno ?? false,
       })
       .select('id')
       .single()

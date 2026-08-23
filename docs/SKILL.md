@@ -579,6 +579,10 @@ CREATE TABLE historial_clinico (
   -- cargada todavía; pasa a 'realizada' al completarla (migración 20260806120000)
   estado TEXT NOT NULL DEFAULT 'realizada'
     CHECK (estado IN ('pendiente','realizada')),
+  -- TRUE = lo hizo un profesional ajeno al establecimiento y se carga solo para
+  -- dejar constancia. La sección "Trabajos realizados" de Sanidad filtra por
+  -- esta columna, en el servidor (migración 20260822120000)
+  trabajo_externo BOOLEAN NOT NULL DEFAULT FALSE,
   creado_por UUID NOT NULL REFERENCES usuario(id),
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
   -- REGLA RLS: escriben el veterinario y el admin de la sociedad del caballo

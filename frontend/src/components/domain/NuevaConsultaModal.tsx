@@ -58,6 +58,8 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar,
   })
   // Agendar deja la consulta 'pendiente': se carga la ficha clínica más tarde.
   const [agendar,         setAgendar]         = useState(false)
+  // Lo hizo un profesional de afuera: se carga para dejar constancia.
+  const [trabajoExterno,  setTrabajoExterno]  = useState(entryToEdit?.trabajo_externo ?? false)
   const [diagnostico,     setDiagnostico]     = useState('')
   const [tratamiento,     setTratamiento]     = useState('')
   const [observaciones,   setObservaciones]   = useState('')
@@ -223,6 +225,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar,
           observaciones:   observaciones || undefined,
           proximaConsulta: proximaCons   || undefined,
           imagenUrl,
+          trabajoExterno,
           partesAfectadas,
           medicamentos,
           // Guardar la ficha de una consulta agendada la da por hecha.
@@ -239,6 +242,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar,
           proximaConsulta: proximaCons   || undefined,
           creadoPor:       user.id,
           imagenUrl,
+          trabajoExterno,
           partesAfectadas,
           medicamentos,
           estado:          agendar ? 'pendiente' : 'realizada',
@@ -378,6 +382,23 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar,
                   </span>
                 </label>
               )}
+
+              {/* Trabajo externo: lo hizo alguien de afuera y se carga igual */}
+              <label className="flex items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={trabajoExterno}
+                  onChange={(e) => setTrabajoExterno(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
+                />
+                <span className="text-xs text-slate-600">
+                  Trabajo externo
+                  <span className="block text-slate-400">
+                    Lo hizo un profesional ajeno al establecimiento. Se carga igual en el
+                    historial del animal y se puede filtrar aparte en Sanidad.
+                  </span>
+                </span>
+              </label>
 
               {/* Diagnóstico */}
               <Field label="Diagnóstico">

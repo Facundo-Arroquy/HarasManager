@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Pill, MapPin, Calendar, Pencil, ImageIcon } from 'lucide-react'
+import { ChevronDown, ChevronUp, Pill, MapPin, Calendar, Pencil, Trash2, ImageIcon } from 'lucide-react'
 import { useState } from 'react'
 import { formatFecha } from '../../utils/fecha'
 
@@ -27,6 +27,8 @@ export interface HistorialEntry {
   observaciones?: string | null
   proxima_consulta?: string | null
   creado_por?: string | null
+  /** Lo hizo un profesional de afuera: se cargó solo para dejar constancia. */
+  trabajo_externo?: boolean | null
   imagen_url?: string | null
   cat_tipo_consulta: { id?: number; nombre: string }
   usuario: { nombre: string; apellido: string }
@@ -37,11 +39,24 @@ export interface HistorialEntry {
 interface Props {
   entry: HistorialEntry
   onEditar?: () => void
+  /**
+   * Solo se pasa sobre las consultas `pendiente` propias: la RLS no deja borrar
+   * ninguna otra y el historial ya cargado es inmutable.
+   */
+  onEliminar?: () => void
+  /** El borrado de esta consulta está en curso. */
+  eliminando?: boolean
   /** Se llegó a esta consulta desde el calendario: se abre y se resalta. */
   destacada?: boolean
 }
 
-export default function HistorialCard({ entry, onEditar, destacada = false }: Props) {
+export default function HistorialCard({
+  entry,
+  onEditar,
+  onEliminar,
+  eliminando = false,
+  destacada = false,
+}: Props) {
   const [open, setOpen] = useState(destacada)
   const tieneDetalle =
     entry.historial_parte_afectada.length > 0 ||
@@ -54,7 +69,7 @@ export default function HistorialCard({ entry, onEditar, destacada = false }: Pr
     <div
       id={`consulta-${entry.id}`}
       className={`rounded-xl border bg-white overflow-hidden ${
-        destacada ? 'border-brand-500 ring-2 ring-brand-500/30' : 'border-slate-200'
+        destacada ? 'border-brand-500 ring-2 ring-inset ring-brand-500/30' : 'border-slate-200'
       }`}
     >
       {/* Header: área clickeable para expandir + acciones separadas */}
@@ -89,6 +104,19 @@ export default function HistorialCard({ entry, onEditar, destacada = false }: Pr
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600 ring-1 ring-slate-200">
                 {entry.cat_tipo_consulta.nombre}
               </span>
+              {entry.trabajo_externo && (
+                <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-medium text-orange-700 ring-1 ring-orange-200">
+                  Externo
+                </span>
+              )}
+              {/* Agendada y todavía sin ficha cargada. Acá se veía igual que una
+                  consulta ya hecha, así que el tacho de al lado aparecía sin
+                  motivo visible: el chip es lo que explica por qué esa sí se borra. */}
+              {entry.estado === 'pendiente' && (
+                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200">
+                  Pendiente
+                </span>
+              )}
               <span className="text-[11px] text-slate-400">
                 Dr/a. {entry.usuario.nombre} {entry.usuario.apellido}
               </span>
@@ -128,6 +156,18 @@ export default function HistorialCard({ entry, onEditar, destacada = false }: Pr
               title="Editar consulta"
             >
               <Pencil size={13} />
+            </button>
+          )}
+          {onEliminar && (
+            <button
+              onClick={onEliminar}
+              disabled={eliminando}
+              // Con dedo se borra deslizando la fila; el tacho es para mouse y teclado.
+              className="hidden pointer-fine:block p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+              title="Eliminar la consulta agendada"
+              aria-label="Eliminar la consulta agendada"
+            >
+              <Trash2 size={13} />
             </button>
           )}
           {tieneDetalle && (

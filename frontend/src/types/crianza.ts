@@ -77,6 +77,18 @@ export const PLAZOS_VET_DEFAULTS: PlazosVet = {
 
 export type RolReproductivo = 'Donante' | 'Receptora' | null
 
+/**
+ * Categorías que no llevan registro reproductivo: el padrillo aporta el semen
+ * pero no se le revisan ovarios, y potrillos y caballos todavía no entran al
+ * ciclo. Es la misma regla que arma el selector de animales del registro, así
+ * que la ficha del caballo no ofrece un registro que el modal no podría cargar.
+ */
+const CATEGORIAS_SIN_REGISTRO_CRIA = ['Padrillo', 'Potrillo', 'Caballo']
+
+export function admiteRegistroCria(categoria: string | null | undefined): boolean {
+  return !!categoria && !CATEGORIAS_SIN_REGISTRO_CRIA.includes(categoria)
+}
+
 // ---------------------------------------------------------------------------
 // Estado reproductivo — máquina de estados del flujo reproductivo
 // ---------------------------------------------------------------------------

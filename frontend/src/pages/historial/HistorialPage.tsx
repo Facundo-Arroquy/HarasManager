@@ -6,14 +6,19 @@ import { caballoService, type Caballo } from '../../services/caballoService'
 import { historialService } from '../../services/historialService'
 import { crianzaService } from '../../services/crianzaService'
 import { useAuthStore } from '../../store/authStore'
-import { calcularEdad } from '../../utils/fecha'
+import { calcularEdad, formatFecha as formatFechaAR } from '../../utils/fecha'
+import { mensajeError } from '../../utils/error'
 import { exportarFichaCaballo } from '../../utils/exportarFichaCaballo'
 import Spinner from '../../components/ui/Spinner'
+import DeslizarParaEliminar from '../../components/ui/DeslizarParaEliminar'
 import FotoCaballo from '../../components/domain/FotoCaballo'
 import HistorialCard, { type HistorialEntry } from '../../components/domain/HistorialCard'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import ArbolGenealogico from '../../components/domain/ArbolGenealogico'
+import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
+import { tieneAccesoModulo } from '../../utils/modulos'
+import { admiteRegistroCria } from '../../types/crianza'
 import type { RegistroClinicoCria, Flushing, TransferenciaEmbrionaria } from '../../types/crianza'
 
 const CATEGORIA_STYLE: Record<string, string> = {
@@ -29,6 +34,7 @@ export default function HistorialPage() {
   const [searchParams] = useSearchParams()
   const rol  = useAuthStore((s) => s.rol)
   const user = useAuthStore((s) => s.user)
+  const modulos = useAuthStore((s) => s.modulos)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [caballo,    setCaballo]    = useState<any>(null)
@@ -38,7 +44,9 @@ export default function HistorialPage() {
   const [error,      setError]      = useState<string | null>(null)
   const [showModal,   setShowModal]   = useState(false)
   const [showEditar,  setShowEditar]  = useState(false)
+  const [showRegCria, setShowRegCria] = useState(false)
   const [entryToEdit, setEntryToEdit] = useState<HistorialEntry | null>(null)
+  const [borrandoId,  setBorrandoId]  = useState<string | null>(null)
 
   // ── Preñada ─────────────────────────────────────────────────────────────────
   const [prenada,       setPrenada]       = useState(false)
@@ -77,6 +85,28 @@ export default function HistorialPage() {
       .listarPorCaballo(id)
       .then((h) => setHistorial(h as object[]))
       .catch((e: Error) => setError(e.message))
+  }
+
+  /**
+   * Borrar solo lo agendado que nunca se hizo, y solo lo propio: es lo único
+   * que deja pasar la RLS de `historial_clinico`. Una consulta ya cargada es
+   * historial clínico y no se borra desde ningún lado de la app.
+   */
+  async function eliminarConsulta(e: HistorialEntry) {
+    const ok = window.confirm(
+      `¿Eliminar la consulta agendada del ${formatFechaAR(e.fecha_consulta)} (${e.cat_tipo_consulta.nombre})?\n\n` +
+      'No se puede deshacer.',
+    )
+    if (!ok) return
+    setBorrandoId(e.id)
+    try {
+      await historialService.eliminar(e.id)
+      cargarHistorial()
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo eliminar la consulta.'))
+    } finally {
+      setBorrandoId(null)
+    }
   }
 
   async function cargarReproductivo() {
@@ -172,6 +202,14 @@ export default function HistorialPage() {
 
   const badgeClass = CATEGORIA_STYLE[caballo?.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
 
+  // El registro reproductivo lo firma el vet que revisa —lleva su id y sus
+  // plazos—, así que el botón es solo para él. Antes había que arrancarlo sí o
+  // sí desde el programa semanal, aunque ya estuvieras parado en el animal.
+  const puedeRegistrarCria =
+    rol === 'veterinario' &&
+    tieneAccesoModulo(rol, modulos, 'centro_cria') &&
+    admiteRegistroCria(caballo?.categoria)
+
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
       {/* Volver */}
@@ -214,7 +252,7 @@ export default function HistorialPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {/* Editar caballo — admin, jugador, piloto y veterinario */}
             {(rol === 'admin' || rol === 'jugador' || rol === 'piloto' || rol === 'veterinario') && (
               <button
@@ -250,6 +288,15 @@ export default function HistorialPage() {
                 className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-500 px-3 py-2 text-sm font-medium text-white transition-colors"
               >
                 <Plus size={15} /> Nueva consulta
+              </button>
+            )}
+            {/* Registro reproductivo del centro de cría, con el animal ya elegido */}
+            {puedeRegistrarCria && (
+              <button
+                onClick={() => setShowRegCria(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors"
+              >
+                <FlaskConical size={15} /> Nuevo registro
               </button>
             )}
           </div>
@@ -388,13 +435,27 @@ export default function HistorialPage() {
             <div className="space-y-3">
               {historial.map((entry) => {
                 const e = entry as HistorialEntry
-                return (
+                // Lo único que se borra: lo agendado que nunca se hizo, y propio.
+                const borrable = e.estado === 'pendiente' && e.creado_por === user?.id
+                const card = (
                   <HistorialCard
-                    key={e.id}
                     entry={e}
                     destacada={e.id === consultaDestacada}
                     onEditar={e.creado_por === user?.id ? () => setEntryToEdit(e) : undefined}
+                    onEliminar={borrable ? () => eliminarConsulta(e) : undefined}
+                    eliminando={borrandoId === e.id}
                   />
+                )
+                return borrable ? (
+                  <DeslizarParaEliminar
+                    key={e.id}
+                    etiqueta={`la consulta agendada del ${formatFechaAR(e.fecha_consulta)}`}
+                    onEliminar={() => eliminarConsulta(e)}
+                  >
+                    {card}
+                  </DeslizarParaEliminar>
+                ) : (
+                  <div key={e.id}>{card}</div>
                 )
               })}
             </div>
@@ -577,8 +638,27 @@ export default function HistorialPage() {
         <NuevaConsultaModal
           caballoId={id}
           entryToEdit={entryToEdit ?? undefined}
+          // Desde la ficha se corrige lo agendado, no se completa: una pendiente
+          // sigue pendiente al guardar. Sin esto la ficha empezaría a cerrar
+          // consultas por el solo hecho de que ahora sabe que están pendientes
+          // (`listarPorCaballo` no traía `estado` hasta este cambio).
+          soloEditar
           onClose={() => { setShowModal(false); setEntryToEdit(null) }}
           onSuccess={cargarHistorial}
+        />
+      )}
+
+      {/* Modal registro reproductivo — el animal viene fijado desde la ficha */}
+      {showRegCria && id && (
+        <RegistroCriaModal
+          caballoIdInicial={id}
+          onClose={() => setShowRegCria(false)}
+          onSuccess={() => {
+            // El registro recién cargado se ve enseguida: se abre el tab que lo
+            // lista y se relee, en vez de dejarlo escondido detrás de un clic.
+            setTab('reproductivo')
+            cargarReproductivo().catch(() => {})
+          }}
         />
       )}
 
