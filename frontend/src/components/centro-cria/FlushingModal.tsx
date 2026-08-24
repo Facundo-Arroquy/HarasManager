@@ -8,6 +8,7 @@ import type { RecordatorioCria, DestinoEmbrion, NuevoEmbrionPayload } from '../.
 import { hoyAR, formatFecha } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
 import { receptorasOvuladas } from '../../utils/receptoras'
+import { ultimaInseminacion } from '../../utils/inseminacion'
 
 interface Props {
   onClose: () => void
@@ -88,6 +89,19 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
     () => receptorasOvuladas(registros, transferencias, fecha),
     [registros, transferencias, fecha]
   )
+
+  // El padrillo lo define la inseminación, no el flushing: se precarga del
+  // último registro con chip IN de esta donante y se puede corregir a mano.
+  const inseminacion = useMemo(
+    () => (caballoId ? ultimaInseminacion(registros, caballoId, fecha) : null),
+    [registros, caballoId, fecha]
+  )
+  const [padrilloTocado, setPadrilloTocado] = useState(false)
+
+  useEffect(() => {
+    if (padrilloTocado) return
+    setPadrilloId(inseminacion?.padrilloId ?? '')
+  }, [inseminacion, padrilloTocado])
 
   useEffect(() => {
     if (!efectivaSociedadId) return
@@ -448,12 +462,23 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
                     ))}
                   </div>
 
-                  {/* Padrillo — único para todos los embriones del flushing */}
+                  {/* Padrillo — lo define la inseminación; único para todo el flushing */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-slate-500">Padrillo</label>
+                    {inseminacion ? (
+                      <p className="text-[11px] text-slate-400">
+                        De la inseminación del {formatFecha(inseminacion.fecha)}
+                        {padrilloTocado && ' — lo cambiaste a mano'}
+                      </p>
+                    ) : caballoId && (
+                      <p className="text-[11px] text-amber-600">
+                        Esta donante no tiene una inseminación con padrillo cargada. Elegilo a mano.
+                      </p>
+                    )}
                     <select
                       value={padrilloId}
                       onChange={(e) => {
+                        setPadrilloTocado(true)
                         setPadrilloId(e.target.value)
                         if (e.target.value) setPadrilloTexto('')
                       }}

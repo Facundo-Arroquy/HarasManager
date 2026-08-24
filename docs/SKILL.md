@@ -214,6 +214,10 @@ CREATE TABLE caballo (
   padre_nombre TEXT,                           -- nombre libre si el padre no está en sistema
   madre_id UUID REFERENCES caballo(id),
   madre_nombre TEXT,
+  -- prenada/fecha_prenez se setean a mano desde la ficha del caballo Y solos
+  -- desde el centro de cría (migración 20260824120000): la transferencia
+  -- embrionaria marca preñada con fecha = fecha de la transferencia, y una
+  -- ecografía 'abortada' saca el tag. Ver trg_sincronizar_prenez_ecografia.
   prenada BOOLEAN DEFAULT FALSE,
   fecha_prenez DATE,
   en_venta_pendiente BOOLEAN DEFAULT FALSE,    -- bloquea nueva venta mientras hay una activa
@@ -1023,7 +1027,7 @@ CREATE TABLE lead (
 | `get_alertas_vet()` | Alertas de los próximos 30 días del vet autenticado. Excluye caballos dados de baja (`c.activo = true`, migración `20260812120300`) — antes un caballo inactivo seguía generando alertas para siempre |
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
-| `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Acepta como estado de partida `'disponible'`, `'congelado'` o `'en_nube'`. Devuelve `jsonb` con los tres ids (migraciones `20260724000626`, `20260823120000`) |
+| `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Acepta como estado de partida `'disponible'`, `'congelado'` o `'en_nube'`. Además marca a la receptora `prenada = true` con `fecha_prenez = p_fecha` (migración `20260824120000`). Devuelve `jsonb` con los tres ids (migraciones `20260724000626`, `20260823120000`, `20260824120000`) |
 | `ancestros_caballo(p_caballo_id, p_gen)` | Ancestros de un caballo hasta N generaciones (incluye el propio en nivel 0). Base del cálculo de parentesco (migración `20260802120100`) |
 | `es_familiar_directo(p_a, p_b, p_gen)` | TRUE si los dos comparten un ancestro dentro de `p_gen` generaciones. Con el default (2) cubre padres, abuelos, hijos, nietos, hermanos/medios hermanos y tíos |
 | `get_padrillos_familiares(p_donante_id, p_padrillo_ids)` | De la lista de padrillos que muestra la UI, cuáles son familiares y con qué parentesco ('Padre', 'Abuelo', 'Hijo', 'Nieto', 'Hermano', 'Familiar'). Alimenta la etiqueta roja del selector |
@@ -1058,6 +1062,7 @@ CREATE TABLE lead (
 | `set_updated_at_sociedad_modulo` / `set_updated_at_membresia_modulo` / `set_updated_at_usuario_modulo` | `trigger_set_updated_at()` | BEFORE UPDATE en las 3 tablas puente de módulos (migración `20260810140000`) |
 | `trg_bloquear_padrillo_familiar` | `bloquear_padrillo_familiar()` | BEFORE INSERT OR UPDATE OF padrillo_id, caballo_id en `cria_registro_clinico` → rechaza si el padrillo es familiar directo (2 generaciones) de la yegua. El frontend además deshabilita la opción, pero la regla vive acá (migración `20260802120100`) |
 | `trg_cancelar_pendientes_baja` | `cancelar_pendientes_por_baja()` | AFTER UPDATE OF activo en `caballo` (cuando `activo` → false) → cancela `cria_recordatorio` pendientes/vencidos y excluye al caballo de `trabajo_sanitario` pendientes. Conserva el historial (migración `20260729144522`) |
+| `trg_sincronizar_prenez_ecografia` | `sincronizar_prenez_ecografia()` | AFTER INSERT OR UPDATE OF resultado en `cria_ecografia` → resultado `'abortada'` pone `caballo.prenada = false` y `fecha_prenez = NULL`; `'prenada'` confirma el tag y completa `fecha_prenez` con la fecha de la transferencia si estaba vacía; `'pendiente'` no toca nada. `SECURITY DEFINER` **a propósito**: la única policy de UPDATE sobre `caballo` es `es_admin(sociedad_id)`, así que el veterinario —que es quien carga las ecografías— no puede escribir esa tabla desde el cliente (migración `20260824120000`) |
 | `trg_validar_campo_caballo` | `validar_campo_caballo()` | BEFORE INSERT OR UPDATE OF campo_id, sociedad_id, vet_owner_id en `caballo` → un caballo solo puede estar en un campo de su mismo dueño (sociedad con sociedad, vet con vet). Si el caballo **cambia de dueño** (transferencia entre sociedades, o de vet a organización) el `campo_id` se pone en NULL en vez de abortar; asignar a mano un campo ajeno sí es error (migración `caballo_campo_mismo_duenio` + `caballo_campo_limpiar_al_cambiar_duenio`) |
 
 ### Quién ve qué
