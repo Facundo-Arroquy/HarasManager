@@ -237,7 +237,30 @@ export type NuevoFlushingPayload = Omit<
 // Embrión (originado en un flushing)
 // ---------------------------------------------------------------------------
 
-export type EstadoEmbrion = 'disponible' | 'transferido' | 'descartado' | 'congelado'
+export type EstadoEmbrion = 'disponible' | 'transferido' | 'descartado' | 'congelado' | 'en_nube'
+
+/**
+ * Destino que se le elige a cada embrión al cerrar el flushing.
+ *
+ * Mapea a `EstadoEmbrion`: 'transferir' arranca 'disponible' y el RPC lo deja
+ * en 'transferido'; 'vitrificar' → 'congelado'; 'en_nube' → 'en_nube'.
+ *
+ * "En nube" es el nombre provisorio que pidió Facu — el término correcto lo
+ * define Gero y se renombra después (label en DESTINO_LABEL, valor en la tabla).
+ */
+export type DestinoEmbrion = 'transferir' | 'vitrificar' | 'en_nube'
+
+export const DESTINO_LABEL: Record<DestinoEmbrion, string> = {
+  transferir: 'Transferir',
+  vitrificar: 'Vitrificar',
+  en_nube:    'En nube',
+}
+
+export const ESTADO_POR_DESTINO: Record<DestinoEmbrion, EstadoEmbrion> = {
+  transferir: 'disponible',
+  vitrificar: 'congelado',
+  en_nube:    'en_nube',
+}
 
 export interface Embrion {
   id:                 string

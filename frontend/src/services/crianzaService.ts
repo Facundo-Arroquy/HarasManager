@@ -164,6 +164,20 @@ export const crianzaService = {
     if (error) throw error
   },
 
+  /**
+   * Corre la fecha de vencimiento de un recordatorio y lo devuelve a
+   * 'pendiente'. Es lo que usa el banner de flushing para posponer al día
+   * siguiente: el recordatorio no se pierde, aparece mañana.
+   */
+  async posponerRecordatorio(id: string, nuevaFecha: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('cria_recordatorio')
+      .update({ fecha_vto: nuevaFecha, estado: 'pendiente' })
+      .eq('id', id)
+    if (error) throw error
+  },
+
   // ── Flushings ─────────────────────────────────────────────────────────────
 
   async listarFlushings(sociedadId: string): Promise<Flushing[]> {

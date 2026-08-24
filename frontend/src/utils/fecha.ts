@@ -17,6 +17,23 @@ export function diaAR(iso: string): string {
 }
 
 /**
+ * Suma (o resta, con días negativos) días a una fecha 'YYYY-MM-DD'.
+ * Se ancla al mediodía UTC para que ningún offset de zona corra el resultado.
+ */
+export function sumarDias(fecha: string, dias: number): string {
+  const d = new Date(fecha + 'T12:00:00Z')
+  d.setUTCDate(d.getUTCDate() + dias)
+  return d.toISOString().split('T')[0]
+}
+
+/** Días enteros entre dos fechas 'YYYY-MM-DD' (`hasta - desde`). */
+export function diffDias(desde: string, hasta: string): number {
+  const a = new Date(desde + 'T12:00:00Z').getTime()
+  const b = new Date(hasta + 'T12:00:00Z').getTime()
+  return Math.round((b - a) / 86_400_000)
+}
+
+/**
  * Formatea una fecha ISO a dd/MM/yyyy en timezone Argentina.
  * Soporta tanto datetime ('2026-04-10T10:00:00Z') como date-only ('2026-04-17').
  */

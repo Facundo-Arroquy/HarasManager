@@ -5,7 +5,7 @@ import { useCrianzaStore } from '../../store/crianzaStore'
 import type { RecordatorioCria, EstadoRecordatorio } from '../../types/crianza'
 import Spinner from '../../components/ui/Spinner'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
-import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
+import FlushingBanner from '../../components/centro-cria/FlushingBanner'
 import { hoyAR } from '../../utils/fecha'
 
 const FILTROS: { label: string; value: EstadoRecordatorio | 'todos' }[] = [
@@ -23,7 +23,6 @@ export default function RecordatoriosPage() {
   const [filtro, setFiltro] = useState<EstadoRecordatorio | 'todos'>('pendiente')
   const [cancelando, setCancelando] = useState<string | null>(null)
   const [flushingRec, setFlushingRec] = useState<RecordatorioCria | null>(null)
-  const [flushingParaTransf, setFlushingParaTransf] = useState<{ id: string; sociedadId: string } | null>(null)
 
   useEffect(() => {
     if (sociedadId) cargar(sociedadId)
@@ -57,6 +56,8 @@ export default function RecordatoriosPage() {
         <h1 className="text-xl font-semibold text-slate-900">Recordatorios</h1>
         <p className="text-sm text-slate-500 mt-0.5">Seguimiento del ciclo reproductivo</p>
       </div>
+
+      <FlushingBanner />
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-1.5">
@@ -107,26 +108,14 @@ export default function RecordatoriosPage() {
         </div>
       )}
 
-      {/* Modal flushing (cuando tipo === 'Flushing') */}
+      {/* Modal flushing (cuando tipo === 'Flushing').
+          El destino de cada embrión —transferir, vitrificar o en nube— se elige
+          adentro del propio modal, así que ya no se encadena TransferenciaModal. */}
       {flushingRec && (
         <FlushingModal
           recordatorio={flushingRec}
           onClose={() => setFlushingRec(null)}
-          onSuccess={(flushingId) => {
-            const sid = flushingRec?.sociedad_id ?? ''
-            setFlushingRec(null)
-            setFlushingParaTransf({ id: flushingId, sociedadId: sid })
-          }}
-        />
-      )}
-
-      {/* Modal transferencia encadenado tras flushing positivo */}
-      {flushingParaTransf && (
-        <TransferenciaModal
-          flushingId={flushingParaTransf.id}
-          sociedadId={flushingParaTransf.sociedadId}
-          onClose={() => setFlushingParaTransf(null)}
-          onSuccess={() => setFlushingParaTransf(null)}
+          onSuccess={() => setFlushingRec(null)}
         />
       )}
     </div>

@@ -148,6 +148,9 @@ interface CrianzaState {
     cancelMotivo?: string
   ) => Promise<void>
 
+  /** Corre el vencimiento un día (o los que se pidan) y lo deja pendiente. */
+  posponerRecordatorio: (id: string, dias?: number) => Promise<void>
+
   // Flushings
   crearFlushing: (payload: NuevoFlushingPayload) => Promise<Flushing>
   actualizarFlushing: (id: string, payload: Partial<NuevoFlushingPayload>) => Promise<void>
@@ -270,6 +273,23 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
       recordatorios: s.recordatorios.map((r) =>
         r.id === id
           ? { ...r, estado, ...(cancelMotivo ? { cancel_motivo: cancelMotivo } : {}) }
+          : r
+      ),
+    }))
+  },
+
+  posponerRecordatorio: async (id, dias = 1) => {
+    const actual = get().recordatorios.find((r) => r.id === id)
+    if (!actual) return
+    // Se corre desde hoy, no desde fecha_vto: posponer uno que quedó vencido
+    // hace una semana tiene que caer mañana, no el día siguiente al original.
+    const base = actual.fecha_vto > hoyAR() ? actual.fecha_vto : hoyAR()
+    const nuevaFecha = sumarDias(base, dias)
+    await crianzaService.posponerRecordatorio(id, nuevaFecha)
+    set((s) => ({
+      recordatorios: s.recordatorios.map((r) =>
+        r.id === id
+          ? { ...r, fecha_vto: nuevaFecha, estado: 'pendiente' as EstadoRecordatorio }
           : r
       ),
     }))

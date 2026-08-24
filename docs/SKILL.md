@@ -768,7 +768,10 @@ CREATE TABLE embrion (
   tamanio TEXT,
   zona_pelucida TEXT,
   estado TEXT NOT NULL DEFAULT 'disponible'
-    CHECK (estado IN ('disponible','transferido','descartado','congelado')),
+    -- 'en_nube' agregado en 20260823120000. Nombre provisorio pedido por Facu;
+    -- el término correcto lo define Gero y se renombra después.
+    -- Stock vivo transferible = 'disponible' | 'congelado' | 'en_nube'
+    CHECK (estado IN ('disponible','transferido','descartado','congelado','en_nube')),
   notas TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -1020,7 +1023,7 @@ CREATE TABLE lead (
 | `get_alertas_vet()` | Alertas de los próximos 30 días del vet autenticado. Excluye caballos dados de baja (`c.activo = true`, migración `20260812120300`) — antes un caballo inactivo seguía generando alertas para siempre |
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
-| `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Devuelve `jsonb` con los tres ids (migración `20260724000626`) |
+| `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Acepta como estado de partida `'disponible'`, `'congelado'` o `'en_nube'`. Devuelve `jsonb` con los tres ids (migraciones `20260724000626`, `20260823120000`) |
 | `ancestros_caballo(p_caballo_id, p_gen)` | Ancestros de un caballo hasta N generaciones (incluye el propio en nivel 0). Base del cálculo de parentesco (migración `20260802120100`) |
 | `es_familiar_directo(p_a, p_b, p_gen)` | TRUE si los dos comparten un ancestro dentro de `p_gen` generaciones. Con el default (2) cubre padres, abuelos, hijos, nietos, hermanos/medios hermanos y tíos |
 | `get_padrillos_familiares(p_donante_id, p_padrillo_ids)` | De la lista de padrillos que muestra la UI, cuáles son familiares y con qué parentesco ('Padre', 'Abuelo', 'Hijo', 'Nieto', 'Hermano', 'Familiar'). Alimenta la etiqueta roja del selector |
