@@ -90,8 +90,9 @@ export default function EmbrionesPage() {
 
   useEffect(() => { recargar() }, [recargar])
 
-  // El modal de transferencia usa las transferencias del store para avisar
-  // cuando la receptora elegida ya recibió una.
+  // El modal de transferencia necesita el store cargado: de los registros sale
+  // el listado de receptoras ordenado por días desde la ovulación, y de las
+  // transferencias el aviso de que la receptora elegida ya recibió una.
   useEffect(() => {
     if (sociedadId) cargar(sociedadId)
     else if (rol === 'veterinario') cargarParaVet()

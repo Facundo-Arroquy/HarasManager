@@ -7,8 +7,8 @@ import { ESTADO_POR_DESTINO } from '../../types/crianza'
 import type { RecordatorioCria, DestinoEmbrion, NuevoEmbrionPayload } from '../../types/crianza'
 import { hoyAR, formatFecha } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
-import { receptorasOvuladas } from '../../utils/receptoras'
 import { ultimaInseminacion } from '../../utils/inseminacion'
+import SelectorReceptoras from './SelectorReceptoras'
 
 interface Props {
   onClose: () => void
@@ -57,7 +57,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
   const { user, sociedadActiva } = useAuth()
   const {
     crearFlushing, actualizarEstadoRecordatorio, registrarTransferencia,
-    registros, transferencias,
+    registros,
   } = useCrianzaStore()
 
   const [animales,  setAnimales]  = useState<AnimalItem[]>([])
@@ -84,10 +84,13 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
 
   const donantes = animales.filter((a) => a.rol_reproductivo === 'Donante')
 
-  // Receptoras ovuladas a la fecha del flushing, ordenadas por días desde la OV.
-  const receptoras = useMemo(
-    () => receptorasOvuladas(registros, transferencias, fecha),
-    [registros, transferencias, fecha]
+  // Receptoras de la sociedad. El selector las ordena por días desde la OV y
+  // ofrece al final las que no tienen ovulación cargada.
+  const receptorasDeLaSociedad = useMemo(
+    () => animales
+      .filter((a) => a.rol_reproductivo === 'Receptora')
+      .map((a) => ({ id: a.id, nombre: a.nombre })),
+    [animales]
   )
 
   // El padrillo lo define la inseminación, no el flushing: se precarga del
@@ -257,7 +260,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
               notas:                null,
             })
           } catch (errTransf) {
-            const nombre = receptoras.find((r) => r.caballoId === e.receptoraId)?.nombre ?? 'receptora'
+            const nombre = animales.find((a) => a.id === e.receptoraId)?.nombre ?? 'receptora'
             fallidas.push(`E${i + 1} → ${nombre}: ${mensajeError(errTransf)}`)
           }
         }
@@ -557,49 +560,16 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
 
               <div className="p-3 space-y-2">
                 {emb.destino === 'transferir' && (
-                  <>
-                    <p className="text-[11px] font-medium text-slate-500">
-                      Receptoras ovuladas{' '}
-                      <span className="text-slate-400 font-normal">— ordenadas por días desde su ovulación</span>
-                    </p>
-
-                    {receptoras.length === 0 ? (
-                      <p className="text-xs text-slate-400 py-2">
-                        Ninguna receptora tiene una ovulación registrada a esta fecha.
-                        Cargá la OV desde el registro reproductivo y volvé.
-                      </p>
-                    ) : receptoras.map((r) => {
-                      const seleccionada = emb.receptoraId === r.caballoId
-                      return (
-                        <button
-                          key={r.caballoId}
-                          type="button"
-                          onClick={() => editarEmbrion(i, { receptoraId: r.caballoId })}
-                          className={`w-full flex items-center gap-2.5 flex-wrap rounded-md border px-2.5 py-2 text-left transition-colors ${
-                            seleccionada
-                              ? 'border-brand-500 bg-brand-50'
-                              : 'border-slate-200 hover:bg-slate-50'
-                          } ${r.yaTransferida ? 'opacity-60' : ''}`}
-                        >
-                          <span className={`w-3.5 h-3.5 rounded-full shrink-0 ${
-                            seleccionada ? 'border-4 border-brand-500' : 'border-[1.5px] border-slate-300'
-                          }`} />
-                          <span className="text-sm font-medium text-slate-900">{r.nombre}</span>
-                          <span className="text-[11px] text-slate-400 tabular-nums">
-                            OV {formatFecha(r.fechaOv)}
-                            {r.yaTransferida && ' · ya transferida'}
-                          </span>
-                          <span className={`ml-auto text-[11px] font-medium rounded-full px-2 py-0.5 tabular-nums ${
-                            r.yaTransferida
-                              ? 'bg-slate-100 text-slate-400 border border-slate-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}>
-                            +{r.diasDesdeOv}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </>
+                  <SelectorReceptoras
+                    fecha={fecha}
+                    value={emb.receptoraId}
+                    onChange={(id) => editarEmbrion(i, { receptoraId: id })}
+                    todas={receptorasDeLaSociedad}
+                    // Las que ya se llevaron otro embrión de este mismo flushing
+                    excluir={embriones
+                      .filter((otro, j) => j !== i && otro.destino === 'transferir' && otro.receptoraId)
+                      .map((otro) => otro.receptoraId)}
+                  />
                 )}
 
                 {emb.destino === 'vitrificar' && (
