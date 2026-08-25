@@ -3,6 +3,7 @@ import { X, AlertCircle, ArrowLeftRight, CheckCircle2, AlertTriangle } from 'luc
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
+import { esStockGuardado } from '../../types/crianza'
 import type { Flushing, Embrion } from '../../types/crianza'
 import { hoyAR } from '../../utils/fecha'
 import SelectorReceptoras from './SelectorReceptoras'
@@ -40,6 +41,7 @@ function formatFecha(iso: string): string {
 function labelEmbrion(e: Embrion, idx: number): string {
   const partes: string[] = [`#${idx + 1}`]
   if (e.estado === 'congelado') partes.push('Vitrificado')
+  if (e.estado === 'en_nube')   partes.push('En nube')
   if (e.estadio) partes.push(e.estadio)
   if (e.grado != null) partes.push(`G${e.grado}`)
   if (e.tamanio) partes.push(e.tamanio)
@@ -322,7 +324,9 @@ export default function TransferenciaModal({
                   onChange={(e) => {
                     setEmbrionId(e.target.value)
                     const emb = embriones.find((x) => x.id === e.target.value)
-                    if (emb) setClasificacion(emb.estado === 'congelado' ? 'Congelado' : 'Fresco')
+                    // Vitrificado y en nube son lo mismo para la transferencia:
+                    // embrión guardado, no fresco del flushing del día.
+                    if (emb) setClasificacion(esStockGuardado(emb.estado) ? 'Congelado' : 'Fresco')
                   }}
                   className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 >
