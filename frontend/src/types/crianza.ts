@@ -166,6 +166,12 @@ export interface RegistroClinicoCria {
   diagnostico:       string | null
   tratamiento:       string | null
   observaciones:     string | null
+  /**
+   * Recordatorio que este registro vino a resolver, cuando se cargó tocándolo
+   * en el calendario o en la lista. Es lo que permite abrir desde el
+   * recordatorio la ficha de lo que efectivamente se hizo. NULL si es suelto.
+   */
+  origen_recordatorio_id: string | null
   created_at:        string
   updated_at:        string
   // joins opcionales
@@ -411,6 +417,8 @@ export interface Ecografia {
   ovario_izq:           string[]
   ovario_der:           string[]
   notas:                string | null
+  /** Recordatorio 'Eco 1/2/3' que esta ecografía resolvió, si vino de uno. */
+  origen_recordatorio_id: string | null
   created_at:           string
   updated_at:           string
   // joins opcionales

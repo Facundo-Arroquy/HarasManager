@@ -226,6 +226,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           diagnostico:        null,
           tratamiento:        null,
           observaciones:      observaciones.trim() || null,
+          // Deja el rastro de qué se hizo para cerrar el recordatorio: sin
+          // esto queda 'hecho' y no hay forma de ver con qué.
+          origen_recordatorio_id: recordatorio?.id ?? null,
         },
         rolEfectivo
       )

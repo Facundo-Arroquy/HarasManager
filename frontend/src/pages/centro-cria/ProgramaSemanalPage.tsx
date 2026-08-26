@@ -8,9 +8,9 @@ import FlushingModal from '../../components/centro-cria/FlushingModal'
 import EcografiaModal from '../../components/centro-cria/EcografiaModal'
 import FlushingBanner from '../../components/centro-cria/FlushingBanner'
 import { hoyAR } from '../../utils/fecha'
-import type {
-  RolReproductivo, RecordatorioCria, TransferenciaEmbrionaria,
-} from '../../types/crianza'
+import { accionParaRecordatorio, type AccionRecordatorio } from '../../utils/recordatorio'
+import { LABEL_RESULTADO_ECO } from '../../types/crianza'
+import type { RolReproductivo, RecordatorioCria } from '../../types/crianza'
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────
 
@@ -66,7 +66,9 @@ function formatDiaLargo(d: Date): string {
  * transferencias) se normalizan a un mismo `Evento` para poder pintarlos juntos
  * en el calendario y listarlos en la tabla del día.
  */
-type TipoEvento = 'vencido' | 'pendiente' | 'registro' | 'transferencia'
+type TipoEvento =
+  | 'vencido' | 'pendiente'
+  | 'registro' | 'transferencia' | 'flushing' | 'ecografia'
 
 interface Evento {
   id:            string
@@ -91,6 +93,8 @@ const ESTILO_EVENTO: Record<TipoEvento, string> = {
   pendiente:     'bg-green-50 border-green-200 text-green-900',
   registro:      'bg-blue-50 border-blue-200 text-blue-900',
   transferencia: 'bg-purple-50 border-purple-200 text-purple-900',
+  flushing:      'bg-teal-50 border-teal-200 text-teal-900',
+  ecografia:     'bg-indigo-50 border-indigo-200 text-indigo-900',
 }
 
 const ESTILO_BADGE: Record<TipoEvento, string> = {
@@ -98,6 +102,8 @@ const ESTILO_BADGE: Record<TipoEvento, string> = {
   pendiente:     'bg-green-100 text-green-700',
   registro:      'bg-blue-100 text-blue-700',
   transferencia: 'bg-purple-100 text-purple-700',
+  flushing:      'bg-teal-100 text-teal-700',
+  ecografia:     'bg-indigo-100 text-indigo-700',
 }
 
 const LABEL_ESTADO_EVENTO: Record<TipoEvento, string> = {
@@ -105,20 +111,16 @@ const LABEL_ESTADO_EVENTO: Record<TipoEvento, string> = {
   pendiente:     'Programado',
   registro:      'Registrado',
   transferencia: 'Transferencia',
+  flushing:      'Realizado',
+  ecografia:     'Realizado',
 }
 
 function nombreVet(v?: { nombre: string; apellido: string } | null): string | null {
   return v ? `Dr/a. ${v.nombre} ${v.apellido}`.trim() : null
 }
 
-/** Recordatorios que se resuelven cargando una ecografía, no un registro. */
-const TIPOS_ECO = ['Eco 1', 'Eco 2', 'Eco 3']
-
-/** Qué modal abre cada recordatorio al tocarlo en el calendario. */
-type Accion =
-  | { modal: 'registro'; recordatorio?: RecordatorioCria }
-  | { modal: 'flushing'; recordatorio: RecordatorioCria }
-  | { modal: 'eco'; recordatorio: RecordatorioCria; transferencia: TransferenciaEmbrionaria }
+/** Los modales del calendario: los del recordatorio, más el alta desde cero. */
+type Accion = AccionRecordatorio | { modal: 'registro'; recordatorio?: undefined }
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
@@ -127,8 +129,8 @@ export default function ProgramaSemanalPage() {
   const rol        = useAuthStore((s) => s.rol)
   const esVet      = rol === 'veterinario'
   const {
-    registros, recordatorios, transferencias, ecografias,
-    cargar, cargarParaVet, actualizarEstadoRecordatorio, loading,
+    registros, recordatorios, transferencias, ecografias, flushings,
+    cargar, cargarParaVet, loading,
   } = useCrianzaStore()
 
   const hoy = hoyAR()
@@ -177,28 +179,14 @@ export default function ProgramaSemanalPage() {
     setDiaSelec(e.fecha)
     if (!esVet || !e.recordatorio) return
 
-    const rec = e.recordatorio
-
-    if (rec.tipo === 'Flushing') {
-      setAccion({ modal: 'flushing', recordatorio: rec })
+    const accionRec = accionParaRecordatorio(e.recordatorio, transferencias)
+    if (accionRec.modal === 'falta-transferencia') {
+      setAvisoEco(
+        `No se encontró la transferencia de ${e.caballoNombre} para cargar la ${e.recordatorio.tipo}.`,
+      )
       return
     }
-
-    if (TIPOS_ECO.includes(rec.tipo)) {
-      // La eco cuelga de la transferencia, y el recordatorio solo guarda la
-      // receptora: se toma la última transferencia suya anterior al vencimiento.
-      const transferencia = transferencias
-        .filter((t) => t.caballo_receptora_id === rec.caballo_id && t.fecha <= rec.fecha_vto)
-        .sort((a, b) => b.fecha.localeCompare(a.fecha))[0]
-      if (!transferencia) {
-        setAvisoEco(`No se encontró la transferencia de ${e.caballoNombre} para cargar la ${rec.tipo}.`)
-        return
-      }
-      setAccion({ modal: 'eco', recordatorio: rec, transferencia })
-      return
-    }
-
-    setAccion({ modal: 'registro', recordatorio: rec })
+    setAccion(accionRec)
   }
 
   // ── Normalización de los tres orígenes a una lista única de eventos ─────────
@@ -241,6 +229,42 @@ export default function ProgramaSemanalPage() {
       })
     }
 
+    // El flushing hecho es lo que reemplaza al recordatorio que lo pedía: sin
+    // esta vuelta, hacer el flushing hacía desaparecer a la donante del día.
+    for (const f of flushings) {
+      if (f.cancelado) continue
+      const resultado = f.es_negativo
+        ? 'sin embriones'
+        : `${f.cantidad ?? 0} embri${f.cantidad === 1 ? 'ón' : 'ones'}`
+      out.push({
+        id:            `flu-${f.id}`,
+        fecha:         f.fecha,
+        caballoId:     f.caballo_id,
+        caballoNombre: f.caballo?.nombre ?? '—',
+        rol:           'Donante',
+        etiqueta:      `Flushing: ${resultado}`,
+        tipo:          'flushing',
+        veterinario:   nombreVet(f.veterinario),
+        detalle:       [f.pg_given ? 'Se dio PG' : null, f.notas].filter(Boolean).join(' · ') || null,
+      })
+    }
+
+    // Ídem las ecografías: cierran un recordatorio 'Eco 1/2/3' y hasta ahora no
+    // se veían en ningún lado del programa.
+    for (const e of ecografias) {
+      out.push({
+        id:            `eco-${e.id}`,
+        fecha:         e.fecha,
+        caballoId:     e.caballo_receptora_id,
+        caballoNombre: e.receptora?.nombre ?? '—',
+        rol:           'Receptora',
+        etiqueta:      `Eco ${e.numero}: ${LABEL_RESULTADO_ECO[e.resultado]}`,
+        tipo:          'ecografia',
+        veterinario:   nombreVet(e.veterinario),
+        detalle:       e.notas,
+      })
+    }
+
     for (const t of transferencias) {
       out.push({
         id:            `tra-${t.id}`,
@@ -257,7 +281,7 @@ export default function ProgramaSemanalPage() {
     }
 
     return out
-  }, [registros, recordatorios, transferencias])
+  }, [registros, recordatorios, transferencias, flushings, ecografias])
 
   const eventosPorDia = useMemo(() => {
     const mapa: Record<string, Evento[]> = {}
@@ -449,15 +473,9 @@ export default function ProgramaSemanalPage() {
         <EcografiaModal
           transferencia={accion.transferencia}
           ecografiasExistentes={ecografias.filter((e) => e.transferencia_id === accion.transferencia.id)}
+          recordatorio={accion.recordatorio}
           onClose={() => setAccion(null)}
-          onSuccess={async () => {
-            const rec = accion.recordatorio
-            setAccion(null)
-            // EcografiaModal no conoce recordatorios: la eco ya quedó cargada,
-            // así que el que la pedía se cierra desde acá.
-            await actualizarEstadoRecordatorio(rec.id, 'hecho').catch(() => {})
-            recargar()
-          }}
+          onSuccess={() => { setAccion(null); recargar() }}
         />
       )}
     </div>
