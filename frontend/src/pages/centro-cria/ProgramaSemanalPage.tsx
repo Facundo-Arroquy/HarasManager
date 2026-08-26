@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Check, Clock, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import Spinner from '../../components/ui/Spinner'
@@ -106,13 +106,27 @@ const ESTILO_BADGE: Record<TipoEvento, string> = {
   ecografia:     'bg-indigo-100 text-indigo-700',
 }
 
+/**
+ * Los labels se leen en binario a propósito: lo único que hay que poder decir
+ * de un vistazo es si eso ya se hizo o todavía falta. El ícono lo remata —
+ * reloj y alerta se tocan, el tilde no abre nada.
+ */
 const LABEL_ESTADO_EVENTO: Record<TipoEvento, string> = {
   vencido:       'Vencido',
-  pendiente:     'Programado',
+  pendiente:     'Falta hacer',
   registro:      'Registrado',
-  transferencia: 'Transferencia',
+  transferencia: 'Transferida',
   flushing:      'Realizado',
   ecografia:     'Realizado',
+}
+
+const ICONO_ESTADO_EVENTO: Record<TipoEvento, typeof Check> = {
+  vencido:       AlertCircle,
+  pendiente:     Clock,
+  registro:      Check,
+  transferencia: Check,
+  flushing:      Check,
+  ecografia:     Check,
 }
 
 function nombreVet(v?: { nombre: string; apellido: string } | null): string | null {
@@ -356,7 +370,7 @@ export default function ProgramaSemanalPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Tile valor={resumen.vencidos}       label="Vencidos"       color="text-red-600" />
         <Tile valor={resumen.hoy}            label="Hoy"            color="text-orange-500" />
-        <Tile valor={resumen.programados}    label="Programados"    color="text-green-600" />
+        <Tile valor={resumen.programados}    label="Falta hacer"    color="text-green-600" />
         <Tile valor={resumen.transferencias} label="Transferencias" color="text-blue-600" />
       </div>
 
@@ -439,9 +453,7 @@ export default function ProgramaSemanalPage() {
                     <td className="py-2 pr-3 text-slate-600">{e.etiqueta}</td>
                     <td className="py-2 pr-3 text-slate-500">{e.veterinario ?? '—'}</td>
                     <td className="py-2 pr-3">
-                      <span className={`rounded px-2 py-1 text-xs font-medium ${ESTILO_BADGE[e.tipo]}`}>
-                        {LABEL_ESTADO_EVENTO[e.tipo]}
-                      </span>
+                      <BadgeEstado tipo={e.tipo} />
                     </td>
                     <td className="py-2 text-xs text-slate-500">{e.detalle ?? '—'}</td>
                   </tr>
@@ -484,6 +496,21 @@ export default function ProgramaSemanalPage() {
 
 // ── Sub-componentes ───────────────────────────────────────────────────────────
 
+/** Hecho o falta hacer, con el mismo ícono en el calendario y en la tabla. */
+function BadgeEstado({ tipo, compacto = false }: { tipo: TipoEvento; compacto?: boolean }) {
+  const Icono = ICONO_ESTADO_EVENTO[tipo]
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1 rounded font-medium ${ESTILO_BADGE[tipo]} ${
+        compacto ? 'mt-1 px-1.5 py-0.5 text-[10px]' : 'whitespace-nowrap px-2 py-1 text-xs'
+      }`}
+    >
+      <Icono size={compacto ? 9 : 11} className="shrink-0" />
+      <span className="truncate">{LABEL_ESTADO_EVENTO[tipo]}</span>
+    </span>
+  )
+}
+
 function Tile({ valor, label, color }: { valor: number; label: string; color: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -520,11 +547,14 @@ function GrupoDia({
               onClick={(ev) => { ev.stopPropagation(); onAbrir(e) }}
               title={accionable
                 ? `Hacer ${e.etiqueta} de ${e.caballoNombre}`
-                : `${e.caballoNombre} — ya registrado`}
+                : `${e.caballoNombre} — ya registrado, no hay nada que cargar`}
               className={`cursor-pointer rounded-lg border p-2 hover:brightness-95 ${ESTILO_EVENTO[e.tipo]}`}
             >
               <div className="truncate text-xs font-medium">{e.caballoNombre}</div>
               <div className="truncate text-[11px] opacity-75">{e.etiqueta}</div>
+              {/* El tag es lo que evita apretar lo que ya está hecho esperando
+                  que abra algo: el tilde no abre nada, el reloj sí. */}
+              <BadgeEstado tipo={e.tipo} compacto />
             </div>
           )
         })}
