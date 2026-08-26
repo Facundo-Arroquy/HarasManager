@@ -4,8 +4,13 @@ import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import Spinner from '../../components/ui/Spinner'
 import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
+import FlushingModal from '../../components/centro-cria/FlushingModal'
+import EcografiaModal from '../../components/centro-cria/EcografiaModal'
 import FlushingBanner from '../../components/centro-cria/FlushingBanner'
-import type { RolReproductivo } from '../../types/crianza'
+import { hoyAR } from '../../utils/fecha'
+import type {
+  RolReproductivo, RecordatorioCria, TransferenciaEmbrionaria,
+} from '../../types/crianza'
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────
 
@@ -18,8 +23,9 @@ function inicioSemana(ref: Date): Date {
   return d
 }
 
+/** ISO local, sin el shift a UTC que mete `toISOString()`. */
 function toISO(d: Date): string {
-  return d.toISOString().split('T')[0]
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function semana(inicio: Date): Date[] {
@@ -72,6 +78,12 @@ interface Evento {
   tipo:          TipoEvento
   veterinario:   string | null
   detalle:       string | null
+  /**
+   * Solo en los eventos que todavía hay que hacer. Es lo que convierte el clic
+   * en "hacer lo agendado" y no en "cargar un registro nuevo": sin esto el
+   * recordatorio quedaba pendiente al lado del registro que lo resolvió.
+   */
+  recordatorio?: RecordatorioCria
 }
 
 const ESTILO_EVENTO: Record<TipoEvento, string> = {
@@ -99,20 +111,34 @@ function nombreVet(v?: { nombre: string; apellido: string } | null): string | nu
   return v ? `Dr/a. ${v.nombre} ${v.apellido}`.trim() : null
 }
 
+/** Recordatorios que se resuelven cargando una ecografía, no un registro. */
+const TIPOS_ECO = ['Eco 1', 'Eco 2', 'Eco 3']
+
+/** Qué modal abre cada recordatorio al tocarlo en el calendario. */
+type Accion =
+  | { modal: 'registro'; recordatorio?: RecordatorioCria }
+  | { modal: 'flushing'; recordatorio: RecordatorioCria }
+  | { modal: 'eco'; recordatorio: RecordatorioCria; transferencia: TransferenciaEmbrionaria }
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function ProgramaSemanalPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const rol        = useAuthStore((s) => s.rol)
-  const { registros, recordatorios, transferencias, cargar, cargarParaVet, loading } = useCrianzaStore()
+  const esVet      = rol === 'veterinario'
+  const {
+    registros, recordatorios, transferencias, ecografias,
+    cargar, cargarParaVet, actualizarEstadoRecordatorio, loading,
+  } = useCrianzaStore()
 
-  const [inicioRef,    setInicioRef]    = useState(() => inicioSemana(new Date()))
-  const [diaSelec,     setDiaSelec]     = useState(() => toISO(new Date()))
-  const [modalAbierto, setModalAbierto] = useState(false)
-  const [caballoModal, setCaballoModal] = useState<string | undefined>()
+  const hoy = hoyAR()
+
+  const [inicioRef, setInicioRef] = useState(() => inicioSemana(new Date()))
+  const [diaSelec,  setDiaSelec]  = useState(hoy)
+  const [accion,    setAccion]    = useState<Accion | null>(null)
+  const [avisoEco,  setAvisoEco]  = useState('')
 
   const dias = useMemo(() => semana(inicioRef), [inicioRef])
-  const hoy  = toISO(new Date())
 
   // Carga inicial
   useEffect(() => {
@@ -135,9 +161,44 @@ export default function ProgramaSemanalPage() {
     setInicioRef(d)
   }
 
-  function abrirModal(caballoId?: string) {
-    setCaballoModal(caballoId)
-    setModalAbierto(true)
+  function recargar() {
+    if (sociedadId) cargar(sociedadId)
+    else if (esVet) cargarParaVet()
+  }
+
+  /**
+   * Tocar un evento del calendario. Lo que ya pasó (un registro cargado, una
+   * transferencia hecha) no se vuelve a cargar: solo se abre el día para verlo
+   * en la tabla de abajo. Lo que está agendado abre el modal que corresponde,
+   * enganchado al recordatorio, así queda hecho en vez de duplicarse.
+   */
+  function abrirEvento(e: Evento) {
+    setAvisoEco('')
+    setDiaSelec(e.fecha)
+    if (!esVet || !e.recordatorio) return
+
+    const rec = e.recordatorio
+
+    if (rec.tipo === 'Flushing') {
+      setAccion({ modal: 'flushing', recordatorio: rec })
+      return
+    }
+
+    if (TIPOS_ECO.includes(rec.tipo)) {
+      // La eco cuelga de la transferencia, y el recordatorio solo guarda la
+      // receptora: se toma la última transferencia suya anterior al vencimiento.
+      const transferencia = transferencias
+        .filter((t) => t.caballo_receptora_id === rec.caballo_id && t.fecha <= rec.fecha_vto)
+        .sort((a, b) => b.fecha.localeCompare(a.fecha))[0]
+      if (!transferencia) {
+        setAvisoEco(`No se encontró la transferencia de ${e.caballoNombre} para cargar la ${rec.tipo}.`)
+        return
+      }
+      setAccion({ modal: 'eco', recordatorio: rec, transferencia })
+      return
+    }
+
+    setAccion({ modal: 'registro', recordatorio: rec })
   }
 
   // ── Normalización de los tres orígenes a una lista única de eventos ─────────
@@ -157,6 +218,7 @@ export default function ProgramaSemanalPage() {
         // Los recordatorios no traen join de veterinario, solo veterinario_id.
         veterinario:   null,
         detalle:       r.notas,
+        recordatorio:  r,
       })
     }
 
@@ -251,9 +313,9 @@ export default function ProgramaSemanalPage() {
             <span className="hidden sm:inline">Semana siguiente</span>
             <ChevronRight size={15} />
           </button>
-          {rol === 'veterinario' && (
+          {esVet && (
             <button
-              onClick={() => abrirModal()}
+              onClick={() => setAccion({ modal: 'registro' })}
               className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
             >
               <Plus size={15} />
@@ -307,24 +369,9 @@ export default function ProgramaSemanalPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <GrupoDia
-                      titulo="Donantes"
-                      eventos={donantes}
-                      canEdit={rol === 'veterinario'}
-                      onRegistrar={abrirModal}
-                    />
-                    <GrupoDia
-                      titulo="Receptoras"
-                      eventos={receptoras}
-                      canEdit={rol === 'veterinario'}
-                      onRegistrar={abrirModal}
-                    />
-                    <GrupoDia
-                      titulo="Sin rol"
-                      eventos={otros}
-                      canEdit={rol === 'veterinario'}
-                      onRegistrar={abrirModal}
-                    />
+                    <GrupoDia titulo="Donantes"   eventos={donantes}   esVet={esVet} onAbrir={abrirEvento} />
+                    <GrupoDia titulo="Receptoras" eventos={receptoras} esVet={esVet} onAbrir={abrirEvento} />
+                    <GrupoDia titulo="Sin rol"    eventos={otros}      esVet={esVet} onAbrir={abrirEvento} />
                   </div>
                 )}
               </div>
@@ -332,6 +379,12 @@ export default function ProgramaSemanalPage() {
           })}
         </div>
       </div>
+
+      {avisoEco && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          {avisoEco}
+        </p>
+      )}
 
       {/* Detalle del día seleccionado */}
       <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -375,14 +428,35 @@ export default function ProgramaSemanalPage() {
         )}
       </div>
 
-      {/* Modal */}
-      {modalAbierto && rol === 'veterinario' && (
+      {/* Modales — cada uno cierra el recordatorio que lo abrió */}
+      {accion?.modal === 'registro' && esVet && (
         <RegistroCriaModal
-          caballoIdInicial={caballoModal}
-          onClose={() => { setModalAbierto(false); setCaballoModal(undefined) }}
-          onSuccess={() => {
-            if (sociedadId) cargar(sociedadId)
-            else if (rol === 'veterinario') cargarParaVet()
+          recordatorio={accion.recordatorio}
+          onClose={() => setAccion(null)}
+          onSuccess={recargar}
+        />
+      )}
+
+      {accion?.modal === 'flushing' && esVet && (
+        <FlushingModal
+          recordatorio={accion.recordatorio}
+          onClose={() => setAccion(null)}
+          onSuccess={() => { setAccion(null); recargar() }}
+        />
+      )}
+
+      {accion?.modal === 'eco' && esVet && (
+        <EcografiaModal
+          transferencia={accion.transferencia}
+          ecografiasExistentes={ecografias.filter((e) => e.transferencia_id === accion.transferencia.id)}
+          onClose={() => setAccion(null)}
+          onSuccess={async () => {
+            const rec = accion.recordatorio
+            setAccion(null)
+            // EcografiaModal no conoce recordatorios: la eco ya quedó cargada,
+            // así que el que la pedía se cierra desde acá.
+            await actualizarEstadoRecordatorio(rec.id, 'hecho').catch(() => {})
+            recargar()
           }}
         />
       )}
@@ -403,12 +477,12 @@ function Tile({ valor, label, color }: { valor: number; label: string; color: st
 
 /** Bloque Donantes / Receptoras dentro de la columna de un día. */
 function GrupoDia({
-  titulo, eventos, canEdit, onRegistrar,
+  titulo, eventos, esVet, onAbrir,
 }: {
   titulo: string
   eventos: Evento[]
-  canEdit: boolean
-  onRegistrar: (caballoId: string) => void
+  esVet: boolean
+  onAbrir: (evento: Evento) => void
 }) {
   if (eventos.length === 0) return null
 
@@ -418,19 +492,24 @@ function GrupoDia({
         {titulo} <span className="font-normal">({eventos.length})</span>
       </p>
       <div className="space-y-2">
-        {eventos.map((e) => (
-          <div
-            key={e.id}
-            onClick={canEdit ? (ev) => { ev.stopPropagation(); onRegistrar(e.caballoId) } : undefined}
-            title={canEdit ? `Registrar sobre ${e.caballoNombre}` : undefined}
-            className={`rounded-lg border p-2 ${ESTILO_EVENTO[e.tipo]} ${
-              canEdit ? 'cursor-pointer hover:brightness-95' : ''
-            }`}
-          >
-            <div className="truncate text-xs font-medium">{e.caballoNombre}</div>
-            <div className="truncate text-[11px] opacity-75">{e.etiqueta}</div>
-          </div>
-        ))}
+        {eventos.map((e) => {
+          // Un registro cargado o una transferencia hecha ya son historia: se
+          // abren para mirarlas en la tabla del día, no para cargarlas de nuevo.
+          const accionable = esVet && !!e.recordatorio
+          return (
+            <div
+              key={e.id}
+              onClick={(ev) => { ev.stopPropagation(); onAbrir(e) }}
+              title={accionable
+                ? `Hacer ${e.etiqueta} de ${e.caballoNombre}`
+                : `${e.caballoNombre} — ya registrado`}
+              className={`cursor-pointer rounded-lg border p-2 hover:brightness-95 ${ESTILO_EVENTO[e.tipo]}`}
+            >
+              <div className="truncate text-xs font-medium">{e.caballoNombre}</div>
+              <div className="truncate text-[11px] opacity-75">{e.etiqueta}</div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

@@ -5,10 +5,10 @@ import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
 import { CHIPS_OI_OD, CHIPS_UTERO, admiteRegistroCria } from '../../types/crianza'
-import type { RolReproductivo, PlazosVet } from '../../types/crianza'
+import type { RolReproductivo, PlazosVet, RecordatorioCria } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import PadrilloSelect from './PadrilloSelect'
-import { hoyAR } from '../../utils/fecha'
+import { hoyAR, formatFecha as formatFechaAR } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
 
 interface Props {
@@ -16,6 +16,23 @@ interface Props {
   onSuccess?: () => void
   // Pre-seleccionar un animal (desde ProgramaSemanal o vista de detalle)
   caballoIdInicial?: string
+  /**
+   * Recordatorio que disparó el modal. Con él, guardar no es cargar un registro
+   * suelto: es hacer lo que estaba agendado, así que al terminar el recordatorio
+   * queda `hecho` en vez de seguir pendiente al lado del registro nuevo.
+   */
+  recordatorio?: RecordatorioCria
+}
+
+/**
+ * Acción del vet que resuelve cada tipo de recordatorio. Solo se pre-marca si el
+ * vet tiene esa acción configurada; lo que no está acá abre el modal sin nada
+ * marcado, como cualquier registro.
+ */
+const CHIP_QUE_RESUELVE: Record<string, string> = {
+  IN:      'IN',
+  OXI:     'OXI',
+  'Dar PG': 'PG',
 }
 
 type AnimalItem = {
@@ -27,9 +44,9 @@ type AnimalItem = {
   campo: { nombre: string } | null
 }
 
-export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial }: Props) {
+export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial, recordatorio }: Props) {
   const { user, sociedadActiva, rol } = useAuth()
-  const { crearRegistro, plazos, cargarPlazos } = useCrianzaStore()
+  const { crearRegistro, plazos, cargarPlazos, actualizarEstadoRecordatorio } = useCrianzaStore()
 
   const [animales, setAnimales] = useState<AnimalItem[]>([])
   const [cargandoAnimales, setCargandoAnimales] = useState(true)
@@ -41,7 +58,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [ranking, setRanking] = useState<string[]>([])
 
   // ── Form state ────────────────────────────────────────────────────────────
-  const [caballoId,     setCaballoId]     = useState(caballoIdInicial ?? '')
+  const [caballoId,     setCaballoId]     = useState(caballoIdInicial ?? recordatorio?.caballo_id ?? '')
   const [fecha,         setFecha]         = useState(hoyAR())
   const [ovarioIzq,     setOvarioIzq]     = useState<string[]>([])
   const [ovarioDer,     setOvarioDer]     = useState<string[]>([])
@@ -115,10 +132,18 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   // con él a todos los establecimientos donde trabaja.
   useEffect(() => {
     crianzaService.listarMisChips()
-      .then((data) => setChipsObs(data.map((c) => c.nombre)))
+      .then((data) => {
+        const nombres = data.map((c) => c.nombre)
+        setChipsObs(nombres)
+        // Viniendo de un recordatorio, la acción que lo resuelve ya viene
+        // marcada: el vet abrió el evento justamente para hacer eso. Queda
+        // desmarcable, y el preview de abajo muestra qué se va a agendar.
+        const chip = recordatorio && CHIP_QUE_RESUELVE[recordatorio.tipo]
+        if (chip && nombres.includes(chip)) setObsChips([chip])
+      })
       .catch(() => setChipsObs([]))
       .finally(() => setCargandoChips(false))
-  }, [])
+  }, [recordatorio])
 
   // Si abre con un animal pre-seleccionado, derivar su sociedad apenas se cargan los animales.
   // El select onChange no se dispara en ese caso → sin esto el vet sin sociedadActiva pega
@@ -171,7 +196,8 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
     if (!caballoId)       return setError('Seleccioná un animal.')
     if (!fecha)           return setError('La fecha es requerida.')
     if (!user?.id)        return setError('Sin sesión activa.')
-    const sociedadId = sociedadActiva?.id ?? animalSociedadId
+    // `animalSociedadId` arranca vacío: `||` para que caiga al recordatorio.
+    const sociedadId = sociedadActiva?.id || animalSociedadId || recordatorio?.sociedad_id
     if (!sociedadId)      return setError('No se pudo determinar la sociedad del animal.')
     if (necesitaRol && !rolManual) return setError('Indicá si es Donante o Receptora.')
     if (mostrarPadrillo && parentescoElegido) {
@@ -209,6 +235,12 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
         await crianzaService.actualizarRolReproductivo(caballoId, rolManual)
       }
 
+      // Lo agendado ya se hizo: si no se cierra, el recordatorio queda
+      // pendiente al lado del registro que lo resolvió y se vuelve a ofrecer.
+      if (recordatorio) {
+        await actualizarEstadoRecordatorio(recordatorio.id, 'hecho')
+      }
+
       onSuccess?.()
       onClose()
     } catch (err) {
@@ -229,7 +261,14 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 shrink-0">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Registro reproductivo</h2>
+            <h2 className="text-sm font-semibold text-slate-900">
+              {recordatorio ? `${recordatorio.tipo} — registro reproductivo` : 'Registro reproductivo'}
+            </h2>
+            {recordatorio && (
+              <p className="text-xs text-brand-600 mt-0.5">
+                Agendado para el {formatFechaAR(recordatorio.fecha_vto)} · al guardar queda hecho
+              </p>
+            )}
             {animalSeleccionado && (
               <p className="text-xs text-slate-500 mt-0.5">
                 {animalSeleccionado.nombre}
@@ -268,7 +307,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                   setAnimalSociedadId(animal?.sociedad_id ?? '')
                   setRolManual(null)
                 }}
-                disabled={cargandoAnimales}
+                // El recordatorio es de este animal: cambiarlo acá marcaría
+                // hecho lo de una yegua y registraría lo de otra.
+                disabled={cargandoAnimales || !!recordatorio}
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
               >
                 <option value="">— Seleccioná —</option>
@@ -483,7 +524,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
             disabled={saving || Boolean(mostrarPadrillo && parentescoElegido)}
             className="px-4 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors disabled:opacity-50"
           >
-            {saving ? 'Guardando…' : 'Guardar registro'}
+            {saving
+              ? 'Guardando…'
+              : recordatorio ? 'Guardar y marcar hecho' : 'Guardar registro'}
           </button>
         </div>
       </div>
