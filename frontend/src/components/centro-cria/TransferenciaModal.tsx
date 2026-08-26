@@ -3,8 +3,10 @@ import { X, AlertCircle, ArrowLeftRight, CheckCircle2, AlertTriangle } from 'luc
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
+import { esStockGuardado } from '../../types/crianza'
 import type { Flushing, Embrion } from '../../types/crianza'
 import { hoyAR } from '../../utils/fecha'
+import SelectorReceptoras from './SelectorReceptoras'
 
 interface Props {
   onClose: () => void
@@ -39,6 +41,7 @@ function formatFecha(iso: string): string {
 function labelEmbrion(e: Embrion, idx: number): string {
   const partes: string[] = [`#${idx + 1}`]
   if (e.estado === 'congelado') partes.push('Vitrificado')
+  if (e.estado === 'en_nube')   partes.push('En nube')
   if (e.estadio) partes.push(e.estadio)
   if (e.grado != null) partes.push(`G${e.grado}`)
   if (e.tamanio) partes.push(e.tamanio)
@@ -87,7 +90,12 @@ export default function TransferenciaModal({
   // pide una confirmación explícita antes de guardar.
   const [confirmadoRepetida, setConfirmadoRepetida] = useState(false)
 
-  const receptoras = animales.filter((a) => a.rol_reproductivo === 'Receptora')
+  const receptoras = useMemo(
+    () => animales
+      .filter((a) => a.rol_reproductivo === 'Receptora')
+      .map((a) => ({ id: a.id, nombre: a.nombre })),
+    [animales]
+  )
   const donantes   = animales.filter((a) => a.rol_reproductivo === 'Donante')
   const padrillos  = animales.filter((a) => a.categoria === 'Padrillo')
 
@@ -233,40 +241,34 @@ export default function TransferenciaModal({
           onSubmit={handleSubmit}
           className="overflow-y-auto flex-1 px-5 py-4 space-y-4"
         >
-          {/* Receptora + Fecha */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5 col-span-2 sm:col-span-1">
-              <label className="text-xs font-medium text-slate-500">Receptora *</label>
-              <select
+          {/* Fecha — arriba porque contra ella se cuentan los días desde la ovulación */}
+          <div className="space-y-1.5 sm:w-1/2">
+            <label className="text-xs font-medium text-slate-500">Fecha *</label>
+            <input
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+
+          {/* Receptora — mismo selector que al cerrar un flushing */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Receptora *</label>
+            {cargando ? (
+              <p className="text-xs text-slate-400 py-2">Cargando receptoras…</p>
+            ) : (
+              <SelectorReceptoras
+                fecha={fecha}
                 value={receptoraId}
-                onChange={(e) => {
-                  setReceptoraId(e.target.value)
+                onChange={(id) => {
+                  setReceptoraId(id)
                   setConfirmadoRepetida(false)
                   setError('')
                 }}
-                disabled={cargando}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
-              >
-                <option value="">— Seleccioná —</option>
-                {receptoras.map((r) => {
-                  const ultima = ultimaTransfPorReceptora.get(r.id)
-                  return (
-                    <option key={r.id} value={r.id}>
-                      {ultima ? `${r.nombre} · Transferida ${formatFecha(ultima)}` : r.nombre}
-                    </option>
-                  )
-                })}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Fecha *</label>
-              <input
-                type="date"
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                todas={receptoras}
               />
-            </div>
+            )}
           </div>
 
           {/* Aviso: receptora ya usada */}
@@ -322,7 +324,9 @@ export default function TransferenciaModal({
                   onChange={(e) => {
                     setEmbrionId(e.target.value)
                     const emb = embriones.find((x) => x.id === e.target.value)
-                    if (emb) setClasificacion(emb.estado === 'congelado' ? 'Congelado' : 'Fresco')
+                    // Vitrificado y en nube son lo mismo para la transferencia:
+                    // embrión guardado, no fresco del flushing del día.
+                    if (emb) setClasificacion(esStockGuardado(emb.estado) ? 'Congelado' : 'Fresco')
                   }}
                   className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 >

@@ -7,6 +7,7 @@ import { crianzaService } from '../../services/crianzaService'
 import { mensajeError } from '../../utils/error'
 import {
   PLAZOS_VET_DEFAULTS,
+  PLAZO_MAX_DIAS,
   CHIPS_CON_RECORDATORIO,
   CHIPS_OBS_SUGERIDOS,
   type PlazosVet,
@@ -30,8 +31,8 @@ export default function ConfigCriaPage() {
   // Las listas son del establecimiento (admin o vet); acciones y plazos son
   // propios de cada veterinario.
   const tabs = [
-    { to: '/centro-cria/config/padrillos', label: 'Listas Padrillos por donante' },
-    ...(esVet ? [{ to: '/centro-cria/config/vet', label: 'Mis acciones y plazos' }] : []),
+    { to: '/centro-cria/config/padrillos', label: 'Padrillos por donante' },
+    ...(esVet ? [{ to: '/centro-cria/config/vet', label: 'Acciones y plazos' }] : []),
   ]
 
   return (
@@ -138,7 +139,11 @@ function CatalogoChips() {
   const sugerenciasPendientes = CHIPS_OBS_SUGERIDOS.filter((s) => !nombresExistentes.includes(s))
 
   return (
-    <Section title="Mis acciones" icon={<Settings2 size={14} />}>
+    <Section
+      title="Acciones del registro reproductivo"
+      descripcion="Los chips que aparecen al cargar una revisión. Los marcados disparan recordatorios."
+      icon={<Settings2 size={14} />}
+    >
       <div className="p-4 space-y-3">
         <p className="text-xs text-slate-400">
           Son los chips que vas a poder marcar al cargar un registro. Los que
@@ -263,7 +268,11 @@ function PlazosSection() {
 
   return (
     <>
-      <Section title="Donante" icon={<Settings2 size={14} />}>
+      <Section
+        title="Plazos de la donante"
+        descripcion="Días entre una acción y el recordatorio que dispara."
+        icon={<Settings2 size={14} />}
+      >
         <Regla
           label="Strelin → Inseminación (IN)"
           valor={local.donante_strelin_a_in}
@@ -296,7 +305,11 @@ function PlazosSection() {
         />
       </Section>
 
-      <Section title="Receptora" icon={<Settings2 size={14} />}>
+      <Section
+        title="Plazos de la receptora"
+        descripcion="Días entre una acción y el recordatorio que dispara."
+        icon={<Settings2 size={14} />}
+      >
         <Regla
           label="PG → Revisión PG"
           valor={local.receptora_pg_a_revision_pg}
@@ -308,6 +321,34 @@ function PlazosSection() {
           valor={local.receptora_ov_a_dar_pg}
           default_={PLAZOS_VET_DEFAULTS.receptora_ov_a_dar_pg}
           onChange={(v) => setField('receptora_ov_a_dar_pg', v)}
+        />
+      </Section>
+
+      <Section
+        title="Plazos de las ecografías"
+        descripcion="Días desde la transferencia. Las tres se agendan solas al transferir el embrión."
+        icon={<Settings2 size={14} />}
+      >
+        <Regla
+          label="Transferencia → Eco 1"
+          valor={local.receptora_transf_a_eco1}
+          default_={PLAZOS_VET_DEFAULTS.receptora_transf_a_eco1}
+          max={PLAZO_MAX_DIAS.receptora_transf_a_eco1}
+          onChange={(v) => setField('receptora_transf_a_eco1', v)}
+        />
+        <Regla
+          label="Transferencia → Eco 2"
+          valor={local.receptora_transf_a_eco2}
+          default_={PLAZOS_VET_DEFAULTS.receptora_transf_a_eco2}
+          max={PLAZO_MAX_DIAS.receptora_transf_a_eco2}
+          onChange={(v) => setField('receptora_transf_a_eco2', v)}
+        />
+        <Regla
+          label="Transferencia → Eco 3"
+          valor={local.receptora_transf_a_eco3}
+          default_={PLAZOS_VET_DEFAULTS.receptora_transf_a_eco3}
+          max={PLAZO_MAX_DIAS.receptora_transf_a_eco3}
+          onChange={(v) => setField('receptora_transf_a_eco3', v)}
         />
       </Section>
 
@@ -346,17 +387,23 @@ function PlazosSection() {
 // ── Sub-componentes ───────────────────────────────────────────────────────────
 
 function Section({
-  title, icon, children,
+  title, descripcion, icon, children,
 }: {
   title: string
+  descripcion?: string
   icon: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wider">
-        {icon}
-        {title}
+      <div className="px-4 py-3 border-b border-slate-200">
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-500 uppercase tracking-wider">
+          {icon}
+          {title}
+        </div>
+        {descripcion && (
+          <p className="text-xs text-slate-400 mt-1 normal-case tracking-normal">{descripcion}</p>
+        )}
       </div>
       <div className="divide-y divide-slate-100">{children}</div>
     </div>
@@ -364,11 +411,13 @@ function Section({
 }
 
 function Regla({
-  label, valor, default_, onChange,
+  label, valor, default_, max = 30, onChange,
 }: {
   label: string
   valor: number
   default_: number
+  /** Tope en días. Los plazos de ecografía llegan a 365; el resto, a 30. */
+  max?: number
   onChange: (v: number) => void
 }) {
   const [raw, setRaw] = useState(String(valor))
@@ -385,7 +434,7 @@ function Regla({
 
   function handleBlur() {
     const v = parseInt(raw, 10)
-    if (!isNaN(v) && v >= 1 && v <= 30) {
+    if (!isNaN(v) && v >= 1 && v <= max) {
       onChange(v)
       setRaw(String(v))
     } else {
@@ -409,11 +458,11 @@ function Regla({
           <input
             type="number"
             min={1}
-            max={30}
+            max={max}
             value={raw}
             onChange={handleChange}
             onBlur={handleBlur}
-            className="w-14 rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-sm text-center text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="w-16 rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-sm text-center text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
           <span className="text-xs text-slate-400">días</span>
         </div>

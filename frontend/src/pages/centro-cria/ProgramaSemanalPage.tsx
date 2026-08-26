@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import Spinner from '../../components/ui/Spinner'
 import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
+import FlushingBanner from '../../components/centro-cria/FlushingBanner'
 import type { RolReproductivo } from '../../types/crianza'
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────
@@ -261,6 +262,9 @@ export default function ProgramaSemanalPage() {
           )}
         </div>
       </div>
+
+      {/* Flushings del día — solo aparece si hay alguno para hoy */}
+      <FlushingBanner />
 
       {/* Resumen de la semana */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -51,7 +51,7 @@ export const NAV_GROUPS: NavGroup[] = [
       // Acciones y plazos son propios de cada veterinario; el ranking de
       // padrillos por donante sí es del establecimiento, así que el admin
       // también entra acá (definición de Gero, 2026-08-02).
-      { to: '/centro-cria/config',         label: 'Configuración',               icon: <Settings2 size={18} />, roles: ['veterinario', 'admin'] },
+      { to: '/centro-cria/config',         label: 'Configuración del centro',    icon: <Settings2 size={18} />, roles: ['veterinario', 'admin'] },
     ],
   },
   {

@@ -59,6 +59,11 @@ export interface PlazosVet {
   donante_flushing_a_revision: number
   receptora_pg_a_revision_pg:  number
   receptora_ov_a_dar_pg:       number
+  // Ecografías post-transferencia (migración 20260824130000). Rango 1..365:
+  // 60 y 90 no entran en el 1..30 que valida el resto de los plazos.
+  receptora_transf_a_eco1:     number
+  receptora_transf_a_eco2:     number
+  receptora_transf_a_eco3:     number
 }
 
 export const PLAZOS_VET_DEFAULTS: PlazosVet = {
@@ -69,6 +74,16 @@ export const PLAZOS_VET_DEFAULTS: PlazosVet = {
   donante_flushing_a_revision: 4,
   receptora_pg_a_revision_pg:  4,
   receptora_ov_a_dar_pg:       3,
+  receptora_transf_a_eco1:     30,
+  receptora_transf_a_eco2:     60,
+  receptora_transf_a_eco3:     90,
+}
+
+/** Plazos que admiten hasta 365 días; el resto se valida contra 30. */
+export const PLAZO_MAX_DIAS: Partial<Record<keyof PlazosVet, number>> = {
+  receptora_transf_a_eco1: 365,
+  receptora_transf_a_eco2: 365,
+  receptora_transf_a_eco3: 365,
 }
 
 // ---------------------------------------------------------------------------
@@ -179,6 +194,10 @@ export type TipoRecordatorio =
   | 'Revisión PG'
   | 'Revisión Flushing'
   | 'Revisión'
+  // Las agenda registrar_transferencia_embrionaria con los plazos del vet
+  | 'Eco 1'
+  | 'Eco 2'
+  | 'Eco 3'
 
 export interface RecordatorioCria {
   id:                  string
@@ -237,7 +256,43 @@ export type NuevoFlushingPayload = Omit<
 // Embrión (originado en un flushing)
 // ---------------------------------------------------------------------------
 
-export type EstadoEmbrion = 'disponible' | 'transferido' | 'descartado' | 'congelado'
+export type EstadoEmbrion = 'disponible' | 'transferido' | 'descartado' | 'congelado' | 'en_nube'
+
+/**
+ * Destino que se le elige a cada embrión al cerrar el flushing.
+ *
+ * Mapea a `EstadoEmbrion`: 'transferir' arranca 'disponible' y el RPC lo deja
+ * en 'transferido'; 'vitrificar' → 'congelado'; 'en_nube' → 'en_nube'.
+ *
+ * "En nube" es el nombre provisorio que pidió Facu — el término correcto lo
+ * define Gero y se renombra después (label en DESTINO_LABEL, valor en la tabla).
+ */
+export type DestinoEmbrion = 'transferir' | 'vitrificar' | 'en_nube'
+
+export const DESTINO_LABEL: Record<DestinoEmbrion, string> = {
+  transferir: 'Transferir',
+  vitrificar: 'Vitrificar',
+  en_nube:    'En nube',
+}
+
+/**
+ * Stock vivo: embriones que todavía se pueden transferir.
+ *
+ * 'congelado' y 'en_nube' se tratan igual en todo el flujo — se guardan, se
+ * listan y se transfieren de la misma forma. Lo único que cambia es la etiqueta.
+ */
+export const ESTADOS_STOCK: EstadoEmbrion[] = ['disponible', 'congelado', 'en_nube']
+
+/** Embrión que estuvo guardado (no es fresco del flushing del día). */
+export function esStockGuardado(estado: EstadoEmbrion): boolean {
+  return estado === 'congelado' || estado === 'en_nube'
+}
+
+export const ESTADO_POR_DESTINO: Record<DestinoEmbrion, EstadoEmbrion> = {
+  transferir: 'disponible',
+  vitrificar: 'congelado',
+  en_nube:    'en_nube',
+}
 
 export interface Embrion {
   id:                 string

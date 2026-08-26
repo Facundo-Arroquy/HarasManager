@@ -13,6 +13,7 @@ const ESTADO_LABEL: Record<EstadoEmbrion, string> = {
   disponible:  'Disponible',
   transferido: 'Transferido',
   congelado:   'Vitrificado',
+  en_nube:     'En nube',
   descartado:  'Descartado',
 }
 
@@ -20,10 +21,11 @@ const ESTADO_BADGE: Record<EstadoEmbrion, string> = {
   disponible:  'bg-emerald-100 text-emerald-700',
   transferido: 'bg-blue-100    text-blue-700',
   congelado:   'bg-cyan-100    text-cyan-700',
+  en_nube:     'bg-violet-100  text-violet-700',
   descartado:  'bg-slate-100   text-slate-500',
 }
 
-const FILTROS: Array<EstadoEmbrion | 'todos'> = ['todos', 'disponible', 'transferido', 'congelado', 'descartado']
+const FILTROS: Array<EstadoEmbrion | 'todos'> = ['todos', 'disponible', 'transferido', 'congelado', 'en_nube', 'descartado']
 
 const ECO_BADGE: Record<ResultadoEcografia, string> = {
   prenada:   'bg-emerald-100 text-emerald-700',
@@ -88,8 +90,9 @@ export default function EmbrionesPage() {
 
   useEffect(() => { recargar() }, [recargar])
 
-  // El modal de transferencia usa las transferencias del store para avisar
-  // cuando la receptora elegida ya recibió una.
+  // El modal de transferencia necesita el store cargado: de los registros sale
+  // el listado de receptoras ordenado por días desde la ovulación, y de las
+  // transferencias el aviso de que la receptora elegida ya recibió una.
   useEffect(() => {
     if (sociedadId) cargar(sociedadId)
     else if (rol === 'veterinario') cargarParaVet()
@@ -126,8 +129,8 @@ export default function EmbrionesPage() {
 
       {/* Resumen */}
       {embriones.length > 0 && (
-        <div className="grid grid-cols-4 gap-3">
-          {(['disponible', 'transferido', 'congelado', 'descartado'] as EstadoEmbrion[]).map((e) => (
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          {(['disponible', 'transferido', 'congelado', 'en_nube', 'descartado'] as EstadoEmbrion[]).map((e) => (
             <div key={e} className="rounded-lg border border-slate-200 bg-white p-3 text-center">
               <p className={`text-xl font-semibold ${e === 'disponible' ? 'text-emerald-600' : e === 'transferido' ? 'text-blue-600' : 'text-slate-500'}`}>
                 {counts[e] ?? 0}
@@ -197,7 +200,8 @@ export default function EmbrionesPage() {
                 // (disponible, vitrificado o descartado) no hay receptora.
                 const transf = e.cria_transferencia?.[0]
                 // Solo el stock vivo se puede transferir: los descartados no.
-                const transferible = !transf && (e.estado === 'disponible' || e.estado === 'congelado')
+                const transferible = !transf &&
+                  (e.estado === 'disponible' || e.estado === 'congelado' || e.estado === 'en_nube')
                 return (
                   <tr key={e.id} className="group hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-slate-800 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 whitespace-nowrap">

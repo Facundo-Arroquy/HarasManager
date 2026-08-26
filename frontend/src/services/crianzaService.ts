@@ -21,13 +21,13 @@ import type {
   PlazosVet,
   PadrilloPreferido,
 } from '../types/crianza'
-import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
+import { PLAZOS_VET_DEFAULTS, ESTADOS_STOCK } from '../types/crianza'
 
 /**
  * Embrión + transferencia + ecografías de esa transferencia. El embed de
  * transferencia viene vacío para los embriones que nunca se transfirieron
- * (disponibles, vitrificados o descartados), así que la lista los muestra sin
- * receptora.
+ * (disponibles, vitrificados, en nube o descartados), así que la lista los
+ * muestra sin receptora.
  */
 const SELECT_EMBRION_SEGUIMIENTO = `
   *,
@@ -164,6 +164,20 @@ export const crianzaService = {
     if (error) throw error
   },
 
+  /**
+   * Corre la fecha de vencimiento de un recordatorio y lo devuelve a
+   * 'pendiente'. Es lo que usa el banner de flushing para posponer al día
+   * siguiente: el recordatorio no se pierde, aparece mañana.
+   */
+  async posponerRecordatorio(id: string, nuevaFecha: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('cria_recordatorio')
+      .update({ fecha_vto: nuevaFecha, estado: 'pendiente' })
+      .eq('id', id)
+    if (error) throw error
+  },
+
   // ── Flushings ─────────────────────────────────────────────────────────────
 
   async listarFlushings(sociedadId: string): Promise<Flushing[]> {
@@ -235,7 +249,8 @@ export const crianzaService = {
       .from('embrion')
       .select(`*, donante:caballo_donante_id(nombre), padrillo:padrillo_id(nombre)`)
       .eq('sociedad_id', sociedadId)
-      .in('estado', ['disponible', 'congelado'])
+      // 'en_nube' es stock igual que 'congelado': se transfiere de la misma forma
+      .in('estado', ESTADOS_STOCK)
       .order('created_at', { ascending: false })
     if (donanteId) q = q.eq('caballo_donante_id', donanteId)
     const { data, error } = await q
