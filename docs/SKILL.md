@@ -702,6 +702,9 @@ CREATE TABLE cria_registro_clinico (
   review_manana BOOLEAN DEFAULT FALSE,
   review_manana_desc TEXT,
   motivo TEXT, diagnostico TEXT, tratamiento TEXT, observaciones TEXT,
+  -- Recordatorio que este registro vino a cerrar (migración cria_origen_recordatorio_en_registro_y_ecografia).
+  -- NULL = registro suelto. Es lo que permite abrir desde el recordatorio la ficha de lo que se hizo.
+  origen_recordatorio_id UUID REFERENCES cria_recordatorio(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -793,6 +796,9 @@ CREATE TABLE cria_ecografia (
   ovario_izq TEXT[] NOT NULL DEFAULT '{}',
   ovario_der TEXT[] NOT NULL DEFAULT '{}',
   notas TEXT,
+  -- Recordatorio 'Eco 1/2/3' que esta ecografía cerró, si se cargó desde él
+  -- (migración cria_origen_recordatorio_en_registro_y_ecografia). NULL = cargada a mano desde Transferencias.
+  origen_recordatorio_id UUID REFERENCES cria_recordatorio(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (transferencia_id, numero)
 );

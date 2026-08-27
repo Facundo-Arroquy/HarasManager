@@ -3,14 +3,22 @@ import { X, AlertCircle, Activity } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { CHIPS_OI_OD, LABEL_RESULTADO_ECO } from '../../types/crianza'
-import type { ResultadoEcografia, TransferenciaEmbrionaria } from '../../types/crianza'
+import type {
+  ResultadoEcografia, TransferenciaEmbrionaria, RecordatorioCria,
+} from '../../types/crianza'
 import ChipSelector from './ChipSelector'
-import { hoyAR } from '../../utils/fecha'
+import { hoyAR, formatFecha } from '../../utils/fecha'
 
 interface Props {
   transferencia: TransferenciaEmbrionaria
   /** Ecografías ya cargadas para esta transferencia (para sugerir el número). */
   ecografiasExistentes: { numero: number }[]
+  /**
+   * Recordatorio 'Eco 1/2/3' que abrió el modal. Con él la eco queda enganchada
+   * al recordatorio y el recordatorio queda `hecho` al guardar; sin él es una
+   * eco suelta cargada desde Transferencias.
+   */
+  recordatorio?: RecordatorioCria
   onClose: () => void
   onSuccess?: () => void
 }
@@ -23,14 +31,20 @@ const RESULTADO_STYLE: Record<ResultadoEcografia, string> = {
   pendiente: 'bg-amber-100 text-amber-700 border-amber-300',
 }
 
-export default function EcografiaModal({ transferencia, ecografiasExistentes, onClose, onSuccess }: Props) {
+export default function EcografiaModal({
+  transferencia, ecografiasExistentes, recordatorio, onClose, onSuccess,
+}: Props) {
   const { user, sociedadActiva } = useAuth()
   const registrarEcografia = useCrianzaStore((s) => s.registrarEcografia)
+  const actualizarEstadoRecordatorio = useCrianzaStore((s) => s.actualizarEstadoRecordatorio)
 
   // Sugerir el próximo número de eco según las ya registradas (habitualmente
   // son 3, pero puede haber más).
   const maxExistente = ecografiasExistentes.reduce((m, e) => Math.max(m, e.numero), 0)
-  const proximoNumero = maxExistente + 1
+  // Viniendo de un recordatorio 'Eco 2', el número lo dice el recordatorio: es
+  // la que se agendó, aunque alguna anterior se haya salteado.
+  const numeroDelRecordatorio = Number(recordatorio?.tipo.match(/^Eco (\d+)$/)?.[1])
+  const proximoNumero = numeroDelRecordatorio || maxExistente + 1
 
   const [numero,     setNumero]     = useState<number>(proximoNumero)
   const [fecha,      setFecha]      = useState(hoyAR())
@@ -70,7 +84,11 @@ export default function EcografiaModal({ transferencia, ecografiasExistentes, on
         ovario_izq:           ovarioIzq,
         ovario_der:           ovarioDer,
         notas:                notas.trim() || null,
+        origen_recordatorio_id: recordatorio?.id ?? null,
       })
+      // La eco que pedía el recordatorio ya está cargada: si no se cierra, se
+      // sigue ofreciendo y la próxima vez se carga de nuevo.
+      if (recordatorio) await actualizarEstadoRecordatorio(recordatorio.id, 'hecho')
       onSuccess?.()
       onClose()
     } catch (err) {
@@ -97,6 +115,11 @@ export default function EcografiaModal({ transferencia, ecografiasExistentes, on
                 {transferencia.receptora?.nombre ?? 'Receptora'}
                 {transferencia.donante?.nombre ? ` ← ${transferencia.donante.nombre}` : ''}
               </p>
+              {recordatorio && (
+                <p className="text-xs text-brand-600 mt-0.5">
+                  {recordatorio.tipo} agendada para el {formatFecha(recordatorio.fecha_vto)} · al guardar queda hecha
+                </p>
+              )}
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
