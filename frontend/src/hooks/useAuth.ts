@@ -33,18 +33,23 @@ async function cargarPerfilProd(
       return
     }
 
-    // Usuario normal: cargar sociedad activa via membresia
-    const { data: memb } = await supabase
+    // Usuario normal: cargar sociedad activa via membresia.
+    // NO se usa `.single()`: un usuario puede tener más de una membresía activa
+    // (otra sociedad, u otro rol en la misma — la tabla solo tiene
+    // UNIQUE(usuario_id, sociedad_id, rol_id)), y ahí `.single()` tiraba y el
+    // usuario quedaba sin sociedad, bloqueado. Hasta que exista un selector de
+    // sociedad, se toma la membresía más antigua de forma determinista.
+    const { data: membRows } = await supabase
       .from('membresia')
-      .select('activa, cat_rol(nombre), sociedad(id, nombre, activa)')
+      .select('activa, created_at, cat_rol(nombre), sociedad(id, nombre, activa)')
       .eq('usuario_id', userId)
       .eq('activa', true)
-      .single()
+      .order('created_at', { ascending: true })
 
     // PostgREST puede devolver cat_rol como objeto o array según la versión
     type SociedadRow = { id: string; nombre: string; activa: boolean }
     type CatRol = { nombre: string }
-    const m = memb as { cat_rol?: CatRol | CatRol[] | null; sociedad?: SociedadRow | null } | null
+    const m = ((membRows ?? []) as unknown as { cat_rol?: CatRol | CatRol[] | null; sociedad?: SociedadRow | null }[])[0] ?? null
     const catRol = Array.isArray(m?.cat_rol) ? m?.cat_rol[0] : m?.cat_rol
 
     // Esperar el check de acceso antes de marcar el perfil como cargado,
@@ -63,10 +68,16 @@ async function cargarPerfilProd(
   }
 }
 
-export function useAuth() {
-  const store = useAuthStore()
-
+/**
+ * Suscribe la app a los cambios de sesión de Supabase y dispara la carga del
+ * perfil. Va montado UNA sola vez, en el componente raíz (`App`): antes vivía
+ * dentro de `useAuth`, y como ese hook lo consumen ~40 componentes, cada uno
+ * montaba su propio `onAuthStateChange` + `getSession()` y podían dispararse
+ * varias `cargarPerfilProd` en paralelo en el arranque.
+ */
+export function useAuthListener() {
   useEffect(() => {
+    const store = useAuthStore.getState()
     let supabase: ReturnType<typeof getSupabaseClient>
     try {
       supabase = getSupabaseClient()
@@ -91,7 +102,11 @@ export function useAuth() {
     })
 
     return () => listener.subscription.unsubscribe()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
+}
+
+export function useAuth() {
+  const store = useAuthStore()
 
   const signIn = async (email: string, password: string) => {
     const supabase = getSupabaseClient()

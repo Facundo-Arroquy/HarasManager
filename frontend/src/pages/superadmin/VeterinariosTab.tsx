@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { FlaskConical, Stethoscope, LayoutGrid, Trash2, X, AlertTriangle } from 'lucide-react'
 import { superAdminService, type VeterinarioAcceso } from '../../services/superAdminService'
 import { listarModulos } from '../../services/moduloService'
@@ -76,7 +76,7 @@ export default function VeterinariosTab() {
   const [eliminando, setEliminando] = useState(false)
   const pushToast = useToastStore((s) => s.pushToast)
 
-  async function recargar() {
+  const recargar = useCallback(async () => {
     setLoading(true)
     try {
       const [vets, mods] = await Promise.all([superAdminService.listarVeterinarios(), listarModulos()])
@@ -87,12 +87,12 @@ export default function VeterinariosTab() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [pushToast])
 
   useEffect(() => {
     recargar()
     vetLimiteService.limiteGratis().then(setLimiteGratis).catch(() => {})
-  }, [])
+  }, [recargar])
 
   async function handleToggleModulo(usuarioId: string, codigo: ModuloCodigo, valor: boolean) {
     setMutando(usuarioId)
