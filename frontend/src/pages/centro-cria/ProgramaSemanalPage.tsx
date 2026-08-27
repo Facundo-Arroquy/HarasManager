@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Check, Clock, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import Spinner from '../../components/ui/Spinner'
 import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
+import FlushingModal from '../../components/centro-cria/FlushingModal'
+import EcografiaModal from '../../components/centro-cria/EcografiaModal'
 import FlushingBanner from '../../components/centro-cria/FlushingBanner'
-import type { RolReproductivo } from '../../types/crianza'
+import { hoyAR } from '../../utils/fecha'
+import { accionParaRecordatorio, type AccionRecordatorio } from '../../utils/recordatorio'
+import { LABEL_RESULTADO_ECO } from '../../types/crianza'
+import type { RolReproductivo, RecordatorioCria } from '../../types/crianza'
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────
 
@@ -18,8 +23,9 @@ function inicioSemana(ref: Date): Date {
   return d
 }
 
+/** ISO local, sin el shift a UTC que mete `toISOString()`. */
 function toISO(d: Date): string {
-  return d.toISOString().split('T')[0]
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function semana(inicio: Date): Date[] {
@@ -60,7 +66,9 @@ function formatDiaLargo(d: Date): string {
  * transferencias) se normalizan a un mismo `Evento` para poder pintarlos juntos
  * en el calendario y listarlos en la tabla del día.
  */
-type TipoEvento = 'vencido' | 'pendiente' | 'registro' | 'transferencia'
+type TipoEvento =
+  | 'vencido' | 'pendiente'
+  | 'registro' | 'transferencia' | 'flushing' | 'ecografia'
 
 interface Evento {
   id:            string
@@ -72,6 +80,12 @@ interface Evento {
   tipo:          TipoEvento
   veterinario:   string | null
   detalle:       string | null
+  /**
+   * Solo en los eventos que todavía hay que hacer. Es lo que convierte el clic
+   * en "hacer lo agendado" y no en "cargar un registro nuevo": sin esto el
+   * recordatorio quedaba pendiente al lado del registro que lo resolvió.
+   */
+  recordatorio?: RecordatorioCria
 }
 
 const ESTILO_EVENTO: Record<TipoEvento, string> = {
@@ -79,6 +93,8 @@ const ESTILO_EVENTO: Record<TipoEvento, string> = {
   pendiente:     'bg-green-50 border-green-200 text-green-900',
   registro:      'bg-blue-50 border-blue-200 text-blue-900',
   transferencia: 'bg-purple-50 border-purple-200 text-purple-900',
+  flushing:      'bg-teal-50 border-teal-200 text-teal-900',
+  ecografia:     'bg-indigo-50 border-indigo-200 text-indigo-900',
 }
 
 const ESTILO_BADGE: Record<TipoEvento, string> = {
@@ -86,33 +102,59 @@ const ESTILO_BADGE: Record<TipoEvento, string> = {
   pendiente:     'bg-green-100 text-green-700',
   registro:      'bg-blue-100 text-blue-700',
   transferencia: 'bg-purple-100 text-purple-700',
+  flushing:      'bg-teal-100 text-teal-700',
+  ecografia:     'bg-indigo-100 text-indigo-700',
 }
 
+/**
+ * Los labels se leen en binario a propósito: lo único que hay que poder decir
+ * de un vistazo es si eso ya se hizo o todavía falta. El ícono lo remata —
+ * reloj y alerta se tocan, el tilde no abre nada.
+ */
 const LABEL_ESTADO_EVENTO: Record<TipoEvento, string> = {
   vencido:       'Vencido',
-  pendiente:     'Programado',
+  pendiente:     'Falta hacer',
   registro:      'Registrado',
-  transferencia: 'Transferencia',
+  transferencia: 'Transferida',
+  flushing:      'Realizado',
+  ecografia:     'Realizado',
+}
+
+const ICONO_ESTADO_EVENTO: Record<TipoEvento, typeof Check> = {
+  vencido:       AlertCircle,
+  pendiente:     Clock,
+  registro:      Check,
+  transferencia: Check,
+  flushing:      Check,
+  ecografia:     Check,
 }
 
 function nombreVet(v?: { nombre: string; apellido: string } | null): string | null {
   return v ? `Dr/a. ${v.nombre} ${v.apellido}`.trim() : null
 }
 
+/** Los modales del calendario: los del recordatorio, más el alta desde cero. */
+type Accion = AccionRecordatorio | { modal: 'registro'; recordatorio?: undefined }
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function ProgramaSemanalPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const rol        = useAuthStore((s) => s.rol)
-  const { registros, recordatorios, transferencias, cargar, cargarParaVet, loading } = useCrianzaStore()
+  const esVet      = rol === 'veterinario'
+  const {
+    registros, recordatorios, transferencias, ecografias, flushings,
+    cargar, cargarParaVet, loading,
+  } = useCrianzaStore()
 
-  const [inicioRef,    setInicioRef]    = useState(() => inicioSemana(new Date()))
-  const [diaSelec,     setDiaSelec]     = useState(() => toISO(new Date()))
-  const [modalAbierto, setModalAbierto] = useState(false)
-  const [caballoModal, setCaballoModal] = useState<string | undefined>()
+  const hoy = hoyAR()
+
+  const [inicioRef, setInicioRef] = useState(() => inicioSemana(new Date()))
+  const [diaSelec,  setDiaSelec]  = useState(hoy)
+  const [accion,    setAccion]    = useState<Accion | null>(null)
+  const [avisoEco,  setAvisoEco]  = useState('')
 
   const dias = useMemo(() => semana(inicioRef), [inicioRef])
-  const hoy  = toISO(new Date())
 
   // Carga inicial
   useEffect(() => {
@@ -135,9 +177,30 @@ export default function ProgramaSemanalPage() {
     setInicioRef(d)
   }
 
-  function abrirModal(caballoId?: string) {
-    setCaballoModal(caballoId)
-    setModalAbierto(true)
+  function recargar() {
+    if (sociedadId) cargar(sociedadId)
+    else if (esVet) cargarParaVet()
+  }
+
+  /**
+   * Tocar un evento del calendario. Lo que ya pasó (un registro cargado, una
+   * transferencia hecha) no se vuelve a cargar: solo se abre el día para verlo
+   * en la tabla de abajo. Lo que está agendado abre el modal que corresponde,
+   * enganchado al recordatorio, así queda hecho en vez de duplicarse.
+   */
+  function abrirEvento(e: Evento) {
+    setAvisoEco('')
+    setDiaSelec(e.fecha)
+    if (!esVet || !e.recordatorio) return
+
+    const accionRec = accionParaRecordatorio(e.recordatorio, transferencias)
+    if (accionRec.modal === 'falta-transferencia') {
+      setAvisoEco(
+        `No se encontró la transferencia de ${e.caballoNombre} para cargar la ${e.recordatorio.tipo}.`,
+      )
+      return
+    }
+    setAccion(accionRec)
   }
 
   // ── Normalización de los tres orígenes a una lista única de eventos ─────────
@@ -157,6 +220,7 @@ export default function ProgramaSemanalPage() {
         // Los recordatorios no traen join de veterinario, solo veterinario_id.
         veterinario:   null,
         detalle:       r.notas,
+        recordatorio:  r,
       })
     }
 
@@ -179,6 +243,42 @@ export default function ProgramaSemanalPage() {
       })
     }
 
+    // El flushing hecho es lo que reemplaza al recordatorio que lo pedía: sin
+    // esta vuelta, hacer el flushing hacía desaparecer a la donante del día.
+    for (const f of flushings) {
+      if (f.cancelado) continue
+      const resultado = f.es_negativo
+        ? 'sin embriones'
+        : `${f.cantidad ?? 0} embri${f.cantidad === 1 ? 'ón' : 'ones'}`
+      out.push({
+        id:            `flu-${f.id}`,
+        fecha:         f.fecha,
+        caballoId:     f.caballo_id,
+        caballoNombre: f.caballo?.nombre ?? '—',
+        rol:           'Donante',
+        etiqueta:      `Flushing: ${resultado}`,
+        tipo:          'flushing',
+        veterinario:   nombreVet(f.veterinario),
+        detalle:       [f.pg_given ? 'Se dio PG' : null, f.notas].filter(Boolean).join(' · ') || null,
+      })
+    }
+
+    // Ídem las ecografías: cierran un recordatorio 'Eco 1/2/3' y hasta ahora no
+    // se veían en ningún lado del programa.
+    for (const e of ecografias) {
+      out.push({
+        id:            `eco-${e.id}`,
+        fecha:         e.fecha,
+        caballoId:     e.caballo_receptora_id,
+        caballoNombre: e.receptora?.nombre ?? '—',
+        rol:           'Receptora',
+        etiqueta:      `Eco ${e.numero}: ${LABEL_RESULTADO_ECO[e.resultado]}`,
+        tipo:          'ecografia',
+        veterinario:   nombreVet(e.veterinario),
+        detalle:       e.notas,
+      })
+    }
+
     for (const t of transferencias) {
       out.push({
         id:            `tra-${t.id}`,
@@ -195,7 +295,7 @@ export default function ProgramaSemanalPage() {
     }
 
     return out
-  }, [registros, recordatorios, transferencias])
+  }, [registros, recordatorios, transferencias, flushings, ecografias])
 
   const eventosPorDia = useMemo(() => {
     const mapa: Record<string, Evento[]> = {}
@@ -251,9 +351,9 @@ export default function ProgramaSemanalPage() {
             <span className="hidden sm:inline">Semana siguiente</span>
             <ChevronRight size={15} />
           </button>
-          {rol === 'veterinario' && (
+          {esVet && (
             <button
-              onClick={() => abrirModal()}
+              onClick={() => setAccion({ modal: 'registro' })}
               className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600"
             >
               <Plus size={15} />
@@ -270,7 +370,7 @@ export default function ProgramaSemanalPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Tile valor={resumen.vencidos}       label="Vencidos"       color="text-red-600" />
         <Tile valor={resumen.hoy}            label="Hoy"            color="text-orange-500" />
-        <Tile valor={resumen.programados}    label="Programados"    color="text-green-600" />
+        <Tile valor={resumen.programados}    label="Falta hacer"    color="text-green-600" />
         <Tile valor={resumen.transferencias} label="Transferencias" color="text-blue-600" />
       </div>
 
@@ -307,24 +407,9 @@ export default function ProgramaSemanalPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <GrupoDia
-                      titulo="Donantes"
-                      eventos={donantes}
-                      canEdit={rol === 'veterinario'}
-                      onRegistrar={abrirModal}
-                    />
-                    <GrupoDia
-                      titulo="Receptoras"
-                      eventos={receptoras}
-                      canEdit={rol === 'veterinario'}
-                      onRegistrar={abrirModal}
-                    />
-                    <GrupoDia
-                      titulo="Sin rol"
-                      eventos={otros}
-                      canEdit={rol === 'veterinario'}
-                      onRegistrar={abrirModal}
-                    />
+                    <GrupoDia titulo="Donantes"   eventos={donantes}   esVet={esVet} onAbrir={abrirEvento} />
+                    <GrupoDia titulo="Receptoras" eventos={receptoras} esVet={esVet} onAbrir={abrirEvento} />
+                    <GrupoDia titulo="Sin rol"    eventos={otros}      esVet={esVet} onAbrir={abrirEvento} />
                   </div>
                 )}
               </div>
@@ -332,6 +417,12 @@ export default function ProgramaSemanalPage() {
           })}
         </div>
       </div>
+
+      {avisoEco && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          {avisoEco}
+        </p>
+      )}
 
       {/* Detalle del día seleccionado */}
       <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -362,9 +453,7 @@ export default function ProgramaSemanalPage() {
                     <td className="py-2 pr-3 text-slate-600">{e.etiqueta}</td>
                     <td className="py-2 pr-3 text-slate-500">{e.veterinario ?? '—'}</td>
                     <td className="py-2 pr-3">
-                      <span className={`rounded px-2 py-1 text-xs font-medium ${ESTILO_BADGE[e.tipo]}`}>
-                        {LABEL_ESTADO_EVENTO[e.tipo]}
-                      </span>
+                      <BadgeEstado tipo={e.tipo} />
                     </td>
                     <td className="py-2 text-xs text-slate-500">{e.detalle ?? '—'}</td>
                   </tr>
@@ -375,15 +464,30 @@ export default function ProgramaSemanalPage() {
         )}
       </div>
 
-      {/* Modal */}
-      {modalAbierto && rol === 'veterinario' && (
+      {/* Modales — cada uno cierra el recordatorio que lo abrió */}
+      {accion?.modal === 'registro' && esVet && (
         <RegistroCriaModal
-          caballoIdInicial={caballoModal}
-          onClose={() => { setModalAbierto(false); setCaballoModal(undefined) }}
-          onSuccess={() => {
-            if (sociedadId) cargar(sociedadId)
-            else if (rol === 'veterinario') cargarParaVet()
-          }}
+          recordatorio={accion.recordatorio}
+          onClose={() => setAccion(null)}
+          onSuccess={recargar}
+        />
+      )}
+
+      {accion?.modal === 'flushing' && esVet && (
+        <FlushingModal
+          recordatorio={accion.recordatorio}
+          onClose={() => setAccion(null)}
+          onSuccess={() => { setAccion(null); recargar() }}
+        />
+      )}
+
+      {accion?.modal === 'eco' && esVet && (
+        <EcografiaModal
+          transferencia={accion.transferencia}
+          ecografiasExistentes={ecografias.filter((e) => e.transferencia_id === accion.transferencia.id)}
+          recordatorio={accion.recordatorio}
+          onClose={() => setAccion(null)}
+          onSuccess={() => { setAccion(null); recargar() }}
         />
       )}
     </div>
@@ -391,6 +495,21 @@ export default function ProgramaSemanalPage() {
 }
 
 // ── Sub-componentes ───────────────────────────────────────────────────────────
+
+/** Hecho o falta hacer, con el mismo ícono en el calendario y en la tabla. */
+function BadgeEstado({ tipo, compacto = false }: { tipo: TipoEvento; compacto?: boolean }) {
+  const Icono = ICONO_ESTADO_EVENTO[tipo]
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1 rounded font-medium ${ESTILO_BADGE[tipo]} ${
+        compacto ? 'mt-1 px-1.5 py-0.5 text-[10px]' : 'whitespace-nowrap px-2 py-1 text-xs'
+      }`}
+    >
+      <Icono size={compacto ? 9 : 11} className="shrink-0" />
+      <span className="truncate">{LABEL_ESTADO_EVENTO[tipo]}</span>
+    </span>
+  )
+}
 
 function Tile({ valor, label, color }: { valor: number; label: string; color: string }) {
   return (
@@ -403,12 +522,12 @@ function Tile({ valor, label, color }: { valor: number; label: string; color: st
 
 /** Bloque Donantes / Receptoras dentro de la columna de un día. */
 function GrupoDia({
-  titulo, eventos, canEdit, onRegistrar,
+  titulo, eventos, esVet, onAbrir,
 }: {
   titulo: string
   eventos: Evento[]
-  canEdit: boolean
-  onRegistrar: (caballoId: string) => void
+  esVet: boolean
+  onAbrir: (evento: Evento) => void
 }) {
   if (eventos.length === 0) return null
 
@@ -418,19 +537,27 @@ function GrupoDia({
         {titulo} <span className="font-normal">({eventos.length})</span>
       </p>
       <div className="space-y-2">
-        {eventos.map((e) => (
-          <div
-            key={e.id}
-            onClick={canEdit ? (ev) => { ev.stopPropagation(); onRegistrar(e.caballoId) } : undefined}
-            title={canEdit ? `Registrar sobre ${e.caballoNombre}` : undefined}
-            className={`rounded-lg border p-2 ${ESTILO_EVENTO[e.tipo]} ${
-              canEdit ? 'cursor-pointer hover:brightness-95' : ''
-            }`}
-          >
-            <div className="truncate text-xs font-medium">{e.caballoNombre}</div>
-            <div className="truncate text-[11px] opacity-75">{e.etiqueta}</div>
-          </div>
-        ))}
+        {eventos.map((e) => {
+          // Un registro cargado o una transferencia hecha ya son historia: se
+          // abren para mirarlas en la tabla del día, no para cargarlas de nuevo.
+          const accionable = esVet && !!e.recordatorio
+          return (
+            <div
+              key={e.id}
+              onClick={(ev) => { ev.stopPropagation(); onAbrir(e) }}
+              title={accionable
+                ? `Hacer ${e.etiqueta} de ${e.caballoNombre}`
+                : `${e.caballoNombre} — ya registrado, no hay nada que cargar`}
+              className={`cursor-pointer rounded-lg border p-2 hover:brightness-95 ${ESTILO_EVENTO[e.tipo]}`}
+            >
+              <div className="truncate text-xs font-medium">{e.caballoNombre}</div>
+              <div className="truncate text-[11px] opacity-75">{e.etiqueta}</div>
+              {/* El tag es lo que evita apretar lo que ya está hecho esperando
+                  que abra algo: el tilde no abre nada, el reloj sí. */}
+              <BadgeEstado tipo={e.tipo} compacto />
+            </div>
+          )
+        })}
       </div>
     </div>
   )
