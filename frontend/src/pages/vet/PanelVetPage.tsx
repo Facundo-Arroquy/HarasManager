@@ -1,14 +1,30 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LayoutGrid, AlertTriangle, ClipboardList, ChevronRight, Clock } from 'lucide-react'
+import { LayoutGrid, AlertTriangle, ClipboardList, ChevronRight, Clock, Building2, Stethoscope } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
-import { caballoService } from '../../services/caballoService'
+import { caballoService, type Caballo } from '../../services/caballoService'
 import { historialService, type AlertaVet } from '../../services/historialService'
 import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
 import CaballosDadosDeBajaVet from '../../components/domain/CaballosDadosDeBajaVet'
 
 type HistorialResumen = Awaited<ReturnType<typeof historialService.listarRecientesVet>>[number]
+
+/**
+ * Un renglón del desglose: una empresa, o el grupo de caballos propios.
+ *
+ * El vet trabaja para varios establecimientos a la vez y el total suelto no le
+ * dice a dónde tiene que ir. Los propios van aparte porque no son de nadie más:
+ * los creó él y nunca los transfirió a la empresa dueña.
+ */
+interface GrupoPanel {
+  clave:    string
+  nombre:   string
+  /** Los propios y el cajón de descarte se pintan distinto y van al final. */
+  tipo:     'empresa' | 'propios' | 'otros'
+  caballos: number
+  alertas:  number
+}
 
 function formatFecha(iso: string): string {
   const [y, m, d] = iso.split('-')
@@ -28,16 +44,20 @@ export default function PanelVetPage() {
   const userId = user?.id
   const navigate = useNavigate()
 
-  const [cantCaballos, setCantCaballos] = useState<number | null>(null)
-  const [consultas,    setConsultas]    = useState<HistorialResumen[]>([])
-  const [alertas,      setAlertas]      = useState<AlertaVet[]>([])
-  const [loading,      setLoading]      = useState(true)
-  const [error,        setError]        = useState<string | null>(null)
+  // Se guarda la lista y no solo el total: el desglose por empresa sale de acá,
+  // y pedir un conteo por separado sería una segunda fuente de verdad.
+  const [caballos,  setCaballos]  = useState<Caballo[]>([])
+  const [consultas, setConsultas] = useState<HistorialResumen[]>([])
+  const [alertas,   setAlertas]   = useState<AlertaVet[]>([])
+  const [loading,   setLoading]   = useState(true)
+  const [error,     setError]     = useState<string | null>(null)
+
+  const cantCaballos = caballos.length
 
   useEffect(() => {
     if (!userId) { setLoading(false); return }
     Promise.allSettled([
-      caballoService.listarDelVeterinario().then((c) => setCantCaballos(c.length)),
+      caballoService.listarDelVeterinario().then(setCaballos),
       historialService.listarRecientesVet(5).then(setConsultas),
       historialService.listarAlertasVet().then(setAlertas),
     ]).then((results) => {
@@ -47,6 +67,51 @@ export default function PanelVetPage() {
       }
     }).finally(() => setLoading(false))
   }, [userId])
+
+  /**
+   * Caballos y alertas por empresa.
+   *
+   * Las alertas se atribuyen por caballo (`get_alertas_vet` devuelve
+   * `caballo_id`). Una alerta puede apuntar a un caballo que ya no está en la
+   * lista —el vet escribió la consulta y después perdió el acceso—: esas van a
+   * "Otros" en vez de perderse, así el desglose suma igual que la tarjeta.
+   */
+  const grupos = useMemo<GrupoPanel[]>(() => {
+    const mapa = new Map<string, GrupoPanel>()
+    const grupoDe = new Map<string, string>()   // caballo_id → clave de grupo
+
+    for (const c of caballos) {
+      const propio = c.vet_owner_id != null && c.vet_owner_id === userId
+      const clave  = propio ? 'propios' : c.sociedad_id ?? 'sin-empresa'
+      const nombre = propio
+        ? 'Mis caballos'
+        : c.empresa_nombre ?? 'Sin empresa'
+      const tipo: GrupoPanel['tipo'] = propio ? 'propios' : 'empresa'
+
+      const g = mapa.get(clave) ?? { clave, nombre, tipo, caballos: 0, alertas: 0 }
+      g.caballos += 1
+      mapa.set(clave, g)
+      grupoDe.set(c.id, clave)
+    }
+
+    for (const a of alertas) {
+      const clave = grupoDe.get(a.caballo_id) ?? 'otros'
+      const g = mapa.get(clave)
+        ?? { clave: 'otros', nombre: 'Otros', tipo: 'otros' as const, caballos: 0, alertas: 0 }
+      g.alertas += 1
+      mapa.set(g.clave, g)
+    }
+
+    // Empresas primero, de mayor a menor. Los propios y los sueltos, al final.
+    const orden: Record<GrupoPanel['tipo'], number> = { empresa: 0, propios: 1, otros: 2 }
+    return [...mapa.values()].sort((a, b) =>
+      orden[a.tipo] - orden[b.tipo] ||
+      b.caballos - a.caballos ||
+      a.nombre.localeCompare(b.nombre, 'es'))
+  }, [caballos, alertas, userId])
+
+  // Con un solo grupo el desglose repite las tarjetas de arriba.
+  const mostrarDesglose = grupos.length > 1
 
   if (loading) return <div className="flex justify-center py-20"><Spinner size="lg" /></div>
 
@@ -78,7 +143,10 @@ export default function PanelVetPage() {
             <LayoutGrid size={15} />
             <span className="text-xs font-medium uppercase tracking-wide">Caballos</span>
           </div>
-          <p className="text-3xl font-bold text-slate-900">{cantCaballos ?? '—'}</p>
+          {/* Si la carga falló, la lista quedó vacía: mostrar 0 mentiría. */}
+          <p className="text-3xl font-bold text-slate-900">
+            {error && cantCaballos === 0 ? '—' : cantCaballos}
+          </p>
           <p className="text-xs text-slate-400 mt-0.5">asignados</p>
         </div>
 
@@ -93,6 +161,52 @@ export default function PanelVetPage() {
           <p className="text-xs text-slate-400 mt-0.5">próximas consultas</p>
         </div>
       </div>
+
+      {/* Desglose por empresa — el total suelto no dice a dónde hay que ir */}
+      {mostrarDesglose && (
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+            <Building2 size={15} className="text-slate-400" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Por empresa
+            </span>
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {grupos.map((g) => (
+              <div key={g.clave} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  {g.tipo === 'empresa'
+                    ? <Building2 size={14} className="shrink-0 text-slate-300" />
+                    : <Stethoscope size={14} className="shrink-0 text-slate-300" />}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{g.nombre}</p>
+                    {g.tipo === 'propios' && (
+                      <p className="text-[11px] text-slate-400">Creados por vos, sin empresa</p>
+                    )}
+                    {g.tipo === 'otros' && (
+                      <p className="text-[11px] text-slate-400">Consultas tuyas sobre caballos que ya no tenés asignados</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 shrink-0 tabular-nums">
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-slate-800">{g.caballos}</p>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400">caballos</p>
+                  </div>
+                  <div className="text-right w-12">
+                    <p className={`text-sm font-semibold ${g.alertas > 0 ? 'text-brand-600' : 'text-slate-300'}`}>
+                      {g.alertas}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400">alertas</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Alertas */}
       {alertas.length > 0 && (
@@ -133,8 +247,8 @@ export default function PanelVetPage() {
       <CaballosDadosDeBajaVet
         onCambio={() => {
           caballoService.listarDelVeterinario()
-            .then((c) => setCantCaballos(c.length))
-            .catch(() => { /* el contador queda como estaba; no vale romper el panel */ })
+            .then(setCaballos)
+            .catch(() => { /* el desglose queda como estaba; no vale romper el panel */ })
         }}
       />
 

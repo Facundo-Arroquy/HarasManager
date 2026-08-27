@@ -61,6 +61,13 @@ export interface Caballo {
   // Presentes solo cuando el listado viene del veterinario (multi-empresa)
   empresa_id?: string | null
   empresa_nombre?: string | null
+  /**
+   * Vet dueño del caballo: lo creó él y nunca lo transfirió a una empresa.
+   * Solo viaja en `get_caballos_veterinario`. No es lo mismo que
+   * `sociedad_id === null`: un caballo propio compartido con otro vet le llega
+   * al colega también sin sociedad, y no es suyo.
+   */
+  vet_owner_id?: string | null
 }
 
 /** Referencia mínima para los combos de padre/madre — incluye dados de baja. */

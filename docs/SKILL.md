@@ -1036,7 +1036,7 @@ CREATE TABLE lead (
 | `cancelar_venta_caballo(p_venta_id)` | Cancela venta pendiente y libera `en_venta_pendiente` |
 | `buscar_usuario_por_email(p_email)` | Busca usuario activo; solo accesible para admin/superadmin |
 | `get_veterinarios_plataforma()` | Lista todos los vets activos de la plataforma |
-| `get_caballos_veterinario()` | Lista caballos accesibles por el vet autenticado (via `acceso_vet`) |
+| `get_caballos_veterinario()` | Lista caballos accesibles por el vet autenticado (via `acceso_vet`). Devuelve `sociedad_id` + `empresa_nombre` y también `vet_owner_id` (migración `20260826130000`), que es lo que separa **sus** caballos propios del resto: `sociedad_id IS NULL` no alcanza, porque un caballo propio compartido con un colega también le llega sin sociedad y no es suyo. Lo consume el desglose por empresa del panel del vet |
 | `get_alertas_vet()` | Alertas de los próximos 30 días del vet autenticado. Excluye caballos dados de baja (`c.activo = true`, migración `20260812120300`) — antes un caballo inactivo seguía generando alertas para siempre |
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
