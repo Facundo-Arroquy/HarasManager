@@ -182,9 +182,17 @@
 - **Descripción:** Agregar un panel a cada usuario para que pueda cambiar su contraseña.
 
 ### [ ] Armar una WEB / Landing
-- **Estado:** pendiente
+- **Estado:** en proceso
 - **Asignado:** -
 - **Descripción:** Landing pública con "quiénes somos", qué ofrecemos, etc.
+- **Avance:** `frontend/src/pages/landing/LandingPage.tsx` con Hero, Problema/Solución,
+  Cómo funciona, Funcionalidades, Para quién, Confianza, FAQ, formulario de contacto
+  (+ WhatsApp) y footer. Rutas públicas `/legales/terminos` y `/legales/privacidad`
+  (`frontend/src/pages/legales/LegalPage.tsx`).
+- **Pendiente:** sección "vista del producto" con capturas reales del panel (PR aparte).
+- **Pendiente legal:** los textos de `/legales/terminos` y `/legales/privacidad` son un
+  borrador de referencia — un abogado debe revisarlos antes de producción, en particular
+  el tratamiento del historial clínico y la Ley 25.326 de Protección de Datos Personales.
 
 ---
 

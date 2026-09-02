@@ -9,30 +9,12 @@ import {
   ShieldCheck,
   ChevronDown,
   Mail,
+  MessageCircle,
+  Users,
+  Compass,
 } from 'lucide-react'
 import { insertarLead } from '../../services/leadsService'
-
-// ─── Paleta y tipografías ────────────────────────────────────────────────────
-
-const C = {
-  charcoal: '#2C2C2C',
-  gold: '#8B6914',
-  goldLight: '#A67C1A',
-  goldSoft: '#D4B483',
-  goldPale: '#F5EDD8',
-  cream: '#FAF8F3',
-  offWhite: '#F0EDE6',
-  white: '#FFFFFF',
-}
-
-const display: React.CSSProperties = { fontFamily: "'Cormorant Garamond', serif" }
-const body: React.CSSProperties = { fontFamily: "'DM Sans', sans-serif" }
-
-const EMAILS = {
-  tomas: 'tomas.perezzorraquin@harasmanager.com',
-  facundo: 'facundo.arroquy@harasmanager.com',
-}
-
+import { C, display, body, EMAILS } from './landingUI'
 
 const MODULOS = [
   'Fichas de animales',
@@ -70,7 +52,19 @@ function useScrollReveal() {
       { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
     )
     document.querySelectorAll('[data-reveal]').forEach((el) => observer.observe(el))
-    return () => observer.disconnect()
+
+    // Red de seguridad: si el observer no llega a disparar (bundle lento, tab en
+    // background, prefers-reduced-motion), mostramos todo igual a los ~2 s.
+    const fallback = window.setTimeout(() => {
+      document
+        .querySelectorAll('[data-reveal]:not(.is-visible)')
+        .forEach((el) => el.classList.add('is-visible'))
+    }, 2000)
+
+    return () => {
+      observer.disconnect()
+      window.clearTimeout(fallback)
+    }
   }, [])
 }
 
@@ -92,6 +86,17 @@ function Overline({ children, color = C.gold }: { children: React.ReactNode; col
     >
       {children}
     </p>
+  )
+}
+
+function LogoImg({ height = 64, style: extraStyle }: { height?: number; style?: React.CSSProperties }) {
+  return (
+    <img
+      src="/logo_H_sin_fondo.png"
+      onError={(e) => { e.currentTarget.src = '/logo-harasmanager.jpg' }}
+      alt="HarasManager"
+      style={{ height, width: 'auto', objectFit: 'contain', display: 'block', mixBlendMode: 'multiply', ...extraStyle }}
+    />
   )
 }
 
@@ -197,17 +202,6 @@ function OutlineButton({ children, onClick }: { children: React.ReactNode; onCli
   )
 }
 
-function LogoImg({ height = 64, style: extraStyle }: { height?: number; style?: React.CSSProperties }) {
-  return (
-    <img
-      src="/logo_H_sin_fondo.png"
-      onError={(e) => { e.currentTarget.src = '/logo-harasmanager.jpg' }}
-      alt="HarasManager"
-      style={{ height, width: 'auto', objectFit: 'contain', display: 'block', mixBlendMode: 'multiply', ...extraStyle }}
-    />
-  )
-}
-
 // ─── NAVBAR ─────────────────────────────────────────────────────────────────
 
 function Navbar() {
@@ -263,6 +257,7 @@ function Navbar() {
         >
           {[
             ['Por qué HarasManager', 'problema'],
+            ['Cómo funciona', 'como-funciona'],
             ['Funcionalidades', 'features'],
             ['Para quién', 'para-quien'],
           ].map(([label, id]) => (
@@ -334,9 +329,9 @@ function Hero() {
       {/* Overlay */}
       <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(20,18,14,0.62)' }} />
 
+      {/* Sin data-reveal: es contenido above-the-fold, tiene que verse al renderizar. */}
       <div
         style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: isMobile ? '48px 20px' : '80px 24px', maxWidth: '860px', margin: '0 auto' }}
-        data-reveal
       >
         <Overline color={C.goldSoft}>La plataforma equina profesional</Overline>
         <div style={{ height: '20px' }} />
@@ -446,6 +441,84 @@ function ProblemaSolucion() {
               específicamente para el mundo equino profesional.
             </p>
           </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── CÓMO FUNCIONA ───────────────────────────────────────────────────────────
+
+const PASOS = [
+  {
+    numero: '01',
+    titulo: 'Pedís la demo',
+    desc: 'Completás el formulario con los datos de tu haras y qué módulos te interesan.',
+  },
+  {
+    numero: '02',
+    titulo: 'Vemos tu caso real',
+    desc: 'Reunión corta con tu información: tus animales, tu equipo y cómo trabajás hoy.',
+  },
+  {
+    numero: '03',
+    titulo: 'Migrás y arrancás',
+    desc: 'Te ayudamos a cargar la tropilla y tu equipo empieza a usar la plataforma.',
+  },
+]
+
+function ComoFunciona() {
+  const isMobile = useIsMobile()
+
+  return (
+    <section id="como-funciona" style={{ backgroundColor: C.cream, padding: isMobile ? '64px 20px' : '100px 24px' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+        <div data-reveal style={{ textAlign: 'center', marginBottom: isMobile ? '40px' : '64px' }}>
+          <Overline>De la demo a tu tropilla cargada</Overline>
+          <div style={{ height: '16px' }} />
+          <h2 style={{ ...display, fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
+            Cómo funciona
+          </h2>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
+            gap: '24px',
+          }}
+        >
+          {PASOS.map((paso, i) => (
+            <div
+              key={paso.numero}
+              data-reveal
+              data-delay={String((i + 1) * 100) as '100' | '200' | '300'}
+              style={{ textAlign: 'center', padding: '8px 16px' }}
+            >
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  border: `1px solid ${C.goldSoft}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px',
+                }}
+              >
+                <span style={{ ...display, fontSize: '1.5rem', fontWeight: 700, color: C.gold, lineHeight: 1 }}>
+                  {paso.numero}
+                </span>
+              </div>
+              <h3 style={{ ...display, fontSize: '1.3rem', fontWeight: 600, color: C.charcoal, margin: '0 0 10px', lineHeight: 1.3 }}>
+                {paso.titulo}
+              </h3>
+              <p style={{ ...body, fontSize: '0.9rem', color: '#7A6E64', lineHeight: 1.7, margin: 0, maxWidth: '320px', marginLeft: 'auto', marginRight: 'auto' }}>
+                {paso.desc}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -573,6 +646,18 @@ function ParaQuien() {
         'Alertas sanitarias y recordatorios por animal',
       ],
     },
+    {
+      numero: '03',
+      titulo: 'Tu equipo',
+      subtitulo: 'Jugadores, pilotos y peticeros',
+      desc: 'Cada rol accede a la información de los caballos que tiene asignados, sin necesitar permisos de administrador ni depender de que alguien más le pase el dato.',
+      items: [
+        'Fichas de los caballos de su equipo o marca',
+        'Historial clínico de sus propios caballos',
+        'Alertas y vencimientos sanitarios al instante',
+        'Desde el celular, en el campo o en la cancha',
+      ],
+    },
   ]
 
   const isMobile = useIsMobile()
@@ -593,7 +678,7 @@ function ParaQuien() {
             <div
               key={p.titulo}
               data-reveal
-              data-delay={i === 0 ? '100' : '200'}
+              data-delay={String((i + 1) * 100) as '100' | '200' | '300'}
               style={{
                 backgroundColor: C.cream,
                 border: `1px solid ${C.goldSoft}`,
@@ -623,6 +708,143 @@ function ParaQuien() {
                 ))}
               </ul>
             </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── CONFIANZA / EN DESARROLLO ACTIVO ────────────────────────────────────────
+
+const CONFIANZA_PUNTOS = [
+  { icon: <Compass size={20} />, texto: 'Hecho por gente que viene del mundo del polo' },
+  { icon: <MessageCircle size={20} />, texto: 'Acceso directo al equipo que construye el producto' },
+  { icon: <Users size={20} />, texto: 'Tu haras ayuda a definir qué se prioriza' },
+]
+
+function Confianza() {
+  const isMobile = useIsMobile()
+
+  return (
+    <section style={{ backgroundColor: C.charcoal, padding: isMobile ? '64px 20px' : '100px 24px' }}>
+      <div style={{ maxWidth: '820px', margin: '0 auto', textAlign: 'center' }}>
+        <div data-reveal>
+          <Overline color={C.goldSoft}>En desarrollo activo</Overline>
+          <div style={{ height: '16px' }} />
+          <h2 style={{ ...display, fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: 700, color: C.white, margin: '0 0 24px', lineHeight: 1.2 }}>
+            Estamos construyendo esto junto a los primeros haras
+          </h2>
+          <p style={{ ...body, fontSize: '0.95rem', color: 'rgba(255,255,255,0.78)', fontWeight: 300, lineHeight: 1.75, margin: '0 auto', maxWidth: '640px' }}>
+            HarasManager es un producto nuevo — lo estamos armando junto a un grupo chico de haras
+            y establecimientos piloto, ajustando cada módulo con casos reales antes de abrirlo a
+            todos. Si pedís la demo ahora, entrás como uno de los primeros usuarios: tu feedback
+            define funcionalidades, y tenés acceso directo a quienes lo construyen.
+          </p>
+        </div>
+
+        <div
+          data-reveal
+          data-delay="100"
+          style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? '20px' : '32px',
+            justifyContent: 'center',
+            marginTop: '48px',
+          }}
+        >
+          {CONFIANZA_PUNTOS.map((punto) => (
+            <div
+              key={punto.texto}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                flex: isMobile ? undefined : 1,
+                justifyContent: 'center',
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ color: C.goldSoft, flexShrink: 0 }}>{punto.icon}</span>
+              <span style={{ ...body, fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
+                {punto.texto}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── FAQ ─────────────────────────────────────────────────────────────────────
+
+const FAQS = [
+  {
+    q: '¿Qué pasa con mis datos actuales, en planillas o papel?',
+    a: 'Te ayudamos a migrarlos durante la implementación inicial. No arrancás de cero: cargamos tu tropilla y tu historial existente junto con vos.',
+  },
+  {
+    q: '¿Cuánto tarda en estar funcionando?',
+    a: 'Depende del tamaño del haras. La carga inicial de la tropilla y la primera capacitación del equipo se resuelven en la reunión de implementación.',
+  },
+  {
+    q: '¿Dónde se guarda la información, es segura?',
+    a: 'Cada usuario ve solo lo que corresponde a su rol y a su establecimiento — un veterinario no ve los caballos de otro haras salvo que se le dé acceso explícito.',
+  },
+  {
+    q: '¿Funciona en el campo, sin buena señal?',
+    a: 'Hoy es una plataforma web pensada para usarse desde el celular o la computadora con conexión. El uso sin conexión está en el roadmap.',
+  },
+  {
+    q: '¿Cuánta gente de mi equipo puede usarlo?',
+    a: 'Los perfiles se configuran por rol — administrador, veterinario, piloto, jugador, peticero — sin un límite fijo de usuarios por establecimiento.',
+  },
+]
+
+function Faq() {
+  const isMobile = useIsMobile()
+
+  return (
+    <section id="faq" style={{ backgroundColor: C.white, padding: isMobile ? '64px 20px' : '100px 24px' }}>
+      <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+        <div data-reveal style={{ textAlign: 'center', marginBottom: isMobile ? '40px' : '56px' }}>
+          <Overline>Preguntas frecuentes</Overline>
+          <div style={{ height: '16px' }} />
+          <h2 style={{ ...display, fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: 700, color: C.charcoal, margin: 0, lineHeight: 1.2 }}>
+            Lo que suelen preguntarnos
+          </h2>
+        </div>
+
+        <div data-reveal className="landing-faq">
+          {FAQS.map((faq) => (
+            <details
+              key={faq.q}
+              style={{ borderBottom: `1px solid ${C.goldSoft}` }}
+            >
+              <summary
+                style={{
+                  ...body,
+                  listStyle: 'none',
+                  cursor: 'pointer',
+                  padding: '18px 0',
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  color: C.charcoal,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '16px',
+                }}
+              >
+                {faq.q}
+                <ChevronDown size={18} style={{ flexShrink: 0, color: C.gold }} />
+              </summary>
+              <p style={{ ...body, fontSize: '0.92rem', color: '#6B6055', lineHeight: 1.75, margin: '0 0 18px' }}>
+                {faq.a}
+              </p>
+            </details>
           ))}
         </div>
       </div>
@@ -717,9 +939,43 @@ function ContactForm() {
           </p>
         </div>
 
+        {/* Contacto directo por WhatsApp + nota de precios */}
+        <div
+          data-reveal
+          style={{
+            textAlign: 'center',
+            padding: '20px 24px',
+            border: `1px solid ${C.goldSoft}`,
+            borderRadius: '4px',
+            backgroundColor: C.cream,
+            marginBottom: '40px',
+          }}
+        >
+          <a
+            href="https://wa.me/5491123021297"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...body,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '0.95rem',
+              fontWeight: 500,
+              color: C.gold,
+              textDecoration: 'none',
+            }}
+          >
+            <MessageCircle size={18} />
+            Escribinos por WhatsApp: +54 9 11 2302-1297
+          </a>
+          <p style={{ ...body, fontSize: '0.82rem', color: '#7A6E64', lineHeight: 1.6, margin: '10px 0 0' }}>
+            Los planes se ajustan al tamaño de tu haras — lo vemos juntos en la demo.
+          </p>
+        </div>
+
         {submitState === 'success' ? (
           <div
-            data-reveal
             style={{
               textAlign: 'center',
               padding: '48px 32px',
@@ -930,22 +1186,37 @@ function Footer() {
             marginBottom: '40px',
           }}
         >
-          {[
+          {([
             { label: 'Por qué HarasManager', id: 'problema' },
+            { label: 'Cómo funciona', id: 'como-funciona' },
             { label: 'Funcionalidades', id: 'features' },
             { label: 'Para quién', id: 'para-quien' },
             { label: 'Contacto', id: 'contacto' },
-          ].map(({ label, id }) => (
-            <button
-              key={id}
-              onClick={() => scrollTo(id)}
-              style={linkStyle}
-              onMouseEnter={(e) => (e.currentTarget.style.color = C.goldSoft)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
-            >
-              {label}
-            </button>
-          ))}
+            { label: 'Términos y condiciones', to: '/legales/terminos' },
+            { label: 'Política de privacidad', to: '/legales/privacidad' },
+          ] as Array<{ label: string; id?: string; to?: string }>).map((link) =>
+            link.to ? (
+              <Link
+                key={link.to}
+                to={link.to}
+                style={linkStyle}
+                onMouseEnter={(e) => (e.currentTarget.style.color = C.goldSoft)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
+              >
+                {link.label}
+              </Link>
+            ) : (
+              <button
+                key={link.id}
+                onClick={() => scrollTo(link.id!)}
+                style={linkStyle}
+                onMouseEnter={(e) => (e.currentTarget.style.color = C.goldSoft)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
+              >
+                {link.label}
+              </button>
+            )
+          )}
           <Link
             to="/login"
             style={linkStyle}
@@ -995,8 +1266,11 @@ export default function LandingPage() {
       <Navbar />
       <Hero />
       <ProblemaSolucion />
+      <ComoFunciona />
       <Features />
       <ParaQuien />
+      <Confianza />
+      <Faq />
       <ContactForm />
       <Footer />
     </div>
