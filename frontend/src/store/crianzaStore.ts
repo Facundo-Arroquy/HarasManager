@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { crianzaService } from '../services/crianzaService'
+import { useToastStore } from './toastStore'
 import { mensajeError } from '../utils/error'
 import { hoyAR } from '../utils/fecha'
 import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
@@ -88,7 +89,10 @@ function reglasParaRegistro(
       reglas.push({ tipo: 'IN', calcularFecha: (f) => sumarDias(f, cfg.donante_strelin_a_in) })
     if (chips.includes('IN'))
       reglas.push({ tipo: 'OXI', calcularFecha: (f) => sumarDias(f, cfg.donante_in_a_oxi) })
-    if (chips.some((c) => c === 'OV') || registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV'))
+    // Solo por el estado ovárico, igual que el preview de RegistroCriaModal:
+    // 'OV' no es un obs_chip (es un chip de ovario), así que chequearlo en
+    // `chips` era condición muerta y además divergía del preview.
+    if (registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV'))
       reglas.push({ tipo: 'Flushing', calcularFecha: (f) => sumarDias(f, cfg.donante_ov_a_flushing) })
     if (chips.includes('PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.donante_pg_a_revision_pg) })
@@ -258,8 +262,21 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
         origen_registro_id: registro.id,
         cancel_motivo:      null,
       }))
-      const recs = await crianzaService.crearRecordatoriosBatch(recPayloads)
-      set((s) => ({ recordatorios: [...s.recordatorios, ...recs] }))
+      try {
+        const recs = await crianzaService.crearRecordatoriosBatch(recPayloads)
+        set((s) => ({ recordatorios: [...s.recordatorios, ...recs] }))
+      } catch (e) {
+        // El registro clínico ya quedó guardado. Si además propagáramos este
+        // error, el modal lo mostraría como fallo y el vet volvería a guardar,
+        // duplicando el registro y —al reintento exitoso— sus recordatorios.
+        // Se avisa y se sigue: los recordatorios se pueden cargar a mano.
+        useToastStore.getState().pushToast(
+          'error',
+          'El registro se guardó, pero no se pudieron generar los recordatorios automáticos. ' +
+            'Cargalos a mano desde el programa semanal.',
+        )
+        console.error('[crianzaStore] recordatorios automáticos:', mensajeError(e))
+      }
     }
 
     return registro

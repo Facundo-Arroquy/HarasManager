@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { useEffect, useState, lazy, Suspense } from 'react'
-import { useAuth } from './hooks/useAuth'
+import { useAuth, useAuthListener } from './hooks/useAuth'
 import { useAuthStore } from './store/authStore'
 import { tieneAccesoModulo } from './utils/modulos'
 import type { ModuloCodigo } from './types/modulo'
@@ -186,6 +186,25 @@ function RequireModulo({ codigo, roles }: { codigo: ModuloCodigo; roles?: string
   return <Outlet />
 }
 
+/**
+ * Guard de ruta por rol, para las secciones que no dependen de un módulo.
+ * Antes `/admin`, `/config`, `/transferencias`, `/revision-preventa` y
+ * `/transferir-vet` solo estaban ocultas del sidebar (`navItems.tsx`) pero
+ * abiertas por URL directa — la misma desincronización que `RequireModulo` ya
+ * resolvía para centro-cría y polo. Las listas de roles replican las de
+ * `navItems.tsx`. La RLS sigue siendo la barrera real de datos; esto alinea la
+ * navegación.
+ */
+function RequireRol({ roles }: { roles: string[] }) {
+  const rol = useAuthStore((s) => s.rol)
+  if (!rol || !roles.includes(rol)) {
+    return rol === 'veterinario'
+      ? <Navigate to="/panel-vet" replace />
+      : <Navigate to="/dashboard" replace />
+  }
+  return <Outlet />
+}
+
 function RequireSuperAdmin() {
   const { loading, rol, session, isAuthenticated } = useAuth()
   const perfilCargado = useAuthStore((s) => s.perfilCargado)
@@ -205,6 +224,7 @@ function RequireSuperAdmin() {
 }
 
 export default function App() {
+  useAuthListener()
   return (
     <BrowserRouter>
       <Routes>
@@ -233,14 +253,28 @@ export default function App() {
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
           <Route path="/sanidad" element={<SanidadPage />} />
           <Route path="/panel-vet" element={<PanelVetPage />} />
-          {/* Configuración del vet independiente. */}
-          <Route path="/config-vet" element={<Navigate to="/config-vet/suscripcion" replace />} />
-          <Route path="/config-vet/suscripcion" element={<SuscripcionVetPage />} />
-          <Route path="/config-vet/campos" element={<CamposVetPage />} />
-          <Route path="/config-vet/datos" element={<DatosVetPage />} />
-          <Route path="/revision-preventa" element={<RevisionPreVentaPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/config" element={<ConfigPage />} />
+
+          {/* Secciones solo-veterinario */}
+          <Route element={<RequireRol roles={['veterinario']} />}>
+            {/* Configuración del vet independiente. */}
+            <Route path="/config-vet" element={<Navigate to="/config-vet/suscripcion" replace />} />
+            <Route path="/config-vet/suscripcion" element={<SuscripcionVetPage />} />
+            <Route path="/config-vet/campos" element={<CamposVetPage />} />
+            <Route path="/config-vet/datos" element={<DatosVetPage />} />
+            <Route path="/revision-preventa" element={<RevisionPreVentaPage />} />
+            <Route path="/transferir-vet" element={<TransferirVetPage />} />
+          </Route>
+
+          {/* Solo el admin de la empresa */}
+          <Route element={<RequireRol roles={['admin']} />}>
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/transferencias" element={<TransferirEmpresaPage />} />
+          </Route>
+
+          {/* Configuración del establecimiento */}
+          <Route element={<RequireRol roles={['admin', 'jugador', 'piloto']} />}>
+            <Route path="/config" element={<ConfigPage />} />
+          </Route>
           {/* Centro de Embriones — requiere módulo habilitado por usuario u organización */}
           <Route element={<RequireModulo codigo="centro_cria" />}>
             {/* El panel reproductivo se eliminó; el centro entra por el programa
@@ -267,8 +301,6 @@ export default function App() {
             <Route path="/torneos" element={<TorneosPage />} />
             <Route path="/torneos/:id" element={<TorneoKanbanPage />} />
           </Route>
-          <Route path="/transferencias" element={<TransferirEmpresaPage />} />
-          <Route path="/transferir-vet" element={<TransferirVetPage />} />
         </Route>
 
         <Route element={<RequireSuperAdmin />}>

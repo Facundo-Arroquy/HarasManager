@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Building2, Footprints, Users, MapPin, ChevronRight, Plus, Trash2, X, FlaskConical } from 'lucide-react'
 import { superAdminService, type EmpresaStats } from '../../services/superAdminService'
 import { listarModulos } from '../../services/moduloService'
@@ -205,7 +205,7 @@ export default function EmpresasTab({ onGestionarUsuarios }: Props) {
   const [toglando, setToglando] = useState<string | null>(null)
   const pushToast = useToastStore((s) => s.pushToast)
 
-  async function recargar() {
+  const recargar = useCallback(async () => {
     setLoading(true)
     try {
       const [emps, mods] = await Promise.all([superAdminService.listarEmpresas(), listarModulos()])
@@ -216,9 +216,9 @@ export default function EmpresasTab({ onGestionarUsuarios }: Props) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [pushToast])
 
-  useEffect(() => { recargar() }, [])
+  useEffect(() => { recargar() }, [recargar])
 
   async function handleToggleModulo(sociedadId: string, codigo: ModuloCodigo, valor: boolean) {
     setToglando(`${sociedadId}:${codigo}`)
