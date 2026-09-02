@@ -21,6 +21,7 @@ import {
 } from './services/terminosService'
 import { vetLimiteService, type EstadoLimiteVet } from './services/vetLimiteService'
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
+const LegalPage = lazy(() => import('./pages/legales/LegalPage'))
 import SuperAdminPage from './pages/superadmin/SuperAdminPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import CaballosPage from './pages/caballos/CaballosPage'
@@ -229,6 +230,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/landing" element={<Suspense fallback={null}><LandingPage /></Suspense>} />
+        <Route path="/legales/terminos" element={<Suspense fallback={null}><LegalPage tipo="terminos" /></Suspense>} />
+        <Route path="/legales/privacidad" element={<Suspense fallback={null}><LegalPage tipo="privacidad" /></Suspense>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro-veterinario" element={<RegistroVeterinarioPage />} />
         {/* Vuelta del checkout de MercadoPago. Fuera de RequireAuth a propósito:

@@ -62,7 +62,7 @@
 [data-reveal] {
   opacity: 0;
   transform: translateY(24px);
-  transition: opacity 0.65s ease, transform 0.65s ease;
+  transition: opacity 0.45s ease, transform 0.45s ease;
 }
 [data-reveal].is-visible {
   opacity: 1;
@@ -72,3 +72,17 @@
 [data-reveal][data-delay="200"] { transition-delay: 0.2s; }
 [data-reveal][data-delay="300"] { transition-delay: 0.3s; }
 [data-reveal][data-delay="400"] { transition-delay: 0.4s; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  [data-reveal].is-visible {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* La FAQ de la landing usa <details> nativos: ocultamos el marcador por defecto
+   (el chevron lo pone el componente). */
+.landing-faq summary::-webkit-details-marker { display: none; }
+.landing-faq summary { list-style: none; }
