@@ -13,6 +13,8 @@ export interface BulkCaballoPayload {
   numero_registro?: string
   padre_nombre: string | null
   madre_nombre: string | null
+  /** Domador a cargo — texto libre, no se valida contra ningún catálogo. */
+  domador: string | null
 }
 
 export interface CatalogContext {
@@ -43,6 +45,7 @@ export interface ExcelRow {
   numero_registro?: string
   padre_nombre?: string
   madre_nombre?: string
+  domador?: string
 }
 
 export interface ParsedRow {
@@ -64,6 +67,7 @@ const HEADERS = [
   'numero_registro',
   'padre_nombre',
   'madre_nombre',
+  'domador',
 ]
 
 const CATEGORIAS_VALIDAS = new Set(['Yegua', 'Padrillo', 'Caballo', 'Potrillo'])
@@ -101,8 +105,8 @@ export function generarPlantillaExcel(catalogs: CatalogContext): void {
 
   const sheetData = [
     [...HEADERS, '_ejemplo'],
-    ['Compadre', '2020-05-15', 'Caballo', '', r1, p1, campo, '941000024850001', 'SA-001', 'Don Quijote III', '', 'SI'],
-    ['La Niña',  '2019-03-20', 'Yegua',   'Donante', r2, p2, campo, '', '', '', 'Yegua Bonita', 'SI'],
+    ['Compadre', '2020-05-15', 'Caballo', '', r1, p1, campo, '941000024850001', 'SA-001', 'Don Quijote III', '', 'Saúl', 'SI'],
+    ['La Niña',  '2019-03-20', 'Yegua',   'Donante', r2, p2, campo, '', '', '', 'Yegua Bonita', '', 'SI'],
   ]
 
   const ws = XLSX.utils.aoa_to_sheet(sheetData)
@@ -161,6 +165,7 @@ export async function parsearExcel(file: File): Promise<ExcelRow[]> {
             numero_registro:  str(get(row, 'numero_registro')),
             padre_nombre:     str(get(row, 'padre_nombre')),
             madre_nombre:     str(get(row, 'madre_nombre')),
+            domador:          str(get(row, 'domador')),
           }
         })
         resolve(result)
@@ -273,6 +278,7 @@ export function validarYMapear(rows: ExcelRow[], catalogs: CatalogContext): Pars
         numero_registro: raw.numero_registro?.trim() || undefined,
         padre_nombre:   raw.padre_nombre?.trim()    || null,
         madre_nombre:   raw.madre_nombre?.trim()    || null,
+        domador:        raw.domador?.trim()         || null,
       },
     }
   })

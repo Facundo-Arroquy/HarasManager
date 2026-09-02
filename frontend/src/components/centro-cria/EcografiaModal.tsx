@@ -194,12 +194,14 @@ export default function EcografiaModal({
             options={CHIPS_OI_OD}
             selected={ovarioIzq}
             onChange={setOvarioIzq}
+            allowCustom
           />
           <ChipSelector
             label="Ovario derecho"
             options={CHIPS_OI_OD}
             selected={ovarioDer}
             onChange={setOvarioDer}
+            allowCustom
           />
 
           {/* Notas */}

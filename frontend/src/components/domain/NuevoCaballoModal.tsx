@@ -46,6 +46,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
     subcategoria: '' as string,
     sexo: '' as '' | Sexo,
     observaciones: '',
+    domador: '',
     raza_id: 0,    // 0 = sin selección
     pelaje_id: 0,  // 0 = sin selección
     numero_chip: '',
@@ -127,6 +128,7 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
       // categoría cuando ésta ya lo determina.
       sexo:             form.sexo || null,
       observaciones:    form.observaciones.trim() || null,
+      domador:          form.domador.trim() || null,
       rol_reproductivo: form.categoria === 'Yegua' && form.subcategoria
                           ? form.subcategoria as 'Donante' | 'Receptora'
                           : null,
@@ -353,6 +355,19 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
                 {pelajes.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
             </div>
+          </div>
+
+          {/* Domador — texto libre: el nombre viene escrito a mano en la planilla
+              del haras y no corresponde a un usuario del sistema. */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Domador</label>
+            <input
+              type="text"
+              value={form.domador}
+              onChange={(e) => set('domador', e.target.value)}
+              placeholder="Nombre del domador a cargo"
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
           </div>
 
           {/* Observaciones — notas libres: lesiones, marcas, nacido en manada. */}

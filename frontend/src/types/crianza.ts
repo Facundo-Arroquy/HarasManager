@@ -8,8 +8,13 @@
 // Chips / opciones de ovarios y útero
 // ---------------------------------------------------------------------------
 
+// Los chips son los valores frecuentes, no una lista cerrada: `ovario_izq`,
+// `ovario_der` y `utero` son TEXT[] sin constraint. Los selectores de ovario
+// admiten además entradas escritas a mano para anotar cantidad + tamaño de
+// folículo ("2 35" = dos folículos de 35), que con un chip por tamaño no se
+// podía expresar.
 export const CHIPS_OI_OD = ['Chico', 'Mediano', 'CLV', '25', '30', '35', '40', '45', 'OV'] as const
-export const CHIPS_UTERO = ['C/T', 'Ed-1', 'Ed-2', 'Ed-3', 'Liq+', 'Liq++', 'Liq+++'] as const
+export const CHIPS_UTERO = ['C/T', 'Ed-0,5', 'Ed-1', 'Ed-2', 'Ed-3', 'Liq+', 'Liq++', 'Liq+++'] as const
 
 // ---------------------------------------------------------------------------
 // Catálogo editable de acciones/tratamientos (antes CHIPS_OBS hardcodeado)
