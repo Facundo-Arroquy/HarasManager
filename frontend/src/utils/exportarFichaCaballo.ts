@@ -406,6 +406,7 @@ export async function generarFichaHtml(data: FichaCaballoData, { autoPrint = fal
       ${caballo.campo?.nombre ? `<div class="irow"><span class="ilbl">Campo:</span><span class="ival">${caballo.campo.nombre}</span></div>` : ''}
       ${caballo.numero_chip ? `<div class="irow"><span class="ilbl">Chip:</span><span class="ival" style="font-family:monospace">${caballo.numero_chip}</span></div>` : ''}
       ${caballo.numero_registro ? `<div class="irow"><span class="ilbl">Registro:</span><span class="ival">${caballo.numero_registro}</span></div>` : ''}
+      ${caballo.domador ? `<div class="irow"><span class="ilbl">Domador:</span><span class="ival">${caballo.domador}</span></div>` : ''}
     </div>
     ${fotoBase64
       ? `<img src="${fotoBase64}" class="foto-lateral" alt="${caballo.nombre}" />`

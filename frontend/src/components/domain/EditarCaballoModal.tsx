@@ -23,6 +23,7 @@ interface CaballoEditProps {
   categoria?: string | null
   sexo?: string | null
   observaciones?: string | null
+  domador?: string | null
   rol_reproductivo?: string | null
   raza_id?: number | null
   pelaje_id?: number | null
@@ -66,6 +67,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
     subcategoria:     (caballo.rol_reproductivo ?? '') as string,
     sexo:             (caballo.sexo ?? '') as '' | Sexo,
     observaciones:    caballo.observaciones ?? '',
+    domador:          caballo.domador ?? '',
     raza_id:          caballo.raza_id ?? 0,
     pelaje_id:        caballo.pelaje_id ?? 0,
     numero_chip:      caballo.numero_chip ?? '',
@@ -143,6 +145,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
         categoria:        form.categoria,
         sexo:             form.sexo || null,
         observaciones:    form.observaciones.trim() || null,
+        domador:          form.domador.trim() || null,
         rol_reproductivo: form.categoria === 'Yegua' && form.subcategoria
                             ? form.subcategoria as 'Donante' | 'Receptora'
                             : null,
@@ -286,6 +289,19 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
               </select>
             </div>
           )}
+
+          {/* Domador — texto libre: el nombre viene escrito a mano en la planilla
+              del haras y no corresponde a un usuario del sistema. */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500">Domador</label>
+            <input
+              type="text"
+              value={form.domador}
+              onChange={(e) => set('domador', e.target.value)}
+              placeholder="Nombre del domador a cargo"
+              className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
 
           {/* Observaciones — notas libres: lesiones, marcas, nacido en manada. */}
           <div className="space-y-1.5">

@@ -38,6 +38,8 @@ export interface Caballo {
   categoria: string
   sexo?: Sexo | null
   observaciones?: string | null
+  /** Domador a cargo — texto libre, no es un usuario del sistema. */
+  domador?: string | null
   rol_reproductivo?: string | null
   estado_reproductivo?: string | null
   prenada?: boolean
@@ -109,6 +111,7 @@ export interface ActualizarCaballoPayload {
   categoria: CategoriaCaballo
   sexo?: Sexo | null
   observaciones?: string | null
+  domador?: string | null
   rol_reproductivo?: Subcategoria | null
   prenada?: boolean
   fecha_prenez?: string | null
@@ -129,6 +132,7 @@ export interface NuevoCaballoPayload {
   categoria: CategoriaCaballo
   sexo?: Sexo | null
   observaciones?: string | null
+  domador?: string | null
   rol_reproductivo?: Subcategoria | null
   raza_id?: number | null
   pelaje_id?: number | null
@@ -209,7 +213,7 @@ export const caballoService = {
       .from('caballo')
       .select(`
         id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
-        sexo, observaciones,
+        sexo, observaciones, domador,
         raza_id, pelaje_id, numero_chip, numero_registro, activo,
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
@@ -232,7 +236,7 @@ export const caballoService = {
       .from('caballo')
       .select(`
         id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
-        sexo, observaciones,
+        sexo, observaciones, domador,
         raza_id, pelaje_id, numero_chip, numero_registro, activo,
         padre_id, padre_nombre, madre_id, madre_nombre,
         cat_raza(nombre),
@@ -253,7 +257,7 @@ export const caballoService = {
     const { data, error } = await supabase
       .from('caballo')
       .select(`
-        id, nombre, fecha_nacimiento, categoria, sexo, observaciones, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez,
+        id, nombre, fecha_nacimiento, categoria, sexo, observaciones, domador, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez,
         numero_chip, numero_registro, activo, sociedad_id, campo_id,
         raza_id, pelaje_id,
         padre_id, padre_nombre, madre_id, madre_nombre,
@@ -290,13 +294,14 @@ export const caballoService = {
     // completan por el mismo camino.
     const tieneGenealogia = payload.padre_id || payload.padre_nombre || payload.madre_id || payload.madre_nombre
     const tieneSexo = resolverSexo(payload.categoria, payload.sexo) !== null
-    if (tieneGenealogia || payload.campo_id || tieneSexo || payload.observaciones) {
+    if (tieneGenealogia || payload.campo_id || tieneSexo || payload.observaciones || payload.domador) {
       await caballoService.actualizarComoVet(nuevoId, {
         nombre:           payload.nombre,
         fecha_nacimiento: payload.fecha_nacimiento,
         categoria:        payload.categoria,
         sexo:             payload.sexo          ?? null,
         observaciones:    payload.observaciones ?? null,
+        domador:          payload.domador       ?? null,
         rol_reproductivo: payload.rol_reproductivo ?? null,
         raza_id:          payload.raza_id,
         pelaje_id:        payload.pelaje_id,
@@ -334,6 +339,7 @@ export const caballoService = {
         madre_nombre:     payload.madre_nombre ?? null,
         sexo:             resolverSexo(payload.categoria, payload.sexo),
         observaciones:    payload.observaciones ?? null,
+        domador:          payload.domador ?? null,
       })
       .select()
       .single()
@@ -359,6 +365,7 @@ export const caballoService = {
       madre_nombre:     payload.madre_nombre ?? null,
       sexo:             resolverSexo(payload.categoria, payload.sexo),
       observaciones:    payload.observaciones ?? null,
+      domador:          payload.domador ?? null,
     }
     if (payload.categoria !== 'Yegua') {
       update.prenada      = false
@@ -416,6 +423,7 @@ export const caballoService = {
       p_campo_id:         payload.campo_id        ?? null,
       p_sexo:             resolverSexo(payload.categoria, payload.sexo),
       p_observaciones:    payload.observaciones   ?? null,
+      p_domador:          payload.domador         ?? null,
     })
     if (error) throw error
   },
@@ -511,6 +519,7 @@ export const caballoService = {
       campo_id:         p.campo_id         ?? null,
       padre_nombre:     p.padre_nombre     ?? null,
       madre_nombre:     p.madre_nombre     ?? null,
+      domador:          p.domador          ?? null,
     }))
 
     const { error: bulkError } = await supabase.from('caballo').insert(rows)
