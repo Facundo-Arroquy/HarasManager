@@ -5,6 +5,7 @@ import { useCrianzaStore } from '../../store/crianzaStore'
 import type { RecordatorioCria } from '../../types/crianza'
 import { hoyAR, formatFecha, sumarDias, diffDias } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
+import NombreCaballoLink from '../domain/NombreCaballoLink'
 import FlushingModal from './FlushingModal'
 
 /**
@@ -84,7 +85,11 @@ export default function FlushingBanner() {
             key={r.id}
             className="flex items-center gap-3 flex-wrap border-t border-slate-100 px-4 py-2.5"
           >
-            <span className="text-sm font-medium text-slate-900">{r.caballo?.nombre ?? '—'}</span>
+            <NombreCaballoLink
+              id={r.caballo_id}
+              nombre={r.caballo?.nombre}
+              className="text-sm font-medium text-slate-900"
+            />
             <span className="text-[11px] font-medium rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-brand-700 tabular-nums">
               Día {dia} · hoy
             </span>

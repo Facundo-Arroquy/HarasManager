@@ -16,6 +16,7 @@ import HistorialCard, { type HistorialEntry } from '../../components/domain/Hist
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import ArbolGenealogico from '../../components/domain/ArbolGenealogico'
+import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
 import { tieneAccesoModulo } from '../../utils/modulos'
 import { admiteRegistroCria } from '../../types/crianza'
@@ -499,7 +500,9 @@ export default function HistorialPage() {
                               ))}
                             </div>
                             {r.padrillo && (
-                              <p className="text-xs text-slate-400">× {r.padrillo.nombre}</p>
+                              <p className="text-xs text-slate-400">
+                                × <NombreCaballoLink id={r.padrillo_id} nombre={r.padrillo.nombre} />
+                              </p>
                             )}
                             {r.observaciones && (
                               <p className="text-xs text-slate-400 italic">{r.observaciones}</p>
@@ -541,7 +544,9 @@ export default function HistorialPage() {
                               </span>
                             )}
                             {f.padrillo && (
-                              <p className="text-xs text-slate-400 mt-0.5">× {f.padrillo.nombre}</p>
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                × <NombreCaballoLink id={f.padrillo_id} nombre={f.padrillo.nombre} />
+                              </p>
                             )}
                           </div>
                           <div className="text-right shrink-0">
@@ -573,13 +578,24 @@ export default function HistorialPage() {
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <div className="flex items-center gap-1.5 text-slate-600">
-                              <span>{t.receptora?.nombre ?? '—'}</span>
+                              <NombreCaballoLink
+                                id={t.caballo_receptora_id}
+                                nombre={t.receptora?.nombre}
+                              />
                               <ArrowLeftRight size={10} className="text-slate-400" />
-                              <span className="text-slate-500">{t.donante?.nombre ?? '—'}</span>
+                              <NombreCaballoLink
+                                id={t.caballo_donante_id}
+                                nombre={t.donante?.nombre}
+                                className="text-slate-500"
+                              />
                               {t.padrillo && (
                                 <>
                                   <span className="text-slate-400">×</span>
-                                  <span className="text-slate-400">{t.padrillo.nombre}</span>
+                                  <NombreCaballoLink
+                                    id={t.padrillo_id}
+                                    nombre={t.padrillo.nombre}
+                                    className="text-slate-400"
+                                  />
                                 </>
                               )}
                             </div>

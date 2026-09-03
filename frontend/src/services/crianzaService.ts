@@ -35,6 +35,7 @@ const SELECT_EMBRION_SEGUIMIENTO = `
   padrillo:padrillo_id(nombre),
   cria_transferencia!embrion_id(
     fecha,
+    caballo_receptora_id,
     receptora:caballo_receptora_id(nombre, pelaje:pelaje_id(nombre)),
     cria_ecografia!transferencia_id(numero, fecha, resultado)
   )

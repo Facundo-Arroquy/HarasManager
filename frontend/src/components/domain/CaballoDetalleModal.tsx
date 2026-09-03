@@ -4,6 +4,7 @@ import { X, ClipboardList, Pencil, MapPin } from 'lucide-react'
 import { calcularEdad } from '../../utils/fecha'
 import { useAuth } from '../../hooks/useAuth'
 import { caballoService } from '../../services/caballoService'
+import NombreCaballoLink from './NombreCaballoLink'
 
 interface Caballo {
   id: string
@@ -110,7 +111,9 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
         {/* Header */}
         <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-slate-200">
           <div className="min-w-0 pr-3">
-            <h2 className="text-base font-semibold text-slate-900 truncate">{caballo.nombre}</h2>
+            <h2 className="text-base font-semibold text-slate-900 truncate">
+              <NombreCaballoLink id={caballo.id} nombre={caballo.nombre} />
+            </h2>
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
               {caballo.categoria && (
                 <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>

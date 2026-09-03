@@ -3,6 +3,7 @@ import { Check, X, Clock, AlertCircle, CalendarClock, CalendarPlus, ChevronDown,
 import { sanidadService } from '../../services/sanidadService'
 import { useAuthStore } from '../../store/authStore'
 import EditarTrabajoSanitarioModal from './EditarTrabajoSanitarioModal'
+import NombreCaballoLink from './NombreCaballoLink'
 import { nombreCaballo, textoBusquedaCaballo } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import { hoyAR } from '../../utils/fecha'
@@ -386,7 +387,7 @@ export default function TrabajosDelDia({ trabajos, esVet, empresas, onCambio }: 
                             }`}
                           >
                             <td className="whitespace-nowrap px-2 py-2 align-top font-medium text-slate-700 sm:px-3">
-                              {abreGrupo ? f.caballo : ''}
+                              {abreGrupo && <NombreCaballoLink id={f.caballoId} nombre={f.caballo} />}
                             </td>
                             <td className="px-2 py-2 font-medium text-slate-900 sm:px-3">
                               {f.trabajo.nombre}

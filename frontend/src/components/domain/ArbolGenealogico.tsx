@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Pencil, Link2Off } from 'lucide-react'
 import type { Caballo } from '../../services/caballoService'
 import EditarCaballoModal from './EditarCaballoModal'
+import NombreCaballoLink from './NombreCaballoLink'
 
 interface Props {
   caballo: Caballo
@@ -37,9 +38,11 @@ interface NodeBoxProps {
   label?: string
   small?: boolean
   onEdit?: () => void
+  /** El caballo del que es el árbol: su nombre no enlaza a la página donde ya está. */
+  esSujeto?: boolean
 }
 
-function NodeBox({ data, label, small, onEdit }: NodeBoxProps) {
+function NodeBox({ data, label, small, onEdit, esSujeto }: NodeBoxProps) {
   const baseClass = small ? 'w-36 px-2.5 py-2' : 'w-44 px-3 py-2.5'
 
   if (!data) {
@@ -55,7 +58,12 @@ function NodeBox({ data, label, small, onEdit }: NodeBoxProps) {
     return (
       <div className={`${baseClass} rounded-lg border border-emerald-800 bg-brand-50/30 relative group`}>
         {label && <p className="text-[10px] text-emerald-700 mb-0.5 uppercase tracking-wide">{label}</p>}
-        <p className={`font-medium text-slate-900 leading-snug ${small ? 'text-xs' : 'text-sm'}`}>{data.nombre}</p>
+        <p className={`font-medium text-slate-900 leading-snug ${small ? 'text-xs' : 'text-sm'}`}>
+          <NombreCaballoLink
+            id={esSujeto ? null : data.raw?.id}
+            nombre={data.nombre}
+          />
+        </p>
         {data.categoria && (
           <p className="text-[10px] text-slate-400 mt-0.5">{data.categoria}</p>
         )}
@@ -130,6 +138,7 @@ export default function ArbolGenealogico({ caballo, caballos }: Props) {
           <div className="flex items-center pr-0">
             <NodeBox
               data={{ nombre: caballo.nombre, categoria: caballo.categoria, registered: true, raw: caballo }}
+              esSujeto
             />
           </div>
 
