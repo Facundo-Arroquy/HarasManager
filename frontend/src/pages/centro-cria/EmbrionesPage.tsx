@@ -247,10 +247,14 @@ export default function EmbrionesPage() {
                       {transf ? formatFecha(transf.fecha) : VACIO}
                     </td>
                     <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
-                      <NombreCaballoLink id={e.caballo_donante_id} nombre={e.donante?.nombre} fallback={VACIO} />
+                      {e.donante?.nombre
+                        ? <NombreCaballoLink id={e.caballo_donante_id} nombre={e.donante.nombre} />
+                        : VACIO}
                     </td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                      <NombreCaballoLink id={e.padrillo_id} nombre={e.padrillo?.nombre} fallback={VACIO} />
+                      {e.padrillo?.nombre
+                        ? <NombreCaballoLink id={e.padrillo_id} nombre={e.padrillo.nombre} />
+                        : VACIO}
                     </td>
                     {NUMEROS_ECO.map((n) => {
                       const eco = transf?.cria_ecografia?.find((x) => x.numero === n)
