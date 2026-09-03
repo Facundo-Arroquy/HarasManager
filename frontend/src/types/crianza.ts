@@ -336,7 +336,8 @@ export type NuevoEmbrionPayload = Omit<
  */
 export interface EmbrionConSeguimiento extends Embrion {
   cria_transferencia?: Array<{
-    fecha:      string
+    fecha:                string
+    caballo_receptora_id: string
     receptora:  { nombre: string; pelaje: { nombre: string } | null } | null
     cria_ecografia: Array<{
       numero:    number
