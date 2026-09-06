@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, CheckSquare, X, FileDown, ChevronDown, LayoutGrid, List } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
@@ -13,9 +13,11 @@ import { tagService, type Tag } from '../../services/tagService'
 import { textoBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
-import ImportarCaballosModal from '../../components/domain/ImportarCaballosModal'
 import CargaMasivaProximamente from '../../components/domain/CargaMasivaProximamente'
 import Spinner from '../../components/ui/Spinner'
+
+// xlsx pesa ~600 KB — lazy import para que no entre en el chunk principal
+const ImportarCaballosModal = lazy(() => import('../../components/domain/ImportarCaballosModal'))
 
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
 
@@ -142,14 +144,12 @@ export default function CaballosPage() {
         setCampos(f)
       } else {
         if (!sociedadId) return
-        const [c, f, baja] = await Promise.all([
+        const [c, f] = await Promise.all([
           caballoService.listar(sociedadId),
           campoService.listar(sociedadId),
-          caballoService.listarDadosDeBaja(sociedadId).catch(() => [] as Caballo[]),
         ])
         setCaballos(c)
         setCampos(f)
-        setCaballosBaja(baja)
       }
     } catch (e: unknown) {
       setError(mensajeError(e))
@@ -159,6 +159,18 @@ export default function CaballosPage() {
   }
 
   useEffect(() => { cargar() }, [sociedadId, userId, esVet]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Dados de baja: se cargan solo cuando el toggle se activa, evitando una
+  // query extra en cada carga inicial.
+  useEffect(() => {
+    if (!verBaja || esVet || !sociedadId) return
+    if (caballosBaja.length > 0) return // ya cargados
+    setLoading(true)
+    caballoService.listarDadosDeBaja(sociedadId)
+      .then(setCaballosBaja)
+      .catch(() => setCaballosBaja([]))
+      .finally(() => setLoading(false))
+  }, [verBaja]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // El catálogo de tags no depende de la sociedad; si falla, la edición masiva
   // sigue andando sin la columna de tags.
@@ -616,10 +628,12 @@ export default function CaballosPage() {
       )}
 
       {showImportar && (
-        <ImportarCaballosModal
-          onClose={() => setShowImportar(false)}
-          onSuccess={() => { setShowImportar(false); cargar() }}
-        />
+        <Suspense fallback={null}>
+          <ImportarCaballosModal
+            onClose={() => setShowImportar(false)}
+            onSuccess={() => { setShowImportar(false); cargar() }}
+          />
+        </Suspense>
       )}
       {showNuevo && (
         <NuevoCaballoModal

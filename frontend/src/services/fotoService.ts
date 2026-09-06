@@ -4,13 +4,17 @@ const BUCKET = 'caballos'
 const VERSION_KEY = (id: string) => `hm_foto_v_${id}`
 
 export const fotoService = {
-  /** URL pública de la foto. */
+  /**
+   * URL pública de la foto. Devuelve cadena vacía si nunca se subió una foto
+   * para este caballo (no hay versión en localStorage), evitando requests HTTP
+   * que terminarían en 404.
+   */
   getUrl(caballoId: string): string {
     const base = import.meta.env.VITE_SUPABASE_URL
     if (!base) return ''
-    const url = `${base}/storage/v1/object/public/${BUCKET}/${caballoId}`
     const v = localStorage.getItem(VERSION_KEY(caballoId))
-    return v ? `${url}?v=${v}` : url
+    if (!v) return ''
+    return `${base}/storage/v1/object/public/${BUCKET}/${caballoId}?v=${v}`
   },
 
   /** Sube (o reemplaza) la foto del caballo. Devuelve la URL resultante. */
