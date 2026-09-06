@@ -6,6 +6,7 @@ import { crianzaService } from '../../services/crianzaService'
 import type { EmbrionConSeguimiento, EstadoEmbrion, ResultadoEcografia } from '../../types/crianza'
 import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
+import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
 
@@ -205,7 +206,12 @@ export default function EmbrionesPage() {
                 return (
                   <tr key={e.id} className="group hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-slate-800 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 whitespace-nowrap">
-                      {transf?.receptora?.nombre ?? (
+                      {transf?.receptora?.nombre ? (
+                        <NombreCaballoLink
+                          id={transf.caballo_receptora_id}
+                          nombre={transf.receptora.nombre}
+                        />
+                      ) : (
                         transferible && puedeOperar ? (
                           <div className="relative group/btn inline-block">
                             <button
@@ -241,10 +247,14 @@ export default function EmbrionesPage() {
                       {transf ? formatFecha(transf.fecha) : VACIO}
                     </td>
                     <td className="px-4 py-3 text-slate-800 whitespace-nowrap">
-                      {e.donante?.nombre ?? VACIO}
+                      {e.donante?.nombre
+                        ? <NombreCaballoLink id={e.caballo_donante_id} nombre={e.donante.nombre} />
+                        : VACIO}
                     </td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                      {e.padrillo?.nombre ?? VACIO}
+                      {e.padrillo?.nombre
+                        ? <NombreCaballoLink id={e.padrillo_id} nombre={e.padrillo.nombre} />
+                        : VACIO}
                     </td>
                     {NUMEROS_ECO.map((n) => {
                       const eco = transf?.cria_ecografia?.find((x) => x.numero === n)

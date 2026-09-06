@@ -171,8 +171,12 @@ select proname from pg_proc
 
 ## Paso 6 — Definir el precio del plan
 
-La migración deja un precio **placeholder de $1000** que hay que reemplazar por
-el precio real antes de habilitar el checkout.
+**Ya está definido: $10.000 ARS por mes** (migración
+`20260903225400_precio_membresia_vet.sql`). Este paso queda documentado para
+cuando haya que cambiarlo.
+
+La migración original dejaba un precio **placeholder de $1000** que había que
+reemplazar por el precio real antes de habilitar el checkout.
 
 En el SQL Editor de Supabase:
 

@@ -2,6 +2,7 @@ import { CheckSquare, ClipboardList, Dna, Hash, MapPin, Square, Tag } from 'luci
 import { calcularEdadDetallada } from '../../utils/fecha'
 import { nombreCaballo } from '../../utils/caballo'
 import FotoCaballo from './FotoCaballo'
+import NombreCaballoLink from './NombreCaballoLink'
 
 interface CaballoGridCardProps {
   caballo: {
@@ -87,7 +88,11 @@ export default function CaballoGridCard({
         {/* Nombre + badges */}
         <div className="flex items-start justify-between gap-2">
           <h3 className="min-w-0 truncate font-semibold text-slate-900" title={nombreMostrado}>
-            {nombreMostrado}
+            {/* En modo selección el nombre no enlaza: tocar la tarjeta es marcarla. */}
+            <NombreCaballoLink
+              id={enModoSeleccion ? null : caballo.id}
+              nombre={nombreMostrado}
+            />
           </h3>
           <span className="flex shrink-0 items-center gap-1.5">
             {dadoDeBaja ? (

@@ -3,6 +3,7 @@ import { ArrowLeftRight, Plus, Activity } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import EcografiaModal from '../../components/centro-cria/EcografiaModal'
+import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import Spinner from '../../components/ui/Spinner'
 import { LABEL_RESULTADO_ECO } from '../../types/crianza'
 import type { Ecografia, ResultadoEcografia, TransferenciaEmbrionaria } from '../../types/crianza'
@@ -64,13 +65,25 @@ export default function TransferenciasPage() {
                 <div className="flex items-start gap-2 flex-wrap">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-slate-900">{t.receptora?.nombre ?? '—'}</span>
+                      <NombreCaballoLink
+                        id={t.caballo_receptora_id}
+                        nombre={t.receptora?.nombre}
+                        className="font-medium text-slate-900"
+                      />
                       <span className="text-slate-400">←</span>
-                      <span className="text-slate-600">{t.donante?.nombre ?? '—'}</span>
+                      <NombreCaballoLink
+                        id={t.caballo_donante_id}
+                        nombre={t.donante?.nombre}
+                        className="text-slate-600"
+                      />
                       {t.padrillo && (
                         <>
                           <span className="text-slate-400">×</span>
-                          <span className="text-slate-500">{t.padrillo.nombre}</span>
+                          <NombreCaballoLink
+                            id={t.padrillo_id}
+                            nombre={t.padrillo.nombre}
+                            className="text-slate-500"
+                          />
                         </>
                       )}
                     </div>

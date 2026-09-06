@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ShieldCheck, ShieldOff, Plus, X, CheckSquare } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
+import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getAccesosVet, revocarAccesosBulk, otorgarAccesosBulk,
@@ -404,7 +405,7 @@ export default function AccesosVetTab() {
                       {a.caballo && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 shrink-0">
                           <ShieldCheck size={10} />
-                          {a.caballo.nombre}
+                          <NombreCaballoLink id={a.caballo_id} nombre={a.caballo.nombre} />
                           {a.caballo.numero_registro && (
                             <span className="font-mono opacity-70 ml-0.5">· {a.caballo.numero_registro}</span>
                           )}

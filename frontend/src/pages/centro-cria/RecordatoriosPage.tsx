@@ -9,6 +9,7 @@ import FlushingModal from '../../components/centro-cria/FlushingModal'
 import EcografiaModal from '../../components/centro-cria/EcografiaModal'
 import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
 import FlushingBanner from '../../components/centro-cria/FlushingBanner'
+import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import { hoyAR, formatFecha } from '../../utils/fecha'
 import {
   accionParaRecordatorio, fichaDeRecordatorio,
@@ -218,7 +219,11 @@ function RecordatorioItem({
           className="flex-1 min-w-0 text-left"
         >
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-slate-700 text-sm">{r.caballo?.nombre ?? '—'}</span>
+            <NombreCaballoLink
+              id={r.caballo_id}
+              nombre={r.caballo?.nombre}
+              className="font-medium text-slate-700 text-sm"
+            />
             <span className={`text-sm ${esHoy && activo ? 'text-brand-700 font-medium' : 'text-slate-500'}`}>
               {r.tipo}
             </span>

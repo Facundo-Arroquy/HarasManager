@@ -7,6 +7,7 @@ import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
 import EcografiaModal from '../../components/centro-cria/EcografiaModal'
 import FlushingBanner from '../../components/centro-cria/FlushingBanner'
+import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import { hoyAR } from '../../utils/fecha'
 import { accionParaRecordatorio, type AccionRecordatorio } from '../../utils/recordatorio'
 import { LABEL_RESULTADO_ECO } from '../../types/crianza'
@@ -448,7 +449,9 @@ export default function ProgramaSemanalPage() {
               <tbody>
                 {eventosDia.map((e) => (
                   <tr key={e.id} className="border-b border-slate-100 last:border-0">
-                    <td className="py-2 pr-3 font-medium text-slate-800">{e.caballoNombre}</td>
+                    <td className="py-2 pr-3 font-medium text-slate-800">
+                      <NombreCaballoLink id={e.caballoId} nombre={e.caballoNombre} />
+                    </td>
                     <td className="py-2 pr-3 text-slate-500">{e.rol ?? '—'}</td>
                     <td className="py-2 pr-3 text-slate-600">{e.etiqueta}</td>
                     <td className="py-2 pr-3 text-slate-500">{e.veterinario ?? '—'}</td>

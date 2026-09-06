@@ -10,6 +10,7 @@ import { diaAR, hoyAR } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
 import NuevaConsultaModal from '../../components/domain/NuevaConsultaModal'
+import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import TrabajosDelDia from '../../components/domain/TrabajosDelDia'
 import type { HistorialEntry } from '../../components/domain/HistorialCard'
 
@@ -418,9 +419,11 @@ export default function CalendarioPage() {
                   className="flex-1 min-w-0 text-left disabled:opacity-50"
                 >
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-slate-900 group-hover:text-brand-600">
-                      {c.caballo_nombre}
-                    </span>
+                    <NombreCaballoLink
+                      id={c.caballo_id}
+                      nombre={c.caballo_nombre}
+                      className="font-medium text-slate-900"
+                    />
                     <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700">
                       {c.tipo}
                     </span>
