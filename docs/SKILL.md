@@ -1011,6 +1011,55 @@ CREATE TABLE lead (
 );
 ```
 
+### Auditoría
+
+Registro append-only de cambios en las tablas sensibles (migración `20260903231500`).
+Responde "quién cambió esto, cuándo y cómo estaba antes" ante un problema.
+
+```sql
+CREATE TABLE auditoria (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tabla         TEXT NOT NULL,
+  registro_id   TEXT,              -- PK del registro; si es compuesta, valores unidos por ':'
+  operacion     TEXT NOT NULL CHECK (operacion IN ('INSERT','UPDATE','DELETE')),
+  usuario_id    UUID,              -- auth.uid(); NULL = service_role / Edge Function / migración
+  sociedad_id   UUID,              -- copiado de la fila cuando la tiene
+  campos        TEXT[],            -- solo UPDATE: qué columnas cambiaron
+  datos_antes   JSONB,
+  datos_despues JSONB,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+**Reglas:**
+
+- **Append-only.** No hay policy de INSERT/UPDATE/DELETE y `authenticated` tiene
+  esos permisos revocados. Escribe solo el trigger, que es `SECURITY DEFINER`.
+- **Lectura:** superadmin ve todo; el admin de una empresa ve las filas con
+  `sociedad_id` de su empresa. Las filas sin `sociedad_id` (plan, usuarios,
+  pagos) son transversales y quedan solo para el superadmin.
+- `usuario_id` **no tiene FK** a `usuario`: el rastro tiene que sobrevivir a que
+  se borre el usuario que lo generó.
+- Un UPDATE que no cambió nada, o que solo movió `updated_at`, no se registra.
+
+**Qué se audita** (trigger `auditar` → `fn_auditar()`):
+
+| Grupo | Tablas | Eventos |
+|---|---|---|
+| Plata | `plan_suscripcion_vet`, `suscripcion_veterinario`, `pago_veterinario`, `venta_caballo` | INSERT / UPDATE / DELETE |
+| Permisos | `acceso_vet`, `membresia`, `membresia_modulo`, `sociedad_modulo`, `usuario_modulo` | INSERT / UPDATE / DELETE |
+| Usuarios | `usuario` | INSERT / DELETE / UPDATE **OF** `rol`, `activo` |
+| Propiedad | `propiedad`, `propietario` | INSERT / UPDATE / DELETE |
+| Caballos | `caballo` | DELETE / UPDATE **OF** `activo`, `sociedad_id` (baja y cambio de empresa; no cada edición de ficha) |
+| Inmutabilidad | `historial_clinico` | UPDATE / DELETE (los INSERT son el uso normal) |
+
+Sumar una tabla a la auditoría es una línea:
+
+```sql
+CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
+  FOR EACH ROW EXECUTE FUNCTION fn_auditar();
+```
+
 ---
 
 ## Lógica de Acceso (RLS)
@@ -1087,6 +1136,7 @@ CREATE TABLE lead (
 | `trg_bloquear_padrillo_familiar` | `bloquear_padrillo_familiar()` | BEFORE INSERT OR UPDATE OF padrillo_id, caballo_id en `cria_registro_clinico` → rechaza si el padrillo es familiar directo (2 generaciones) de la yegua. El frontend además deshabilita la opción, pero la regla vive acá (migración `20260802120100`) |
 | `trg_cancelar_pendientes_baja` | `cancelar_pendientes_por_baja()` | AFTER UPDATE OF activo en `caballo` (cuando `activo` → false) → cancela `cria_recordatorio` pendientes/vencidos y excluye al caballo de `trabajo_sanitario` pendientes. Conserva el historial (migración `20260729144522`) |
 | `trg_sincronizar_prenez_ecografia` | `sincronizar_prenez_ecografia()` | AFTER INSERT OR UPDATE OF resultado en `cria_ecografia` → resultado `'abortada'` pone `caballo.prenada = false` y `fecha_prenez = NULL`; `'prenada'` confirma el tag y completa `fecha_prenez` con la fecha de la transferencia si estaba vacía; `'pendiente'` no toca nada. `SECURITY DEFINER` **a propósito**: la única policy de UPDATE sobre `caballo` es `es_admin(sociedad_id)`, así que el veterinario —que es quien carga las ecografías— no puede escribir esa tabla desde el cliente (migración `20260824120000`) |
+| `auditar` | `fn_auditar()` | AFTER INSERT/UPDATE/DELETE en las tablas sensibles (plata, permisos, propiedad, bajas) → escribe una fila en `auditoria` con la fila antes y después, el `auth.uid()` y las columnas que cambiaron. `SECURITY DEFINER` porque `auditoria` no tiene policy de INSERT: nadie escribe esa tabla salvo el trigger. Ver **Auditoría** (migración `20260903231500`) |
 | `trg_validar_campo_caballo` | `validar_campo_caballo()` | BEFORE INSERT OR UPDATE OF campo_id, sociedad_id, vet_owner_id en `caballo` → un caballo solo puede estar en un campo de su mismo dueño (sociedad con sociedad, vet con vet). Si el caballo **cambia de dueño** (transferencia entre sociedades, o de vet a organización) el `campo_id` se pone en NULL en vez de abortar; asignar a mano un campo ajeno sí es error (migración `caballo_campo_mismo_duenio` + `caballo_campo_limpiar_al_cambiar_duenio`) |
 
 ### Quién ve qué
