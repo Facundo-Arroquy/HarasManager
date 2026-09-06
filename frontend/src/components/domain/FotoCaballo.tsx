@@ -72,6 +72,7 @@ export default function FotoCaballo({
           <img
             src={src}
             alt={nombre}
+            loading="lazy"
             className="w-full h-full object-cover"
             onError={() => setHasError(true)}
           />

@@ -42,7 +42,7 @@ export default function CaballosCentroPage() {
       } else {
         if (!sociedadId) return
         const [c, f] = await Promise.all([
-          caballoService.listar(sociedadId),
+          caballoService.listarCentro(sociedadId),
           campoService.listar(sociedadId),
         ])
         setCaballos(c); setCampos(f)

@@ -207,15 +207,33 @@ export const caballoService = {
     return (data ?? []) as CaballoPedigree[]
   },
 
+  /** Solo donantes y receptoras — para CaballosCentroPage. */
+  async listarCentro(sociedadId: string): Promise<Caballo[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('caballo')
+      .select(`
+        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
+        raza_id, pelaje_id, numero_chip, numero_registro, activo, sociedad_id,
+        cat_raza(nombre),
+        cat_pelaje(nombre),
+        campo(nombre)
+      `)
+      .eq('sociedad_id', sociedadId)
+      .eq('activo', true)
+      .in('rol_reproductivo', ['Donante', 'Receptora'])
+      .order('nombre')
+    if (error) throw error
+    return (data ?? []) as unknown as Caballo[]
+  },
+
   async listar(sociedadId: string): Promise<Caballo[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('caballo')
       .select(`
         id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
-        sexo, observaciones, domador,
-        raza_id, pelaje_id, numero_chip, numero_registro, activo,
-        padre_id, padre_nombre, madre_id, madre_nombre,
+        sexo, raza_id, pelaje_id, numero_chip, numero_registro, activo, sociedad_id,
         cat_raza(nombre),
         cat_pelaje(nombre),
         campo(nombre),
@@ -236,9 +254,7 @@ export const caballoService = {
       .from('caballo')
       .select(`
         id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
-        sexo, observaciones, domador,
-        raza_id, pelaje_id, numero_chip, numero_registro, activo,
-        padre_id, padre_nombre, madre_id, madre_nombre,
+        sexo, raza_id, pelaje_id, numero_chip, numero_registro, activo, sociedad_id,
         cat_raza(nombre),
         cat_pelaje(nombre),
         campo(nombre),

@@ -20,34 +20,37 @@ import {
   type TerminosVigentes,
 } from './services/terminosService'
 import { vetLimiteService, type EstadoLimiteVet } from './services/vetLimiteService'
-const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
-const LegalPage = lazy(() => import('./pages/legales/LegalPage'))
-import SuperAdminPage from './pages/superadmin/SuperAdminPage'
-import DashboardPage from './pages/dashboard/DashboardPage'
-import CaballosPage from './pages/caballos/CaballosPage'
-import HistorialPage from './pages/historial/HistorialPage'
-import AdminPage from './pages/admin/AdminPage'
-import ConfigPage from './pages/config/ConfigPage'
-import CamposVetPage from './pages/config/CamposVetPage'
-import DatosVetPage from './pages/config/DatosVetPage'
-import RevisionPreVentaPage from './pages/vet/RevisionPreVentaPage'
-import PanelVetPage from './pages/vet/PanelVetPage'
-import SuscripcionResultadoPage from './pages/vet/SuscripcionResultadoPage'
-import SuscripcionVetPage from './pages/vet/SuscripcionVetPage'
-import RecordatoriosPage from './pages/centro-cria/RecordatoriosPage'
-import TransferenciasPage from './pages/centro-cria/TransferenciasPage'
-import ProgramaSemanalPage from './pages/centro-cria/ProgramaSemanalPage'
-import ConfigCriaPage, { ConfigVetPage } from './pages/centro-cria/ConfigCriaPage'
-import RankingPadrillosConfig from './pages/centro-cria/RankingPadrillosConfig'
-import CaballosCentroPage from './pages/centro-cria/CaballosCentroPage'
-import EmbrionesPage from './pages/centro-cria/EmbrionesPage'
-import TorneosPage from './pages/torneos/TorneosPage'
-import TorneoKanbanPage from './pages/torneos/TorneoKanbanPage'
-import TransferirEmpresaPage from './pages/transferencias/TransferirEmpresaPage'
-import TransferirVetPage from './pages/vet/TransferirVetPage'
-import SanidadPage from './pages/sanidad/SanidadPage'
-import CalendarioPage from './pages/calendario/CalendarioPage'
-import NotFoundPage from './pages/NotFoundPage'
+
+// ── Lazy-loaded pages ─────────────────────────────────────────────────────────
+const LandingPage            = lazy(() => import('./pages/landing/LandingPage'))
+const LegalPage              = lazy(() => import('./pages/legales/LegalPage'))
+const SuperAdminPage         = lazy(() => import('./pages/superadmin/SuperAdminPage'))
+const DashboardPage          = lazy(() => import('./pages/dashboard/DashboardPage'))
+const CaballosPage           = lazy(() => import('./pages/caballos/CaballosPage'))
+const HistorialPage          = lazy(() => import('./pages/historial/HistorialPage'))
+const AdminPage              = lazy(() => import('./pages/admin/AdminPage'))
+const ConfigPage             = lazy(() => import('./pages/config/ConfigPage'))
+const CamposVetPage          = lazy(() => import('./pages/config/CamposVetPage'))
+const DatosVetPage           = lazy(() => import('./pages/config/DatosVetPage'))
+const RevisionPreVentaPage   = lazy(() => import('./pages/vet/RevisionPreVentaPage'))
+const PanelVetPage           = lazy(() => import('./pages/vet/PanelVetPage'))
+const SuscripcionResultadoPage = lazy(() => import('./pages/vet/SuscripcionResultadoPage'))
+const SuscripcionVetPage     = lazy(() => import('./pages/vet/SuscripcionVetPage'))
+const RecordatoriosPage      = lazy(() => import('./pages/centro-cria/RecordatoriosPage'))
+const TransferenciasPage     = lazy(() => import('./pages/centro-cria/TransferenciasPage'))
+const ProgramaSemanalPage    = lazy(() => import('./pages/centro-cria/ProgramaSemanalPage'))
+const ConfigCriaPage         = lazy(() => import('./pages/centro-cria/ConfigCriaPage'))
+const ConfigVetCriaPage      = lazy(() => import('./pages/centro-cria/ConfigCriaPage').then(m => ({ default: m.ConfigVetPage })))
+const RankingPadrillosConfig = lazy(() => import('./pages/centro-cria/RankingPadrillosConfig'))
+const CaballosCentroPage     = lazy(() => import('./pages/centro-cria/CaballosCentroPage'))
+const EmbrionesPage          = lazy(() => import('./pages/centro-cria/EmbrionesPage'))
+const TorneosPage            = lazy(() => import('./pages/torneos/TorneosPage'))
+const TorneoKanbanPage       = lazy(() => import('./pages/torneos/TorneoKanbanPage'))
+const TransferirEmpresaPage  = lazy(() => import('./pages/transferencias/TransferirEmpresaPage'))
+const TransferirVetPage      = lazy(() => import('./pages/vet/TransferirVetPage'))
+const SanidadPage            = lazy(() => import('./pages/sanidad/SanidadPage'))
+const CalendarioPage         = lazy(() => import('./pages/calendario/CalendarioPage'))
+const NotFoundPage           = lazy(() => import('./pages/NotFoundPage'))
 
 function RootRedirect() {
   const { isAuthenticated, loading, session } = useAuth()
@@ -224,14 +227,19 @@ function RequireSuperAdmin() {
   return <Outlet />
 }
 
+const PageSpinner = () => (
+  <div className="flex justify-center py-20"><Spinner size="lg" /></div>
+)
+
 export default function App() {
   useAuthListener()
   return (
     <BrowserRouter>
+      <Suspense fallback={<PageSpinner />}>
       <Routes>
         <Route path="/landing" element={<Suspense fallback={null}><LandingPage /></Suspense>} />
-        <Route path="/legales/terminos" element={<Suspense fallback={null}><LegalPage tipo="terminos" /></Suspense>} />
-        <Route path="/legales/privacidad" element={<Suspense fallback={null}><LegalPage tipo="privacidad" /></Suspense>} />
+        <Route path="/legales/terminos" element={<LegalPage tipo="terminos" />} />
+        <Route path="/legales/privacidad" element={<LegalPage tipo="privacidad" />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro-veterinario" element={<RegistroVeterinarioPage />} />
         {/* Vuelta del checkout de MercadoPago. Fuera de RequireAuth a propósito:
@@ -295,7 +303,7 @@ export default function App() {
             <Route path="/centro-cria/config" element={<ConfigCriaPage />}>
               <Route index element={<Navigate to="/centro-cria/config/padrillos" replace />} />
               <Route path="padrillos" element={<RankingPadrillosConfig />} />
-              <Route path="vet" element={<ConfigVetPage />} />
+              <Route path="vet" element={<ConfigVetCriaPage />} />
             </Route>
           </Route>
           {/* Polo / Torneos — antes sin ningún guard de ruta, dependía solo de
@@ -312,6 +320,7 @@ export default function App() {
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </Suspense>
 
       <ToastContainer />
     </BrowserRouter>
