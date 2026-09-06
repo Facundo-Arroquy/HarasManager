@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense, startTransition } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, CheckSquare, X, FileDown, ChevronDown, LayoutGrid, List } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
@@ -20,6 +20,9 @@ import Spinner from '../../components/ui/Spinner'
 const ImportarCaballosModal = lazy(() => import('../../components/domain/ImportarCaballosModal'))
 
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
+
+/** Cuántas cards mostrar en cada "página" de scroll infinito */
+const PAGE_SIZE = 24
 
 const CATEGORIAS      = ['Todos', 'Caballo', 'Yegua', 'Padrillo', 'Potrillo']
 const CATEGORIAS_EDIT = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo']
@@ -99,6 +102,10 @@ export default function CaballosPage() {
   // edición masiva: tag_id → SIN_CAMBIO | 'true' (poner) | 'false' (sacar).
   const [tags,     setTags]     = useState<Tag[]>([])
   const [bulkTags, setBulkTags] = useState<Record<number, string>>({})
+
+  // ── Infinite scroll ───────────────────────────────────────────────────────
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
   const salirModoSeleccion = useCallback(() => {
     setModoSeleccion(false)
@@ -317,6 +324,34 @@ export default function CaballosPage() {
     })
     return base.sort((a, b) => a.nombre.localeCompare(b.nombre))
   }, [caballos, caballosBaja, verBaja, busqueda, filtro, filtroEmpresaIds, filtroCamposIds, filtroCamadas, soloPreñadas])
+
+  // Resetear página visible cuando cambian filtros o datos
+  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [filtradosOrdenados])
+
+  // Los items que realmente se renderizan (primera "página" + lo que el scroll pidió)
+  const visibles = useMemo(
+    () => filtradosOrdenados.slice(0, visibleCount),
+    [filtradosOrdenados, visibleCount],
+  )
+  const hayMas = visibleCount < filtradosOrdenados.length
+
+  // IntersectionObserver: cuando el sentinel entra en viewport, mostrar más
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          startTransition(() => {
+            setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtradosOrdenados.length))
+          })
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [filtradosOrdenados.length])
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto pb-32">
@@ -597,7 +632,7 @@ export default function CaballosPage() {
           )}
           {vista === 'grilla' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filtradosOrdenados.map((caballo) => (
+              {visibles.map((caballo) => (
                 <CaballoGridCard
                   key={caballo.id}
                   caballo={caballo}
@@ -612,7 +647,7 @@ export default function CaballosPage() {
             </div>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-200">
-              {filtradosOrdenados.map((caballo) => (
+              {visibles.map((caballo) => (
                 <CaballoCard
                   key={caballo.id}
                   caballo={caballo}
@@ -624,6 +659,15 @@ export default function CaballosPage() {
               ))}
             </div>
           )}
+
+          {/* Sentinel para infinite scroll + indicador de carga */}
+          <div ref={sentinelRef} className="py-4">
+            {hayMas && (
+              <p className="text-center text-xs text-slate-400">
+                Mostrando {visibles.length} de {filtradosOrdenados.length} — scrolleá para ver más
+              </p>
+            )}
+          </div>
         </>
       )}
 
