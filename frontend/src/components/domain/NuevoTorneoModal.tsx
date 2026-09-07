@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useEscapeClose } from '../../hooks/useEscapeClose'
+import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { X, AlertCircle, Trophy, Plus, Trash2, UserPlus } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { torneoService } from '../../services/torneoService'
 import { getUsuarios, type UsuarioAdmin } from '../../services/adminService'
-import { mensajeError } from '../../utils/error'
 import type { NuevoJugadorPayload } from '../../types/torneo'
 
 interface Props {
@@ -30,8 +31,7 @@ export default function NuevoTorneoModal({ onClose, onSuccess }: Props) {
 
   const [nuevoJugador, setNuevoJugador] = useState('')
   const [usuarios,     setUsuarios]     = useState<UsuarioAdmin[]>([])
-  const [saving,       setSaving]       = useState(false)
-  const [error,        setError]        = useState('')
+  const { saving, error, setError, execute } = useSaveHandler('Error al crear el torneo')
 
   useEffect(() => {
     if (!sociedadId) return
@@ -40,11 +40,7 @@ export default function NuevoTorneoModal({ onClose, onSuccess }: Props) {
       .catch(() => setUsuarios([]))   // el link a usuario es opcional: si falla, se cargan a mano
   }, [sociedadId])
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  useEscapeClose(onClose)
 
   function agregarJugador(nombreJugador: string, usuarioId: string | null = null) {
     const limpio = nombreJugador.trim()
@@ -70,9 +66,7 @@ export default function NuevoTorneoModal({ onClose, onSuccess }: Props) {
       return
     }
 
-    setSaving(true)
-    setError('')
-    try {
+    await execute(async () => {
       const torneo = await torneoService.crear({
         sociedad_id:  sociedadId,
         nombre:       nombre.trim(),
@@ -84,11 +78,7 @@ export default function NuevoTorneoModal({ onClose, onSuccess }: Props) {
       })
       onSuccess?.(torneo.id)
       onClose()
-    } catch (e) {
-      setError(mensajeError(e, 'Error al crear el torneo'))
-    } finally {
-      setSaving(false)
-    }
+    })
   }
 
   // Usuarios de la sociedad que todavía no están en la lista de jugadores.

@@ -357,6 +357,29 @@ export const sanidadService = {
     if (error) throw error
   },
 
+  /**
+   * Trabajos sanitarios en los que participa un caballo (pendientes, realizados
+   * y cancelados). Devuelve el trabajo completo más la fila de la relación para
+   * saber el estado individual del caballo en ese trabajo.
+   */
+  async listarPorCaballo(caballoId: string): Promise<TrabajoSanitario[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('trabajo_sanitario')
+      .select(`
+        *,
+        creador:usuario!creado_por(nombre, apellido, rol),
+        caballos:trabajo_sanitario_caballo!inner(
+          id, trabajo_id, caballo_id, excluido, estado, historial_id,
+          caballo:caballo_id(nombre, numero_registro, campo:campo_id(nombre))
+        )
+      `)
+      .eq('caballos.caballo_id', caballoId)
+      .order('fecha_programada', { ascending: false })
+    if (error) throw error
+    return data as TrabajoSanitario[]
+  },
+
   async cancelarTrabajo(trabajoId: string): Promise<void> {
     const supabase = getSupabaseClient()
     const { error } = await supabase

@@ -11,7 +11,6 @@ import type { TrabajoSanitario } from '../../types/sanidad'
 import Spinner from '../../components/ui/Spinner'
 import { hoyAR, formatFechaCorta } from '../../utils/fecha'
 
-type Caballo    = Awaited<ReturnType<typeof caballoService.listar>>[number]
 type HistResumen = Awaited<ReturnType<typeof historialService.listarRecientesTodos>>[number]
 
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
@@ -23,11 +22,16 @@ const CAT_STYLE: Record<string, string> = {
   Potrillo: 'bg-brand-100 text-brand-700',
 }
 
+interface DashStats {
+  total: number; sinCampo: number; sinChip: number
+  porCategoria: Record<string, number>
+}
+
 export default function DashboardPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const navigate   = useNavigate()
 
-  const [caballos,  setCaballos]  = useState<Caballo[]>([])
+  const [stats,     setStats]     = useState<DashStats>({ total: 0, sinCampo: 0, sinChip: 0, porCategoria: {} })
   const [campos,    setCampos]    = useState<CampoConConteo[]>([])
   const [historial, setHistorial] = useState<HistResumen[]>([])
   const [trabajos,  setTrabajos]  = useState<TrabajoSanitario[]>([])
@@ -37,27 +41,25 @@ export default function DashboardPage() {
     if (!sociedadId) { setLoading(false); return }
     setLoading(true)
     Promise.all([
-      caballoService.listar(sociedadId),
+      caballoService.dashboardStats(sociedadId),
       campoService.listarConConteo(sociedadId),
       historialService.listarRecientesTodos(sociedadId, 10),
       sanidadService.listarTrabajos(sociedadId).catch(() => [] as TrabajoSanitario[]),
-    ]).then(([c, f, h, t]) => {
-      setCaballos(c)
+    ]).then(([s, f, h, t]) => {
+      setStats(s)
       setCampos(f)
       setHistorial(h)
       setTrabajos(t)
     }).finally(() => setLoading(false))
   }, [sociedadId])
 
-  const sinCampo    = useMemo(() => caballos.filter((c) => !c.campo_id).length, [caballos])
-  const sinChip     = useMemo(() => caballos.filter((c) => !c.numero_chip).length, [caballos])
   const maxAnimales = useMemo(() => Math.max(...campos.map((c) => c.caballos_count), 1), [campos])
 
   const porCategoria = useMemo(() =>
     CATEGORIAS.map((cat) => ({
       nombre: cat,
-      count: caballos.filter((c) => c.categoria === cat).length,
-    })), [caballos])
+      count: stats.porCategoria[cat] ?? 0,
+    })), [stats])
 
   const proximasAplicaciones = useMemo(() =>
     trabajos
@@ -95,23 +97,23 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Caballos activos"
-          value={caballos.length}
+          value={stats.total}
           icon={<Stethoscope size={15} />}
           accent="emerald"
         />
         <KpiCard
           label="Sin campo asignado"
-          value={sinCampo}
+          value={stats.sinCampo}
           icon={<MapPin size={15} />}
-          accent={sinCampo > 0 ? 'brand' : 'zinc'}
-          onClick={sinCampo > 0 ? () => navigate('/caballos') : undefined}
+          accent={stats.sinCampo > 0 ? 'brand' : 'zinc'}
+          onClick={stats.sinCampo > 0 ? () => navigate('/caballos') : undefined}
           tooltip="Los caballos sin campo no aparecen en el desglose de distribución. Asignalos desde la sección Caballos."
         />
         <KpiCard
           label="Sin chip registrado"
-          value={sinChip}
+          value={stats.sinChip}
           icon={<AlertCircle size={15} />}
-          accent={sinChip > 0 ? 'rose' : 'zinc'}
+          accent={stats.sinChip > 0 ? 'rose' : 'zinc'}
           tooltip="El chip electrónico identifica unívocamente al animal. Sin chip, el caballo no puede ser trazado en controles sanitarios."
         />
         <KpiCard
@@ -148,16 +150,16 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
-              {sinCampo > 0 && (
+              {stats.sinCampo > 0 && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-400 italic">Sin campo asignado</span>
-                    <span className="text-slate-400">{sinCampo} animal{sinCampo !== 1 ? 'es' : ''}</span>
+                    <span className="text-slate-400">{stats.sinCampo} animal{stats.sinCampo !== 1 ? 'es' : ''}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                     <div
                       className="h-full rounded-full bg-brand-400"
-                      style={{ width: `${(sinCampo / maxAnimales) * 100}%` }}
+                      style={{ width: `${(stats.sinCampo / maxAnimales) * 100}%` }}
                     />
                   </div>
                 </div>

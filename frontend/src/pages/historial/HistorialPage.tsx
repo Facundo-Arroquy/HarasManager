@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch, Printer, ImageIcon, Pencil } from 'lucide-react'
+import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch, Printer, ImageIcon, Pencil, ShieldCheck, Trash2 } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { historialService } from '../../services/historialService'
 import { crianzaService } from '../../services/crianzaService'
+import { sanidadService } from '../../services/sanidadService'
+import { catalogoService } from '../../services/catalogoService'
+import type { TrabajoSanitario } from '../../types/sanidad'
+import EditarTrabajoSanitarioModal from '../../components/domain/EditarTrabajoSanitarioModal'
 import { useAuthStore } from '../../store/authStore'
 import { calcularEdad, formatFecha as formatFechaAR } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
@@ -65,12 +69,18 @@ export default function HistorialPage() {
   // resalta dentro del historial.
   const consultaDestacada = searchParams.get('consulta')
 
-  const [tab, setTab] = useState<'clinico' | 'reproductivo' | 'genealogia' | 'foto'>('clinico')
+  const [tab, setTab] = useState<'clinico' | 'sanidad' | 'reproductivo' | 'genealogia' | 'foto'>('clinico')
   const [repLoading,    setRepLoading]    = useState(false)
   const [registrosCria, setRegistrosCria] = useState<RegistroClinicoCria[]>([])
   const [flushings,     setFlushings]     = useState<Flushing[]>([])
   const [transferencias,setTransferencias]= useState<TransferenciaEmbrionaria[]>([])
   const [todosCaballos, setTodosCaballos] = useState<Caballo[]>([])
+
+  // ── Sanidad (trabajos sanitarios) ──────────────────────────────────────────
+  const [sanLoading,     setSanLoading]     = useState(false)
+  const [trabajosSan,    setTrabajosSan]    = useState<TrabajoSanitario[]>([])
+  const [trabajoEditar,  setTrabajoEditar]  = useState<TrabajoSanitario | null>(null)
+  const [borrandoTrabId, setBorrandoTrabId] = useState<string | null>(null)
 
   // Al venir del calendario, llevar la vista hasta la consulta señalada.
   useEffect(() => {
@@ -127,6 +137,40 @@ export default function HistorialPage() {
     }
   }
 
+  async function cargarSanidad() {
+    if (!id || sanLoading) return
+    setSanLoading(true)
+    try {
+      const data = await sanidadService.listarPorCaballo(id)
+      setTrabajosSan(data)
+    } catch (e) {
+      setError(mensajeError(e, 'Error al cargar trabajos sanitarios'))
+    } finally {
+      setSanLoading(false)
+    }
+  }
+
+  function handleTabSanidad() {
+    setTab('sanidad')
+    if (trabajosSan.length === 0) cargarSanidad()
+  }
+
+  async function eliminarTrabajo(t: TrabajoSanitario) {
+    const ok = window.confirm(
+      `¿Eliminar el trabajo "${t.nombre}" del ${formatFecha(t.fecha_programada)}?\n\nNo se puede deshacer.`,
+    )
+    if (!ok) return
+    setBorrandoTrabId(t.id)
+    try {
+      await sanidadService.eliminarTrabajos([t.id])
+      setTrabajosSan((prev) => prev.filter((w) => w.id !== t.id))
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo eliminar el trabajo.'))
+    } finally {
+      setBorrandoTrabId(null)
+    }
+  }
+
   function handleTabReproductivo() {
     setTab('reproductivo')
     if (registrosCria.length === 0 && flushings.length === 0 && transferencias.length === 0) {
@@ -146,6 +190,10 @@ export default function HistorialPage() {
   useEffect(() => {
     if (!id) return
     setLoading(true)
+    // Prefetch catálogos en paralelo: cuando el usuario abra "Nueva consulta"
+    // ya van a estar en caché y el modal aparece instantáneo.
+    catalogoService.tiposConsulta().catch(() => {})
+    catalogoService.partesCuerpo().catch(() => {})
     Promise.all([
       caballoService.obtener(id),
       historialService.listarPorCaballo(id),
@@ -381,6 +429,17 @@ export default function HistorialPage() {
             Clínico
           </button>
           <button
+            onClick={handleTabSanidad}
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              tab === 'sanidad'
+                ? 'border-emerald-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <ShieldCheck size={13} />
+            Sanidad
+          </button>
+          <button
             onClick={handleTabReproductivo}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === 'reproductivo'
@@ -462,6 +521,85 @@ export default function HistorialPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Tab: Sanidad */}
+      {tab === 'sanidad' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+              Trabajos sanitarios
+            </h2>
+            <span className="text-xs text-slate-400">{trabajosSan.length} registros</span>
+          </div>
+
+          {sanLoading ? (
+            <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+          ) : trabajosSan.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center text-slate-400 text-sm">
+              Sin trabajos sanitarios para este animal.
+            </div>
+          ) : (
+            <div className="rounded-lg border border-slate-200 bg-white divide-y divide-slate-200">
+              {trabajosSan.map((t) => {
+                const esPendiente = t.estado === 'pendiente'
+                const puedeEditar = esPendiente && (t.creado_por === user?.id || rol === 'admin')
+                const puedeEliminar = esPendiente && (t.creado_por === user?.id || rol === 'admin')
+                return (
+                  <div key={t.id} className={`px-4 py-3 text-sm ${t.estado === 'cancelado' ? 'opacity-50' : ''}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-slate-700">{t.nombre}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            t.estado === 'pendiente'  ? 'bg-amber-100 text-amber-700' :
+                            t.estado === 'realizado'  ? 'bg-emerald-100 text-emerald-700' :
+                                                        'bg-slate-100 text-slate-500'
+                          }`}>
+                            {t.estado === 'pendiente' ? 'Pendiente' : t.estado === 'realizado' ? 'Realizado' : 'Cancelado'}
+                          </span>
+                        </div>
+                        {t.tratamiento && (
+                          <p className="text-xs text-slate-500 mt-1">{t.tratamiento}</p>
+                        )}
+                        {t.observaciones && (
+                          <p className="text-xs text-slate-400 mt-0.5 italic">{t.observaciones}</p>
+                        )}
+                        {t.creador && (
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            Creado por {t.creador.nombre} {t.creador.apellido}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-slate-500">{formatFecha(t.fecha_programada)}</span>
+                        {puedeEditar && (
+                          <button
+                            onClick={() => setTrabajoEditar(t)}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-brand-600 hover:bg-slate-100 transition-colors"
+                            title="Editar"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        )}
+                        {puedeEliminar && (
+                          <button
+                            onClick={() => eliminarTrabajo(t)}
+                            disabled={borrandoTrabId === t.id}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            title="Eliminar"
+                          >
+                            {borrandoTrabId === t.id ? <Spinner size="sm" /> : <Trash2 size={13} />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Tab: Reproductivo */}
@@ -674,6 +812,22 @@ export default function HistorialPage() {
             // lista y se relee, en vez de dejarlo escondido detrás de un clic.
             setTab('reproductivo')
             cargarReproductivo().catch(() => {})
+          }}
+        />
+      )}
+
+      {/* Modal editar trabajo sanitario */}
+      {trabajoEditar && (
+        <EditarTrabajoSanitarioModal
+          trabajo={trabajoEditar}
+          onEliminar={() => {
+            eliminarTrabajo(trabajoEditar)
+            setTrabajoEditar(null)
+          }}
+          onClose={() => setTrabajoEditar(null)}
+          onSuccess={() => {
+            setTrabajoEditar(null)
+            cargarSanidad()
           }}
         />
       )}

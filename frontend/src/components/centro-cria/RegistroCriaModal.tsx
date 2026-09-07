@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useEscapeClose } from '../../hooks/useEscapeClose'
+import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { Link } from 'react-router-dom'
 import { X, AlertCircle, Settings2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -75,8 +77,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   // Para vets sin sociedadActiva: se deriva del caballo seleccionado
   const [animalSociedadId, setAnimalSociedadId] = useState('')
 
-  const [saving, setSaving] = useState(false)
-  const [error,  setError]  = useState('')
+  const { saving, error, setError, execute } = useSaveHandler('Error al guardar.')
 
   // ── Derivados ─────────────────────────────────────────────────────────────
   const animalSeleccionado = animales.find((a) => a.id === caballoId) ?? null
@@ -181,17 +182,11 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
     if (padrilloId && familiares[padrilloId]) setPadrilloId('')
   }, [familiares, padrilloId])
 
-  // Escape para cerrar
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  useEscapeClose(onClose)
 
   // ── Submit ────────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
 
     if (!caballoId)       return setError('Seleccioná un animal.')
     if (!fecha)           return setError('La fecha es requerida.')
@@ -206,8 +201,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       )
     }
 
-    setSaving(true)
-    try {
+    await execute(async () => {
       await crearRegistro(
         {
           caballo_id:         caballoId,
@@ -246,11 +240,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
       onSuccess?.()
       onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar.')
-    } finally {
-      setSaving(false)
-    }
+    })
   }
 
   // ── Render ────────────────────────────────────────────────────────────────

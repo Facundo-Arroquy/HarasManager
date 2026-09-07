@@ -1,6 +1,6 @@
 import { getSupabaseClient } from '../lib/supabase'
 import type { BulkCaballoPayload } from '../utils/importarCaballos'
-import { tagService, type Tag } from './tagService'
+import type { Tag } from './tagService'
 
 export type Subcategoria = 'Donante' | 'Receptora'
 
@@ -102,7 +102,24 @@ interface CaballoVetRow {
   propietario_nombre?: string | null
   prenada?: boolean | null
   fecha_prenez?: string | null
+  tags?: Tag[] | unknown
   [key: string]: unknown
+}
+
+/** Convierte una fila de la RPC del vet al shape de `Caballo`. */
+function mapVetRow(c: CaballoVetRow): Caballo & Record<string, unknown> {
+  // La RPC devuelve tags como jsonb (array de objetos) — ya tiene el shape de Tag[]
+  const rawTags = Array.isArray(c.tags) ? c.tags as Tag[] : []
+  return {
+    ...c,
+    prenada:            c.prenada ?? false,
+    fecha_prenez:       c.fecha_prenez ?? null,
+    cat_raza:           c.raza_nombre   ? { nombre: c.raza_nombre }   : null,
+    cat_pelaje:         c.pelaje_nombre ? { nombre: c.pelaje_nombre } : null,
+    campo:              c.campo_nombre  ? { nombre: c.campo_nombre }  : null,
+    propietario_nombre: c.propietario_nombre ?? null,
+    tags:               rawTags,
+  } as Caballo & Record<string, unknown>
 }
 
 export interface ActualizarCaballoPayload {
@@ -145,43 +162,26 @@ export interface NuevoCaballoPayload {
   madre_nombre?: string | null
 }
 
+/** Select compartido por `listar` y `listarPaginado` — evita divergencias. */
+const CABALLO_SELECT = `
+  id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
+  sexo, raza_id, pelaje_id, numero_chip, numero_registro, activo, sociedad_id,
+  cat_raza(nombre),
+  cat_pelaje(nombre),
+  campo(nombre),
+  caballo_tag(cat_tag(id, nombre, color, activo))
+` as const
+
 export const caballoService = {
-  /** Todos los caballos del vet, a través de todas las empresas en que tiene acceso */
+  /** Todos los caballos del vet, a través de todas las empresas en que tiene acceso.
+   *  La RPC es SECURITY DEFINER (bypasea RLS) y devuelve todo en un solo round-trip:
+   *  prenada, fecha_prenez, estado_reproductivo, sexo, observaciones y tags inline.
+   */
   async listarDelVeterinario(): Promise<Caballo[]> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase.rpc('get_caballos_veterinario')
     if (error) throw error
-    const rows = data ?? []
-
-    // get_caballos_veterinario puede no devolver prenada/fecha_prenez si fue
-    // creado antes de esas columnas. Las obtenemos con una query directa.
-    const typedRows = rows as CaballoVetRow[]
-    const ids = typedRows.map((c) => c.id)
-    const prenMap = new Map<string, { prenada: boolean; fecha_prenez: string | null }>()
-    if (ids.length > 0) {
-      const { data: prenData } = await supabase
-        .from('caballo')
-        .select('id, prenada, fecha_prenez')
-        .in('id', ids)
-      ;((prenData ?? []) as { id: string; prenada: boolean | null; fecha_prenez: string | null }[])
-        .forEach((p) => prenMap.set(p.id, { prenada: p.prenada ?? false, fecha_prenez: p.fecha_prenez ?? null }))
-    }
-
-    // Los tags no viajan en la RPC — se piden aparte (RLS los filtra igual).
-    const tagsMap = ids.length > 0
-      ? await tagService.porCaballos(ids).catch(() => new Map<string, Tag[]>())
-      : new Map<string, Tag[]>()
-
-    return typedRows.map((c) => ({
-      ...c,
-      prenada:           prenMap.get(c.id)?.prenada      ?? c.prenada      ?? false,
-      fecha_prenez:      prenMap.get(c.id)?.fecha_prenez ?? c.fecha_prenez ?? null,
-      cat_raza:          c.raza_nombre        ? { nombre: c.raza_nombre }        : null,
-      cat_pelaje:        c.pelaje_nombre      ? { nombre: c.pelaje_nombre }      : null,
-      campo:             c.campo_nombre       ? { nombre: c.campo_nombre }       : null,
-      propietario_nombre: c.propietario_nombre ?? null,
-      tags:              tagsMap.get(c.id) ?? [],
-    })) as unknown as Caballo[]
+    return ((data ?? []) as CaballoVetRow[]).map(mapVetRow) as unknown as Caballo[]
   },
 
   /**
@@ -207,44 +207,58 @@ export const caballoService = {
     return (data ?? []) as CaballoPedigree[]
   },
 
-  /** Solo donantes y receptoras — para CaballosCentroPage. */
-  async listarCentro(sociedadId: string): Promise<Caballo[]> {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('caballo')
-      .select(`
-        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
-        raza_id, pelaje_id, numero_chip, numero_registro, activo, sociedad_id,
-        cat_raza(nombre),
-        cat_pelaje(nombre),
-        campo(nombre)
-      `)
-      .eq('sociedad_id', sociedadId)
-      .eq('activo', true)
-      .in('rol_reproductivo', ['Donante', 'Receptora'])
-      .order('nombre')
-    if (error) throw error
-    return (data ?? []) as unknown as Caballo[]
+  /**
+   * Centro de cría para vets: reutiliza la RPC (ya trae todo inline) y filtra
+   * a donantes/receptoras en el frontend. Zero queries extra.
+   */
+  async listarCentroVet(): Promise<Caballo[]> {
+    const all = await caballoService.listarDelVeterinario()
+    return all.filter(
+      (c) => c.rol_reproductivo === 'Donante' || c.rol_reproductivo === 'Receptora',
+    )
   },
 
+  /** Solo donantes y receptoras — reutiliza la RPC que bypasea RLS. */
+  async listarCentro(sociedadId: string): Promise<Caballo[]> {
+    const all = await caballoService.listar(sociedadId)
+    return all.filter(
+      (c) => c.rol_reproductivo === 'Donante' || c.rol_reproductivo === 'Receptora',
+    )
+  },
+
+  /**
+   * Stats del dashboard via RPC SECURITY DEFINER — un solo round-trip,
+   * bypasea RLS, devuelve solo conteos (sin transferir filas).
+   */
+  async dashboardStats(sociedadId: string): Promise<{
+    total: number; sinCampo: number; sinChip: number
+    porCategoria: Record<string, number>
+  }> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.rpc('get_dashboard_stats', { p_sociedad_id: sociedadId })
+    if (error) throw error
+    return data as { total: number; sinCampo: number; sinChip: number; porCategoria: Record<string, number> }
+  },
+
+  /**
+   * Todos los caballos activos de una sociedad via RPC SECURITY DEFINER.
+   * Chequea membresía una sola vez en lugar de evaluar 4 policies RLS por fila.
+   * Incluye tags inline.
+   */
   async listar(sociedadId: string): Promise<Caballo[]> {
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('caballo')
-      .select(`
-        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
-        sexo, raza_id, pelaje_id, numero_chip, numero_registro, activo, sociedad_id,
-        cat_raza(nombre),
-        cat_pelaje(nombre),
-        campo(nombre),
-        caballo_tag(cat_tag(id, nombre, color, activo))
-      `)
-      .eq('sociedad_id', sociedadId)
-      .eq('activo', true)
-      .order('nombre')
+    const { data, error } = await supabase.rpc('get_caballos_sociedad', { p_sociedad_id: sociedadId })
     if (error) throw error
-    return ((data ?? []) as unknown as (Caballo & { caballo_tag?: FilaTag[] })[])
-      .map((c) => ({ ...c, tags: mapearTags(c) }))
+    // La RPC devuelve el mismo shape que mapVetRow pero con sociedad_id fijo
+    return ((data ?? []) as CaballoVetRow[]).map((c) => ({
+      ...c,
+      prenada:    c.prenada ?? false,
+      fecha_prenez: c.fecha_prenez ?? null,
+      cat_raza:   c.raza_nombre   ? { nombre: c.raza_nombre }   : null,
+      cat_pelaje: c.pelaje_nombre ? { nombre: c.pelaje_nombre } : null,
+      campo:      c.campo_nombre  ? { nombre: c.campo_nombre }  : null,
+      tags:       Array.isArray(c.tags) ? c.tags as Tag[] : [],
+    })) as unknown as Caballo[]
   },
 
   /** Caballos dados de baja (inactivos) de la sociedad. */
@@ -252,14 +266,7 @@ export const caballoService = {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('caballo')
-      .select(`
-        id, nombre, fecha_nacimiento, categoria, rol_reproductivo, estado_reproductivo, prenada, fecha_prenez, campo_id,
-        sexo, raza_id, pelaje_id, numero_chip, numero_registro, activo, sociedad_id,
-        cat_raza(nombre),
-        cat_pelaje(nombre),
-        campo(nombre),
-        caballo_tag(cat_tag(id, nombre, color, activo))
-      `)
+      .select(CABALLO_SELECT)
       .eq('sociedad_id', sociedadId)
       .eq('activo', false)
       .order('nombre')

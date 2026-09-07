@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { ShieldCheck, ShieldOff, Plus, X, CheckSquare } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
@@ -41,8 +42,7 @@ interface OtorgarModalProps {
 function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, vetError, onClose, onSuccess }: OtorgarModalProps) {
   const [vetId, setVetId] = useState(vets[0]?.id ?? '')
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const { saving, error, setError, execute } = useSaveHandler()
 
   // Ids de caballos que ya tienen acceso para el vet seleccionado
   const yaConAcceso = new Set(
@@ -77,18 +77,11 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, vetError, on
     e.preventDefault()
     if (!vetId) return setError('Seleccioná un veterinario.')
     if (seleccionados.size === 0) return setError('Seleccioná al menos un caballo.')
-    setSaving(true)
-    setError('')
-    try {
+
+    await execute(async () => {
       await otorgarAccesosBulk(vetId, Array.from(seleccionados), otorgadoPor)
       onSuccess()
-    } catch (err: unknown) {
-      const e = err as { message?: string; error_description?: string }
-      const msg = e?.message ?? e?.error_description ?? JSON.stringify(err)
-      setError(`Error: ${msg}`)
-    } finally {
-      setSaving(false)
-    }
+    })
   }
 
   const todosSeleccionados = disponibles.length > 0 && seleccionados.size === disponibles.length

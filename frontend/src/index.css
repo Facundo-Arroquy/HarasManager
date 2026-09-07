@@ -86,3 +86,10 @@
    (el chevron lo pone el componente). */
 .landing-faq summary::-webkit-details-marker { display: none; }
 .landing-faq summary { list-style: none; }
+
+/* Barra de progreso indeterminada — CaballosPage loading */
+@keyframes indeterminate {
+  0%   { width: 15%; margin-left: 0; }
+  50%  { width: 45%; margin-left: 30%; }
+  100% { width: 15%; margin-left: 85%; }
+}

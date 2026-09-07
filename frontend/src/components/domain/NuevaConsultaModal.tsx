@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { useEscapeClose } from '../../hooks/useEscapeClose'
+import { useSaveHandler } from '../../hooks/useSaveHandler'
+import { useDynamicRows } from '../../hooks/useDynamicRows'
 import { X, Plus, Trash2, ImageIcon } from 'lucide-react'
 import { caballoService } from '../../services/caballoService'
 import { nombreCaballo } from '../../utils/caballo'
-import { mensajeError } from '../../utils/error'
 import { catalogoService } from '../../services/catalogoService'
 import { historialService } from '../../services/historialService'
 import { useAuthStore } from '../../store/authStore'
@@ -27,9 +29,6 @@ interface ParteRow { tempId: string; parteCuerpoId: string; lado: string; descri
 interface MedRow   { tempId: string; medicamento: string; dosis: string; via: string; duracion: string }
 
 const LADOS = ['izquierdo', 'derecho', 'bilateral', 'no aplica']
-
-let _id = 0
-const uid = () => String(++_id)
 
 export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar, onClose, onSuccess }: Props) {
   const user    = useAuthStore((s) => s.user)
@@ -66,18 +65,16 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar,
   const [proximaCons,     setProximaCons]     = useState('')
 
   // Partes afectadas (lista dinámica)
-  const [partes, setPartes] = useState<ParteRow[]>([])
-  const addParte  = () => setPartes((p) => [...p, { tempId: uid(), parteCuerpoId: '', lado: 'no aplica', descripcion: '' }])
-  const remParte  = (id: string) => setPartes((p) => p.filter((r) => r.tempId !== id))
-  const updParte  = (id: string, key: keyof ParteRow, val: string) =>
-    setPartes((p) => p.map((r) => r.tempId === id ? { ...r, [key]: val } : r))
+  const {
+    rows: partes, setRows: setPartes,
+    addRow: addParte, removeRow: remParte, updateRow: updParte,
+  } = useDynamicRows<ParteRow>({ parteCuerpoId: '', lado: 'no aplica', descripcion: '' })
 
   // Medicamentos (lista dinámica)
-  const [meds, setMeds] = useState<MedRow[]>([])
-  const addMed  = () => setMeds((m) => [...m, { tempId: uid(), medicamento: '', dosis: '', via: '', duracion: '' }])
-  const remMed  = (id: string) => setMeds((m) => m.filter((r) => r.tempId !== id))
-  const updMed  = (id: string, key: keyof MedRow, val: string) =>
-    setMeds((m) => m.map((r) => r.tempId === id ? { ...r, [key]: val } : r))
+  const {
+    rows: meds, setRows: setMeds,
+    addRow: addMed, removeRow: remMed, updateRow: updMed,
+  } = useDynamicRows<MedRow>({ medicamento: '', dosis: '', via: '', duracion: '' })
 
   // Imagen adjunta
   const [imagenFile,    setImagenFile]    = useState<File | null>(null)
@@ -105,16 +102,10 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar,
   /** Se está corrigiendo una agendada: al guardar sigue pendiente. */
   const esAgendada  = entryToEdit?.estado === 'pendiente' && !!soloEditar
 
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError]           = useState<string | null>(null)
+  const { saving: submitting, error, setError, execute } = useSaveHandler('Error al guardar.')
 
-  // Cerrar con Escape
   const overlayRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  useEscapeClose(onClose)
 
   // Cargar catálogos y pre-rellenar si es edición
   useEffect(() => {
@@ -160,18 +151,18 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar,
         setObservaciones(entryToEdit.observaciones ?? '')
         setProximaCons(entryToEdit.proxima_consulta ?? '')
 
-        setPartes(entryToEdit.historial_parte_afectada.map((p) => {
+        setPartes(entryToEdit.historial_parte_afectada.map((p, i) => {
           const found = parArr.find((pc) => pc.nombre === p.cat_parte_cuerpo.nombre)
           return {
-            tempId: uid(),
+            tempId: `pre-p-${i}`,
             parteCuerpoId: found ? String(found.id) : '',
             lado: p.lado ?? 'no aplica',
             descripcion: p.descripcion ?? '',
           }
         }))
 
-        setMeds(entryToEdit.historial_medicamento.map((m) => ({
-          tempId: uid(),
+        setMeds(entryToEdit.historial_medicamento.map((m, i) => ({
+          tempId: `pre-m-${i}`,
           medicamento: m.medicamento,
           dosis: m.dosis ?? '',
           via: m.via_administracion ?? '',
@@ -190,9 +181,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar,
     }
     if (!user?.id) { setError('Sin sesión de usuario.'); return }
 
-    setSubmitting(true)
-    setError(null)
-    try {
+    await execute(async () => {
       let imagenUrl: string | undefined = entryToEdit?.imagen_url ?? undefined
       if (imagenFile) {
         imagenUrl = await historialService.subirImagenConsulta(selCaballoId, imagenFile)
@@ -250,11 +239,7 @@ export default function NuevaConsultaModal({ caballoId, entryToEdit, soloEditar,
       }
       onSuccess()
       onClose()
-    } catch (err) {
-      setError(mensajeError(err, 'Error al guardar.'))
-    } finally {
-      setSubmitting(false)
-    }
+    })
   }
 
   return (
