@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Syringe, Stethoscope, X, Building2, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
+import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { sanidadService } from '../../services/sanidadService'
 import { historialService, type ConsultaCalendario } from '../../services/historialService'
 import { empresaService } from '../../services/empresaService'
@@ -537,20 +538,14 @@ function ReagendarModal({
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
     return d.toISOString().slice(0, 16)
   })
-  const [saving, setSaving] = useState(false)
-  const [error,  setError]  = useState('')
+  const { saving, error, setError, execute } = useSaveHandler('No se pudo reagendar.')
 
   async function guardar() {
     if (!valor) return setError('Elegí la nueva fecha y horario.')
-    setSaving(true)
-    setError('')
-    try {
+    await execute(async () => {
       await historialService.reagendar(consulta.id, new Date(valor).toISOString())
       onSuccess()
-    } catch (e) {
-      setError(mensajeError(e, 'No se pudo reagendar.'))
-      setSaving(false)
-    }
+    })
   }
 
   return (

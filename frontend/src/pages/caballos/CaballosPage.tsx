@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense, startTransition } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense } from 'react'
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll'
+import { useSetFilter } from '../../hooks/useSetFilter'
+import { useOutsideClick } from '../../hooks/useOutsideClick'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, CheckSquare, X, FileDown, ChevronDown, LayoutGrid, List } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
@@ -10,6 +13,7 @@ import CaballoGridCard from '../../components/domain/CaballoGridCard'
 import CaballoDetalleModal from '../../components/domain/CaballoDetalleModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import { tagService, type Tag } from '../../services/tagService'
+import { catalogoService } from '../../services/catalogoService'
 import { textoBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
 import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
@@ -22,7 +26,7 @@ const ImportarCaballosModal = lazy(() => import('../../components/domain/Importa
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]
 
 /** Cuántas cards mostrar en cada "página" de scroll infinito */
-const PAGE_SIZE = 24
+const PAGE_SIZE = 15
 
 const CATEGORIAS      = ['Todos', 'Caballo', 'Yegua', 'Padrillo', 'Potrillo']
 const CATEGORIAS_EDIT = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo']
@@ -57,21 +61,21 @@ export default function CaballosPage() {
   const [campos,   setCampos]   = useState<Campo[]>([])
   const [loading,  setLoading]  = useState(true)
   const [error,    setError]    = useState<string | null>(null)
-
+  const [busquedaRaw,      setBusquedaRaw]      = useState('')
   const [busqueda,         setBusqueda]         = useState('')
   const [filtro,           setFiltro]           = useState('Todos')
   const [soloPreñadas,     setSoloPreñadas]     = useState(false)
   const [verBaja,          setVerBaja]          = useState(false)
 
-  const [filtroEmpresaIds, setFiltroEmpresaIds] = useState<Set<string>>(new Set())
+  const filtroEmpresa = useSetFilter<string>()
   const [showEmpresaDD,    setShowEmpresaDD]    = useState(false)
   const empresaRef = useRef<HTMLDivElement>(null)
 
-  const [filtroCamposIds,  setFiltroCamposIds]  = useState<Set<string>>(new Set())
+  const filtroCampos = useSetFilter<string>()
   const [showCamposDD,     setShowCamposDD]     = useState(false)
   const camposRef  = useRef<HTMLDivElement>(null)
 
-  const [filtroCamadas,    setFiltroCamadas]    = useState<Set<string>>(new Set())
+  const filtroCamada = useSetFilter<string>()
   const [showCamadas,      setShowCamadas]      = useState(false)
   const camadasRef = useRef<HTMLDivElement>(null)
 
@@ -103,9 +107,7 @@ export default function CaballosPage() {
   const [tags,     setTags]     = useState<Tag[]>([])
   const [bulkTags, setBulkTags] = useState<Record<number, string>>({})
 
-  // ── Infinite scroll ───────────────────────────────────────────────────────
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
-  const sentinelRef = useRef<HTMLDivElement>(null)
+  // ── Infinite scroll (se configura después de calcular filtradosOrdenados) ──
 
   const salirModoSeleccion = useCallback(() => {
     setModoSeleccion(false)
@@ -138,11 +140,12 @@ export default function CaballosPage() {
 
   async function cargar() {
     setLoading(true)
+    // Prefetch catálogos para que NuevoCaballoModal / EditarCaballoModal abran instantáneo
+    catalogoService.razas().catch(() => {})
+    catalogoService.pelajes().catch(() => {})
     try {
       if (esVet && userId) {
-        // Los campos propios del vet agrupan sus caballos sin sociedad. Los
-        // campos de las sociedades donde tiene acceso llegan con cada caballo
-        // (`campo_nombre` del RPC), así que no hace falta pedirlos aparte.
+        // El RPC del vet no soporta paginación fácil: carga todo de una.
         const [c, f] = await Promise.all([
           caballoService.listarDelVeterinario(),
           campoService.listarDelVeterinario(userId).catch(() => [] as Campo[]),
@@ -151,6 +154,8 @@ export default function CaballosPage() {
         setCampos(f)
       } else {
         if (!sociedadId) return
+        // La RPC get_caballos_sociedad bypasea RLS (chequea membresía una vez)
+        // así que ya no necesita paginación progresiva: trae todo en un round-trip.
         const [c, f] = await Promise.all([
           caballoService.listar(sociedadId),
           campoService.listar(sociedadId),
@@ -166,6 +171,12 @@ export default function CaballosPage() {
   }
 
   useEffect(() => { cargar() }, [sociedadId, userId, esVet]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounce de búsqueda: evita recalcular filtros en cada keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setBusqueda(busquedaRaw), 180)
+    return () => clearTimeout(t)
+  }, [busquedaRaw])
 
   // Dados de baja: se cargan solo cuando el toggle se activa, evitando una
   // query extra en cada carga inicial.
@@ -186,15 +197,9 @@ export default function CaballosPage() {
   }, [])
 
   // Cerrar dropdowns al hacer click fuera
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (empresaRef.current && !empresaRef.current.contains(e.target as Node)) setShowEmpresaDD(false)
-      if (camposRef.current  && !camposRef.current.contains(e.target as Node))  setShowCamposDD(false)
-      if (camadasRef.current && !camadasRef.current.contains(e.target as Node)) setShowCamadas(false)
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  useOutsideClick(empresaRef, useCallback(() => setShowEmpresaDD(false), []))
+  useOutsideClick(camposRef,  useCallback(() => setShowCamposDD(false), []))
+  useOutsideClick(camadasRef, useCallback(() => setShowCamadas(false), []))
 
   // ── Edición masiva ────────────────────────────────────────────────────────
   const hayBulkTags = Object.values(bulkTags).some((v) => v !== SIN_CAMBIO)
@@ -257,24 +262,24 @@ export default function CaballosPage() {
 
   // Para vets: cuando cambia empresa filter, limpiar campos que ya no aplican
   useEffect(() => {
-    if (!esVet || filtroCamposIds.size === 0) return
-    setFiltroCamposIds((prev) => {
+    if (!esVet || filtroCampos.size === 0) return
+    filtroCampos.setSet((prev) => {
       const camposValidos = new Set(
         caballos
-          .filter((c) => filtroEmpresaIds.size === 0 || filtroEmpresaIds.has(c.sociedad_id ?? ''))
+          .filter((c) => filtroEmpresa.size === 0 || filtroEmpresa.set.has(c.sociedad_id ?? ''))
           .map((c) => c.campo_id as string | null)
           .filter(Boolean)
       )
       const next = new Set([...prev].filter((id) => camposValidos.has(id)))
       return next.size === prev.size ? prev : next
     })
-  }, [filtroEmpresaIds]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filtroEmpresa.set]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const camposDisponiblesParaFiltro = useMemo(() => {
     const mapa: Record<string, string> = {}
     // Para vets con empresa seleccionada, mostrar solo campos de esas empresas
-    const base = esVet && filtroEmpresaIds.size > 0
-      ? caballos.filter((c) => filtroEmpresaIds.has(c.sociedad_id ?? ''))
+    const base = esVet && filtroEmpresa.size > 0
+      ? caballos.filter((c) => filtroEmpresa.set.has(c.sociedad_id ?? ''))
       : caballos
     for (const c of base) {
       const id     = c.campo_id as string | null
@@ -285,7 +290,7 @@ export default function CaballosPage() {
     return Object.entries(mapa)
       .map(([id, nombre]) => ({ id, nombre }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre))
-  }, [caballos, campos, esVet, filtroEmpresaIds])
+  }, [caballos, campos, esVet, filtroEmpresa.set])
 
   const camadasDisponibles = useMemo(() => {
     const set = new Set<string>()
@@ -311,11 +316,11 @@ export default function CaballosPage() {
     }).filter((c) => {
       const okNombre   = textoBusquedaCaballo(c).includes(busqueda.toLowerCase())
       const okCat      = filtro === 'Todos' || c.categoria === filtro
-      const okEmpresa  = filtroEmpresaIds.size === 0 || filtroEmpresaIds.has(c.sociedad_id ?? '')
-      const okCampo    = filtroCamposIds.size === 0  || filtroCamposIds.has(c.campo_id ?? '')
-      const okCamada   = filtroCamadas.size === 0    || (() => {
+      const okEmpresa  = filtroEmpresa.size === 0 || filtroEmpresa.set.has(c.sociedad_id ?? '')
+      const okCampo    = filtroCampos.size === 0  || filtroCampos.set.has(c.campo_id ?? '')
+      const okCamada   = filtroCamada.size === 0    || (() => {
         const camada = getCamada(c.fecha_nacimiento)
-        return camada !== null && filtroCamadas.has(camada)
+        return camada !== null && filtroCamada.set.has(camada)
       })()
       const okPrenadas = verBaja || !soloPreñadas || (c.prenada === true && c.categoria === 'Yegua')
       // Las yeguas receptoras se gestionan desde "Caballos Centro" (Centro de Embriones)
@@ -323,35 +328,15 @@ export default function CaballosPage() {
       return okNombre && okCat && okEmpresa && okCampo && okCamada && okPrenadas && okRol
     })
     return base.sort((a, b) => a.nombre.localeCompare(b.nombre))
-  }, [caballos, caballosBaja, verBaja, busqueda, filtro, filtroEmpresaIds, filtroCamposIds, filtroCamadas, soloPreñadas])
+  }, [caballos, caballosBaja, verBaja, busqueda, filtro, filtroEmpresa.set, filtroCampos.set, filtroCamada.set, soloPreñadas])
 
-  // Resetear página visible cuando cambian filtros o datos
-  useEffect(() => { setVisibleCount(PAGE_SIZE) }, [filtradosOrdenados])
+  // Infinite scroll
+  const { visibleCount, sentinelRef, hayMas } = useInfiniteScroll(filtradosOrdenados.length, PAGE_SIZE)
 
-  // Los items que realmente se renderizan (primera "página" + lo que el scroll pidió)
   const visibles = useMemo(
     () => filtradosOrdenados.slice(0, visibleCount),
     [filtradosOrdenados, visibleCount],
   )
-  const hayMas = visibleCount < filtradosOrdenados.length
-
-  // IntersectionObserver: cuando el sentinel entra en viewport, mostrar más
-  useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          startTransition(() => {
-            setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filtradosOrdenados.length))
-          })
-        }
-      },
-      { rootMargin: '200px' },
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [filtradosOrdenados.length])
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto pb-32">
@@ -438,8 +423,8 @@ export default function CaballosPage() {
             <input
               type="text"
               placeholder="Buscar por nombre o RP…"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              value={busquedaRaw}
+              onChange={(e) => setBusquedaRaw(e.target.value)}
               className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder-slate-400 focus:border-slate-400 focus:outline-none"
             />
           </div>
@@ -540,18 +525,12 @@ export default function CaballosPage() {
         {!modoSeleccion && esVet && empresasDisponibles.length > 0 && (
           <FiltroDropdown
             label="Empresa:"
-            seleccionados={filtroEmpresaIds}
+            seleccionados={filtroEmpresa.set}
             opciones={empresasDisponibles}
             show={showEmpresaDD}
             onToggleShow={() => setShowEmpresaDD((v) => !v)}
-            onToggleOpcion={(id) =>
-              setFiltroEmpresaIds((prev) => {
-                const next = new Set(prev)
-                if (next.has(id)) { next.delete(id) } else { next.add(id) }
-                return next
-              })
-            }
-            onLimpiar={() => setFiltroEmpresaIds(new Set())}
+            onToggleOpcion={filtroEmpresa.toggle}
+            onLimpiar={filtroEmpresa.clear}
             textoTodos="Todas"
             textoUno={(id) => empresasDisponibles.find((e) => e.id === id)?.nombre ?? '1 empresa'}
             textoMultiple={(n) => `${n} empresas`}
@@ -564,18 +543,12 @@ export default function CaballosPage() {
         {!modoSeleccion && camposDisponiblesParaFiltro.length > 0 && (
           <FiltroDropdown
             label="Campo:"
-            seleccionados={filtroCamposIds}
+            seleccionados={filtroCampos.set}
             opciones={camposDisponiblesParaFiltro}
             show={showCamposDD}
             onToggleShow={() => setShowCamposDD((v) => !v)}
-            onToggleOpcion={(id) =>
-              setFiltroCamposIds((prev) => {
-                const next = new Set(prev)
-                if (next.has(id)) { next.delete(id) } else { next.add(id) }
-                return next
-              })
-            }
-            onLimpiar={() => setFiltroCamposIds(new Set())}
+            onToggleOpcion={filtroCampos.toggle}
+            onLimpiar={filtroCampos.clear}
             textoTodos="Todos"
             textoUno={(id) => camposDisponiblesParaFiltro.find((c) => c.id === id)?.nombre ?? '1 campo'}
             textoMultiple={(n) => `${n} campos`}
@@ -588,18 +561,12 @@ export default function CaballosPage() {
         {!modoSeleccion && camadasDisponibles.length > 0 && (
           <FiltroDropdown
             label="Camada:"
-            seleccionados={filtroCamadas}
+            seleccionados={filtroCamada.set}
             opciones={camadasDisponibles.map((c) => ({ id: c, nombre: c }))}
             show={showCamadas}
             onToggleShow={() => setShowCamadas((v) => !v)}
-            onToggleOpcion={(id) =>
-              setFiltroCamadas((prev) => {
-                const next = new Set(prev)
-                if (next.has(id)) { next.delete(id) } else { next.add(id) }
-                return next
-              })
-            }
-            onLimpiar={() => setFiltroCamadas(new Set())}
+            onToggleOpcion={filtroCamada.toggle}
+            onLimpiar={filtroCamada.clear}
             textoTodos="Todas"
             textoUno={(id) => id}
             textoMultiple={(n) => `${n} camadas`}
@@ -609,7 +576,17 @@ export default function CaballosPage() {
         )}
       </div>
 
-      {loading && <div className="flex justify-center py-20"><Spinner size="lg" /></div>}
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <Spinner size="lg" />
+          <div className="w-48">
+            <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+              <div className="h-full rounded-full bg-brand-500 animate-[indeterminate_1.5s_ease-in-out_infinite]" />
+            </div>
+            <p className="text-xs text-slate-400 text-center mt-2">Cargando caballos…</p>
+          </div>
+        </div>
+      )}
       {error   && <div className="rounded-lg border border-red-900 bg-red-950 p-4 text-sm text-red-700">Error: {error}</div>}
       {!loading && !error && filtradosOrdenados.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-sm">Sin resultados</div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useEscapeClose } from '../../hooks/useEscapeClose'
 import { X, AlertCircle, ArrowLeftRight, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
@@ -149,11 +150,7 @@ export default function TransferenciaModal({
     }
   }, [embrionId, embriones, padrilloPreId_])
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  useEscapeClose(onClose)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useEscapeClose } from '../../hooks/useEscapeClose'
+import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { X, AlertTriangle, GitBranch } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import {
@@ -82,8 +84,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
     madre_nombre: caballo.madre_nombre ?? null as string | null,
   })
 
-  const [saving, setSaving] = useState(false)
-  const [error,  setError]  = useState('')
+  const { saving, error, setError, execute } = useSaveHandler()
 
   // Padre: solo machos. Madre: solo yeguas. Se incluyen los dados de baja
   // porque el pedigree es histórico (definición de Gero).
@@ -135,9 +136,8 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
     e.preventDefault()
     if (!form.nombre.trim())    return setError('El nombre es requerido.')
     if (!form.fecha_nacimiento) return setError('La fecha de nacimiento es requerida.')
-    setSaving(true)
-    setError('')
-    try {
+
+    await execute(async () => {
       const actualizarFn = vetMode ? caballoService.actualizarComoVet : caballoService.actualizar
       await actualizarFn(caballo.id, {
         nombre:           form.nombre.trim(),
@@ -159,45 +159,19 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
         madre_id:         genealogia.madre_id,
         madre_nombre:     genealogia.madre_nombre,
       })
-      // Si dejó de ser caballo/yegua, los tags que tuviera se limpian.
       await tagService.guardar(caballo.id, admiteTags ? tagIds : [])
       onSuccess()
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : typeof err === 'object' && err !== null && 'message' in err
-            ? String((err as { message: unknown }).message)
-            : 'Error inesperado al guardar.'
-      setError(msg)
-    } finally {
-      setSaving(false)
-    }
+    })
   }
 
   async function handleBaja() {
-    setSaving(true)
-    try {
+    await execute(async () => {
       await caballoService.darDeBaja(caballo.id)
       onSuccess()
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : typeof err === 'object' && err !== null && 'message' in err
-            ? String((err as { message: unknown }).message)
-            : 'Error inesperado al dar de baja.'
-      setError(msg)
-    } finally {
-      setSaving(false)
-    }
+    })
   }
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  useEscapeClose(onClose)
 
   return (
     <div

@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useEscapeClose } from '../../hooks/useEscapeClose'
+import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { X, AlertCircle, Activity } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
@@ -53,26 +55,19 @@ export default function EcografiaModal({
   const [ovarioDer,  setOvarioDer]  = useState<string[]>([])
   const [notas,      setNotas]      = useState('')
 
-  const [saving, setSaving] = useState(false)
-  const [error,  setError]  = useState('')
+  const { saving, error, setError, execute } = useSaveHandler('Error al guardar.')
 
   // El vet no tiene sociedadActiva: se deriva de la transferencia.
   const efectivaSociedadId = sociedadActiva?.id ?? transferencia.sociedad_id
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  useEscapeClose(onClose)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
     if (!fecha) return setError('La fecha es requerida.')
     if (!user?.id || !efectivaSociedadId) return
 
-    setSaving(true)
-    try {
+    await execute(async () => {
       await registrarEcografia({
         sociedad_id:          efectivaSociedadId,
         transferencia_id:     transferencia.id,
@@ -91,11 +86,7 @@ export default function EcografiaModal({
       if (recordatorio) await actualizarEstadoRecordatorio(recordatorio.id, 'hecho')
       onSuccess?.()
       onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar.')
-    } finally {
-      setSaving(false)
-    }
+    })
   }
 
   return (

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useEscapeClose } from '../../hooks/useEscapeClose'
+import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { X, AlertCircle, Droplets, Snowflake, Cloud, ArrowRight } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
@@ -75,8 +77,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
   const [pgGiven,       setPgGiven]       = useState(false)
   const [notas,         setNotas]         = useState('')
 
-  const [saving, setSaving] = useState(false)
-  const [error,  setError]  = useState('')
+  const { saving, error, setError, execute } = useSaveHandler('Error al guardar.')
 
   // Para el rol 'veterinario', sociedadActiva es null (vet global sin sociedad fija).
   // En ese caso derivamos el sociedad_id del recordatorio o del caballoIdInicial.
@@ -138,11 +139,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
     cargar()
   }, [efectivaSociedadId])
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  useEscapeClose(onClose)
 
   // ── Edición de la lista de embriones ───────────────────────────────────────
 
@@ -170,7 +167,6 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
   }
 
   async function guardar() {
-    setError('')
     if (!caballoId) return setError('Seleccioná la donante.')
     if (!fecha)     return setError('La fecha es requerida.')
     if (!user?.id || !efectivaSociedadId) return
@@ -184,8 +180,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
       return setError('No podés transferir dos embriones a la misma receptora.')
     }
 
-    setSaving(true)
-    try {
+    await execute(async () => {
       // Padrillo con texto libre se guarda en notas
       const notaTextoLibre = padrilloTexto.trim() && !padrilloId
         ? `Padrillo: ${padrilloTexto.trim()}`
@@ -227,8 +222,6 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
         try {
           creados = await crianzaService.crearEmbriones(payloads)
         } catch (errEmb) {
-          // El flushing ya quedó guardado: sin las filas en embrion el stock
-          // muestra la cantidad pero no hay nada transferible.
           throw new Error(
             `El flushing se guardó, pero no se pudieron crear los ${payloads.length} embriones: ` +
             `${mensajeError(errEmb)}. Revisá los permisos sobre la donante y volvé a cargarlos.`,
@@ -236,8 +229,6 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
           )
         }
 
-        // El insert devuelve las filas en el orden en que se mandaron, así que
-        // el índice alcanza para casar cada embrión con su destino.
         const fallidas: string[] = []
         for (let i = 0; i < embriones.length; i++) {
           const e = embriones[i]
@@ -266,8 +257,6 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
         }
 
         if (fallidas.length > 0) {
-          // Los embriones quedaron creados y disponibles: la transferencia se
-          // puede rehacer desde Embriones sin volver a cargar el flushing.
           throw new Error(
             `El flushing y los embriones se guardaron, pero fallaron ${fallidas.length} ` +
             `transferencia(s): ${fallidas.join(' · ')}. Los embriones quedaron disponibles ` +
@@ -276,18 +265,13 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
         }
       }
 
-      // Marcar el recordatorio de origen como hecho
       if (recordatorio?.id) {
         await actualizarEstadoRecordatorio(recordatorio.id, 'hecho')
       }
 
       onSuccess?.(flushing.id)
       onClose()
-    } catch (err) {
-      setError(mensajeError(err, 'Error al guardar.'))
-    } finally {
-      setSaving(false)
-    }
+    })
   }
 
   const donanteSeleccionada = animales.find((a) => a.id === caballoId)

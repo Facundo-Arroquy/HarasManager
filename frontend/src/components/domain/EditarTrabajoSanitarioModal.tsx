@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useEscapeClose } from '../../hooks/useEscapeClose'
+import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { X, AlertCircle, Pencil, Search, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService, type Caballo } from '../../services/caballoService'
@@ -42,14 +44,9 @@ export default function EditarTrabajoSanitarioModal({ trabajo, onEliminar, onClo
   )
   const [busqueda, setBusqueda] = useState('')
 
-  const [saving, setSaving] = useState(false)
-  const [error,  setError]  = useState('')
+  const { saving, error, setError, execute } = useSaveHandler('No se pudo guardar.')
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose() }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose, saving])
+  useEscapeClose(onClose)
 
   useEffect(() => {
     // El universo de caballos es el del dueño del trabajo: la empresa, o los
@@ -107,13 +104,11 @@ export default function EditarTrabajoSanitarioModal({ trabajo, onEliminar, onClo
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError('')
     if (!nombreFinal)            return setError('Poné el nombre del trabajo.')
     if (!fecha)                  return setError('Elegí la fecha.')
     if (seleccionados.size === 0) return setError('Dejá al menos un caballo, o eliminá el trabajo.')
 
-    setSaving(true)
-    try {
+    await execute(async () => {
       await sanidadService.actualizarTrabajo(trabajo.id, {
         nombre:           nombreFinal,
         fecha_programada: fecha,
@@ -122,10 +117,7 @@ export default function EditarTrabajoSanitarioModal({ trabajo, onEliminar, onClo
       })
       await sanidadService.sincronizarCaballos(trabajo.id, [...seleccionados])
       onSuccess()
-    } catch (err) {
-      setError(mensajeError(err, 'No se pudo guardar.'))
-      setSaving(false)
-    }
+    })
   }
 
   return (
