@@ -120,6 +120,14 @@
 
 ## 🟡 Media prioridad
 
+### [x] El vet independiente no ve partes afectadas ni medicamentos
+- **Estado:** QA
+- **Asignado:** -
+- **Descripción:** El veterinario independiente (autoregistrado en `/registro-veterinario`, sin membresía) abría una consulta del historial y veía diagnóstico/tratamiento/observaciones pero las partes afectadas y los medicamentos le venían vacíos, incluso los que cargó él mismo.
+- **Causa:** `historial_clinico_select` contempla `tiene_membresia` **o** `acceso_vet` activo, pero `historial_parte_afectada_select` e `historial_medicamento_select` solo tenían `tiene_membresia` → `false` para el vet sin membresía, así que la consulta madre se veía y los hijos no.
+- **Fix:** migración `20260907120000_rls_historial_hijos_acceso_vet` — le suma a esas dos policies SELECT la misma rama `acceso_vet` que la tabla madre. Sin cambios de frontend.
+- **Pendiente de QA:** con un vet independiente real, abrir una consulta de un caballo al que tiene acceso y confirmar que ahora ve partes afectadas y medicamentos.
+
 ### [ ] Registro persiste en centro de embriones
 - **Estado:** pendiente
 - **Asignado:** -
