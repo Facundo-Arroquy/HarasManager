@@ -1212,7 +1212,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 - DELETE: `creado_por = auth.uid()` **y** `estado = 'pendiente'` (migración `20260819120000`). Solo se borra lo **agendado que nunca se hizo** — una consulta `realizada` no tiene forma de eliminarse desde la app, la inmutabilidad del historial sigue intacta. Antes no había policy de DELETE y ninguna fila se borraba nunca, así que una consulta agendada por error quedaba para siempre en el calendario
 
 **`historial_parte_afectada` / `historial_medicamento`**
-- SELECT: `tiene_membresia` (vía caballo)
+- SELECT: `tiene_membresia` (vía caballo) o fila activa en `acceso_vet` sobre el caballo del historial padre — **la misma rama que `historial_clinico_select`** (migración `20260907120000`). Antes solo tenían `tiene_membresia`, así que el vet independiente (sin membresía) veía la consulta madre pero las partes y los medicamentos le venían vacíos, incluso los suyos
 - INSERT/UPDATE/DELETE: `creado_por` del historial = `auth.uid()`
 - El DELETE se agregó en `20260818120000`. Editar una consulta reescribe partes y medicamentos (borrar todo + reinsertar, en `historialService.actualizar`) y sin policy de DELETE ese borrado no afectaba ninguna fila ni daba error: las filas viejas quedaban duplicadas junto a las nuevas
 
