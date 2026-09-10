@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Search, LayoutGrid, MapPin, Building2 } from 'lucide-react'
 import { caballoService } from '../../services/caballoService'
 import { campoService, type Campo } from '../../services/campoService'
@@ -19,6 +19,7 @@ type FiltroRol = typeof FILTROS_ROL[number]
 
 export default function CaballosCentroPage() {
   const navigate   = useNavigate()
+  const location   = useLocation()
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const userId     = useAuthStore((s) => s.user?.id)
   const rol        = useAuthStore((s) => s.rol)
@@ -120,7 +121,7 @@ export default function CaballosCentroPage() {
   const sinCampo = gruposPorCampo['__sin_campo__'] ?? []
 
   function irAlDetalle(c: Caballo) {
-    navigate(`/caballos/${c.id}/historial`)
+    navigate(`/caballos/${c.id}/historial`, { state: { from: location.pathname } })
   }
 
   return (

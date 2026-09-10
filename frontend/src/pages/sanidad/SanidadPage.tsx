@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Plus, Syringe, Check, X, CheckCircle2, CalendarDays, Stethoscope, Share2, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { sanidadService } from '../../services/sanidadService'
@@ -54,6 +54,7 @@ function externoDelFiltro(f: FiltroExterno): boolean | undefined {
 }
 
 export default function SanidadPage() {
+  const location   = useLocation()
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const userId     = useAuthStore((s) => s.user?.id)
   const rol        = useAuthStore((s) => s.rol)
@@ -363,6 +364,7 @@ function TrabajosRealizados({
             <Link
               key={t.id}
               to={`/caballos/${t.caballo_id}/historial?consulta=${t.id}`}
+              state={{ from: location.pathname }}
               className="block px-4 py-3 text-sm transition-colors hover:bg-slate-50"
             >
               <div className="flex items-start justify-between gap-3">

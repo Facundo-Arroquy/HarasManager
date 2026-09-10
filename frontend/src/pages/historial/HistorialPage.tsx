@@ -38,12 +38,7 @@ export default function HistorialPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
-  // Si se llegó navegando dentro de la app (Centro de Cría, Calendario, Dashboard,
-  // etc.) hay una entrada previa en el historial y "volver" debe ir ahí — no
-  // siempre a /caballos. React Router marca location.key = 'default' cuando no
-  // hay historial propio (carga directa/refresh), único caso donde no hay a
-  // dónde volver y usamos /caballos como fallback.
-  const puedeVolverAtras = location.key !== 'default'
+  const volverA: string = (location.state as { from?: string })?.from || '/caballos'
   const rol  = useAuthStore((s) => s.rol)
   const user = useAuthStore((s) => s.user)
   const modulos = useAuthStore((s) => s.modulos)
@@ -270,7 +265,7 @@ export default function HistorialPage() {
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
       {/* Volver */}
       <button
-        onClick={() => puedeVolverAtras ? navigate(-1) : navigate('/caballos')}
+        onClick={() => navigate(volverA)}
         className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-700 transition-colors mb-5"
       >
         <ArrowLeft size={15} /> Volver
