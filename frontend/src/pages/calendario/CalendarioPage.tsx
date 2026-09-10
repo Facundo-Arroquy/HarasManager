@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Syringe, Stethoscope, X, Building2, Pencil, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useSaveHandler } from '../../hooks/useSaveHandler'
@@ -74,6 +74,7 @@ function horaAR(iso: string): string {
 
 export default function CalendarioPage() {
   const navigate   = useNavigate()
+  const location   = useLocation()
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const userId     = useAuthStore((s) => s.user?.id)
   const rol        = useAuthStore((s) => s.rol)
@@ -207,7 +208,7 @@ export default function CalendarioPage() {
    */
   async function abrirConsulta(c: ConsultaCalendario) {
     if (c.estado === 'realizada') {
-      navigate(`/caballos/${c.caballo_id}/historial?consulta=${c.id}`)
+      navigate(`/caballos/${c.caballo_id}/historial?consulta=${c.id}`, { state: { from: location.pathname } })
       return
     }
     setAbriendoId(c.id)

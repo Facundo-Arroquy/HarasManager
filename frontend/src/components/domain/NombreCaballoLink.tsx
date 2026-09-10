@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import type { KeyboardEvent, MouseEvent } from 'react'
 
 interface Props {
@@ -22,6 +22,7 @@ interface Props {
  */
 export default function NombreCaballoLink({ id, nombre, className = '', fallback = '—' }: Props) {
   const navigate = useNavigate()
+  const location = useLocation()
   const texto = nombre?.trim() || fallback
 
   if (!id) return <span className={className}>{texto}</span>
@@ -29,7 +30,7 @@ export default function NombreCaballoLink({ id, nombre, className = '', fallback
   function ir(e: MouseEvent | KeyboardEvent) {
     e.preventDefault()
     e.stopPropagation()
-    navigate(`/caballos/${id}/historial`)
+    navigate(`/caballos/${id}/historial`, { state: { from: location.pathname } })
   }
 
   return (

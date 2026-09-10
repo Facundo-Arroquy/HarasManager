@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutGrid, AlertTriangle, ClipboardList, ChevronRight, Clock, Building2, Stethoscope } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService, type Caballo } from '../../services/caballoService'
@@ -43,6 +43,7 @@ export default function PanelVetPage() {
   const user   = useAuthStore((s) => s.user)
   const userId = user?.id
   const navigate = useNavigate()
+  const location = useLocation()
 
   // Se guarda la lista y no solo el total: el desglose por empresa sale de acá,
   // y pedir un conteo por separado sería una segunda fuente de verdad.
@@ -223,7 +224,7 @@ export default function PanelVetPage() {
               return (
                 <button
                   key={a.historial_id}
-                  onClick={() => navigate(`/caballos/${a.caballo_id}/historial`)}
+                  onClick={() => navigate(`/caballos/${a.caballo_id}/historial`, { state: { from: location.pathname } })}
                   className="w-full flex items-center justify-between px-4 py-3 hover:bg-brand-50/60 transition-colors text-left"
                 >
                   <div className="min-w-0">
@@ -270,7 +271,7 @@ export default function PanelVetPage() {
             {consultas.map((c) => (
               <button
                 key={c.id}
-                onClick={() => navigate(`/caballos/${c.caballo_id}/historial`)}
+                onClick={() => navigate(`/caballos/${c.caballo_id}/historial`, { state: { from: location.pathname } })}
                 className="w-full flex items-start justify-between px-4 py-3.5 hover:bg-slate-50 transition-colors text-left"
               >
                 <div className="min-w-0 flex-1">

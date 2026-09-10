@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense } fro
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll'
 import { useSetFilter } from '../../hooks/useSetFilter'
 import { useOutsideClick } from '../../hooks/useOutsideClick'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Search, Plus, CheckSquare, X, FileDown, ChevronDown, LayoutGrid, List } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { caballoService } from '../../services/caballoService'
@@ -50,6 +50,7 @@ const canManageCampos = (rol: string | null) =>
 
 export default function CaballosPage() {
   const navigate   = useNavigate()
+  const location   = useLocation()
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const userId     = useAuthStore((s) => s.user?.id)
   const rol        = useAuthStore((s) => s.rol)
@@ -614,7 +615,7 @@ export default function CaballosPage() {
                   key={caballo.id}
                   caballo={caballo}
                   onVerFicha={() => setDetalle(caballo)}
-                  onHistorial={() => navigate(`/caballos/${caballo.id}/historial`)}
+                  onHistorial={() => navigate(`/caballos/${caballo.id}/historial`, { state: { from: location.pathname } })}
                   seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
                   onToggle={modoSeleccion ? () => toggleSeleccion(caballo.id) : undefined}
                   empresaNombre={esVet ? caballo.empresa_nombre ?? undefined : undefined}
@@ -628,7 +629,7 @@ export default function CaballosPage() {
                 <CaballoCard
                   key={caballo.id}
                   caballo={caballo}
-                  onClick={() => navigate(`/caballos/${caballo.id}/historial`)}
+                  onClick={() => navigate(`/caballos/${caballo.id}/historial`, { state: { from: location.pathname } })}
                   seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
                   onToggle={modoSeleccion ? () => toggleSeleccion(caballo.id) : undefined}
                   empresaNombre={esVet ? caballo.empresa_nombre ?? undefined : undefined}

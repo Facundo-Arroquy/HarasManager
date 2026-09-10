@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { X, ClipboardList, Pencil, MapPin } from 'lucide-react'
 import { calcularEdad } from '../../utils/fecha'
 import { useAuth } from '../../hooks/useAuth'
@@ -48,6 +48,7 @@ const SUBCATEGORIA_STYLE: Record<string, string> = {
 
 export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onEditar, onRefresh }: Props) {
   const navigate    = useNavigate()
+  const location    = useLocation()
   const { rol }     = useAuth()
   const badgeClass  = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
   const subClass    = caballo.rol_reproductivo ? SUBCATEGORIA_STYLE[caballo.rol_reproductivo] : undefined
@@ -220,7 +221,7 @@ export default function CaballoDetalleModal({ caballo, puedeEditar, onClose, onE
         {/* Acciones */}
         <div className="px-5 pb-5 space-y-2">
           <button
-            onClick={() => { onClose(); navigate(`/caballos/${caballo.id}/historial`) }}
+            onClick={() => { onClose(); navigate(`/caballos/${caballo.id}/historial`, { state: { from: location.pathname } }) }}
             className="w-full flex items-center justify-between rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-500"
           >
             <span className="flex items-center gap-2">

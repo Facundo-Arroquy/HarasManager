@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, Plus, Droplets, ArrowLeftRight, Stethoscope, FlaskConical, GitBranch, Printer, ImageIcon, Pencil, ShieldCheck, Trash2 } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { caballoService, type Caballo } from '../../services/caballoService'
@@ -36,7 +36,9 @@ const CATEGORIA_STYLE: Record<string, string> = {
 export default function HistorialPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
+  const volverA: string = (location.state as { from?: string })?.from || '/caballos'
   const rol  = useAuthStore((s) => s.rol)
   const user = useAuthStore((s) => s.user)
   const modulos = useAuthStore((s) => s.modulos)
@@ -263,10 +265,10 @@ export default function HistorialPage() {
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
       {/* Volver */}
       <button
-        onClick={() => navigate('/caballos')}
+        onClick={() => navigate(volverA)}
         className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-700 transition-colors mb-5"
       >
-        <ArrowLeft size={15} /> Volver a caballos
+        <ArrowLeft size={15} /> Volver
       </button>
 
       {/* Cabecera del caballo */}

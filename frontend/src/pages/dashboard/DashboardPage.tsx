@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { MapPin, Stethoscope, AlertCircle, Calendar, Tag, Syringe } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { useAuthStore } from '../../store/authStore'
@@ -30,6 +30,7 @@ interface DashStats {
 export default function DashboardPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const navigate   = useNavigate()
+  const location   = useLocation()
 
   const [stats,     setStats]     = useState<DashStats>({ total: 0, sinCampo: 0, sinChip: 0, porCategoria: {} })
   const [campos,    setCampos]    = useState<CampoConConteo[]>([])
@@ -214,7 +215,7 @@ export default function DashboardPage() {
               {ultimasConsultas.map((h) => (
                 <button
                   key={h.id}
-                  onClick={() => navigate(`/caballos/${h.caballo_id}/historial`)}
+                  onClick={() => navigate(`/caballos/${h.caballo_id}/historial`, { state: { from: location.pathname } })}
                   className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-slate-100/80 transition-colors"
                 >
                   <Stethoscope size={13} className="text-brand-600 shrink-0" />
@@ -239,7 +240,7 @@ export default function DashboardPage() {
               {proximasConsultas.map((h) => (
                 <button
                   key={h.id}
-                  onClick={() => navigate(`/caballos/${h.caballo_id}/historial`)}
+                  onClick={() => navigate(`/caballos/${h.caballo_id}/historial`, { state: { from: location.pathname } })}
                   className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-slate-100/80 transition-colors"
                 >
                   <Calendar size={13} className="text-brand-500 shrink-0" />
