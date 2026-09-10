@@ -190,6 +190,15 @@ CREATE TABLE caballo (
   -- se carga el 31/12 del PRIMER año de la temporada y el valor original queda
   -- anotado en `observaciones`. Las fechas así inferidas se reconocen por el
   -- texto 'fecha fijada al' en esa columna.
+  -- Receptoras de Sol de Agosto (migración 20260909120000_sda_carga_receptoras):
+  -- 98 receptoras comerciales cargadas desde la planilla "EMBRIONES 25-26" (hoja
+  -- "Receptoras"). Son yeguas identificadas solo por número de caña -> `nombre` =
+  -- ese número tal cual ('165', 'Veruga'), `categoria` 'Yegua', `sexo` 'H',
+  -- `rol_reproductivo` 'Receptora', sin `estado_reproductivo`. `campo`: 'En 60'
+  -- -> potrero '60'; 'Costal' -> potrero nuevo de SDA creado en la misma
+  -- migración. Pelajes sin equivalente en `cat_pelaje` (Lobuna, pintada,
+  -- Azuleja) van con `pelaje_id` NULL y el original en `observaciones`. NO se
+  -- cargaron como preñadas (sin transferencia que lo respalde).
   fecha_nacimiento DATE,
   categoria VARCHAR(20) CHECK (categoria IN ('Yegua','Padrillo','Caballo','Potrillo')),
   subcategoria TEXT,                           -- texto libre por categoría
