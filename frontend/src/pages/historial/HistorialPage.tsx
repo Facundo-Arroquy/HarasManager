@@ -22,6 +22,8 @@ import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
 import ArbolGenealogico from '../../components/domain/ArbolGenealogico'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
+import EditarFlushingModal from '../../components/centro-cria/EditarFlushingModal'
+import EditarTransferenciaModal from '../../components/centro-cria/EditarTransferenciaModal'
 import { tieneAccesoModulo } from '../../utils/modulos'
 import { admiteRegistroCria } from '../../types/crianza'
 import type { RegistroClinicoCria, Flushing, TransferenciaEmbrionaria } from '../../types/crianza'
@@ -54,6 +56,10 @@ export default function HistorialPage() {
   const [showRegCria, setShowRegCria] = useState(false)
   const [entryToEdit, setEntryToEdit] = useState<HistorialEntry | null>(null)
   const [borrandoId,  setBorrandoId]  = useState<string | null>(null)
+  const [borrandoCriaId, setBorrandoCriaId] = useState<string | null>(null)
+  const [regEditar,    setRegEditar]    = useState<RegistroClinicoCria | null>(null)
+  const [flushEditar,  setFlushEditar]  = useState<Flushing | null>(null)
+  const [transfEditar, setTransfEditar] = useState<TransferenciaEmbrionaria | null>(null)
 
   // ── Preñada ─────────────────────────────────────────────────────────────────
   const [prenada,       setPrenada]       = useState(false)
@@ -101,19 +107,21 @@ export default function HistorialPage() {
   }
 
   /**
-   * Borrar solo lo agendado que nunca se hizo, y solo lo propio: es lo único
-   * que deja pasar la RLS de `historial_clinico`. Una consulta ya cargada es
-   * historial clínico y no se borra desde ningún lado de la app.
+   * Solo lo propio. Lo agendado que nunca se hizo se borra; una consulta ya
+   * realizada se anula: deja de verse, pero el historial clínico no se elimina.
    */
   async function eliminarConsulta(e: HistorialEntry) {
-    const ok = window.confirm(
-      `¿Eliminar la consulta agendada del ${formatFechaAR(e.fecha_consulta)} (${e.cat_tipo_consulta.nombre})?\n\n` +
-      'No se puede deshacer.',
+    const agendada = e.estado === 'pendiente'
+    const ok = window.confirm(agendada
+      ? `¿Eliminar la consulta agendada del ${formatFechaAR(e.fecha_consulta)} (${e.cat_tipo_consulta.nombre})?\n\n` +
+        'No se puede deshacer.'
+      : `¿Anular la consulta del ${formatFechaAR(e.fecha_consulta)} (${e.cat_tipo_consulta.nombre})?\n\n` +
+        'Deja de verse en la app para todos. Queda guardada en la base y en la auditoría.',
     )
     if (!ok) return
     setBorrandoId(e.id)
     try {
-      await historialService.eliminar(e.id)
+      await (agendada ? historialService.eliminar(e.id) : historialService.anular(e.id))
       cargarHistorial()
     } catch (err) {
       setError(mensajeError(err, 'No se pudo eliminar la consulta.'))
@@ -159,7 +167,8 @@ export default function HistorialPage() {
 
   async function eliminarTrabajo(t: TrabajoSanitario) {
     const ok = window.confirm(
-      `¿Eliminar el trabajo "${t.nombre}" del ${formatFecha(t.fecha_programada)}?\n\nNo se puede deshacer.`,
+      `¿Eliminar el trabajo "${t.nombre}" del ${formatFecha(t.fecha_programada)}?\n\nNo se puede deshacer.` +
+      (t.estado === 'realizado' ? '\n\nLas consultas que generó quedan en el historial de cada caballo.' : ''),
     )
     if (!ok) return
     setBorrandoTrabId(t.id)
@@ -170,6 +179,29 @@ export default function HistorialPage() {
       setError(mensajeError(err, 'No se pudo eliminar el trabajo.'))
     } finally {
       setBorrandoTrabId(null)
+    }
+  }
+
+  /**
+   * Borrar un registro del centro: solo el autor, y solo si nada depende de él.
+   * La RPC deshace los efectos del alta y explica qué borrar primero si no puede.
+   */
+  async function eliminarCria(
+    tipo: 'registro' | 'flushing' | 'transferencia',
+    id: string,
+    pregunta: string,
+  ) {
+    if (!window.confirm(pregunta)) return
+    setBorrandoCriaId(id)
+    try {
+      if (tipo === 'registro') await crianzaService.eliminarRegistro(id)
+      else if (tipo === 'flushing') await crianzaService.eliminarFlushing(id)
+      else await crianzaService.eliminarTransferencia(id)
+      await cargarReproductivo()
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo eliminar.'))
+    } finally {
+      setBorrandoCriaId(null)
     }
   }
 
@@ -497,21 +529,22 @@ export default function HistorialPage() {
             <div className="space-y-3">
               {historial.map((entry) => {
                 const e = entry as HistorialEntry
-                // Lo único que se borra: lo agendado que nunca se hizo, y propio.
-                const borrable = e.estado === 'pendiente' && e.creado_por === user?.id
+                const propia = e.creado_por === user?.id
                 const card = (
                   <HistorialCard
                     entry={e}
                     destacada={e.id === consultaDestacada}
-                    onEditar={e.creado_por === user?.id ? () => setEntryToEdit(e) : undefined}
-                    onEliminar={borrable ? () => eliminarConsulta(e) : undefined}
+                    onEditar={propia ? () => setEntryToEdit(e) : undefined}
+                    onEliminar={propia ? () => eliminarConsulta(e) : undefined}
                     eliminando={borrandoId === e.id}
                   />
                 )
-                return borrable ? (
+                return propia ? (
                   <DeslizarParaEliminar
                     key={e.id}
-                    etiqueta={`la consulta agendada del ${formatFechaAR(e.fecha_consulta)}`}
+                    etiqueta={e.estado === 'pendiente'
+                      ? `la consulta agendada del ${formatFechaAR(e.fecha_consulta)}`
+                      : `la consulta del ${formatFechaAR(e.fecha_consulta)}`}
                     onEliminar={() => eliminarConsulta(e)}
                   >
                     {card}
@@ -546,7 +579,9 @@ export default function HistorialPage() {
               {trabajosSan.map((t) => {
                 const esPendiente = t.estado === 'pendiente'
                 const puedeEditar = esPendiente && (t.creado_por === user?.id || rol === 'admin')
-                const puedeEliminar = esPendiente && (t.creado_por === user?.id || rol === 'admin')
+                // El autor borra lo suyo aunque esté realizado: las consultas que
+                // generó quedan en el historial. El admin, solo lo pendiente.
+                const puedeEliminar = t.creado_por === user?.id || (esPendiente && rol === 'admin')
                 return (
                   <div key={t.id} className={`px-4 py-3 text-sm ${t.estado === 'cancelado' ? 'opacity-50' : ''}`}>
                     <div className="flex items-start justify-between gap-2">
@@ -653,6 +688,29 @@ export default function HistorialPage() {
                             {r.veterinario && (
                               <p className="text-[11px] text-slate-400">Dr/a. {r.veterinario.apellido}</p>
                             )}
+                            {r.veterinario_id === user?.id && (
+                              <div className="mt-1 flex justify-end gap-0.5">
+                                <button
+                                  onClick={() => setRegEditar(r)}
+                                  className="p-1 rounded-md text-slate-400 hover:text-brand-600 hover:bg-slate-100 transition-colors"
+                                  title="Editar registro"
+                                  aria-label="Editar registro"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  onClick={() => eliminarCria('registro', r.id,
+                                    `¿Eliminar el registro del ${formatFecha(r.fecha)}?\n\n` +
+                                    'Se borran también sus recordatorios automáticos pendientes. No se puede deshacer.')}
+                                  disabled={borrandoCriaId === r.id}
+                                  className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                  title="Eliminar registro"
+                                  aria-label="Eliminar registro"
+                                >
+                                  {borrandoCriaId === r.id ? <Spinner size="sm" /> : <Trash2 size={13} />}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -693,6 +751,29 @@ export default function HistorialPage() {
                             <p className="text-xs text-slate-500">{formatFecha(f.fecha)}</p>
                             {f.veterinario && (
                               <p className="text-[11px] text-slate-400">Dr/a. {f.veterinario.apellido}</p>
+                            )}
+                            {f.veterinario_id === user?.id && (
+                              <div className="mt-1 flex justify-end gap-0.5">
+                                <button
+                                  onClick={() => setFlushEditar(f)}
+                                  className="p-1 rounded-md text-slate-400 hover:text-brand-600 hover:bg-slate-100 transition-colors"
+                                  title="Editar flushing"
+                                  aria-label="Editar flushing"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  onClick={() => eliminarCria('flushing', f.id,
+                                    `¿Eliminar el flushing del ${formatFecha(f.fecha)}?\n\n` +
+                                    'Si tiene embriones cargados, primero hay que eliminarlos desde Embriones. No se puede deshacer.')}
+                                  disabled={borrandoCriaId === f.id}
+                                  className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                  title="Eliminar flushing"
+                                  aria-label="Eliminar flushing"
+                                >
+                                  {borrandoCriaId === f.id ? <Spinner size="sm" /> : <Trash2 size={13} />}
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -748,6 +829,30 @@ export default function HistorialPage() {
                             <p className="text-xs text-slate-500">{formatFecha(t.fecha)}</p>
                             {t.veterinario && (
                               <p className="text-[11px] text-slate-400">Dr/a. {t.veterinario.apellido}</p>
+                            )}
+                            {t.veterinario_id === user?.id && (
+                              <div className="mt-1 flex justify-end gap-0.5">
+                                <button
+                                  onClick={() => setTransfEditar(t)}
+                                  className="p-1 rounded-md text-slate-400 hover:text-brand-600 hover:bg-slate-100 transition-colors"
+                                  title="Editar transferencia"
+                                  aria-label="Editar transferencia"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  onClick={() => eliminarCria('transferencia', t.id,
+                                    `¿Eliminar la transferencia del ${formatFecha(t.fecha)}?\n\n` +
+                                    'El embrión vuelve a quedar disponible, se deshace la preñez de la receptora y se ' +
+                                    'borran sus recordatorios de ecografía pendientes. No se puede deshacer.')}
+                                  disabled={borrandoCriaId === t.id}
+                                  className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                  title="Eliminar transferencia"
+                                  aria-label="Eliminar transferencia"
+                                >
+                                  {borrandoCriaId === t.id ? <Spinner size="sm" /> : <Trash2 size={13} />}
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -815,6 +920,29 @@ export default function HistorialPage() {
             setTab('reproductivo')
             cargarReproductivo().catch(() => {})
           }}
+        />
+      )}
+
+      {/* Correcciones de lo cargado en el Centro de Cría */}
+      {regEditar && (
+        <RegistroCriaModal
+          registroEditar={regEditar}
+          onClose={() => setRegEditar(null)}
+          onSuccess={() => { cargarReproductivo().catch(() => {}) }}
+        />
+      )}
+      {flushEditar && (
+        <EditarFlushingModal
+          flushing={flushEditar}
+          onClose={() => setFlushEditar(null)}
+          onSuccess={() => { cargarReproductivo().catch(() => {}) }}
+        />
+      )}
+      {transfEditar && (
+        <EditarTransferenciaModal
+          transferencia={transfEditar}
+          onClose={() => setTransfEditar(null)}
+          onSuccess={() => { cargarReproductivo().catch(() => {}) }}
         />
       )}
 

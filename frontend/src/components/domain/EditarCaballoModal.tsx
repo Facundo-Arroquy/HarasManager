@@ -12,6 +12,7 @@ import {
   type CaballoPedigree,
   type Sexo,
 } from '../../services/caballoService'
+import { vetLimiteService } from '../../services/vetLimiteService'
 import { catalogoService } from '../../services/catalogoService'
 import { campoService, type Campo } from '../../services/campoService'
 import { CATEGORIAS_CON_TAGS, tagService } from '../../services/tagService'
@@ -166,7 +167,14 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
 
   async function handleBaja() {
     await execute(async () => {
-      await caballoService.darDeBaja(caballo.id)
+      // El vet no tiene la policy de UPDATE directo (`es_admin`), sea o no
+      // propio el caballo — pasa siempre por la RPC, que valida propiedad o
+      // acceso_vet activo.
+      if (vetMode) {
+        await vetLimiteService.darDeBajaLote([caballo.id])
+      } else {
+        await caballoService.darDeBaja(caballo.id)
+      }
       onSuccess()
     })
   }
@@ -414,7 +422,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-5 py-3">
           <div>
-            {esAdmin && !confirmBaja && (
+            {(esAdmin || vetMode) && !confirmBaja && (
               <button
                 type="button"
                 onClick={() => setConfirmBaja(true)}

@@ -54,7 +54,6 @@ function externoDelFiltro(f: FiltroExterno): boolean | undefined {
 }
 
 export default function SanidadPage() {
-  const location   = useLocation()
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const userId     = useAuthStore((s) => s.user?.id)
   const rol        = useAuthStore((s) => s.rol)
@@ -155,7 +154,8 @@ export default function SanidadPage() {
     const cuantos = t.caballos?.length ?? 0
     const ok = window.confirm(
       `¿Eliminar el trabajo “${t.nombre}” del ${formatFecha(t.fecha_programada)}?\n\n` +
-      `Se borra para los ${cuantos} caballo${cuantos !== 1 ? 's' : ''} del trabajo. No se puede deshacer.`,
+      `Se borra para los ${cuantos} caballo${cuantos !== 1 ? 's' : ''} del trabajo. No se puede deshacer.` +
+      (t.estado === 'realizado' ? '\n\nLas consultas que generó quedan en el historial de cada caballo.' : ''),
     )
     if (!ok) return
     try {
@@ -316,6 +316,7 @@ function TrabajosRealizados({
   loading:  boolean
   error:    string | null
 }) {
+  const location = useLocation()
   return (
     <section>
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">

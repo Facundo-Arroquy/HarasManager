@@ -4,7 +4,7 @@ import { X, AlertCircle, ArrowLeftRight, CheckCircle2, AlertTriangle } from 'luc
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
-import { esStockGuardado } from '../../types/crianza'
+import { esStockGuardado, CL_CALIDADES, TONOS } from '../../types/crianza'
 import type { Flushing, Embrion } from '../../types/crianza'
 import { hoyAR } from '../../utils/fecha'
 import SelectorReceptoras from './SelectorReceptoras'
@@ -30,9 +30,6 @@ type AnimalItem = {
   categoria: string
   rol_reproductivo: 'Donante' | 'Receptora' | null
 }
-
-const CL_CALIDADES = ['Excelente', 'Buena', 'Regular', 'Mala'] as const
-const TONOS        = ['Excelente', 'Bueno', 'Regular', 'Malo'] as const
 
 function formatFecha(iso: string): string {
   const [y, m, d] = iso.split('T')[0].split('-')

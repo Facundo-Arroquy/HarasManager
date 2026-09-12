@@ -4,9 +4,10 @@ import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { X, AlertCircle, Activity } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
+import { crianzaService } from '../../services/crianzaService'
 import { CHIPS_OI_OD, LABEL_RESULTADO_ECO } from '../../types/crianza'
 import type {
-  ResultadoEcografia, TransferenciaEmbrionaria, RecordatorioCria,
+  Ecografia, ResultadoEcografia, TransferenciaEmbrionaria, RecordatorioCria,
 } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import { hoyAR, formatFecha } from '../../utils/fecha'
@@ -21,6 +22,13 @@ interface Props {
    * eco suelta cargada desde Transferencias.
    */
   recordatorio?: RecordatorioCria
+  /** Ecografía a corregir. El número no se cambia. */
+  ecografiaEditar?: Ecografia
+  /**
+   * Solo la última eco de la transferencia puede cambiar de resultado: pasar
+   * una del medio a 'abortada' dejaría ecos posteriores sobre una yegua vacía.
+   */
+  puedeCambiarResultado?: boolean
   onClose: () => void
   onSuccess?: () => void
 }
@@ -34,7 +42,8 @@ const RESULTADO_STYLE: Record<ResultadoEcografia, string> = {
 }
 
 export default function EcografiaModal({
-  transferencia, ecografiasExistentes, recordatorio, onClose, onSuccess,
+  transferencia, ecografiasExistentes, recordatorio, ecografiaEditar,
+  puedeCambiarResultado = true, onClose, onSuccess,
 }: Props) {
   const { user, sociedadActiva } = useAuth()
   const registrarEcografia = useCrianzaStore((s) => s.registrarEcografia)
@@ -48,12 +57,12 @@ export default function EcografiaModal({
   const numeroDelRecordatorio = Number(recordatorio?.tipo.match(/^Eco (\d+)$/)?.[1])
   const proximoNumero = numeroDelRecordatorio || maxExistente + 1
 
-  const [numero,     setNumero]     = useState<number>(proximoNumero)
-  const [fecha,      setFecha]      = useState(hoyAR())
-  const [resultado,  setResultado]  = useState<ResultadoEcografia>('pendiente')
-  const [ovarioIzq,  setOvarioIzq]  = useState<string[]>([])
-  const [ovarioDer,  setOvarioDer]  = useState<string[]>([])
-  const [notas,      setNotas]      = useState('')
+  const [numero,     setNumero]     = useState<number>(ecografiaEditar?.numero ?? proximoNumero)
+  const [fecha,      setFecha]      = useState(ecografiaEditar?.fecha ?? hoyAR())
+  const [resultado,  setResultado]  = useState<ResultadoEcografia>(ecografiaEditar?.resultado ?? 'pendiente')
+  const [ovarioIzq,  setOvarioIzq]  = useState<string[]>(ecografiaEditar?.ovario_izq ?? [])
+  const [ovarioDer,  setOvarioDer]  = useState<string[]>(ecografiaEditar?.ovario_der ?? [])
+  const [notas,      setNotas]      = useState(ecografiaEditar?.notas ?? '')
 
   const { saving, error, setError, execute } = useSaveHandler('Error al guardar.')
 
@@ -68,6 +77,18 @@ export default function EcografiaModal({
     if (!user?.id || !efectivaSociedadId) return
 
     await execute(async () => {
+      if (ecografiaEditar) {
+        await crianzaService.actualizarEcografia(ecografiaEditar, {
+          fecha,
+          resultado,
+          ovario_izq: ovarioIzq,
+          ovario_der: ovarioDer,
+          notas:      notas.trim() || null,
+        })
+        onSuccess?.()
+        onClose()
+        return
+      }
       await registrarEcografia({
         sociedad_id:          efectivaSociedadId,
         transferencia_id:     transferencia.id,
@@ -101,7 +122,9 @@ export default function EcografiaModal({
           <div className="flex items-center gap-2">
             <Activity size={16} className="text-brand-600" />
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Registrar ecografía</h2>
+              <h2 className="text-sm font-semibold text-slate-900">
+                {ecografiaEditar ? `Editar ecografía ${ecografiaEditar.numero}` : 'Registrar ecografía'}
+              </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {transferencia.receptora?.nombre ?? 'Receptora'}
                 {transferencia.donante?.nombre ? ` ← ${transferencia.donante.nombre}` : ''}
@@ -133,7 +156,8 @@ export default function EcografiaModal({
                 min={1}
                 value={numero}
                 onChange={(e) => setNumero(Math.max(1, Number(e.target.value) || 1))}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                disabled={!!ecografiaEditar}
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
               />
               <p className="text-[10px] text-slate-400">Habitualmente 3; se pueden agregar más.</p>
             </div>
@@ -157,16 +181,22 @@ export default function EcografiaModal({
                   key={r}
                   type="button"
                   onClick={() => setResultado(r)}
-                  className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-colors ${
+                  disabled={!puedeCambiarResultado}
+                  className={`flex-1 px-3 py-2 rounded-md text-sm font-medium border transition-colors disabled:cursor-not-allowed ${
                     resultado === r
                       ? RESULTADO_STYLE[r]
-                      : 'bg-slate-100 text-slate-500 border-slate-300 hover:border-slate-400'
+                      : 'bg-slate-100 text-slate-500 border-slate-300 hover:border-slate-400 disabled:opacity-50'
                   }`}
                 >
                   {LABEL_RESULTADO_ECO[r]}
                 </button>
               ))}
             </div>
+            {!puedeCambiarResultado && (
+              <p className="text-[11px] text-slate-400">
+                Solo la última ecografía de la transferencia puede cambiar de resultado.
+              </p>
+            )}
             {resultado === 'abortada' && (
               <p className="text-[11px] text-red-500">
                 La yegua pasará a estado «Vacía» y volverá al circuito de revisión.
@@ -230,7 +260,7 @@ export default function EcografiaModal({
             disabled={saving}
             className="px-4 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors disabled:opacity-50"
           >
-            {saving ? 'Guardando…' : 'Guardar ecografía'}
+            {saving ? 'Guardando…' : ecografiaEditar ? 'Guardar cambios' : 'Guardar ecografía'}
           </button>
         </div>
       </div>

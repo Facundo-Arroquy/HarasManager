@@ -4,10 +4,12 @@ import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { Link } from 'react-router-dom'
 import { X, AlertCircle, Settings2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { useCrianzaStore } from '../../store/crianzaStore'
+import { useCrianzaStore, reglasParaRegistro } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
 import { CHIPS_OI_OD, CHIPS_UTERO, admiteRegistroCria } from '../../types/crianza'
-import type { RolReproductivo, PlazosVet, RecordatorioCria } from '../../types/crianza'
+import type {
+  RolReproductivo, PlazosVet, RecordatorioCria, RegistroClinicoCria, ReglaRecordatorioVet,
+} from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import PadrilloSelect from './PadrilloSelect'
 import { hoyAR, formatFecha as formatFechaAR } from '../../utils/fecha'
@@ -24,6 +26,11 @@ interface Props {
    * queda `hecho` en vez de seguir pendiente al lado del registro nuevo.
    */
   recordatorio?: RecordatorioCria
+  /**
+   * Registro a corregir. El animal no se cambia y no se vuelven a generar
+   * recordatorios: los que ya se crearon con el registro quedan como están.
+   */
+  registroEditar?: RegistroClinicoCria
 }
 
 /**
@@ -46,9 +53,9 @@ type AnimalItem = {
   campo: { nombre: string } | null
 }
 
-export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial, recordatorio }: Props) {
+export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial, recordatorio, registroEditar }: Props) {
   const { user, sociedadActiva, rol } = useAuth()
-  const { crearRegistro, plazos, cargarPlazos, actualizarEstadoRecordatorio } = useCrianzaStore()
+  const { crearRegistro, plazos, reglasPropias, cargarPlazos, actualizarEstadoRecordatorio } = useCrianzaStore()
 
   const [animales, setAnimales] = useState<AnimalItem[]>([])
   const [cargandoAnimales, setCargandoAnimales] = useState(true)
@@ -60,17 +67,17 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [ranking, setRanking] = useState<string[]>([])
 
   // ── Form state ────────────────────────────────────────────────────────────
-  const [caballoId,     setCaballoId]     = useState(caballoIdInicial ?? recordatorio?.caballo_id ?? '')
-  const [fecha,         setFecha]         = useState(hoyAR())
-  const [ovarioIzq,     setOvarioIzq]     = useState<string[]>([])
-  const [ovarioDer,     setOvarioDer]     = useState<string[]>([])
-  const [utero,         setUtero]         = useState<string[]>([])
-  const [obsChips,      setObsChips]      = useState<string[]>([])
-  const [padrilloId,    setPadrilloId]    = useState('')
-  const [ovDias,        setOvDias]        = useState<string>('')
-  const [reviewManana,  setReviewManana]  = useState(false)
-  const [reviewDesc,    setReviewDesc]    = useState('')
-  const [observaciones, setObservaciones] = useState('')
+  const [caballoId,     setCaballoId]     = useState(registroEditar?.caballo_id ?? caballoIdInicial ?? recordatorio?.caballo_id ?? '')
+  const [fecha,         setFecha]         = useState(registroEditar?.fecha ?? hoyAR())
+  const [ovarioIzq,     setOvarioIzq]     = useState<string[]>(registroEditar?.ovario_izq ?? [])
+  const [ovarioDer,     setOvarioDer]     = useState<string[]>(registroEditar?.ovario_der ?? [])
+  const [utero,         setUtero]         = useState<string[]>(registroEditar?.utero ?? [])
+  const [obsChips,      setObsChips]      = useState<string[]>(registroEditar?.obs_chips ?? [])
+  const [padrilloId,    setPadrilloId]    = useState(registroEditar?.padrillo_id ?? '')
+  const [ovDias,        setOvDias]        = useState<string>(registroEditar?.ov_dias != null ? String(registroEditar.ov_dias) : '')
+  const [reviewManana,  setReviewManana]  = useState(registroEditar?.review_manana ?? false)
+  const [reviewDesc,    setReviewDesc]    = useState(registroEditar?.review_manana_desc ?? '')
+  const [observaciones, setObservaciones] = useState(registroEditar?.observaciones ?? '')
   // Si el animal no tiene rol asignado, el vet elige uno en el modal
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
 
@@ -89,6 +96,13 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   )
   const rolEfectivo: RolReproductivo =
     animalSeleccionado?.rol_reproductivo ?? rolManual
+  // Un registro viejo puede tener acciones que el vet ya sacó de su catálogo
+  // (o la 'Transferida' que pone la transferencia): se ofrecen igual para no
+  // perderlas al editar.
+  const opcionesObs = useMemo(
+    () => [...new Set([...chipsObs, ...(registroEditar?.obs_chips ?? [])])],
+    [chipsObs, registroEditar],
+  )
 
   const mostrarPadrillo = obsChips.includes('IN')
   const mostrarOvDias   = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
@@ -139,7 +153,8 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
         // Viniendo de un recordatorio, la acción que lo resuelve ya viene
         // marcada: el vet abrió el evento justamente para hacer eso. Queda
         // desmarcable, y el preview de abajo muestra qué se va a agendar.
-        const chip = recordatorio && CHIP_QUE_RESUELVE[recordatorio.tipo]
+        // Los de una regla propia se llaman como la acción que piden.
+        const chip = recordatorio && (CHIP_QUE_RESUELVE[recordatorio.tipo] ?? recordatorio.tipo)
         if (chip && nombres.includes(chip)) setObsChips([chip])
       })
       .catch(() => setChipsObs([]))
@@ -192,7 +207,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
     if (!fecha)           return setError('La fecha es requerida.')
     if (!user?.id)        return setError('Sin sesión activa.')
     // `animalSociedadId` arranca vacío: `||` para que caiga al recordatorio.
-    const sociedadId = sociedadActiva?.id || animalSociedadId || recordatorio?.sociedad_id
+    const sociedadId = registroEditar?.sociedad_id || sociedadActiva?.id || animalSociedadId || recordatorio?.sociedad_id
     if (!sociedadId)      return setError('No se pudo determinar la sociedad del animal.')
     if (necesitaRol && !rolManual) return setError('Indicá si es Donante o Receptora.')
     if (mostrarPadrillo && parentescoElegido) {
@@ -201,31 +216,39 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       )
     }
 
+    const datos = {
+      fecha,
+      ovario_izq:         ovarioIzq,
+      ovario_der:         ovarioDer,
+      utero,
+      obs_chips:          obsChips,
+      padrillo_id:        mostrarPadrillo && padrilloId ? padrilloId : null,
+      ov_dias:            mostrarOvDias && ovDias !== '' ? Number(ovDias) : null,
+      review_manana:      reviewManana,
+      review_manana_desc: reviewManana && reviewDesc ? reviewDesc : null,
+      observaciones:      observaciones.trim() || null,
+    }
+
     await execute(async () => {
-      await crearRegistro(
-        {
-          caballo_id:         caballoId,
-          sociedad_id:        sociedadId,
-          fecha,
-          veterinario_id:     user.id,
-          ovario_izq:         ovarioIzq,
-          ovario_der:         ovarioDer,
-          utero,
-          obs_chips:          obsChips,
-          padrillo_id:        mostrarPadrillo && padrilloId ? padrilloId : null,
-          ov_dias:            mostrarOvDias && ovDias !== '' ? Number(ovDias) : null,
-          review_manana:      reviewManana,
-          review_manana_desc: reviewManana && reviewDesc ? reviewDesc : null,
-          motivo:             null,
-          diagnostico:        null,
-          tratamiento:        null,
-          observaciones:      observaciones.trim() || null,
-          // Deja el rastro de qué se hizo para cerrar el recordatorio: sin
-          // esto queda 'hecho' y no hay forma de ver con qué.
-          origen_recordatorio_id: recordatorio?.id ?? null,
-        },
-        rolEfectivo
-      )
+      if (registroEditar) {
+        await crianzaService.actualizarRegistro(registroEditar.id, datos)
+      } else {
+        await crearRegistro(
+          {
+            ...datos,
+            caballo_id:     caballoId,
+            sociedad_id:    sociedadId,
+            veterinario_id: user.id,
+            motivo:         null,
+            diagnostico:    null,
+            tratamiento:    null,
+            // Deja el rastro de qué se hizo para cerrar el recordatorio: sin
+            // esto queda 'hecho' y no hay forma de ver con qué.
+            origen_recordatorio_id: recordatorio?.id ?? null,
+          },
+          rolEfectivo
+        )
+      }
 
       // Si el animal no tenía rol, persistirlo
       if (necesitaRol && rolManual) {
@@ -255,7 +278,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 shrink-0">
           <div>
             <h2 className="text-sm font-semibold text-slate-900">
-              {recordatorio ? `${recordatorio.tipo} — registro reproductivo` : 'Registro reproductivo'}
+              {registroEditar
+                ? 'Editar registro reproductivo'
+                : recordatorio ? `${recordatorio.tipo} — registro reproductivo` : 'Registro reproductivo'}
             </h2>
             {recordatorio && (
               <p className="text-xs text-brand-600 mt-0.5">
@@ -301,11 +326,17 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                   setRolManual(null)
                 }}
                 // El recordatorio es de este animal: cambiarlo acá marcaría
-                // hecho lo de una yegua y registraría lo de otra.
-                disabled={cargandoAnimales || !!recordatorio}
+                // hecho lo de una yegua y registraría lo de otra. Al editar,
+                // el animal tampoco se cambia: de él cuelgan los recordatorios.
+                disabled={cargandoAnimales || !!recordatorio || !!registroEditar}
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
               >
                 <option value="">— Seleccioná —</option>
+                {/* El animal de un registro viejo puede no estar en la lista
+                    (dado de baja, o ya no es reproductivo). */}
+                {registroEditar && !animales.some((a) => a.id === registroEditar.caballo_id) && (
+                  <option value={registroEditar.caballo_id}>{registroEditar.caballo?.nombre ?? 'Animal'}</option>
+                )}
                 {animales.filter((a) => admiteRegistroCria(a.categoria)).map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.nombre}
@@ -397,7 +428,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           />
 
           {/* Observaciones / chips de acciones */}
-          {!cargandoChips && chipsObs.length === 0 ? (
+          {!cargandoChips && opcionesObs.length === 0 ? (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-500">Acciones / tratamientos</label>
               <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-xs text-slate-500">
@@ -417,7 +448,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           ) : (
             <ChipSelector
               label="Acciones / tratamientos"
-              options={chipsObs}
+              options={opcionesObs}
               selected={obsChips}
               onChange={setObsChips}
               colorSelected="bg-violet-100 text-violet-700 border-violet-300"
@@ -484,7 +515,12 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           </div>
 
           {/* Previsualización de recordatorios a generar */}
-          {caballoId && obsChips.length > 0 && (
+          {registroEditar && (
+            <p className="text-[11px] text-slate-400">
+              Editar no vuelve a generar recordatorios: los que ya se crearon con este registro quedan como están.
+            </p>
+          )}
+          {!registroEditar && caballoId && obsChips.length > 0 && (
             <RecordatoriosPreview
               obsChips={obsChips}
               ovarioDer={ovarioDer}
@@ -493,6 +529,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               rol={rolEfectivo}
               reviewManana={reviewManana}
               cfg={plazos}
+              propias={reglasPropias}
             />
           )}
 
@@ -521,6 +558,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           >
             {saving
               ? 'Guardando…'
+              : registroEditar ? 'Guardar cambios'
               : recordatorio ? 'Guardar y marcar hecho' : 'Guardar registro'}
           </button>
         </div>
@@ -532,7 +570,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 // ── Preview de recordatorios automáticos ──────────────────────────────────────
 
 function RecordatoriosPreview({
-  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewManana, cfg,
+  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewManana, cfg, propias,
 }: {
   obsChips: string[]
   ovarioIzq: string[]
@@ -542,25 +580,15 @@ function RecordatoriosPreview({
   reviewManana: boolean
   /** Plazos del vet autenticado (los mismos que usará reglasParaRegistro). */
   cfg: PlazosVet
+  /** Reglas propias del vet, que se suman a las fijas. */
+  propias: ReglaRecordatorioVet[]
 }) {
-  const items: { tipo: string; fecha: string }[] = []
-
-  const tieneOV = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
-
-  if (rol === 'Donante') {
-    if (obsChips.includes('Strelin')) items.push({ tipo: 'IN', fecha: sumarDias(fecha, cfg.donante_strelin_a_in) })
-    if (obsChips.includes('IN'))      items.push({ tipo: 'OXI', fecha: sumarDias(fecha, cfg.donante_in_a_oxi) })
-    if (tieneOV)                      items.push({ tipo: 'Flushing', fecha: sumarDias(fecha, cfg.donante_ov_a_flushing) })
-    if (obsChips.includes('PG'))      items.push({ tipo: 'Revisión PG', fecha: sumarDias(fecha, cfg.donante_pg_a_revision_pg) })
-    if (obsChips.includes('Flushing'))items.push({ tipo: 'Revisión Flushing', fecha: sumarDias(fecha, cfg.donante_flushing_a_revision) })
-  }
-  if (rol === 'Receptora') {
-    if (obsChips.includes('Strelin')) items.push({ tipo: 'Revisión Strelin', fecha: proximoMWF(fecha) })
-    if (obsChips.includes('PG'))      items.push({ tipo: 'Revisión PG', fecha: sumarDias(fecha, cfg.receptora_pg_a_revision_pg) })
-    if (tieneOV && !obsChips.includes('Transferida'))
-      items.push({ tipo: 'Dar PG', fecha: sumarDias(fecha, cfg.receptora_ov_a_dar_pg) })
-  }
-  if (reviewManana) items.push({ tipo: 'Revisión', fecha: proximoMWF(fecha) })
+  // Las mismas reglas que aplica el store al guardar: con una copia propia, el
+  // preview podía mostrar recordatorios que después no se creaban.
+  const items = reglasParaRegistro(
+    { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer, review_manana: reviewManana },
+    rol, cfg, propias,
+  ).map((r) => ({ tipo: r.tipo, fecha: r.calcularFecha(fecha) }))
 
   if (items.length === 0) return null
 
@@ -580,19 +608,6 @@ function RecordatoriosPreview({
 }
 
 // ── Utilidades ───────────────────────────────────────────────────────────────
-
-function sumarDias(fecha: string, dias: number): string {
-  const d = new Date(fecha + 'T12:00:00Z')
-  d.setUTCDate(d.getUTCDate() + dias)
-  return d.toISOString().split('T')[0]
-}
-
-function proximoMWF(fecha: string): string {
-  const d = new Date(fecha + 'T12:00:00Z')
-  d.setUTCDate(d.getUTCDate() + 1)
-  while (![1, 3, 5].includes(d.getUTCDay())) d.setUTCDate(d.getUTCDate() + 1)
-  return d.toISOString().split('T')[0]
-}
 
 function formatFecha(fecha: string): string {
   const [y, m, d] = fecha.split('-')

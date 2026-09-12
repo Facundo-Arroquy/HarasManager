@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { Settings2, RotateCcw, Check, Plus, AlertCircle, Bell } from 'lucide-react'
+import { Settings2, RotateCcw, Check, Plus, AlertCircle, Bell, Trash2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
@@ -10,8 +10,10 @@ import {
   PLAZO_MAX_DIAS,
   CHIPS_CON_RECORDATORIO,
   CHIPS_OBS_SUGERIDOS,
+  ROLES_REGLA,
   type PlazosVet,
   type CatChipObs,
+  type RolRegla,
 } from '../../types/crianza'
 
 // =============================================================================
@@ -86,6 +88,7 @@ export function ConfigVetPage() {
     <div className="space-y-5">
       <CatalogoChips />
       <PlazosSection />
+      <ReglasPropiasSection />
     </div>
   )
 }
@@ -381,6 +384,168 @@ function PlazosSection() {
         </p>
       )}
     </>
+  )
+}
+
+// ── Sección: recordatorios propios ───────────────────────────────────────────
+// "Si marco la acción X, pedir la acción Y a los Z días". Se guardan al
+// agregarlas (no con "Guardar plazos") y se suman a las reglas fijas de arriba.
+
+const SELECT_REGLA = 'rounded-md border border-slate-300 bg-slate-50 px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500'
+
+function ReglasPropiasSection() {
+  const { user } = useAuth()
+  const { reglasPropias, cargarPlazos } = useCrianzaStore()
+  const [acciones,     setAcciones]     = useState<string[]>([])
+  const [rol,          setRol]          = useState<RolRegla>('Donante')
+  const [disparadora,  setDisparadora]  = useState('')
+  const [recordatorio, setRecordatorio] = useState('')
+  const [dias,         setDias]         = useState('1')
+  const [guardando,    setGuardando]    = useState(false)
+  const [error,        setError]        = useState('')
+
+  useEffect(() => {
+    cargarPlazos().catch(() => {})
+    crianzaService.listarMisChips()
+      .then((chips) => setAcciones(chips.map((c) => c.nombre)))
+      .catch(() => setAcciones([]))
+  }, [cargarPlazos])
+
+  async function agregar(e: React.FormEvent) {
+    e.preventDefault()
+    if (!user?.id) return
+    const n = parseInt(dias, 10)
+    if (!disparadora || !recordatorio) return setError('Elegí la acción que dispara la regla y la que se pide.')
+    if (isNaN(n) || n < 1 || n > 365) return setError('Los días van de 1 a 365.')
+    const repetida = reglasPropias.some((r) =>
+      r.rol === rol && r.accion_disparadora === disparadora && r.accion_recordatorio === recordatorio)
+    if (repetida) return setError('Esa regla ya existe.')
+
+    setError('')
+    setGuardando(true)
+    try {
+      await crianzaService.crearRegla({
+        veterinario_id:      user.id,
+        rol,
+        accion_disparadora:  disparadora,
+        accion_recordatorio: recordatorio,
+        dias:                n,
+      })
+      await cargarPlazos()
+      setDisparadora('')
+      setRecordatorio('')
+      setDias('1')
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo agregar la regla.'))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  async function eliminar(id: string) {
+    setError('')
+    try {
+      await crianzaService.eliminarRegla(id)
+      await cargarPlazos()
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo eliminar la regla.'))
+    }
+  }
+
+  return (
+    <Section
+      title="Recordatorios propios"
+      descripcion="Si marcás una acción en el registro, se agenda otra a los días que elijas. Se suman a las reglas de arriba."
+      icon={<Bell size={14} />}
+    >
+      {reglasPropias.length === 0 ? (
+        <p className="px-4 py-3 text-xs text-slate-400">Todavía no agregaste reglas propias.</p>
+      ) : (
+        reglasPropias.map((r) => (
+          <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+            <span className="text-sm text-slate-600">
+              <span className="mr-2 rounded border border-slate-300 px-1.5 py-0.5 text-[10px] text-slate-500">
+                {r.rol === 'Ambas' ? 'Donante o receptora' : r.rol}
+              </span>
+              {r.accion_disparadora} → {r.accion_recordatorio}
+              <span className="text-slate-400"> · a los {r.dias} {r.dias === 1 ? 'día' : 'días'}</span>
+            </span>
+            <button
+              onClick={() => eliminar(r.id)}
+              className="rounded p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+              title="Eliminar regla"
+              aria-label="Eliminar regla"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        ))
+      )}
+
+      <form onSubmit={agregar} className="space-y-2 px-4 py-3">
+        {acciones.length === 0 ? (
+          <p className="text-xs text-slate-400">Primero cargá tus acciones en la sección de arriba.</p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+            <select
+              value={rol}
+              onChange={(e) => setRol(e.target.value as RolRegla)}
+              className={SELECT_REGLA}
+              aria-label="Para qué yeguas"
+            >
+              {ROLES_REGLA.map((r) => (
+                <option key={r} value={r}>{r === 'Ambas' ? 'Donante o receptora' : r}</option>
+              ))}
+            </select>
+            <span>si marco</span>
+            <select
+              value={disparadora}
+              onChange={(e) => setDisparadora(e.target.value)}
+              className={SELECT_REGLA}
+              aria-label="Acción que dispara la regla"
+            >
+              <option value="">acción…</option>
+              {acciones.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <span>pedir</span>
+            <select
+              value={recordatorio}
+              onChange={(e) => setRecordatorio(e.target.value)}
+              className={SELECT_REGLA}
+              aria-label="Acción que se pide"
+            >
+              <option value="">acción…</option>
+              {acciones.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <span>a los</span>
+            <input
+              type="number"
+              min={1}
+              max={365}
+              value={dias}
+              onChange={(e) => setDias(e.target.value)}
+              className={`${SELECT_REGLA} w-16 text-center`}
+              aria-label="Días"
+            />
+            <span>días</span>
+            <button
+              type="submit"
+              disabled={guardando}
+              className="flex items-center gap-1 rounded-md bg-brand-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-400 disabled:opacity-50"
+            >
+              <Plus size={13} />
+              Agregar
+            </button>
+          </div>
+        )}
+        {error && (
+          <p className="flex items-center gap-1.5 text-xs text-red-600">
+            <AlertCircle size={12} />
+            {error}
+          </p>
+        )}
+      </form>
+    </Section>
   )
 }
 

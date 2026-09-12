@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Bell, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown } from 'lucide-react'
+import { Bell, CheckCircle, XCircle, Clock, AlertCircle, ChevronDown, Trash2, Pencil } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
+import { crianzaService } from '../../services/crianzaService'
+import { mensajeError } from '../../utils/error'
 import { LABEL_RESULTADO_ECO } from '../../types/crianza'
 import type { RecordatorioCria, EstadoRecordatorio } from '../../types/crianza'
 import Spinner from '../../components/ui/Spinner'
@@ -9,6 +11,7 @@ import FlushingModal from '../../components/centro-cria/FlushingModal'
 import EcografiaModal from '../../components/centro-cria/EcografiaModal'
 import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
 import FlushingBanner from '../../components/centro-cria/FlushingBanner'
+import EditarRecordatorioModal from '../../components/centro-cria/EditarRecordatorioModal'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import { hoyAR, formatFecha } from '../../utils/fecha'
 import {
@@ -27,6 +30,7 @@ const FILTROS: { label: string; value: EstadoRecordatorio | 'todos' }[] = [
 export default function RecordatoriosPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const rol        = useAuthStore((s) => s.rol)
+  const userId     = useAuthStore((s) => s.user?.id)
   const esVet      = rol === 'veterinario'
   const {
     recordatorios, registros, flushings, ecografias, transferencias,
@@ -35,6 +39,9 @@ export default function RecordatoriosPage() {
 
   const [filtro,     setFiltro]     = useState<EstadoRecordatorio | 'todos'>('pendiente')
   const [cancelando, setCancelando] = useState<string | null>(null)
+  const [borrandoId, setBorrandoId] = useState<string | null>(null)
+  const [error,      setError]      = useState<string | null>(null)
+  const [recEditar,  setRecEditar]  = useState<RecordatorioCria | null>(null)
   // Cuál tiene la ficha desplegada: qué se registró para cerrarlo.
   const [abierto,    setAbierto]    = useState<string | null>(null)
   const [accion,     setAccion]     = useState<AccionRecordatorio | null>(null)
@@ -69,6 +76,24 @@ export default function RecordatoriosPage() {
     setCancelando(null)
   }
 
+  async function eliminar(r: RecordatorioCria) {
+    const ok = window.confirm(
+      `¿Eliminar el recordatorio "${r.tipo}" de ${r.caballo?.nombre ?? 'este caballo'} (${formatFecha(r.fecha_vto)})?\n\n` +
+      'Lo que se haya registrado para cerrarlo se conserva. No se puede deshacer.',
+    )
+    if (!ok) return
+    setBorrandoId(r.id)
+    setError(null)
+    try {
+      await crianzaService.eliminarRecordatorio(r.id)
+      recargar()
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo eliminar el recordatorio.'))
+    } finally {
+      setBorrandoId(null)
+    }
+  }
+
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
 
   return (
@@ -79,6 +104,10 @@ export default function RecordatoriosPage() {
       </div>
 
       <FlushingBanner />
+
+      {error && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
+      )}
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-1.5">
@@ -127,9 +156,20 @@ export default function RecordatoriosPage() {
               onCancelar={() => cancelar(r.id)}
               cancelando={cancelando === r.id}
               setCancelando={() => setCancelando(cancelando === r.id ? null : r.id)}
+              onEditar={r.veterinario_id === userId ? () => setRecEditar(r) : undefined}
+              onEliminar={r.veterinario_id === userId ? () => eliminar(r) : undefined}
+              eliminando={borrandoId === r.id}
             />
           ))}
         </div>
+      )}
+
+      {recEditar && (
+        <EditarRecordatorioModal
+          recordatorio={recEditar}
+          onClose={() => setRecEditar(null)}
+          onSuccess={recargar}
+        />
       )}
 
       {/* Modales — cada uno cierra el recordatorio que lo abrió.
@@ -182,6 +222,9 @@ function RecordatorioItem({
   onCancelar,
   cancelando,
   setCancelando,
+  onEditar,
+  onEliminar,
+  eliminando = false,
 }: {
   recordatorio: RecordatorioCria
   canEdit?: boolean
@@ -192,6 +235,10 @@ function RecordatorioItem({
   onCancelar: () => void
   cancelando: boolean
   setCancelando: () => void
+  /** Solo sobre los recordatorios propios. */
+  onEditar?: () => void
+  onEliminar?: () => void
+  eliminando?: boolean
 }) {
   const hoy = hoyAR()
   const esHoy    = r.fecha_vto === hoy
@@ -286,6 +333,29 @@ function RecordatorioItem({
                 </button>
               )}
             </>
+          )}
+          {onEditar && (
+            <button
+              type="button"
+              onClick={onEditar}
+              title="Editar recordatorio"
+              aria-label="Editar recordatorio"
+              className="rounded p-0.5 text-slate-300 transition-colors hover:text-brand-600"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+          {onEliminar && (
+            <button
+              type="button"
+              onClick={onEliminar}
+              disabled={eliminando}
+              title="Eliminar recordatorio"
+              aria-label="Eliminar recordatorio"
+              className="rounded p-0.5 text-slate-300 transition-colors hover:text-red-600 disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+            </button>
           )}
           <button
             type="button"

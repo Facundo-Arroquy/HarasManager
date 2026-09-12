@@ -92,6 +92,28 @@ export const PLAZO_MAX_DIAS: Partial<Record<keyof PlazosVet, number>> = {
 }
 
 // ---------------------------------------------------------------------------
+// Reglas propias de recordatorios, por veterinario (tabla cria_regla_recordatorio)
+// "Si marco la acción X, pedir la acción Y a los Z días". Se suman a las reglas
+// fijas de reglasParaRegistro (crianzaStore).
+// ---------------------------------------------------------------------------
+
+export type RolRegla = 'Donante' | 'Receptora' | 'Ambas'
+
+export const ROLES_REGLA: RolRegla[] = ['Donante', 'Receptora', 'Ambas']
+
+export interface ReglaRecordatorioVet {
+  id:                  string
+  veterinario_id:      string
+  rol:                 RolRegla
+  accion_disparadora:  string
+  accion_recordatorio: string
+  dias:                number
+  created_at:          string
+}
+
+export type NuevaReglaRecordatorioPayload = Omit<ReglaRecordatorioVet, 'id' | 'created_at'>
+
+// ---------------------------------------------------------------------------
 // Rol reproductivo (columna en caballo)
 // ---------------------------------------------------------------------------
 
@@ -305,6 +327,11 @@ export const ESTADO_POR_DESTINO: Record<DestinoEmbrion, EstadoEmbrion> = {
   en_nube:    'en_nube',
 }
 
+export const ESTADIOS_EMBRION = ['Mórula', 'Blastocisto temprano', 'Blastocisto', 'Blastocisto expandido'] as const
+export const TAMANIOS_EMBRION = ['Pequeño', 'Mediano', 'Grande'] as const
+export const GRADOS_EMBRION   = [1, 2, 3, 4] as const
+export const ZONAS_EMBRION    = ['Intacta', 'Rota'] as const
+
 export interface Embrion {
   id:                 string
   flushing_id:        string
@@ -335,6 +362,8 @@ export type NuevoEmbrionPayload = Omit<
  * `cria_transferencia` vacío: en la lista se muestran sin receptora.
  */
 export interface EmbrionConSeguimiento extends Embrion {
+  /** El embrión no tiene autor propio: es del vet que cargó el flushing. */
+  flushing?: { veterinario_id: string | null } | null
   cria_transferencia?: Array<{
     fecha:                string
     caballo_receptora_id: string
@@ -350,6 +379,9 @@ export interface EmbrionConSeguimiento extends Embrion {
 // ---------------------------------------------------------------------------
 // Transferencia embrionaria
 // ---------------------------------------------------------------------------
+
+export const CL_CALIDADES = ['Excelente', 'Buena', 'Regular', 'Mala'] as const
+export const TONOS        = ['Excelente', 'Bueno', 'Regular', 'Malo'] as const
 
 export interface TransferenciaEmbrionaria {
   id:                   string

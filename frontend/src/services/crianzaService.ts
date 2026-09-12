@@ -20,6 +20,8 @@ import type {
   NuevoCatChipObsPayload,
   PlazosVet,
   PadrilloPreferido,
+  ReglaRecordatorioVet,
+  NuevaReglaRecordatorioPayload,
 } from '../types/crianza'
 import { PLAZOS_VET_DEFAULTS, ESTADOS_STOCK } from '../types/crianza'
 
@@ -33,6 +35,7 @@ const SELECT_EMBRION_SEGUIMIENTO = `
   *,
   donante:caballo_donante_id(nombre),
   padrillo:padrillo_id(nombre),
+  flushing:flushing_id(veterinario_id),
   cria_transferencia!embrion_id(
     fecha,
     caballo_receptora_id,
@@ -331,6 +334,66 @@ export const crianzaService = {
     return transferencia as TransferenciaEmbrionaria
   },
 
+  // ── Edición (la RLS de UPDATE deja solo al autor; si no, no afecta filas) ─
+
+  async actualizarTransferencia(
+    id: string,
+    payload: Pick<TransferenciaEmbrionaria, 'cl_calidad' | 'tono_uterino' | 'tono_cervical' | 'clasificacion' | 'notas'>,
+  ): Promise<void> {
+    const { error } = await getSupabaseClient().from('cria_transferencia').update(payload).eq('id', id)
+    if (error) throw error
+  },
+
+  async actualizarRecordatorio(
+    id: string,
+    payload: Partial<Pick<RecordatorioCria, 'fecha_vto' | 'notas' | 'estado'>>,
+  ): Promise<void> {
+    const { error } = await getSupabaseClient().from('cria_recordatorio').update(payload).eq('id', id)
+    if (error) throw error
+  },
+
+  async actualizarEmbrion(
+    id: string,
+    payload: Pick<Embrion, 'estado' | 'estadio' | 'grado' | 'tamanio' | 'zona_pelucida' | 'notas'>,
+  ): Promise<void> {
+    const { error } = await getSupabaseClient().from('embrion').update(payload).eq('id', id)
+    if (error) throw error
+  },
+
+  // ── Borrado (solo el autor, y solo si nada depende del registro) ─────────
+  // Cada RPC deshace los efectos directos del alta y aborta con un mensaje
+  // legible si algo cuelga del registro.
+
+  async eliminarRegistro(id: string): Promise<void> {
+    const { error } = await getSupabaseClient().rpc('eliminar_registro_cria', { p_registro_id: id })
+    if (error) throw error
+  },
+
+  async eliminarTransferencia(id: string): Promise<void> {
+    const { error } = await getSupabaseClient().rpc('eliminar_transferencia_cria', { p_transferencia_id: id })
+    if (error) throw error
+  },
+
+  async eliminarEcografia(id: string): Promise<void> {
+    const { error } = await getSupabaseClient().rpc('eliminar_ecografia_cria', { p_ecografia_id: id })
+    if (error) throw error
+  },
+
+  async eliminarFlushing(id: string): Promise<void> {
+    const { error } = await getSupabaseClient().rpc('eliminar_flushing_cria', { p_flushing_id: id })
+    if (error) throw error
+  },
+
+  async eliminarEmbrion(id: string): Promise<void> {
+    const { error } = await getSupabaseClient().rpc('eliminar_embrion_cria', { p_embrion_id: id })
+    if (error) throw error
+  },
+
+  async eliminarRecordatorio(id: string): Promise<void> {
+    const { error } = await getSupabaseClient().rpc('eliminar_recordatorio_cria', { p_recordatorio_id: id })
+    if (error) throw error
+  },
+
   // ── Métodos sin filtro de sociedad — para veterinarios sin membresía ─────
 
   async listarRegistrosVet(): Promise<RegistroClinicoCria[]> {
@@ -514,32 +577,65 @@ export const crianzaService = {
       .single()
     if (error) throw error
 
-    // Sincronizar el estado reproductivo de la receptora
-    const nuevoEstado: EstadoReproductivo =
-      payload.resultado === 'abortada' ? 'vacia'
-      : payload.resultado === 'prenada' ? 'prenada'
-      : null
-
-    if (nuevoEstado) {
-      const { data: cab } = await supabase
-        .from('caballo')
-        .select('estado_reproductivo')
-        .eq('id', payload.caballo_receptora_id)
-        .single()
-      const estadoAnterior = (cab?.estado_reproductivo ?? null) as EstadoReproductivo
-      if (estadoAnterior !== nuevoEstado) {
-        await crianzaService.actualizarEstadoReproductivo(
-          payload.caballo_receptora_id,
-          payload.sociedad_id,
-          estadoAnterior,
-          nuevoEstado,
-          payload.veterinario_id,
-          `Ecografía ${payload.numero}: ${payload.resultado}`,
-        )
-      }
-    }
+    await crianzaService.sincronizarEstadoPorEcografia(
+      payload.caballo_receptora_id,
+      payload.sociedad_id,
+      payload.veterinario_id,
+      payload.numero,
+      payload.resultado,
+    )
 
     return data as Ecografia
+  },
+
+  /**
+   * Corrige una ecografía. La preñez la re-sincroniza el trigger de la tabla
+   * (también al sacar un 'abortada'); el estado del pipeline se sincroniza acá,
+   * igual que al registrarla.
+   */
+  async actualizarEcografia(
+    eco: Ecografia,
+    payload: Pick<Ecografia, 'fecha' | 'resultado' | 'ovario_izq' | 'ovario_der' | 'notas'>,
+  ): Promise<void> {
+    const { error } = await getSupabaseClient().from('cria_ecografia').update(payload).eq('id', eco.id)
+    if (error) throw error
+    if (payload.resultado !== eco.resultado) {
+      await crianzaService.sincronizarEstadoPorEcografia(
+        eco.caballo_receptora_id, eco.sociedad_id, eco.veterinario_id, eco.numero, payload.resultado,
+      )
+    }
+  },
+
+  /**
+   * Lleva el pipeline de la receptora al estado que implica una eco:
+   * 'abortada' → 'vacia' (vuelve al circuito de revisión), 'prenada' →
+   * 'prenada', 'pendiente' → sin cambio (se la vuelve a revisar).
+   */
+  async sincronizarEstadoPorEcografia(
+    caballoId: string,
+    sociedadId: string,
+    veterinarioId: string,
+    numero: number,
+    resultado: Ecografia['resultado'],
+  ): Promise<void> {
+    const nuevoEstado: EstadoReproductivo =
+      resultado === 'abortada' ? 'vacia'
+      : resultado === 'prenada' ? 'prenada'
+      : null
+    if (!nuevoEstado) return
+
+    const { data: cab } = await getSupabaseClient()
+      .from('caballo')
+      .select('estado_reproductivo')
+      .eq('id', caballoId)
+      .single()
+    const estadoAnterior = (cab?.estado_reproductivo ?? null) as EstadoReproductivo
+    if (estadoAnterior === nuevoEstado) return
+
+    await crianzaService.actualizarEstadoReproductivo(
+      caballoId, sociedadId, estadoAnterior, nuevoEstado, veterinarioId,
+      `Ecografía ${numero}: ${resultado}`,
+    )
   },
 
   async actualizarRolReproductivo(
@@ -636,6 +732,27 @@ export const crianzaService = {
   // ── Plazos de recordatorios — por veterinario ──────────────────────────────
 
   /** Plazos del vet autenticado. Si todavía no configuró, devuelve los defaults. */
+  // ── Reglas propias de recordatorios (por veterinario; la RLS filtra por auth.uid()) ──
+
+  async listarMisReglas(): Promise<ReglaRecordatorioVet[]> {
+    const { data, error } = await getSupabaseClient()
+      .from('cria_regla_recordatorio')
+      .select('*')
+      .order('created_at')
+    if (error) throw error
+    return (data ?? []) as ReglaRecordatorioVet[]
+  },
+
+  async crearRegla(payload: NuevaReglaRecordatorioPayload): Promise<void> {
+    const { error } = await getSupabaseClient().from('cria_regla_recordatorio').insert(payload)
+    if (error) throw error
+  },
+
+  async eliminarRegla(id: string): Promise<void> {
+    const { error } = await getSupabaseClient().from('cria_regla_recordatorio').delete().eq('id', id)
+    if (error) throw error
+  },
+
   async getMisPlazos(): Promise<PlazosVet> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
