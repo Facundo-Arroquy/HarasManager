@@ -865,6 +865,11 @@ CREATE TABLE cria_plazo_vet (
   donante_strelin_a_in        SMALLINT NOT NULL DEFAULT 1,
   donante_in_a_oxi            SMALLINT NOT NULL DEFAULT 1,
   donante_ov_a_flushing       SMALLINT NOT NULL DEFAULT 6,
+  -- OV de donante SIN inseminación previa → 'Dar PG' en vez de 'Flushing'
+  -- (migración 20260912120000). "Inseminada" = registro con chip IN de esa
+  -- yegua en los 7 días previos, incluido el mismo registro
+  -- (VENTANA_INSEMINACION_DIAS en crianzaStore).
+  donante_ov_sin_in_a_dar_pg  SMALLINT NOT NULL DEFAULT 4,
   donante_pg_a_revision_pg    SMALLINT NOT NULL DEFAULT 3,
   donante_flushing_a_revision SMALLINT NOT NULL DEFAULT 4,
   receptora_pg_a_revision_pg  SMALLINT NOT NULL DEFAULT 4,
@@ -878,6 +883,7 @@ CREATE TABLE cria_plazo_vet (
   CONSTRAINT cria_plazo_vet_rangos CHECK (los 7 plazos originales BETWEEN 1 AND 30)
   -- Los de ecografía van aparte: 60 y 90 no entran en 1..30
   CONSTRAINT cria_plazo_vet_rangos_eco CHECK (los 3 de eco BETWEEN 1 AND 365)
+  CONSTRAINT cria_plazo_vet_rango_ov_sin_in CHECK (donante_ov_sin_in_a_dar_pg BETWEEN 1 AND 30)
 );
 -- NOTA: `cria_parametro` (por sociedad, clave/valor) sigue existiendo pero
 -- nunca se conectó al frontend. Los plazos del centro son `cria_plazo_vet`.
