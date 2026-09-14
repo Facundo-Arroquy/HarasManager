@@ -84,9 +84,10 @@ export default function TransferenciasPage() {
   function eliminarEcografia(e: Ecografia, receptora?: string) {
     const ok = window.confirm(
       `¿Eliminar la Eco ${e.numero} de ${receptora ?? 'la receptora'} (${formatFecha(e.fecha)})?\n\n` +
-      (e.resultado === 'abortada' ? 'La receptora vuelve a quedar preñada. ' : '') +
-      'Si la eco había cerrado un recordatorio, vuelve a quedar pendiente. ' +
-      'El estado en el pipeline reproductivo no se toca.',
+      (e.resultado === 'abortada'
+        ? 'La receptora vuelve a quedar preñada y en el estado que tenía antes del aborto. '
+        : '') +
+      'Si la eco había cerrado un recordatorio, vuelve a quedar pendiente.',
     )
     if (!ok) return
     ejecutarBorrado(e.id, () => crianzaService.eliminarEcografia(e.id), 'No se pudo eliminar la ecografía.')
