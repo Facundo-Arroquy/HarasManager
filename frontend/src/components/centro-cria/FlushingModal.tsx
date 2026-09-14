@@ -5,7 +5,13 @@ import { X, AlertCircle, Droplets, Snowflake, Cloud, ArrowRight } from 'lucide-r
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
-import { ESTADO_POR_DESTINO } from '../../types/crianza'
+import {
+  ESTADO_POR_DESTINO,
+  ESTADIOS_EMBRION as ESTADIOS,
+  TAMANIOS_EMBRION as TAMANIOS,
+  GRADOS_EMBRION as GRADOS,
+  ZONAS_EMBRION as ZONAS,
+} from '../../types/crianza'
 import type { RecordatorioCria, DestinoEmbrion, NuevoEmbrionPayload } from '../../types/crianza'
 import { hoyAR, formatFecha } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
@@ -43,11 +49,6 @@ type EmbrionForm = {
   destino:       DestinoEmbrion
   receptoraId:   string
 }
-
-const ESTADIOS = ['Mórula', 'Blastocisto temprano', 'Blastocisto', 'Blastocisto expandido'] as const
-const TAMANIOS = ['Pequeño', 'Mediano', 'Grande'] as const
-const GRADOS   = [1, 2, 3, 4] as const
-const ZONAS    = ['Intacta', 'Rota'] as const
 
 const MAX_EMBRIONES = 10
 

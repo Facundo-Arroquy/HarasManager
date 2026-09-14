@@ -252,12 +252,21 @@ export const historialService = {
 
   /**
    * Borra una consulta agendada que nunca se hizo. La RLS solo lo permite sobre
-   * las `pendiente` propias: el historial ya cargado es inmutable y no se borra.
-   * Partes afectadas y medicamentos se van en cascada.
+   * las `pendiente` propias. Partes afectadas y medicamentos se van en cascada.
    */
   async eliminar(historialId: string): Promise<void> {
     const supabase = getSupabaseClient()
     const { error } = await supabase.from('historial_clinico').delete().eq('id', historialId)
+    if (error) throw error
+  },
+
+  /**
+   * Anula una consulta ya realizada (solo el autor). No se borra: queda en la
+   * base y en auditoría, pero la RLS deja de devolverla en toda la app.
+   */
+  async anular(historialId: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.rpc('anular_consulta', { p_historial_id: historialId })
     if (error) throw error
   },
 

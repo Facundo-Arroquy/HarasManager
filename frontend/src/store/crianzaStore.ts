@@ -19,6 +19,7 @@ import type {
   EstadoRecordatorio,
   TipoRecordatorio,
   RolReproductivo,
+  ReglaRecordatorioVet,
 } from '../types/crianza'
 
 // =============================================================================
@@ -44,6 +45,10 @@ import type {
 //
 // Cualquiera:
 //   review_manana = true → Revisión  próximo MWF
+//
+// Además, las reglas propias de cada vet (tabla cria_regla_recordatorio): si
+// marca la acción X, se pide la acción Y a los Z días. Si una repite un tipo
+// que ya genera una regla fija, gana la fija y no se agenda dos veces.
 // =============================================================================
 
 /**
@@ -71,8 +76,8 @@ function sumarDias(fecha: string, dias: number): string {
   return d.toISOString().split('T')[0]
 }
 
-interface ReglaRecordatorio {
-  tipo: TipoRecordatorio
+export interface ReglaRecordatorio {
+  tipo: TipoRecordatorio | string
   calcularFecha: (fecha: string) => string
 }
 
@@ -84,12 +89,17 @@ interface ReglaRecordatorio {
  */
 export const VENTANA_INSEMINACION_DIAS = 7
 
-function reglasParaRegistro(
-  registro: NuevoRegistroCriaPayload,
+/**
+ * Recordatorios que genera un registro. La usa el store al guardar y el preview
+ * de RegistroCriaModal, para que lo que se muestra sea lo que se crea.
+ */
+export function reglasParaRegistro(
+  registro: Pick<NuevoRegistroCriaPayload, 'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_manana'>,
   rolReproductivo: RolReproductivo,
   cfg: PlazosVet,
   /** Hubo IN en este registro o en los VENTANA_INSEMINACION_DIAS previos. */
-  inseminada: boolean
+  inseminada: boolean,
+  propias: ReglaRecordatorioVet[] = [],
 ): ReglaRecordatorio[] {
   const chips = registro.obs_chips
   const reglas: ReglaRecordatorio[] = []
@@ -126,6 +136,13 @@ function reglasParaRegistro(
       reglas.push({ tipo: 'Dar PG', calcularFecha: (f) => sumarDias(f, cfg.receptora_ov_a_dar_pg) })
   }
 
+  for (const p of propias) {
+    const aplica = p.rol === 'Ambas' || p.rol === rolReproductivo
+    if (!aplica || !chips.includes(p.accion_disparadora)) continue
+    if (reglas.some((r) => r.tipo === p.accion_recordatorio)) continue
+    reglas.push({ tipo: p.accion_recordatorio, calcularFecha: (f) => sumarDias(f, p.dias) })
+  }
+
   if (registro.review_manana)
     reglas.push({ tipo: 'Revisión', calcularFecha: (f) => proximoMWF(f) })
 
@@ -144,13 +161,15 @@ interface CrianzaState {
   ecografias:     Ecografia[]
   /** Plazos del vet autenticado. Los usa reglasParaRegistro al crear recordatorios. */
   plazos:         PlazosVet
+  /** Reglas propias del vet autenticado, que se suman a las fijas. */
+  reglasPropias:  ReglaRecordatorioVet[]
   loading:        boolean
   error:          string | null
 
   cargar: (sociedadId: string) => Promise<void>
   cargarParaVet: () => Promise<void>
 
-  /** Recarga los plazos del vet (tras guardarlos en configuración). */
+  /** Recarga los plazos y las reglas propias del vet (tras cambiarlos en configuración). */
   cargarPlazos: () => Promise<void>
   guardarPlazos: (veterinarioId: string, plazos: PlazosVet) => Promise<void>
 
@@ -202,6 +221,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   transferencias: [],
   ecografias:     [],
   plazos:         PLAZOS_VET_DEFAULTS,
+  reglasPropias:  [],
   loading:        false,
   error:          null,
 
@@ -252,8 +272,11 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   // ── Plazos del veterinario ────────────────────────────────────────────────
 
   cargarPlazos: async () => {
-    const plazos = await crianzaService.getMisPlazos()
-    set({ plazos })
+    const [plazos, reglasPropias] = await Promise.all([
+      crianzaService.getMisPlazos(),
+      crianzaService.listarMisReglas(),
+    ])
+    set({ plazos, reglasPropias })
   },
 
   guardarPlazos: async (veterinarioId, plazos) => {
@@ -278,7 +301,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
     // Auto-generar recordatorios según chips (insert batch para evitar N+1).
     // Los plazos son los del vet autenticado = el que hace el registro.
-    const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, inseminada)
+    const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, inseminada, get().reglasPropias)
     if (reglas.length > 0) {
       const recPayloads: NuevoRecordatorioPayload[] = reglas.map((regla) => ({
         caballo_id:         payload.caballo_id,

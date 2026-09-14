@@ -40,8 +40,8 @@ interface Props {
   entry: HistorialEntry
   onEditar?: () => void
   /**
-   * Solo se pasa sobre las consultas `pendiente` propias: la RLS no deja borrar
-   * ninguna otra y el historial ya cargado es inmutable.
+   * Solo se pasa sobre las consultas propias. Una `pendiente` se borra; una
+   * realizada se anula (deja de verse, pero no se elimina de la base).
    */
   onEliminar?: () => void
   /** El borrado de esta consulta está en curso. */
@@ -164,8 +164,8 @@ export default function HistorialCard({
               disabled={eliminando}
               // Con dedo se borra deslizando la fila; el tacho es para mouse y teclado.
               className="hidden pointer-fine:block p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
-              title="Eliminar la consulta agendada"
-              aria-label="Eliminar la consulta agendada"
+              title={entry.estado === 'pendiente' ? 'Eliminar la consulta agendada' : 'Anular la consulta'}
+              aria-label={entry.estado === 'pendiente' ? 'Eliminar la consulta agendada' : 'Anular la consulta'}
             >
               <Trash2 size={13} />
             </button>

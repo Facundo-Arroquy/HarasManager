@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FlaskConical, ArrowLeftRight, Plus } from 'lucide-react'
+import { FlaskConical, ArrowLeftRight, Plus, Trash2, Pencil } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
@@ -9,6 +9,7 @@ import Spinner from '../../components/ui/Spinner'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
+import EditarEmbrionModal from '../../components/centro-cria/EditarEmbrionModal'
 
 const ESTADO_LABEL: Record<EstadoEmbrion, string> = {
   disponible:  'Disponible',
@@ -61,7 +62,10 @@ export default function EmbrionesPage() {
 
   const [embrionParaTransf,  setEmbrionParaTransf]  = useState<EmbrionConSeguimiento | null>(null)
   const [showNuevoFlushing,  setShowNuevoFlushing]  = useState(false)
+  const [borrandoId,         setBorrandoId]         = useState<string | null>(null)
+  const [embEditar,          setEmbEditar]          = useState<EmbrionConSeguimiento | null>(null)
 
+  const userId      = useAuthStore((s) => s.user?.id)
   const puedeOperar = rol === 'veterinario' || rol === 'admin'
 
   const recargar = useCallback(() => {
@@ -90,6 +94,24 @@ export default function EmbrionesPage() {
   }, [sociedadId, rol])
 
   useEffect(() => { recargar() }, [recargar])
+
+  async function eliminarEmbrion(e: EmbrionConSeguimiento) {
+    const ok = window.confirm(
+      `¿Eliminar este embrión de ${e.donante?.nombre ?? 'la donante'}?\n\n` +
+      'Se descuenta del flushing. No se puede deshacer.',
+    )
+    if (!ok) return
+    setBorrandoId(e.id)
+    setError(null)
+    try {
+      await crianzaService.eliminarEmbrion(e.id)
+      recargar()
+    } catch (err) {
+      setError(mensajeError(err, 'No se pudo eliminar el embrión.'))
+    } finally {
+      setBorrandoId(null)
+    }
+  }
 
   // El modal de transferencia necesita el store cargado: de los registros sale
   // el listado de receptoras ordenado por días desde la ovulación, y de las
@@ -239,6 +261,30 @@ export default function EmbrionesPage() {
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_BADGE[e.estado]}`}>
                         {ESTADO_LABEL[e.estado]}
                       </span>
+                      {/* Solo el autor del flushing. Borrar, además, solo si nunca se transfirió. */}
+                      {!!userId && e.flushing?.veterinario_id === userId && (
+                        <button
+                          type="button"
+                          onClick={() => setEmbEditar(e)}
+                          title="Editar embrión"
+                          aria-label="Editar embrión"
+                          className="ml-1.5 inline-flex align-middle rounded p-0.5 text-slate-300 transition-colors hover:text-brand-600"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                      )}
+                      {!transf && !!userId && e.flushing?.veterinario_id === userId && (
+                        <button
+                          type="button"
+                          onClick={() => eliminarEmbrion(e)}
+                          disabled={borrandoId === e.id}
+                          title="Eliminar embrión"
+                          aria-label="Eliminar embrión"
+                          className="ml-1.5 inline-flex align-middle rounded p-0.5 text-slate-300 transition-colors hover:text-red-600 disabled:opacity-50"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                       {transf?.receptora?.pelaje?.nombre ?? VACIO}
@@ -293,6 +339,14 @@ export default function EmbrionesPage() {
             setEmbrionParaTransf(null)
             recargar()
           }}
+        />
+      )}
+
+      {embEditar && (
+        <EditarEmbrionModal
+          embrion={embEditar}
+          onClose={() => setEmbEditar(null)}
+          onSuccess={recargar}
         />
       )}
 

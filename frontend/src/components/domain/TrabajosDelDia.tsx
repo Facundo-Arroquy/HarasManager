@@ -177,10 +177,13 @@ export default function TrabajosDelDia({ trabajos, esVet, empresas, onCambio }: 
     [filas, marcas, persistido],
   )
 
-  /** Borrar solo el autor, el admin de la empresa y el vet dueño: lo exige la RLS. */
+  /**
+   * El autor borra lo suyo aunque ya esté realizado (las consultas que generó
+   * quedan en el historial). Admin y vet dueño, solo lo pendiente.
+   */
   function puedeBorrar(t: TrabajoSanitario): boolean {
-    return t.estado === 'pendiente' &&
-      (t.creado_por === userId || esAdmin || t.vet_owner_id === userId)
+    return t.creado_por === userId ||
+      (t.estado === 'pendiente' && (esAdmin || t.vet_owner_id === userId))
   }
 
   /**
@@ -287,7 +290,8 @@ export default function TrabajosDelDia({ trabajos, esVet, empresas, onCambio }: 
     const cuantos = t.caballos?.length ?? 0
     const ok = window.confirm(
       `¿Eliminar el trabajo “${t.nombre}” del ${t.fecha_programada}?\n\n` +
-      `Se borra para los ${cuantos} caballo${cuantos !== 1 ? 's' : ''} del trabajo. No se puede deshacer.`,
+      `Se borra para los ${cuantos} caballo${cuantos !== 1 ? 's' : ''} del trabajo. No se puede deshacer.` +
+      (t.estado === 'realizado' ? '\n\nLas consultas que generó quedan en el historial de cada caballo.' : ''),
     )
     if (!ok) return
     setError('')
