@@ -577,11 +577,14 @@ export const crianzaService = {
   },
 
   /**
-   * Registra una ecografía post-transferencia y sincroniza el estado
-   * reproductivo de la receptora según el resultado:
-   *   - 'abortada'  → la yegua pasa a 'vacia' y vuelve al circuito de revisión
-   *   - 'prenada'   → la yegua pasa a 'prenada'
-   *   - 'pendiente' → sin cambio de estado (se la vuelve a revisar)
+   * Registra una ecografía post-transferencia. El trigger
+   * `sincronizar_prenez_ecografia` sincroniza a la receptora según el resultado
+   * (solo si es su transferencia vigente):
+   *   - 'abortada'  → sin preñez y pipeline en 'vacia' (vuelve al circuito de revisión)
+   *   - 'prenada'   → preñada y pipeline en 'prenada'
+   *   - 'pendiente' → sin cambio (se la vuelve a revisar)
+   * Se hace en la base porque el vet no puede escribir `caballo` desde el
+   * cliente (la policy de UPDATE es `es_admin`).
    */
   async registrarEcografia(payload: NuevaEcografiaPayload): Promise<Ecografia> {
     const supabase = getSupabaseClient()
@@ -595,22 +598,12 @@ export const crianzaService = {
       `)
       .single()
     if (error) throw error
-
-    await crianzaService.sincronizarEstadoPorEcografia(
-      payload.caballo_receptora_id,
-      payload.sociedad_id,
-      payload.veterinario_id,
-      payload.numero,
-      payload.resultado,
-    )
-
     return data as Ecografia
   },
 
   /**
-   * Corrige una ecografía. La preñez la re-sincroniza el trigger de la tabla
-   * (también al sacar un 'abortada'); el estado del pipeline se sincroniza acá,
-   * igual que al registrarla.
+   * Corrige una ecografía. Preñez y pipeline los re-sincroniza el trigger, igual
+   * que al registrarla; corregir un 'abortada' vuelve al estado previo al aborto.
    */
   async actualizarEcografia(
     eco: Ecografia,
@@ -618,43 +611,6 @@ export const crianzaService = {
   ): Promise<void> {
     const { error } = await getSupabaseClient().from('cria_ecografia').update(payload).eq('id', eco.id)
     if (error) throw error
-    if (payload.resultado !== eco.resultado) {
-      await crianzaService.sincronizarEstadoPorEcografia(
-        eco.caballo_receptora_id, eco.sociedad_id, eco.veterinario_id, eco.numero, payload.resultado,
-      )
-    }
-  },
-
-  /**
-   * Lleva el pipeline de la receptora al estado que implica una eco:
-   * 'abortada' → 'vacia' (vuelve al circuito de revisión), 'prenada' →
-   * 'prenada', 'pendiente' → sin cambio (se la vuelve a revisar).
-   */
-  async sincronizarEstadoPorEcografia(
-    caballoId: string,
-    sociedadId: string,
-    veterinarioId: string,
-    numero: number,
-    resultado: Ecografia['resultado'],
-  ): Promise<void> {
-    const nuevoEstado: EstadoReproductivo =
-      resultado === 'abortada' ? 'vacia'
-      : resultado === 'prenada' ? 'prenada'
-      : null
-    if (!nuevoEstado) return
-
-    const { data: cab } = await getSupabaseClient()
-      .from('caballo')
-      .select('estado_reproductivo')
-      .eq('id', caballoId)
-      .single()
-    const estadoAnterior = (cab?.estado_reproductivo ?? null) as EstadoReproductivo
-    if (estadoAnterior === nuevoEstado) return
-
-    await crianzaService.actualizarEstadoReproductivo(
-      caballoId, sociedadId, estadoAnterior, nuevoEstado, veterinarioId,
-      `Ecografía ${numero}: ${resultado}`,
-    )
   },
 
   async actualizarRolReproductivo(
