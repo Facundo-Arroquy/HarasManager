@@ -286,10 +286,16 @@ function PlazosSection() {
           onChange={(v) => setField('donante_in_a_oxi', v)}
         />
         <Regla
-          label="Ovulación (OV) → Flushing"
+          label="Ovulación (OV) inseminada → Flushing"
           valor={local.donante_ov_a_flushing}
           default_={PLAZOS_VET_DEFAULTS.donante_ov_a_flushing}
           onChange={(v) => setField('donante_ov_a_flushing', v)}
+        />
+        <Regla
+          label="Ovulación (OV) sin inseminar → Dar PG"
+          valor={local.donante_ov_sin_in_a_dar_pg}
+          default_={PLAZOS_VET_DEFAULTS.donante_ov_sin_in_a_dar_pg}
+          onChange={(v) => setField('donante_ov_sin_in_a_dar_pg', v)}
         />
         <Regla
           label="PG → Revisión PG"

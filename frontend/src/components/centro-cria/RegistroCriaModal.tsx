@@ -4,7 +4,7 @@ import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { Link } from 'react-router-dom'
 import { X, AlertCircle, Settings2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { useCrianzaStore } from '../../store/crianzaStore'
+import { useCrianzaStore, VENTANA_INSEMINACION_DIAS } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
 import { CHIPS_OI_OD, CHIPS_UTERO, admiteRegistroCria } from '../../types/crianza'
 import type { RolReproductivo, PlazosVet, RecordatorioCria } from '../../types/crianza'
@@ -48,7 +48,9 @@ type AnimalItem = {
 
 export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial, recordatorio }: Props) {
   const { user, sociedadActiva, rol } = useAuth()
-  const { crearRegistro, plazos, cargarPlazos, actualizarEstadoRecordatorio } = useCrianzaStore()
+  const {
+    crearRegistro, plazos, cargarPlazos, actualizarEstadoRecordatorio, consultarInseminacionReciente,
+  } = useCrianzaStore()
 
   const [animales, setAnimales] = useState<AnimalItem[]>([])
   const [cargandoAnimales, setCargandoAnimales] = useState(true)
@@ -73,6 +75,8 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [observaciones, setObservaciones] = useState('')
   // Si el animal no tiene rol asignado, el vet elige uno en el modal
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
+  // IN en los días previos: decide si la OV de la donante agenda Flushing o Dar PG
+  const [inseminadaPrevia, setInseminadaPrevia] = useState(false)
 
   // Para vets sin sociedadActiva: se deriva del caballo seleccionado
   const [animalSociedadId, setAnimalSociedadId] = useState('')
@@ -127,6 +131,17 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   // semanal: entrando por la ficha del caballo el store todavía está en los
   // valores por defecto y los recordatorios caerían en la fecha equivocada.
   useEffect(() => { cargarPlazos().catch(() => {}) }, [cargarPlazos])
+
+  // Para el preview: la misma consulta que hace el store al guardar.
+  const consultarIN = rolEfectivo === 'Donante' && mostrarOvDias && !!caballoId && !!fecha
+  useEffect(() => {
+    if (!consultarIN) { setInseminadaPrevia(false); return }
+    let cancelado = false
+    consultarInseminacionReciente(caballoId, fecha)
+      .then((r) => { if (!cancelado) setInseminadaPrevia(r) })
+      .catch(() => { if (!cancelado) setInseminadaPrevia(false) })
+    return () => { cancelado = true }
+  }, [consultarIN, caballoId, fecha, consultarInseminacionReciente])
 
   // ── Carga del catálogo de acciones del vet autenticado ────────────────────
   // La lista es propia de cada veterinario (RLS filtra por auth.uid()) y viaja
@@ -484,7 +499,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           </div>
 
           {/* Previsualización de recordatorios a generar */}
-          {caballoId && obsChips.length > 0 && (
+          {/* Sin exigir chips: una OV sola también agenda (Flushing o Dar PG).
+              El preview no se pinta si no hay nada que generar. */}
+          {caballoId && (
             <RecordatoriosPreview
               obsChips={obsChips}
               ovarioDer={ovarioDer}
@@ -492,6 +509,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               fecha={fecha}
               rol={rolEfectivo}
               reviewManana={reviewManana}
+              inseminada={obsChips.includes('IN') || inseminadaPrevia}
               cfg={plazos}
             />
           )}
@@ -532,7 +550,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 // ── Preview de recordatorios automáticos ──────────────────────────────────────
 
 function RecordatoriosPreview({
-  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewManana, cfg,
+  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewManana, inseminada, cfg,
 }: {
   obsChips: string[]
   ovarioIzq: string[]
@@ -540,17 +558,22 @@ function RecordatoriosPreview({
   fecha: string
   rol: RolReproductivo
   reviewManana: boolean
+  /** IN en este registro o en los días previos (ver VENTANA_INSEMINACION_DIAS). */
+  inseminada: boolean
   /** Plazos del vet autenticado (los mismos que usará reglasParaRegistro). */
   cfg: PlazosVet
 }) {
-  const items: { tipo: string; fecha: string }[] = []
+  const items: { tipo: string; fecha: string; nota?: string }[] = []
 
   const tieneOV = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
 
   if (rol === 'Donante') {
     if (obsChips.includes('Strelin')) items.push({ tipo: 'IN', fecha: sumarDias(fecha, cfg.donante_strelin_a_in) })
     if (obsChips.includes('IN'))      items.push({ tipo: 'OXI', fecha: sumarDias(fecha, cfg.donante_in_a_oxi) })
-    if (tieneOV)                      items.push({ tipo: 'Flushing', fecha: sumarDias(fecha, cfg.donante_ov_a_flushing) })
+    if (tieneOV) items.push(inseminada
+      ? { tipo: 'Flushing', fecha: sumarDias(fecha, cfg.donante_ov_a_flushing) }
+      : { tipo: 'Dar PG', fecha: sumarDias(fecha, cfg.donante_ov_sin_in_a_dar_pg),
+          nota: `sin IN en los últimos ${VENTANA_INSEMINACION_DIAS} días` })
     if (obsChips.includes('PG'))      items.push({ tipo: 'Revisión PG', fecha: sumarDias(fecha, cfg.donante_pg_a_revision_pg) })
     if (obsChips.includes('Flushing'))items.push({ tipo: 'Revisión Flushing', fecha: sumarDias(fecha, cfg.donante_flushing_a_revision) })
   }
@@ -571,7 +594,10 @@ function RecordatoriosPreview({
       </p>
       {items.map((item, i) => (
         <div key={i} className="flex items-center justify-between text-xs">
-          <span className="text-slate-600">{item.tipo}</span>
+          <span className="text-slate-600">
+            {item.tipo}
+            {item.nota && <span className="text-slate-400"> · {item.nota}</span>}
+          </span>
           <span className="text-slate-400">{formatFecha(item.fecha)}</span>
         </div>
       ))}
