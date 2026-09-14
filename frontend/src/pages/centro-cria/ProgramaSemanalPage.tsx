@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Check, Clock, AlertCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Check, Clock, AlertCircle, X } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import Spinner from '../../components/ui/Spinner'
@@ -8,6 +8,8 @@ import FlushingModal from '../../components/centro-cria/FlushingModal'
 import EcografiaModal from '../../components/centro-cria/EcografiaModal'
 import FlushingBanner from '../../components/centro-cria/FlushingBanner'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
+import FiltroColumna from '../../components/ui/FiltroColumna'
+import { useFiltrosTabla } from '../../hooks/useFiltrosTabla'
 import { hoyAR } from '../../utils/fecha'
 import { accionParaRecordatorio, type AccionRecordatorio } from '../../utils/recordatorio'
 import { LABEL_RESULTADO_ECO } from '../../types/crianza'
@@ -129,6 +131,25 @@ const ICONO_ESTADO_EVENTO: Record<TipoEvento, typeof Check> = {
   flushing:      Check,
   ecografia:     Check,
 }
+
+/** Lo que filtra y ordena cada columna de la tabla del día (filtros tipo Excel). */
+const COLUMNAS_TABLA = {
+  caballo:     (e: Evento) => e.caballoNombre,
+  rol:         (e: Evento) => e.rol,
+  tipo:        (e: Evento) => e.etiqueta,
+  veterinario: (e: Evento) => e.veterinario,
+  estado:      (e: Evento) => LABEL_ESTADO_EVENTO[e.tipo],
+  detalle:     (e: Evento) => e.detalle,
+}
+
+const ENCABEZADOS: { col: keyof typeof COLUMNAS_TABLA; titulo: string }[] = [
+  { col: 'caballo',     titulo: 'Caballo' },
+  { col: 'rol',         titulo: 'Rol' },
+  { col: 'tipo',        titulo: 'Tipo' },
+  { col: 'veterinario', titulo: 'Veterinario' },
+  { col: 'estado',      titulo: 'Estado' },
+  { col: 'detalle',     titulo: 'Detalle' },
+]
 
 function nombreVet(v?: { nombre: string; apellido: string } | null): string | null {
   return v ? `Dr/a. ${v.nombre} ${v.apellido}`.trim() : null
@@ -317,6 +338,8 @@ export default function ProgramaSemanalPage() {
   }, [eventos, dias, hoy])
 
   const eventosDia = eventosPorDia[diaSelec] ?? []
+  // Los filtros quedan puestos al cambiar de día, como en una planilla.
+  const filtros = useFiltrosTabla(eventosDia, COLUMNAS_TABLA)
 
   if (loading && registros.length === 0) {
     return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
@@ -427,9 +450,22 @@ export default function ProgramaSemanalPage() {
 
       {/* Detalle del día seleccionado */}
       <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="mb-4 text-lg font-bold text-slate-900 first-letter:uppercase">
-          {diaSelec === hoy ? 'Actividades de hoy' : formatDiaLargo(new Date(diaSelec + 'T12:00:00Z'))}
-        </h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold text-slate-900 first-letter:uppercase">
+            {diaSelec === hoy ? 'Actividades de hoy' : formatDiaLargo(new Date(diaSelec + 'T12:00:00Z'))}
+          </h2>
+          {filtros.hayCambios && eventosDia.length > 0 && (
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <span>Mostrando {filtros.filas.length} de {eventosDia.length}</span>
+              <button
+                onClick={filtros.limpiar}
+                className="flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700"
+              >
+                <X size={12} /> Quitar filtros
+              </button>
+            </div>
+          )}
+        </div>
 
         {eventosDia.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">Sin actividad registrada.</p>
@@ -438,16 +474,29 @@ export default function ProgramaSemanalPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="py-2 text-left font-medium">Caballo</th>
-                  <th className="py-2 text-left font-medium">Rol</th>
-                  <th className="py-2 text-left font-medium">Tipo</th>
-                  <th className="py-2 text-left font-medium">Veterinario</th>
-                  <th className="py-2 text-left font-medium">Estado</th>
-                  <th className="py-2 text-left font-medium">Detalle</th>
+                  {ENCABEZADOS.map(({ col, titulo }) => (
+                    <th key={col} className="py-2 pr-3 text-left font-medium">
+                      <FiltroColumna
+                        titulo={titulo}
+                        opciones={filtros.opciones(col)}
+                        seleccion={filtros.seleccion(col)}
+                        onCambiar={(sel) => filtros.setSeleccion(col, sel)}
+                        orden={filtros.orden?.columna === col ? filtros.orden.dir : null}
+                        onOrdenar={(dir) => filtros.setOrden(dir ? { columna: col, dir } : null)}
+                      />
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {eventosDia.map((e) => (
+                {filtros.filas.length === 0 && (
+                  <tr>
+                    <td colSpan={ENCABEZADOS.length} className="py-6 text-center text-sm text-slate-400">
+                      Ninguna actividad coincide con los filtros.
+                    </td>
+                  </tr>
+                )}
+                {filtros.filas.map((e) => (
                   <tr key={e.id} className="border-b border-slate-100 last:border-0">
                     <td className="py-2 pr-3 font-medium text-slate-800">
                       <NombreCaballoLink id={e.caballoId} nombre={e.caballoNombre} />
