@@ -60,6 +60,8 @@ export interface PlazosVet {
   donante_strelin_a_in:        number
   donante_in_a_oxi:            number
   donante_ov_a_flushing:       number
+  // OV sin inseminación previa → Dar PG en vez de Flushing (migración 20260912120000)
+  donante_ov_sin_in_a_dar_pg:  number
   donante_pg_a_revision_pg:    number
   donante_flushing_a_revision: number
   receptora_pg_a_revision_pg:  number
@@ -75,6 +77,7 @@ export const PLAZOS_VET_DEFAULTS: PlazosVet = {
   donante_strelin_a_in:        1,
   donante_in_a_oxi:            1,
   donante_ov_a_flushing:       6,
+  donante_ov_sin_in_a_dar_pg:  4,
   donante_pg_a_revision_pg:    3,
   donante_flushing_a_revision: 4,
   receptora_pg_a_revision_pg:  4,

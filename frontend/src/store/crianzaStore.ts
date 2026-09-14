@@ -33,7 +33,8 @@ import type {
 // Donante:
 //   Strelin → IN           +1 día
 //   IN      → OXI          +1 día
-//   OV      → Flushing     +6 días
+//   OV (inseminada)     → Flushing  +6 días
+//   OV (sin inseminar)  → Dar PG    +4 días
 //   PG      → Revisión PG  +3 días
 //   Flushing→ Rev.Flushing +4 días
 //
@@ -81,6 +82,14 @@ export interface ReglaRecordatorio {
 }
 
 /**
+ * Días hacia atrás (desde la fecha del registro, inclusive) en los que una IN
+ * cuenta como "inseminada antes de esta ovulación". Cubre la IN del ciclo
+ * (1–2 días antes de ovular) y los re-registros de OV con días post-OV, sin
+ * alcanzar la IN del ciclo anterior (12+ días antes).
+ */
+export const VENTANA_INSEMINACION_DIAS = 7
+
+/**
  * Recordatorios que genera un registro. La usa el store al guardar y el preview
  * de RegistroCriaModal, para que lo que se muestra sea lo que se crea.
  */
@@ -88,6 +97,8 @@ export function reglasParaRegistro(
   registro: Pick<NuevoRegistroCriaPayload, 'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_manana'>,
   rolReproductivo: RolReproductivo,
   cfg: PlazosVet,
+  /** Hubo IN en este registro o en los VENTANA_INSEMINACION_DIAS previos. */
+  inseminada: boolean,
   propias: ReglaRecordatorioVet[] = [],
 ): ReglaRecordatorio[] {
   const chips = registro.obs_chips
@@ -102,8 +113,12 @@ export function reglasParaRegistro(
     // Solo por el estado ovárico, igual que el preview de RegistroCriaModal:
     // 'OV' no es un obs_chip (es un chip de ovario), así que chequearlo en
     // `chips` era condición muerta y además divergía del preview.
+    // Sin IN previa no hay embrión que lavar: en vez de Flushing se agenda
+    // Dar PG para cortar el ciclo (pedido de Facu, 2026-09-12).
     if (registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV'))
-      reglas.push({ tipo: 'Flushing', calcularFecha: (f) => sumarDias(f, cfg.donante_ov_a_flushing) })
+      reglas.push(inseminada
+        ? { tipo: 'Flushing', calcularFecha: (f) => sumarDias(f, cfg.donante_ov_a_flushing) }
+        : { tipo: 'Dar PG',   calcularFecha: (f) => sumarDias(f, cfg.donante_ov_sin_in_a_dar_pg) })
     if (chips.includes('PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.donante_pg_a_revision_pg) })
     if (chips.includes('Flushing'))
@@ -163,6 +178,12 @@ interface CrianzaState {
     payload: NuevoRegistroCriaPayload,
     rolReproductivo: RolReproductivo
   ) => Promise<RegistroClinicoCria>
+
+  /**
+   * Si la yegua tuvo una IN en los VENTANA_INSEMINACION_DIAS previos a `fecha`
+   * (inclusive). Decide si la OV de la donante agenda Flushing o Dar PG.
+   */
+  consultarInseminacionReciente: (caballoId: string, fecha: string) => Promise<boolean>
 
   // Recordatorios
   actualizarEstadoRecordatorio: (
@@ -266,12 +287,21 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   // ── Registros clínicos ────────────────────────────────────────────────────
 
   crearRegistro: async (payload, rolReproductivo) => {
+    // La OV de la donante agenda Flushing solo si hubo IN antes. Se consulta
+    // antes de insertar: si falla, no queda un registro con el recordatorio
+    // equivocado. Solo hace falta ir a la base si este registro no trae IN.
+    const tieneOV = payload.ovario_izq.includes('OV') || payload.ovario_der.includes('OV')
+    const inseminada =
+      payload.obs_chips.includes('IN') ||
+      (rolReproductivo === 'Donante' && tieneOV &&
+        await get().consultarInseminacionReciente(payload.caballo_id, payload.fecha))
+
     const registro = await crianzaService.crearRegistro(payload)
     set((s) => ({ registros: [registro, ...s.registros] }))
 
     // Auto-generar recordatorios según chips (insert batch para evitar N+1).
     // Los plazos son los del vet autenticado = el que hace el registro.
-    const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, get().reglasPropias)
+    const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, inseminada, get().reglasPropias)
     if (reglas.length > 0) {
       const recPayloads: NuevoRecordatorioPayload[] = reglas.map((regla) => ({
         caballo_id:         payload.caballo_id,
@@ -304,6 +334,13 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
     return registro
   },
+
+  consultarInseminacionReciente: (caballoId, fecha) =>
+    crianzaService.huboInseminacionEntre(
+      caballoId,
+      sumarDias(fecha, -VENTANA_INSEMINACION_DIAS),
+      fecha,
+    ),
 
   // ── Recordatorios ─────────────────────────────────────────────────────────
 

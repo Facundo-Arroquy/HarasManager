@@ -316,7 +316,10 @@ function TrabajosRealizados({
   loading:  boolean
   error:    string | null
 }) {
+  // Acá y no en SanidadPage: sin el hook, `location` era el window.location
+  // global y el `from` del Volver no pasaba por el router.
   const location = useLocation()
+
   return (
     <section>
       <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">

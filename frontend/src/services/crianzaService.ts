@@ -84,6 +84,25 @@ export const crianzaService = {
     return data as RegistroClinicoCria[]
   },
 
+  /**
+   * Si la yegua tiene algún registro con el chip 'IN' entre `desde` y `hasta`
+   * (inclusive). Lo usa la regla de OV de la donante: sin inseminación previa
+   * no se agenda Flushing sino Dar PG.
+   */
+  async huboInseminacionEntre(caballoId: string, desde: string, hasta: string): Promise<boolean> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_registro_clinico')
+      .select('id')
+      .eq('caballo_id', caballoId)
+      .gte('fecha', desde)
+      .lte('fecha', hasta)
+      .contains('obs_chips', ['IN'])
+      .limit(1)
+    if (error) throw error
+    return (data ?? []).length > 0
+  },
+
   async crearRegistro(payload: NuevoRegistroCriaPayload): Promise<RegistroClinicoCria> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
