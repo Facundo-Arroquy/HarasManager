@@ -45,6 +45,7 @@ import type {
 //
 // Cualquiera:
 //   review_manana = true → Revisión  próximo MWF
+//   revisar_en_dias > 0  → Revisión  +X días (X lo pone el vet en el registro)
 //
 // Además, las reglas propias de cada vet (tabla cria_regla_recordatorio): si
 // marca la acción X, se pide la acción Y a los Z días. Si una repite un tipo
@@ -94,7 +95,10 @@ export const VENTANA_INSEMINACION_DIAS = 7
  * de RegistroCriaModal, para que lo que se muestra sea lo que se crea.
  */
 export function reglasParaRegistro(
-  registro: Pick<NuevoRegistroCriaPayload, 'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_manana'>,
+  registro: Pick<
+    NuevoRegistroCriaPayload,
+    'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_manana' | 'revisar_en_dias'
+  >,
   rolReproductivo: RolReproductivo,
   cfg: PlazosVet,
   /** Hubo IN en este registro o en los VENTANA_INSEMINACION_DIAS previos. */
@@ -145,6 +149,20 @@ export function reglasParaRegistro(
 
   if (registro.review_manana)
     reglas.push({ tipo: 'Revisión', calcularFecha: (f) => proximoMWF(f) })
+
+  // Revisión a pedido del vet, a los días que él cargue en el registro. Va
+  // además de todo lo anterior (pedido de Facu, 2026-09-15). Si cae el mismo
+  // día que la 'Revisión' de `review_manana`, se agenda una sola: son la misma
+  // visita y duplicarla obliga al vet a cerrar dos recordatorios iguales.
+  const revisarEnDias = registro.revisar_en_dias ?? 0
+  if (revisarEnDias > 0) {
+    const fechaRevision = sumarDias(base, revisarEnDias)
+    const yaAgendada = reglas.some(
+      (r) => r.tipo === 'Revisión' && r.calcularFecha(base) === fechaRevision,
+    )
+    if (!yaAgendada)
+      reglas.push({ tipo: 'Revisión', calcularFecha: (f) => sumarDias(f, revisarEnDias) })
+  }
 
   return reglas.map((r) => ({ ...r, calcularFecha: () => r.calcularFecha(base) }))
 }
