@@ -453,7 +453,7 @@ INSERT INTO cria_registro_clinico (
   id, caballo_id, sociedad_id, fecha, veterinario_id,
   ovario_izq, ovario_der, utero, obs_chips,
   padrillo_id, ov_dias,
-  review_manana, review_manana_desc,
+  review_dias, review_desc,
   motivo, diagnostico, tratamiento
 )
 VALUES (
@@ -468,7 +468,7 @@ VALUES (
   ARRAY[]::TEXT[],
   'b0000000-0000-0000-0000-000000000032',
   NULL,
-  TRUE, 'Revisar folículo — esperado ≥ 40 mm para inducir',
+  1, 'Revisar folículo — esperado ≥ 40 mm para inducir',
   'Evaluación pre-flushing',
   'Folículo dominante derecho en crecimiento activo.',
   'Sin tratamiento. Control mañana.'

@@ -174,6 +174,16 @@ export const crianzaService = {
     if (error) throw error
   },
 
+  /** Cancela en lote (p.ej. revisiones que un registro más nuevo reemplaza). */
+  async cancelarRecordatorios(ids: string[], motivo: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('cria_recordatorio')
+      .update({ estado: 'cancelado', cancel_motivo: motivo })
+      .in('id', ids)
+    if (error) throw error
+  },
+
   async actualizarEstadoRecordatorio(
     id: string,
     estado: EstadoRecordatorio,

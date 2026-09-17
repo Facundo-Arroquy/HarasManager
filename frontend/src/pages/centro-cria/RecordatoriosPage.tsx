@@ -438,7 +438,7 @@ function FichaPanel({ ficha, estado }: { ficha: FichaRecordatorio; estado: Estad
         ['Útero', g.utero.join(', ') || null],
         ['Padrillo', g.padrillo?.nombre ?? null],
         ['Días post-OV', g.ov_dias != null ? String(g.ov_dias) : null],
-        ['Revisar en', g.revisar_en_dias > 0 ? `${g.revisar_en_dias} días` : null],
+        ['Revisar en', g.review_dias != null ? `${g.review_dias} ${g.review_dias === 1 ? 'día' : 'días'}` : null],
         ['Observaciones', g.observaciones],
       ]}
     />

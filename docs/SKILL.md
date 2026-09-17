@@ -724,13 +724,14 @@ CREATE TABLE cria_registro_clinico (
   obs_chips TEXT[] NOT NULL DEFAULT '{}',
   padrillo_id UUID REFERENCES caballo(id),
   ov_dias SMALLINT,
-  review_manana BOOLEAN DEFAULT FALSE,
-  review_manana_desc TEXT,
-  -- Revisión a pedido del vet, a los X días de `fecha` (migración
-  -- 20260915120000). 0 = no pidió ninguna, y es el default. Genera un
-  -- recordatorio 'Revisión' extra, además de los de las reglas; si cae el mismo
-  -- día que el de `review_manana`, se agenda uno solo (`reglasParaRegistro`).
-  revisar_en_dias SMALLINT NOT NULL DEFAULT 0 CHECK (revisar_en_dias BETWEEN 0 AND 365),
+  -- Días desde `fecha` para agendar la revisión de seguimiento (1..60).
+  -- NULL = no se pidió revisión. Campo único de revisión: la migración
+  -- 20260917174756 unificó acá el viejo checkbox "Revisión mañana"
+  -- (`review_manana`, fijo al próximo lunes/miércoles/viernes) y el
+  -- `revisar_en_dias` 0..365 de la migración 20260915120000 — eran dos formas
+  -- de pedir la misma visita. review_desc es el motivo opcional (texto libre).
+  review_dias SMALLINT CHECK (review_dias IS NULL OR (review_dias BETWEEN 1 AND 60)),
+  review_desc TEXT,
   motivo TEXT, diagnostico TEXT, tratamiento TEXT, observaciones TEXT,
   -- Recordatorio que este registro vino a cerrar (migración cria_origen_recordatorio_en_registro_y_ecografia).
   -- NULL = registro suelto. Es lo que permite abrir desde el recordatorio la ficha de lo que se hizo.
