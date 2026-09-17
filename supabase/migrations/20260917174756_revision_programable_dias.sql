@@ -11,12 +11,13 @@
 -- aplica) en vez de un sentinel numérico. `review_manana_desc` se renombra a
 -- `review_desc` — es el mismo campo de motivo, ya no atado al nombre viejo.
 --
--- Nota: esta migración también da de baja `revisar_en_dias`, una columna que
--- había quedado aplicada en esta base (SMALLINT NOT NULL DEFAULT 0, rango
--- 0..365) sin archivo de migración en el repo y sin ningún código que la
--- lea o escriba — scaffolding de un intento anterior que no se terminó. No
--- encajaba con el rango pedido (1..60) ni con el criterio NULL=sin revisión,
--- así que se remueve y se reemplaza por `review_dias` en este mismo cambio.
+-- Nota: esta migración también da de baja `revisar_en_dias` (SMALLINT NOT NULL
+-- DEFAULT 0, rango 0..365), que venía de la migración `20260915120000` /
+-- PR #92. Era el mismo pedido resuelto dos veces en paralelo: una revisión a
+-- los X días que elige el vet. Se unifica en `review_dias` porque tener dos
+-- campos obliga a deduplicar recordatorios a mano y a explicar dos sentinels
+-- distintos de "sin revisión" (0 vs NULL). Gana el criterio de acá: rango
+-- 1..60 y NULL = no se pidió, igual que `ov_dias`.
 -- =============================================================================
 
 ALTER TABLE cria_registro_clinico

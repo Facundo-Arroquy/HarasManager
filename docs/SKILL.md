@@ -725,9 +725,11 @@ CREATE TABLE cria_registro_clinico (
   padrillo_id UUID REFERENCES caballo(id),
   ov_dias SMALLINT,
   -- Días desde `fecha` para agendar la revisión de seguimiento (1..60).
-  -- NULL = no se pidió revisión. Reemplaza al viejo checkbox "Revisión
-  -- mañana" (fijo al próximo lunes/miércoles/viernes) — migración
-  -- 20260917174756. review_desc es el motivo opcional (texto libre).
+  -- NULL = no se pidió revisión. Campo único de revisión: la migración
+  -- 20260917174756 unificó acá el viejo checkbox "Revisión mañana"
+  -- (`review_manana`, fijo al próximo lunes/miércoles/viernes) y el
+  -- `revisar_en_dias` 0..365 de la migración 20260915120000 — eran dos formas
+  -- de pedir la misma visita. review_desc es el motivo opcional (texto libre).
   review_dias SMALLINT CHECK (review_dias IS NULL OR (review_dias BETWEEN 1 AND 60)),
   review_desc TEXT,
   motivo TEXT, diagnostico TEXT, tratamiento TEXT, observaciones TEXT,
