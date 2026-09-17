@@ -192,6 +192,12 @@ export interface RegistroClinicoCria {
   ov_dias:           number | null
   review_manana:     boolean
   review_manana_desc: string | null
+  /**
+   * Revisión pedida a mano por el vet: días desde `fecha` hasta el
+   * recordatorio 'Revisión' que genera este registro. 0 = no pidió ninguna.
+   * Se suma a los recordatorios de las reglas (ver `reglasParaRegistro`).
+   */
+  revisar_en_dias:   number
   motivo:            string | null
   diagnostico:       string | null
   tratamiento:       string | null

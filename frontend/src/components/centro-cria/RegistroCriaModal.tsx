@@ -80,6 +80,10 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [ovDias,        setOvDias]        = useState<string>(registroEditar?.ov_dias != null ? String(registroEditar.ov_dias) : '')
   const [reviewManana,  setReviewManana]  = useState(registroEditar?.review_manana ?? false)
   const [reviewDesc,    setReviewDesc]    = useState(registroEditar?.review_manana_desc ?? '')
+  // Revisión a los X días que pida el vet. Vacío = 0 = ninguna.
+  const [revisarDias,   setRevisarDias]   = useState<string>(
+    registroEditar?.revisar_en_dias ? String(registroEditar.revisar_en_dias) : '',
+  )
   const [observaciones, setObservaciones] = useState(registroEditar?.observaciones ?? '')
   // Si el animal no tiene rol asignado, el vet elige uno en el modal
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
@@ -109,6 +113,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
     [chipsObs, registroEditar],
   )
 
+  const revisarDiasNum  = revisarDias === '' ? 0 : Number(revisarDias)
   const mostrarPadrillo = obsChips.includes('IN')
   const mostrarOvDias   = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
   const necesitaRol     = animalSeleccionado && !animalSeleccionado.rol_reproductivo
@@ -226,6 +231,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
     const sociedadId = registroEditar?.sociedad_id || sociedadActiva?.id || animalSociedadId || recordatorio?.sociedad_id
     if (!sociedadId)      return setError('No se pudo determinar la sociedad del animal.')
     if (necesitaRol && !rolManual) return setError('Indicá si es Donante o Receptora.')
+    if (!Number.isInteger(revisarDiasNum) || revisarDiasNum < 0 || revisarDiasNum > 365) {
+      return setError('La revisión se agenda entre 1 y 365 días. Dejalo vacío o en 0 si no hace falta.')
+    }
     if (mostrarPadrillo && parentescoElegido) {
       return setError(
         `El padrillo es ${parentescoElegido.toLowerCase()} de la yegua: no se puede inseminar con un familiar directo.`,
@@ -242,6 +250,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       ov_dias:            mostrarOvDias && ovDias !== '' ? Number(ovDias) : null,
       review_manana:      reviewManana,
       review_manana_desc: reviewManana && reviewDesc ? reviewDesc : null,
+      revisar_en_dias:    revisarDiasNum,
       observaciones:      observaciones.trim() || null,
     }
 
@@ -518,6 +527,28 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
             )}
           </div>
 
+          {/* Revisión a los X días — se suma a los recordatorios de las reglas */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500" htmlFor="revisar-en-dias">
+              Revisar en (días)
+            </label>
+            <input
+              id="revisar-en-dias"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={365}
+              value={revisarDias}
+              onChange={(e) => setRevisarDias(e.target.value)}
+              placeholder="0"
+              className="w-24 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+            <p className="text-[11px] text-slate-400">
+              0 o vacío: no se agenda nada. Con un número se agrega una Revisión a esos días,
+              además de los recordatorios que generen las reglas.
+            </p>
+          </div>
+
           {/* Observaciones libres */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500">Observaciones</label>
@@ -546,6 +577,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               fecha={fecha}
               rol={rolEfectivo}
               reviewManana={reviewManana}
+              revisarEnDias={revisarDiasNum}
               inseminada={obsChips.includes('IN') || inseminadaPrevia}
               cfg={plazos}
               propias={reglasPropias}
@@ -589,7 +621,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 // ── Preview de recordatorios automáticos ──────────────────────────────────────
 
 function RecordatoriosPreview({
-  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewManana, inseminada, cfg, propias,
+  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewManana, revisarEnDias, inseminada, cfg, propias,
 }: {
   obsChips: string[]
   ovarioIzq: string[]
@@ -597,6 +629,8 @@ function RecordatoriosPreview({
   fecha: string
   rol: RolReproductivo
   reviewManana: boolean
+  /** Días que pidió el vet para la revisión manual. 0 = ninguna. */
+  revisarEnDias: number
   /** IN en este registro o en los días previos (ver VENTANA_INSEMINACION_DIAS). */
   inseminada: boolean
   /** Plazos del vet autenticado (los mismos que usará reglasParaRegistro). */
@@ -608,7 +642,14 @@ function RecordatoriosPreview({
   // preview podía mostrar recordatorios que después no se creaban.
   const tieneOV = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
   const items = reglasParaRegistro(
-    { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer, review_manana: reviewManana },
+    {
+      fecha,
+      obs_chips:       obsChips,
+      ovario_izq:      ovarioIzq,
+      ovario_der:      ovarioDer,
+      review_manana:   reviewManana,
+      revisar_en_dias: revisarEnDias,
+    },
     rol, cfg, inseminada, propias,
   ).map((r) => ({
     tipo:  r.tipo,
