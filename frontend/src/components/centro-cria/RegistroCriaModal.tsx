@@ -6,13 +6,16 @@ import { X, AlertCircle, Settings2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore, reglasParaRegistro, VENTANA_INSEMINACION_DIAS } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
-import { CHIPS_OI_OD, CHIPS_UTERO, admiteRegistroCria } from '../../types/crianza'
+import {
+  CHIPS_OI_OD, CHIPS_UTERO, admiteRegistroCria,
+  REVIEW_DIAS_BOTONES_RAPIDOS, REVIEW_DIAS_MIN, REVIEW_DIAS_MAX,
+} from '../../types/crianza'
 import type {
   RolReproductivo, PlazosVet, RecordatorioCria, RegistroClinicoCria, ReglaRecordatorioVet,
 } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import PadrilloSelect from './PadrilloSelect'
-import { hoyAR, formatFecha as formatFechaAR } from '../../utils/fecha'
+import { hoyAR, sumarDias, formatFecha as formatFechaAR } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
 
 interface Props {
@@ -78,8 +81,8 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [obsChips,      setObsChips]      = useState<string[]>(registroEditar?.obs_chips ?? [])
   const [padrilloId,    setPadrilloId]    = useState(registroEditar?.padrillo_id ?? '')
   const [ovDias,        setOvDias]        = useState<string>(registroEditar?.ov_dias != null ? String(registroEditar.ov_dias) : '')
-  const [reviewManana,  setReviewManana]  = useState(registroEditar?.review_manana ?? false)
-  const [reviewDesc,    setReviewDesc]    = useState(registroEditar?.review_manana_desc ?? '')
+  const [reviewDias,    setReviewDias]    = useState<number | null>(registroEditar?.review_dias ?? null)
+  const [reviewDesc,    setReviewDesc]    = useState(registroEditar?.review_desc ?? '')
   const [observaciones, setObservaciones] = useState(registroEditar?.observaciones ?? '')
   // Si el animal no tiene rol asignado, el vet elige uno en el modal
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
@@ -231,18 +234,21 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
         `El padrillo es ${parentescoElegido.toLowerCase()} de la yegua: no se puede inseminar con un familiar directo.`,
       )
     }
+    if (reviewDias != null && (!Number.isInteger(reviewDias) || reviewDias < REVIEW_DIAS_MIN || reviewDias > REVIEW_DIAS_MAX)) {
+      return setError(`Los días de revisión deben ser un número entero entre ${REVIEW_DIAS_MIN} y ${REVIEW_DIAS_MAX}.`)
+    }
 
     const datos = {
       fecha,
-      ovario_izq:         ovarioIzq,
-      ovario_der:         ovarioDer,
+      ovario_izq:    ovarioIzq,
+      ovario_der:    ovarioDer,
       utero,
-      obs_chips:          obsChips,
-      padrillo_id:        mostrarPadrillo && padrilloId ? padrilloId : null,
-      ov_dias:            mostrarOvDias && ovDias !== '' ? Number(ovDias) : null,
-      review_manana:      reviewManana,
-      review_manana_desc: reviewManana && reviewDesc ? reviewDesc : null,
-      observaciones:      observaciones.trim() || null,
+      obs_chips:     obsChips,
+      padrillo_id:   mostrarPadrillo && padrilloId ? padrilloId : null,
+      ov_dias:       mostrarOvDias && ovDias !== '' ? Number(ovDias) : null,
+      review_dias:   reviewDias,
+      review_desc:   reviewDias && reviewDesc ? reviewDesc : null,
+      observaciones: observaciones.trim() || null,
     }
 
     await execute(async () => {
@@ -496,25 +502,61 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
             </div>
           )}
 
-          {/* Revisión mañana */}
+          {/* Revisión programada — reemplaza al viejo checkbox "Revisión mañana" */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="text-xs font-medium text-slate-500">Revisión programada</label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {REVIEW_DIAS_BOTONES_RAPIDOS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setReviewDias(reviewDias === d ? null : d)}
+                  className={`h-8 w-8 rounded-md border text-xs font-medium transition-colors ${
+                    reviewDias === d
+                      ? 'border-brand-500 bg-brand-50 text-brand-700'
+                      : 'border-slate-300 text-slate-500 hover:border-slate-400'
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+              {/* Input libre para 8-60: los botones rápidos ya cubren la primera semana. */}
               <input
-                type="checkbox"
-                checked={reviewManana}
-                onChange={(e) => setReviewManana(e.target.checked)}
-                className="rounded border-slate-400 bg-slate-100 text-brand-500 focus:ring-brand-500"
+                type="number"
+                min={REVIEW_DIAS_BOTONES_RAPIDOS.length + 1}
+                max={REVIEW_DIAS_MAX}
+                value={reviewDias != null && reviewDias > REVIEW_DIAS_BOTONES_RAPIDOS.length ? reviewDias : ''}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setReviewDias(v === '' ? null : Number(v))
+                }}
+                placeholder="8-60"
+                className="w-16 rounded-md border border-slate-300 bg-slate-100 px-2 py-1.5 text-xs text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
-              <span className="text-xs text-slate-500">Revisión mañana</span>
-            </label>
-            {reviewManana && (
-              <input
-                type="text"
-                value={reviewDesc}
-                onChange={(e) => setReviewDesc(e.target.value)}
-                placeholder="Motivo (opcional)"
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              />
+              <span className="text-[11px] text-slate-400">días</span>
+              {reviewDias != null && (
+                <button
+                  type="button"
+                  onClick={() => setReviewDias(null)}
+                  className="text-[11px] text-slate-400 underline hover:text-slate-600"
+                >
+                  Quitar
+                </button>
+              )}
+            </div>
+            {reviewDias != null && reviewDias >= REVIEW_DIAS_MIN && reviewDias <= REVIEW_DIAS_MAX && (
+              <>
+                <p className="text-xs text-brand-600">
+                  Se revisará el {formatFechaAR(sumarDias(fecha, reviewDias))}
+                </p>
+                <input
+                  type="text"
+                  value={reviewDesc}
+                  onChange={(e) => setReviewDesc(e.target.value)}
+                  placeholder="Motivo (opcional)"
+                  className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+              </>
             )}
           </div>
 
@@ -545,7 +587,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               ovarioIzq={ovarioIzq}
               fecha={fecha}
               rol={rolEfectivo}
-              reviewManana={reviewManana}
+              reviewDias={reviewDias}
               inseminada={obsChips.includes('IN') || inseminadaPrevia}
               cfg={plazos}
               propias={reglasPropias}
@@ -589,14 +631,14 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 // ── Preview de recordatorios automáticos ──────────────────────────────────────
 
 function RecordatoriosPreview({
-  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewManana, inseminada, cfg, propias,
+  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewDias, inseminada, cfg, propias,
 }: {
   obsChips: string[]
   ovarioIzq: string[]
   ovarioDer: string[]
   fecha: string
   rol: RolReproductivo
-  reviewManana: boolean
+  reviewDias: number | null
   /** IN en este registro o en los días previos (ver VENTANA_INSEMINACION_DIAS). */
   inseminada: boolean
   /** Plazos del vet autenticado (los mismos que usará reglasParaRegistro). */
@@ -608,7 +650,7 @@ function RecordatoriosPreview({
   // preview podía mostrar recordatorios que después no se creaban.
   const tieneOV = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
   const items = reglasParaRegistro(
-    { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer, review_manana: reviewManana },
+    { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer, review_dias: reviewDias },
     rol, cfg, inseminada, propias,
   ).map((r) => ({
     tipo:  r.tipo,

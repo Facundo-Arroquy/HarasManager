@@ -44,7 +44,8 @@ import type {
 //   OV (sin Transferida) → Dar PG  +3 días
 //
 // Cualquiera:
-//   review_manana = true → Revisión  próximo MWF
+//   review_dias = N → Revisión  fecha + N días (1..60, migración 20260917174756;
+//                      reemplaza al viejo checkbox fijo al próximo MWF)
 //
 // Además, las reglas propias de cada vet (tabla cria_regla_recordatorio): si
 // marca la acción X, se pide la acción Y a los Z días. Si una repite un tipo
@@ -94,7 +95,7 @@ export const VENTANA_INSEMINACION_DIAS = 7
  * de RegistroCriaModal, para que lo que se muestra sea lo que se crea.
  */
 export function reglasParaRegistro(
-  registro: Pick<NuevoRegistroCriaPayload, 'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_manana'>,
+  registro: Pick<NuevoRegistroCriaPayload, 'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_dias'>,
   rolReproductivo: RolReproductivo,
   cfg: PlazosVet,
   /** Hubo IN en este registro o en los VENTANA_INSEMINACION_DIAS previos. */
@@ -143,8 +144,8 @@ export function reglasParaRegistro(
     reglas.push({ tipo: p.accion_recordatorio, calcularFecha: (f) => sumarDias(f, p.dias) })
   }
 
-  if (registro.review_manana)
-    reglas.push({ tipo: 'Revisión', calcularFecha: (f) => proximoMWF(f) })
+  if (registro.review_dias)
+    reglas.push({ tipo: 'Revisión', calcularFecha: (f) => sumarDias(f, registro.review_dias!) })
 
   return reglas.map((r) => ({ ...r, calcularFecha: () => r.calcularFecha(base) }))
 }
@@ -303,6 +304,34 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     // Los plazos son los del vet autenticado = el que hace el registro.
     const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, inseminada, get().reglasPropias)
     if (reglas.length > 0) {
+      // Este registro puede traer su propia 'Revisión' (review_dias). Si el
+      // animal ya tenía una pendiente o vencida de un registro anterior, se
+      // cancela: la fecha nueva la reemplaza, y dos revisiones abiertas para
+      // la misma yegua solo duplicarían el animal en el programa del día.
+      // Criterio explícito (no se acumulan): la revisión vigente es siempre
+      // la del último registro que la pidió.
+      if (reglas.some((r) => r.tipo === 'Revisión')) {
+        const previas = get().recordatorios.filter((r) =>
+          r.caballo_id === payload.caballo_id && r.tipo === 'Revisión' &&
+          (r.estado === 'pendiente' || r.estado === 'vencido')
+        )
+        if (previas.length > 0) {
+          const motivo = 'Reemplazada por la revisión programada en un registro más nuevo'
+          try {
+            await crianzaService.cancelarRecordatorios(previas.map((r) => r.id), motivo)
+            set((s) => ({
+              recordatorios: s.recordatorios.map((r) =>
+                previas.some((p) => p.id === r.id)
+                  ? { ...r, estado: 'cancelado' as EstadoRecordatorio, cancel_motivo: motivo }
+                  : r
+              ),
+            }))
+          } catch (e) {
+            console.error('[crianzaStore] cancelar revisiones previas:', mensajeError(e))
+          }
+        }
+      }
+
       const recPayloads: NuevoRecordatorioPayload[] = reglas.map((regla) => ({
         caballo_id:         payload.caballo_id,
         sociedad_id:        payload.sociedad_id,

@@ -51,6 +51,16 @@ export const CHIPS_OBS_SUGERIDOS = [
 ] as const
 
 // ---------------------------------------------------------------------------
+// Revisión programable — reemplaza al viejo checkbox "Revisión mañana"
+// ---------------------------------------------------------------------------
+
+/** Botones rápidos del selector de días (1 semana). Más allá, el input libre. */
+export const REVIEW_DIAS_BOTONES_RAPIDOS = [1, 2, 3, 4, 5, 6, 7] as const
+
+export const REVIEW_DIAS_MIN = 1
+export const REVIEW_DIAS_MAX = 60
+
+// ---------------------------------------------------------------------------
 // Plazos de recordatorios, por veterinario (migración 20260730120000)
 // Antes vivían en localStorage → el plazo aplicado era el del navegador y no
 // el del vet, incumpliendo "debe cumplir el plazo del vet que hace el registro".
@@ -190,8 +200,14 @@ export interface RegistroClinicoCria {
   obs_chips:         string[]
   padrillo_id:       string | null
   ov_dias:           number | null
-  review_manana:     boolean
-  review_manana_desc: string | null
+  /**
+   * Días desde `fecha` para agendar la revisión de seguimiento (1..60).
+   * NULL = no se pidió revisión. Reemplaza al viejo checkbox "Revisión
+   * mañana" (fijo al próximo lunes/miércoles/viernes) — migración
+   * 20260917174756.
+   */
+  review_dias:       number | null
+  review_desc:       string | null
   motivo:            string | null
   diagnostico:       string | null
   tratamiento:       string | null
