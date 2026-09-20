@@ -1,4 +1,5 @@
 import CamposConfig from './CamposConfig'
+import DatosPersonalesCard from '../../components/domain/DatosPersonalesCard'
 
 export default function ConfigPage() {
   return (
@@ -12,6 +13,11 @@ export default function ConfigPage() {
         <section>
           <h2 className="text-sm font-semibold text-slate-600 mb-4">Campos y Caballerizas</h2>
           <CamposConfig />
+        </section>
+
+        <section>
+          <h2 className="text-sm font-semibold text-slate-600 mb-4">Privacidad</h2>
+          <DatosPersonalesCard />
         </section>
       </div>
     </div>
