@@ -701,7 +701,8 @@ export default function HistorialPage() {
                                 <button
                                   onClick={() => eliminarCria('registro', r.id,
                                     `¿Eliminar el registro del ${formatFecha(r.fecha)}?\n\n` +
-                                    'Se borran también sus recordatorios automáticos pendientes. No se puede deshacer.')}
+                                    'Se borran también todos los recordatorios que generó y, si alguno se marcó ' +
+                                    'con otro registro, ese registro y lo que generó a su vez. No se puede deshacer.')}
                                   disabled={borrandoCriaId === r.id}
                                   className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
                                   title="Eliminar registro"
