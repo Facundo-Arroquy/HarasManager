@@ -17,7 +17,9 @@ export const C = {
 export const display: React.CSSProperties = { fontFamily: "'Cormorant Garamond', serif" }
 export const body: React.CSSProperties = { fontFamily: "'DM Sans', sans-serif" }
 
-export const EMAILS = {
-  tomas: 'tomas.perezzorraquin@harasmanager.com',
-  facundo: 'facundo.arroquy@harasmanager.com',
-}
+/**
+ * Casilla de contacto de la empresa. Es una sola y no las personales de Tomás y
+ * Facundo: en los textos legales el contacto tiene que ser el del responsable de
+ * los datos, no el de una persona que mañana puede no estar.
+ */
+export const EMAIL_EMPRESA = 'admin@harasmanager.com'

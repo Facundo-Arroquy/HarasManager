@@ -4,7 +4,7 @@
 // Ley 25.326 de Protección de Datos Personales. Ver TASKS.md.
 
 import { Link } from 'react-router-dom'
-import { C, display, body, EMAILS } from '../landing/landingUI'
+import { C, display, body, EMAIL_EMPRESA } from '../landing/landingUI'
 
 type Tipo = 'terminos' | 'privacidad'
 
@@ -37,7 +37,7 @@ const TERMINOS: Seccion[] = [
     n: 4,
     titulo: 'Historial clínico',
     texto:
-      'Los registros clínicos cargados por un veterinario son inmutables una vez guardados: solo pueden ser editados por el profesional que los creó. Esto garantiza la trazabilidad del historial sanitario de cada animal.',
+      'El registro es de los caballos: lo que se documenta en la plataforma es la historia sanitaria de cada animal, que lo acompaña a lo largo de su vida y de sus cambios de establecimiento, y no información clínica de personas. Los registros cargados por un veterinario son inmutables una vez guardados: solo pueden ser editados por el profesional que los creó. Esto garantiza la trazabilidad del historial sanitario de cada animal.',
   },
   {
     n: 5,
@@ -73,50 +73,32 @@ const TERMINOS: Seccion[] = [
 const PRIVACIDAD: Seccion[] = [
   {
     n: 1,
-    titulo: 'Qué datos recopilamos',
+    titulo: 'Para qué los usamos',
     texto:
-      'Datos de cuenta (nombre, email, rol); datos de los animales y su historial clínico cargados por los usuarios; y datos de contacto enviados por el formulario de demo (nombre, email, teléfono, establecimiento, cantidad de animales, módulos de interés, mensaje).',
+      'Para operar la plataforma (autenticación, permisos por rol, registros sanitarios de los animales), para coordinar la demo comercial cuando se completa el formulario de contacto, y para mejorar el producto durante esta etapa de desarrollo.',
   },
   {
     n: 2,
-    titulo: 'Para qué los usamos',
+    titulo: 'Con quién se comparten',
     texto:
-      'Para operar la plataforma (autenticación, permisos por rol, historial clínico), para coordinar la demo comercial cuando se completa el formulario de contacto, y para mejorar el producto durante esta etapa de desarrollo.',
+      'Compartimos datos únicamente en la medida necesaria para prestar el servicio, y nunca con fines comerciales: no los vendemos ni los cedemos. Dentro de la plataforma rigen los controles de acceso por rol, de modo que cada usuario ve solo la información que corresponde a su función dentro de su establecimiento. Fuera de ella, los destinatarios posibles son prestadores de servicios de alojamiento y almacenamiento en la nube, de autenticación y de procesamiento de pagos, limitados a lo necesario para prestar ese servicio. Estos destinatarios pueden encontrarse en jurisdicciones que no ofrecen un nivel de protección de los datos personales equivalente al de la República Argentina.',
   },
   {
     n: 3,
-    titulo: 'Con quién se comparten',
+    titulo: 'Tus derechos',
     texto:
-      'No vendemos ni compartimos tus datos con terceros con fines comerciales. Los datos se almacenan en Supabase (infraestructura en la nube) bajo controles de acceso por rol: cada usuario ve solo la información que corresponde a su función dentro de su establecimiento.',
+      `Podés solicitar acceso, rectificación, actualización o eliminación de tus datos personales escribiéndonos a ${EMAIL_EMPRESA}. Como usuario alcanzado por la Ley 25.326 de Protección de Datos Personales de la República Argentina, tenés derecho de acceso, rectificación, actualización y supresión de tus datos. Al iniciar sesión vas a encontrar un instructivo que explica cómo ejercer estos derechos dentro de la aplicación.`,
   },
   {
     n: 4,
-    titulo: 'Seguridad',
-    texto:
-      'El acceso a los datos está protegido por autenticación y reglas de acceso a nivel de fila (RLS) que restringen qué puede ver cada usuario según su rol y su haras.',
-  },
-  {
-    n: 5,
-    titulo: 'Tus derechos',
-    texto:
-      'Podés solicitar acceso, rectificación o eliminación de tus datos personales escribiéndonos. Como usuario alcanzado por la Ley 25.326 de Protección de Datos Personales de la República Argentina, tenés derecho de acceso, rectificación y supresión de tus datos.',
-  },
-  {
-    n: 6,
-    titulo: 'Cookies y sesión',
-    texto:
-      'Usamos almacenamiento local del navegador únicamente para mantener tu sesión iniciada; no usamos cookies de seguimiento publicitario.',
-  },
-  {
-    n: 7,
     titulo: 'Cambios',
     texto:
       'Esta política puede actualizarse a medida que el producto evoluciona; la fecha de la última actualización figura al pie.',
   },
   {
-    n: 8,
+    n: 5,
     titulo: 'Contacto',
-    texto: `Para consultas sobre privacidad, escribinos a ${EMAILS.tomas} o ${EMAILS.facundo}.`,
+    texto: `Para consultas sobre privacidad, escribinos a ${EMAIL_EMPRESA}.`,
   },
 ]
 
@@ -191,7 +173,7 @@ export default function LegalPage({ tipo }: { tipo: Tipo }) {
         </h1>
         <p style={{ ...body, fontSize: '0.8rem', color: '#9B8B7A', margin: '0 0 40px' }}>
           Borrador de referencia. Podés escribirnos a{' '}
-          <a href={`mailto:${EMAILS.tomas}`} style={{ color: C.gold }}>{EMAILS.tomas}</a> por cualquier consulta.
+          <a href={`mailto:${EMAIL_EMPRESA}`} style={{ color: C.gold }}>{EMAIL_EMPRESA}</a> por cualquier consulta.
         </p>
 
         {secciones.map((s) => (

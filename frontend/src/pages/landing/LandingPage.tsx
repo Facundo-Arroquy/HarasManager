@@ -14,7 +14,7 @@ import {
   Compass,
 } from 'lucide-react'
 import { insertarLead } from '../../services/leadsService'
-import { C, display, body, EMAILS } from './landingUI'
+import { C, display, body, EMAIL_EMPRESA } from './landingUI'
 
 const MODULOS = [
   'Fichas de animales',
@@ -1126,7 +1126,7 @@ function ContactForm() {
             {submitState === 'error' && (
               <p style={{ ...body, fontSize: '0.85rem', color: '#C0392B', margin: 0 }}>
                 Hubo un error al enviar. Escribinos directamente a{' '}
-                <a href={`mailto:${EMAILS.tomas}`} style={{ color: C.gold }}>{EMAILS.tomas}</a>.
+                <a href={`mailto:${EMAIL_EMPRESA}`} style={{ color: C.gold }}>{EMAIL_EMPRESA}</a>.
               </p>
             )}
 
@@ -1227,19 +1227,16 @@ function Footer() {
           </Link>
         </div>
 
-        {/* Emails */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 32px', marginBottom: '40px' }}>
-          {[EMAILS.tomas, EMAILS.facundo].map((email) => (
-            <a
-              key={email}
-              href={`mailto:${email}`}
-              style={{ ...linkStyle, fontSize: '0.78rem' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = C.goldSoft)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
-            >
-              {email}
-            </a>
-          ))}
+        {/* Email de contacto */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '40px' }}>
+          <a
+            href={`mailto:${EMAIL_EMPRESA}`}
+            style={{ ...linkStyle, fontSize: '0.78rem' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = C.goldSoft)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
+          >
+            {EMAIL_EMPRESA}
+          </a>
         </div>
 
         {/* Divider */}

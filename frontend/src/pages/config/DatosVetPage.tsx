@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { perfilService, type Perfil } from '../../services/perfilService'
 import { mensajeError } from '../../utils/error'
 import Spinner from '../../components/ui/Spinner'
+import DatosPersonalesCard from '../../components/domain/DatosPersonalesCard'
 
 /**
  * Datos personales del veterinario. Solo lectura por ahora: el DNI y la
@@ -35,7 +36,7 @@ export default function DatosVetPage() {
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {loading ? (
           <div className="flex justify-center py-16"><Spinner size="lg" /></div>
         ) : error ? (
@@ -62,6 +63,8 @@ export default function DatosVetPage() {
             </p>
           </div>
         )}
+
+        <DatosPersonalesCard />
       </div>
     </div>
   )
