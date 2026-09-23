@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowDownAZ, ArrowUpAZ, Filter, Search } from 'lucide-react'
 import { useEscapeClose } from '../../hooks/useEscapeClose'
@@ -16,6 +16,9 @@ interface Props {
 
 const ETIQUETA_VACIO = '(Vacío)'
 const ANCHO_POPOVER  = 240
+/** Alto aproximado del popover antes de montarlo (orden + buscador + lista + pie). */
+const ALTO_ESTIMADO  = 380
+const ES_TACTIL      = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
 
 /**
  * Encabezado de columna con filtro tipo Excel: ordenar, buscar y tildar los
@@ -71,15 +74,24 @@ function Popover({
   const cerrar = useCallback(() => onCerrar(), [onCerrar])
   useEscapeClose(cerrar)
 
-  useLayoutEffect(() => {
+  const ubicar = useEffectEvent(() => {
     const r = anchor.current?.getBoundingClientRect()
     if (!r) return
     const left = Math.max(8, Math.min(r.left, window.innerWidth - ANCHO_POPOVER - 8))
-    setPos({ top: r.bottom + 4, left })
-  }, [anchor])
+    // Si no entra abajo (la tabla suele estar al pie de la pantalla), se abre arriba.
+    const alto = ref.current?.offsetHeight ?? ALTO_ESTIMADO
+    const top  = r.bottom + 4 + alto > window.innerHeight - 8
+      ? Math.max(8, r.top - alto - 4)
+      : r.bottom + 4
+    setPos({ top, left })
+  })
 
-  // Click afuera (el botón no cuenta, él mismo alterna) y scroll/resize cierran:
-  // con `position: fixed` el popover quedaría despegado de su columna.
+  useLayoutEffect(() => ubicar(), [])
+
+  // Click afuera cierra (el botón no cuenta, él mismo alterna). Scroll y resize
+  // solo lo reubican junto a su columna: en el celular el teclado que abre el
+  // buscador achica la pantalla y la scrollea, y cerrar ahí hacía que el
+  // popover se abriera y cerrara solo.
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
       const t = e.target as Node
@@ -88,15 +100,16 @@ function Popover({
     }
     function onScroll(e: Event) {
       if (ref.current?.contains(e.target as Node)) return
-      cerrar()
+      ubicar()
     }
     document.addEventListener('mousedown', onMouseDown)
     window.addEventListener('scroll', onScroll, true)
-    window.addEventListener('resize', cerrar)
+    const onResize = () => ubicar()
+    window.addEventListener('resize', onResize)
     return () => {
       document.removeEventListener('mousedown', onMouseDown)
       window.removeEventListener('scroll', onScroll, true)
-      window.removeEventListener('resize', cerrar)
+      window.removeEventListener('resize', onResize)
     }
   }, [anchor, cerrar])
 
@@ -149,7 +162,8 @@ function Popover({
         <div className="relative mb-2">
           <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
-            autoFocus
+            // En pantallas táctiles no: abriría el teclado y taparía la lista.
+            autoFocus={!ES_TACTIL}
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar"
