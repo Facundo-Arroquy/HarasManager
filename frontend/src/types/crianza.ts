@@ -354,7 +354,10 @@ export const ZONAS_EMBRION    = ['Intacta', 'Rota'] as const
 
 export interface Embrion {
   id:                 string
-  flushing_id:        string
+  /** NULL = embrión vitrificado cargado a mano, sin flushing. */
+  flushing_id:        string | null
+  /** Quién cargó el embrión manual. NULL en los que salen de un flushing. */
+  creado_por:         string | null
   caballo_donante_id: string
   sociedad_id:        string
   padrillo_id:        string | null
@@ -382,7 +385,7 @@ export type NuevoEmbrionPayload = Omit<
  * `cria_transferencia` vacío: en la lista se muestran sin receptora.
  */
 export interface EmbrionConSeguimiento extends Embrion {
-  /** El embrión no tiene autor propio: es del vet que cargó el flushing. */
+  /** Autor del flushing. Los embriones manuales no tienen: su autor es `creado_por`. */
   flushing?: { veterinario_id: string | null } | null
   cria_transferencia?: Array<{
     fecha:                string

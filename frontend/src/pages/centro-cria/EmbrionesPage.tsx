@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FlaskConical, ArrowLeftRight, Plus, Trash2, Pencil } from 'lucide-react'
+import { FlaskConical, ArrowLeftRight, Plus, Trash2, Pencil, Snowflake } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
@@ -10,6 +10,7 @@ import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
 import EditarEmbrionModal from '../../components/centro-cria/EditarEmbrionModal'
+import EmbrionVitrificadoModal from '../../components/centro-cria/EmbrionVitrificadoModal'
 
 const ESTADO_LABEL: Record<EstadoEmbrion, string> = {
   disponible:  'Disponible',
@@ -62,6 +63,7 @@ export default function EmbrionesPage() {
 
   const [embrionParaTransf,  setEmbrionParaTransf]  = useState<EmbrionConSeguimiento | null>(null)
   const [showNuevoFlushing,  setShowNuevoFlushing]  = useState(false)
+  const [showVitrificado,    setShowVitrificado]    = useState(false)
   const [borrandoId,         setBorrandoId]         = useState<string | null>(null)
   const [embEditar,          setEmbEditar]          = useState<EmbrionConSeguimiento | null>(null)
 
@@ -98,7 +100,7 @@ export default function EmbrionesPage() {
   async function eliminarEmbrion(e: EmbrionConSeguimiento) {
     const ok = window.confirm(
       `¿Eliminar este embrión de ${e.donante?.nombre ?? 'la donante'}?\n\n` +
-      'Se descuenta del flushing. No se puede deshacer.',
+      (e.flushing_id ? 'Se descuenta del flushing. ' : '') + 'No se puede deshacer.',
     )
     if (!ok) return
     setBorrandoId(e.id)
@@ -140,13 +142,22 @@ export default function EmbrionesPage() {
           <p className="text-sm text-slate-500 mt-0.5">Stock del centro, flushings y seguimiento de las transferencias</p>
         </div>
         {puedeOperar && (
-          <button
-            onClick={() => setShowNuevoFlushing(true)}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors shrink-0"
-          >
-            <Plus size={14} />
-            Nuevo flushing
-          </button>
+          <div className="flex flex-wrap justify-end gap-2 shrink-0">
+            <button
+              onClick={() => setShowVitrificado(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md border border-cyan-300 bg-white text-cyan-700 hover:bg-cyan-50 transition-colors"
+            >
+              <Snowflake size={14} />
+              Embrión vitrificado
+            </button>
+            <button
+              onClick={() => setShowNuevoFlushing(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors"
+            >
+              <Plus size={14} />
+              Nuevo flushing
+            </button>
+          </div>
         )}
       </div>
 
@@ -225,6 +236,8 @@ export default function EmbrionesPage() {
                 // Solo el stock vivo se puede transferir: los descartados no.
                 const transferible = !transf &&
                   (e.estado === 'disponible' || e.estado === 'congelado' || e.estado === 'en_nube')
+                // El autor es el del flushing o, en los cargados a mano, quien los cargó.
+                const esAutor = !!userId && (e.flushing?.veterinario_id ?? e.creado_por) === userId
                 return (
                   <tr key={e.id} className="group hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-slate-800 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 whitespace-nowrap">
@@ -261,8 +274,8 @@ export default function EmbrionesPage() {
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_BADGE[e.estado]}`}>
                         {ESTADO_LABEL[e.estado]}
                       </span>
-                      {/* Solo el autor del flushing. Borrar, además, solo si nunca se transfirió. */}
-                      {!!userId && e.flushing?.veterinario_id === userId && (
+                      {/* Solo el autor. Borrar, además, solo si nunca se transfirió. */}
+                      {esAutor && (
                         <button
                           type="button"
                           onClick={() => setEmbEditar(e)}
@@ -273,7 +286,7 @@ export default function EmbrionesPage() {
                           <Pencil size={12} />
                         </button>
                       )}
-                      {!transf && !!userId && e.flushing?.veterinario_id === userId && (
+                      {!transf && esAutor && (
                         <button
                           type="button"
                           onClick={() => eliminarEmbrion(e)}
@@ -332,7 +345,7 @@ export default function EmbrionesPage() {
           embrionPreId={embrionParaTransf.id}
           donantePredId={embrionParaTransf.caballo_donante_id}
           padrilloPreId={embrionParaTransf.padrillo_id ?? undefined}
-          flushingId={embrionParaTransf.flushing_id}
+          flushingId={embrionParaTransf.flushing_id ?? undefined}
           sociedadId={embrionParaTransf.sociedad_id}
           onClose={() => setEmbrionParaTransf(null)}
           onSuccess={() => {
@@ -346,6 +359,13 @@ export default function EmbrionesPage() {
         <EditarEmbrionModal
           embrion={embEditar}
           onClose={() => setEmbEditar(null)}
+          onSuccess={recargar}
+        />
+      )}
+
+      {showVitrificado && (
+        <EmbrionVitrificadoModal
+          onClose={() => setShowVitrificado(false)}
           onSuccess={recargar}
         />
       )}
