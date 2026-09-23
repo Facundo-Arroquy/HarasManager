@@ -283,7 +283,7 @@ export default function App() {
           </Route>
 
           {/* Configuración del establecimiento */}
-          <Route element={<RequireRol roles={['admin', 'jugador', 'piloto']} />}>
+          <Route element={<RequireRol roles={['admin', 'jugador', 'piloto', 'peticero']} />}>
             <Route path="/config" element={<ConfigPage />} />
           </Route>
           {/* Centro de Embriones — requiere módulo habilitado por usuario u organización */}
@@ -300,15 +300,19 @@ export default function App() {
             <Route path="/centro-cria/flushings" element={<Navigate to="/centro-cria/embriones" replace />} />
             <Route path="/centro-cria/embriones" element={<EmbrionesPage />} />
             {/* Configuración del centro: una subsección por pestaña */}
-            <Route path="/centro-cria/config" element={<ConfigCriaPage />}>
-              <Route index element={<Navigate to="/centro-cria/config/padrillos" replace />} />
-              <Route path="padrillos" element={<RankingPadrillosConfig />} />
-              <Route path="vet" element={<ConfigVetCriaPage />} />
+            {/* El resto del centro lo ve cualquiera con el módulo (el peticero,
+                solo lectura); la configuración queda para vet y admin. */}
+            <Route element={<RequireRol roles={['veterinario', 'admin']} />}>
+              <Route path="/centro-cria/config" element={<ConfigCriaPage />}>
+                <Route index element={<Navigate to="/centro-cria/config/padrillos" replace />} />
+                <Route path="padrillos" element={<RankingPadrillosConfig />} />
+                <Route path="vet" element={<ConfigVetCriaPage />} />
+              </Route>
             </Route>
           </Route>
           {/* Polo / Torneos — antes sin ningún guard de ruta, dependía solo de
               que el sidebar lo ocultara */}
-          <Route element={<RequireModulo codigo="polo" roles={['admin', 'jugador', 'piloto']} />}>
+          <Route element={<RequireModulo codigo="polo" roles={['admin', 'jugador', 'piloto', 'peticero']} />}>
             <Route path="/torneos" element={<TorneosPage />} />
             <Route path="/torneos/:id" element={<TorneoKanbanPage />} />
           </Route>
