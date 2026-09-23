@@ -1117,7 +1117,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | `es_admin(sociedad_id)` | Tiene rol 'admin' activo en esa sociedad |
 | `es_veterinario(sociedad_id)` | Tiene rol 'veterinario' en membresia **o** `usuario.rol = 'veterinario'` |
 | `is_superadmin()` | `usuario.rol = 'superadmin' AND activo = true` |
-| `puede_gestionar_campo(sociedad_id)` | Tiene rol admin, jugador o piloto activo en esa sociedad |
+| `puede_gestionar_campo(sociedad_id)` | Tiene rol admin, jugador, piloto o peticero activo en esa sociedad (peticero desde migración `20260923120000`) |
 | `vet_tiene_acceso(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo **y** que el usuario sea veterinario activo; usado en políticas de centro de embriones (corregida en `20260611155651` — antes ignoraba el parámetro) |
 | `vet_tiene_acceso_caballo(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo específico |
 | `vet_limite_gratuito()` | Constante del plan gratuito (hoy 5). Única fuente del número: la comparten `vet_puede_agregar_caballo` y `vet_estado_limite` para que no se desincronicen (migración `20260812120000`). **Con EXECUTE para `anon`** (migración `20260812130000`): es solo un entero sin datos de usuario, y la página pública de registro la necesita para no hardcodear el número en el marketing copy |
@@ -1228,10 +1228,9 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 - SELECT: `tiene_membresia(sociedad_id)` o superadmin
 - SELECT vet: vet activo, solo sobre campos de sociedad (`vet_owner_id IS NULL`)
 - SELECT vet propio: `vet_owner_id = auth.uid()` — un vet no ve los campos de otro vet
-- INSERT/UPDATE: `puede_gestionar_campo(sociedad_id)`
+- INSERT/UPDATE/DELETE: `puede_gestionar_campo(sociedad_id)` (el DELETE tenía los roles inline hasta la migración `20260923120000`)
 - INSERT vet: `vet_owner_id = auth.uid() AND sociedad_id IS NULL` y rol veterinario activo
 - UPDATE/DELETE vet: `vet_owner_id = auth.uid()`
-- DELETE: miembro con rol admin/jugador/piloto
 
 **`propietario`**
 - SELECT: `tiene_membresia(sociedad_id)`
@@ -1470,11 +1469,11 @@ No se usa `supabase db push` ni `supabase migration up`.
 | Otorgar acceso a vet | ✅ | ✅ | ❌ | ❌ |
 | Crear usuarios en la sociedad | ✅ | ✅ | ❌ | ❌ |
 | Vender caballos | ✅ | ✅ | ❌ | ❌ |
-| Gestionar campos/potreros de la sociedad | ✅ | ✅ | ❌ (solo lectura) | ✅ |
+| Gestionar campos/potreros de la sociedad (`/config`) | ✅ | ✅ | ❌ (solo lectura) | ✅ (incluido peticero) |
 | Gestionar sus propios campos (`/config-vet/campos`) | — | — | ✅ | ❌ |
 | Crear torneos y asignar caballos | ✅ | ✅ | ❌ | ❌ (solo lectura) |
-| Acceso centro de embriones | — | Según `sociedad_modulo`+`membresia_modulo` ('centro_cria') | Según `usuario_modulo` ('centro_cria') | ❌ |
-| Acceso Polo / Torneos | — | Según `sociedad_modulo`+`membresia_modulo` ('polo') | ❌ | ✅ jugador/piloto según módulo; peticero ❌ (roles fijos, no depende del módulo) |
+| Acceso centro de embriones | — | Según `sociedad_modulo`+`membresia_modulo` ('centro_cria') | Según `usuario_modulo` ('centro_cria') | Solo lectura, según `sociedad_modulo`+`membresia_modulo`; sin acceso a la configuración del centro |
+| Acceso Polo / Torneos | — | Según `sociedad_modulo`+`membresia_modulo` ('polo') | ❌ | Solo lectura, según `sociedad_modulo`+`membresia_modulo` ('polo') |
 
 ---
 
