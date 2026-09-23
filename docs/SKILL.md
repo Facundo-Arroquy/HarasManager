@@ -794,11 +794,15 @@ CREATE TABLE cria_transferencia (
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Un embrión por flushing; hereda padrillo_id del flushing
+-- Un embrión por flushing; hereda padrillo_id del flushing.
+-- Excepción: el vitrificado cargado a mano (stock previo, comprado o de otro
+-- centro) no tiene flushing y guarda quién lo cargó en creado_por
+-- (migración 20260923160124).
 CREATE TABLE embrion (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sociedad_id UUID NOT NULL REFERENCES sociedad(id),
-  flushing_id UUID NOT NULL REFERENCES cria_flushing(id),
+  flushing_id UUID REFERENCES cria_flushing(id),   -- NULL = vitrificado cargado a mano
+  creado_por UUID REFERENCES usuario(id),           -- autor del embrión manual; NULL si sale de un flushing
   padrillo_id UUID REFERENCES caballo(id),        -- heredado del flushing
   caballo_donante_id UUID NOT NULL REFERENCES caballo(id),
   estadio TEXT,   -- 'Mórula' | 'Blastocisto temprano' | 'Blastocisto' | 'Blastocisto expandido'
@@ -811,7 +815,8 @@ CREATE TABLE embrion (
     -- Stock vivo transferible = 'disponible' | 'congelado' | 'en_nube'
     CHECK (estado IN ('disponible','transferido','descartado','congelado','en_nube')),
   notas TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT embrion_origen_chk CHECK (flushing_id IS NOT NULL OR creado_por IS NOT NULL)
 );
 
 -- Eco 1 / 2 / 3 post-transferencia
@@ -1165,7 +1170,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | `eliminar_transferencia_cria(p_transferencia_id)` | Solo el autor y solo sin ecografías. Devuelve el embrión a `disponible` (el estado previo no se guarda: si estaba vitrificado o en nube, eso se pierde), le saca la preñez a la receptora si `fecha_prenez` es la de esta transferencia y no hay otra posterior, y borra el registro de la receptora que creó `registrar_transferencia_embrionaria` junto con sus recordatorios Eco 1/2/3 pendientes (migración `20260912220008`) |
 | `eliminar_ecografia_cria(p_ecografia_id)` | Solo el autor y solo la **última** eco de la transferencia. Deshace únicamente lo que hizo el trigger `sincronizar_prenez_ecografia`: si la eco borrada era `abortada` (y la transferencia es la vigente de la receptora) le devuelve la preñez; una `pendiente` o `prenada` no toca `caballo.prenada` — la primera versión recalculaba desde cero y pisaba estados que la eco nunca había cambiado (fix en `fix_eliminar_ecografia_prenez`). Reabre el recordatorio que la eco había cerrado. Al borrar una `abortada` de la transferencia vigente, `_cria_revertir_aborto` también devuelve `estado_reproductivo` al estado previo al aborto (migraciones `20260912220008` y `ecografia_sincroniza_pipeline`) |
 | `eliminar_flushing_cria(p_flushing_id)` | Solo el autor, sin embriones ni transferencias colgando. Reabre el recordatorio que había cerrado (migración `20260912220008`) |
-| `eliminar_embrion_cria(p_embrion_id)` | El embrión no tiene autor propio: lo borra el autor del flushing. Solo si nunca se transfirió. Descuenta 1 de `cria_flushing.cantidad` (migración `20260912220008`) |
+| `eliminar_embrion_cria(p_embrion_id)` | Lo borra el autor del flushing o, si es un vitrificado cargado a mano, quien lo cargó (`creado_por`). Solo si nunca se transfirió. Descuenta 1 de `cria_flushing.cantidad` cuando tiene flushing (migraciones `20260912220008`, `20260923160124`) |
 | `eliminar_recordatorio_cria(p_recordatorio_id)` | Solo el autor. Registros y ecografías sueltan el vínculo por la FK (`ON DELETE SET NULL`); el flushing tiene la FK sin acción y se suelta a mano (migración `20260912220008`) |
 | `_cria_borrar_registro` / `_cria_reabrir_recordatorio` | Helpers internos de las RPC de arriba. **Sin EXECUTE para nadie** (migración `20260912220008`) |
 | `_cria_transferencia_vigente(p_transferencia_id)` | `true` si no hay otra transferencia posterior a la misma receptora (por `fecha`, desempata `created_at`). Es el único criterio de "vigente": lo usan el trigger de ecografías y `eliminar_ecografia_cria`. **Sin EXECUTE para nadie** (migración `ecografia_sincroniza_pipeline`) |
@@ -1298,9 +1303,9 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 
 **`embrion`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_donante_id)` o `is_superadmin()` (migración `20260723231443`)
-- INSERT: `vet_tiene_acceso(caballo_donante_id)`
+- INSERT: con flushing, `vet_tiene_acceso(caballo_donante_id)`. Sin flushing (vitrificado manual): `estado = 'congelado'`, `creado_por = auth.uid()`, la donante es de `sociedad_id`, y `vet_tiene_acceso(caballo_donante_id)` o `es_admin(sociedad_id)` (migración `20260923160124`)
 - UPDATE: `vet_tiene_acceso(caballo_donante_id)` o `es_admin(sociedad_id)` o `is_superadmin()`
-- DELETE: sin policy. Solo por `eliminar_embrion_cria` (el autor del flushing, si el embrión nunca se transfirió; migración `20260912220008`)
+- DELETE: sin policy. Solo por `eliminar_embrion_cria` (el autor del flushing o `creado_por`, si el embrión nunca se transfirió; migraciones `20260912220008`, `20260923160124`)
 
 **`cria_ecografia`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_receptora_id)` o `is_superadmin()`

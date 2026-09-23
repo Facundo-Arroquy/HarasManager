@@ -208,6 +208,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
       if (!esNegativo) {
         const payloads: NuevoEmbrionPayload[] = embriones.map((e) => ({
           flushing_id:        flushing.id,
+          creado_por:         null,
           caballo_donante_id: caballoId,
           sociedad_id:        efectivaSociedadId,
           padrillo_id:        padrilloId || null,
