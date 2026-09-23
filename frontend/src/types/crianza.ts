@@ -267,11 +267,12 @@ export interface RecordatorioCria {
   updated_at:          string
   // joins opcionales
   caballo?:            { nombre: string; rol_reproductivo: RolReproductivo }
+  veterinario?:        { nombre: string; apellido: string } | null
 }
 
 export type NuevoRecordatorioPayload = Omit<
   RecordatorioCria,
-  'id' | 'created_at' | 'updated_at' | 'caballo'
+  'id' | 'created_at' | 'updated_at' | 'caballo' | 'veterinario'
 >
 
 // ---------------------------------------------------------------------------

@@ -137,7 +137,7 @@ export const crianzaService = {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('cria_recordatorio')
-      .select(`*, caballo(nombre, rol_reproductivo)`)
+      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
       .eq('sociedad_id', sociedadId)
       .order('fecha_vto')
     if (error) throw error
@@ -149,7 +149,7 @@ export const crianzaService = {
     const { data, error } = await supabase
       .from('cria_recordatorio')
       .insert(payload)
-      .select(`*, caballo(nombre, rol_reproductivo)`)
+      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
       .single()
     if (error) throw error
     return data as RecordatorioCria
@@ -160,7 +160,7 @@ export const crianzaService = {
     const { data, error } = await supabase
       .from('cria_recordatorio')
       .insert(payloads)
-      .select(`*, caballo(nombre, rol_reproductivo)`)
+      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
     if (error) throw error
     return data as RecordatorioCria[]
   },
@@ -444,7 +444,7 @@ export const crianzaService = {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
       .from('cria_recordatorio')
-      .select(`*, caballo(nombre, rol_reproductivo)`)
+      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
       .order('fecha_vto')
     if (error) throw error
     return data as RecordatorioCria[]

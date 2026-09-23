@@ -10,12 +10,22 @@ import FlushingBanner from '../../components/centro-cria/FlushingBanner'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import FiltroColumna from '../../components/ui/FiltroColumna'
 import { useFiltrosTabla } from '../../hooks/useFiltrosTabla'
-import { hoyAR } from '../../utils/fecha'
+import { hoyAR, sumarDias } from '../../utils/fecha'
 import { accionParaRecordatorio, type AccionRecordatorio } from '../../utils/recordatorio'
 import { LABEL_RESULTADO_ECO } from '../../types/crianza'
 import type { RolReproductivo, RecordatorioCria } from '../../types/crianza'
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────
+
+/**
+ * El 'YYYY-MM-DD' de `hoyAR()` como Date local. La semana se arma desde acá y no
+ * desde `new Date()`: fuera de Argentina el reloj local puede estar en otro día
+ * y el calendario mostraba una semana distinta a la de "hoy".
+ */
+function fechaLocal(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
 
 function inicioSemana(ref: Date): Date {
   const d = new Date(ref)
@@ -171,33 +181,31 @@ export default function ProgramaSemanalPage() {
 
   const hoy = hoyAR()
 
-  const [inicioRef, setInicioRef] = useState(() => inicioSemana(new Date()))
+  const [inicioRef, setInicioRef] = useState(() => inicioSemana(fechaLocal(hoy)))
   const [diaSelec,  setDiaSelec]  = useState(hoy)
   const [accion,    setAccion]    = useState<Accion | null>(null)
   const [avisoEco,  setAvisoEco]  = useState('')
 
   const dias = useMemo(() => semana(inicioRef), [inicioRef])
 
-  // Carga inicial
+  // Se recarga siempre al entrar, como el resto del centro: con el viejo
+  // "solo si está vacío" quedaban los datos de otra sociedad al cambiar de
+  // establecimiento, o lo que se había cargado desde otra pantalla.
   useEffect(() => {
-    if (sociedadId) {
-      if (registros.length === 0) cargar(sociedadId)
-    } else if (rol === 'veterinario') {
-      if (registros.length === 0) cargarParaVet()
-    }
-  }, [sociedadId, rol]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (sociedadId) cargar(sociedadId)
+    else if (esVet) cargarParaVet()
+  }, [sociedadId, esVet]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function semanaAnterior() {
+  /** Cambiar de semana lleva también el día de la tabla, al mismo día de la semana. */
+  function moverSemana(dias: number) {
     const d = new Date(inicioRef)
-    d.setDate(d.getDate() - 7)
+    d.setDate(d.getDate() + dias)
     setInicioRef(d)
+    setDiaSelec((prev) => sumarDias(prev, dias))
   }
 
-  function semanaSiguiente() {
-    const d = new Date(inicioRef)
-    d.setDate(d.getDate() + 7)
-    setInicioRef(d)
-  }
+  const semanaAnterior  = () => moverSemana(-7)
+  const semanaSiguiente = () => moverSemana(7)
 
   function recargar() {
     if (sociedadId) cargar(sociedadId)
@@ -239,8 +247,7 @@ export default function ProgramaSemanalPage() {
         rol:           r.caballo?.rol_reproductivo ?? null,
         etiqueta:      r.tipo,
         tipo:          r.estado === 'vencido' ? 'vencido' : 'pendiente',
-        // Los recordatorios no traen join de veterinario, solo veterinario_id.
-        veterinario:   null,
+        veterinario:   nombreVet(r.veterinario),
         detalle:       r.notas,
         recordatorio:  r,
       })
@@ -363,7 +370,7 @@ export default function ProgramaSemanalPage() {
             <span className="hidden sm:inline">Semana anterior</span>
           </button>
           <button
-            onClick={() => { setInicioRef(inicioSemana(new Date())); setDiaSelec(hoy) }}
+            onClick={() => { setInicioRef(inicioSemana(fechaLocal(hoy))); setDiaSelec(hoy) }}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 transition-colors hover:border-slate-400 hover:text-slate-900"
           >
             Hoy
@@ -454,7 +461,8 @@ export default function ProgramaSemanalPage() {
           <h2 className="text-lg font-bold text-slate-900 first-letter:uppercase">
             {diaSelec === hoy ? 'Actividades de hoy' : formatDiaLargo(new Date(diaSelec + 'T12:00:00Z'))}
           </h2>
-          {filtros.hayCambios && eventosDia.length > 0 && (
+          {/* Visible aunque el día esté vacío: sin tabla no hay otra forma de sacarlos. */}
+          {filtros.hayCambios && (
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <span>Mostrando {filtros.filas.length} de {eventosDia.length}</span>
               <button
