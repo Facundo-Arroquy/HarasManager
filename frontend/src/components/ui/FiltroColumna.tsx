@@ -86,7 +86,10 @@ function Popover({
     setPos({ top, left })
   })
 
-  useLayoutEffect(() => ubicar(), [])
+  // Se ubica al abrir con el alto estimado y otra vez apenas está montado, ya
+  // con el alto real: si no, podía abrirse arriba sin necesidad y despegado.
+  const montado = pos !== null
+  useLayoutEffect(() => ubicar(), [montado])
 
   // Click afuera cierra (el botón no cuenta, él mismo alterna). Scroll y resize
   // solo lo reubican junto a su columna: en el celular el teclado que abre el
