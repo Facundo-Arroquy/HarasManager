@@ -105,12 +105,19 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
         ? caballoService.listarParaPedigree(sociedadActiva.id)
         : Promise.resolve([])
 
+    // Campos: si es propio del vet → sus campos; si pertenece a una empresa →
+    // los campos de esa empresa (usando sociedad_id del caballo, no sociedadActiva,
+    // porque el vet ve caballos de múltiples empresas).
+    const camposPromise = esPropioDelVet
+      ? (user?.id ? campoService.listarDelVeterinario(user.id) : Promise.resolve([]))
+      : (caballo.sociedad_id
+          ? campoService.listar(caballo.sociedad_id)
+          : (sociedadActiva ? campoService.listar(sociedadActiva.id) : Promise.resolve([])))
+
     Promise.all([
       catalogoService.razas(),
       catalogoService.pelajes(),
-      esPropioDelVet
-        ? (user?.id ? campoService.listarDelVeterinario(user.id) : Promise.resolve([]))
-        : (sociedadActiva ? campoService.listar(sociedadActiva.id) : Promise.resolve([])),
+      camposPromise,
       pedigreePromise.catch(() => [] as CaballoPedigree[]),
     ]).then(([r, p, c, ped]) => {
       setRazas(r)
@@ -321,9 +328,8 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
             </div>
           </div>
 
-          {/* Campo / Caballeriza. El vet solo agrupa sus propios caballos:
-              los de un establecimiento los ordena el establecimiento. */}
-          {(!vetMode || esPropioDelVet) && <div className="space-y-1.5">
+          {/* Campo / Caballeriza */}
+          {<div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500">Campo / Caballeriza</label>
             <select
               value={form.campo_id}
