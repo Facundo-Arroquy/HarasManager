@@ -228,7 +228,11 @@ export default function CaballosPage() {
       // Los tags viven en `caballo_tag`, no en columnas de `caballo`: si el
       // único cambio es un tag, no hay update de la tabla que hacer.
       if (Object.keys(cambios).length > 0) {
-        await caballoService.editarMasivo(ids, cambios)
+        if (esVet) {
+          await caballoService.editarMasivoComoVet(ids, cambios)
+        } else {
+          await caballoService.editarMasivo(ids, cambios)
+        }
       }
       for (const [tagId, valor] of Object.entries(bulkTags)) {
         if (valor === SIN_CAMBIO) continue

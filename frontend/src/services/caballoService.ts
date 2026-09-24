@@ -427,6 +427,22 @@ export const caballoService = {
     if (error) throw error
   },
 
+  /** Edición masiva para vets — usa RPC SECURITY DEFINER que valida acceso_vet por caballo. */
+  async editarMasivoComoVet(
+    ids: string[],
+    cambios: { campo_id?: string | null; categoria?: string; rol_reproductivo?: string | null; prenada?: boolean | null }
+  ): Promise<void> {
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.rpc('editar_masivo_veterinario', {
+      p_caballo_ids:  ids,
+      p_campo_id:     'campo_id' in cambios ? (cambios.campo_id ?? null) : null,
+      p_categoria:    cambios.categoria ?? null,
+      p_subcategoria: 'rol_reproductivo' in cambios ? (cambios.rol_reproductivo ?? '') : null,
+      p_prenada:      'prenada' in cambios ? (cambios.prenada ?? false) : null,
+    })
+    if (error) throw error
+  },
+
   async actualizarComoVet(id: string, payload: ActualizarCaballoPayload): Promise<void> {
     const supabase = getSupabaseClient()
     const { error } = await supabase.rpc('actualizar_caballo_veterinario', {
