@@ -385,7 +385,7 @@ export default function CaballosPage() {
               <span className="hidden sm:inline">Nuevo caballo</span>
             </button>
           )}
-          {canManageCampos(rol) && !modoSeleccion && !verBaja && (
+          {(canManageCampos(rol) || rol === 'veterinario') && !modoSeleccion && !verBaja && (
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setModoSeleccion(true)}
