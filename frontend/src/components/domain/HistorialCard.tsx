@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Pill, MapPin, Calendar, Pencil, Trash2, ImageIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatFecha } from '../../utils/fecha'
+import { resolveImagenConsultaUrl } from '../../utils/storage'
 
 interface Parte {
   id: string
@@ -58,6 +59,18 @@ export default function HistorialCard({
   destacada = false,
 }: Props) {
   const [open, setOpen] = useState(destacada)
+  const [signedImgUrl, setSignedImgUrl] = useState('')
+
+  // Resolver la signed URL de la imagen al expandir (lazy)
+  useEffect(() => {
+    if (!open || !entry.imagen_url || signedImgUrl) return
+    let cancelled = false
+    resolveImagenConsultaUrl(entry.imagen_url).then((url) => {
+      if (!cancelled) setSignedImgUrl(url)
+    })
+    return () => { cancelled = true }
+  }, [open, entry.imagen_url, signedImgUrl])
+
   const tieneDetalle =
     entry.historial_parte_afectada.length > 0 ||
     entry.historial_medicamento.length > 0 ||
@@ -235,14 +248,14 @@ export default function HistorialCard({
             </section>
           )}
 
-          {entry.imagen_url && (
+          {entry.imagen_url && signedImgUrl && (
             <section>
               <h4 className="text-[11px] uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
                 <ImageIcon size={11} /> Imagen
               </h4>
-              <a href={entry.imagen_url} target="_blank" rel="noopener noreferrer">
+              <a href={signedImgUrl} target="_blank" rel="noopener noreferrer">
                 <img
-                  src={entry.imagen_url}
+                  src={signedImgUrl}
                   alt="Imagen de consulta"
                   className="max-h-64 rounded-lg border border-slate-200 object-contain cursor-pointer hover:opacity-90 transition-opacity"
                 />
