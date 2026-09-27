@@ -610,7 +610,7 @@ function GrupoDia({
                 : `${e.caballoNombre} — ya registrado, no hay nada que cargar`}
               className={`cursor-pointer rounded-lg border p-2 hover:brightness-95 ${ESTILO_EVENTO[e.tipo]}`}
             >
-              <div className="truncate text-xs font-medium">{e.caballoNombre}</div>
+              <NombreCaballoLink id={e.caballoId} nombre={e.caballoNombre} className="text-xs font-medium" />
               <div className="truncate text-[11px] opacity-75">{e.etiqueta}</div>
               {/* El tag es lo que evita apretar lo que ya está hecho esperando
                   que abra algo: el tilde no abre nada, el reloj sí. */}
