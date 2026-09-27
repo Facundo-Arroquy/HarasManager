@@ -68,7 +68,7 @@ export async function generarFichaHtml(data: FichaCaballoData, { autoPrint = fal
 
   const hoy = hoyAR()
 
-  const fotoBase64 = await urlToBase64(fotoService.getUrl(caballo.id))
+  const fotoBase64 = await urlToBase64(await fotoService.getUrl(caballo.id))
 
   // ── Genealogía ───────────────────────────────────────────────────────────────
   const padre = resolveNombre(caballo.padre_id, caballo.padre_nombre, caballos)

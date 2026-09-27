@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Camera } from 'lucide-react'
 import { fotoService } from '../../services/fotoService'
 
@@ -25,10 +25,18 @@ export default function FotoCaballo({
   shape = 'circle',
   height = 176,
 }: Props) {
-  const [src, setSrc]             = useState(() => fotoService.getUrl(caballoId))
+  const [src, setSrc]             = useState('')
   const [hasError, setHasError]   = useState(false)
   const [uploading, setUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fotoService.getUrl(caballoId).then((url) => {
+      if (!cancelled) setSrc(url)
+    })
+    return () => { cancelled = true }
+  }, [caballoId])
 
   const showImg = Boolean(src) && !hasError
 
