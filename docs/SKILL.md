@@ -598,7 +598,7 @@ CREATE TABLE historial_clinico (
   fecha_consulta TIMESTAMPTZ NOT NULL,
   diagnostico TEXT, tratamiento TEXT, observaciones TEXT,
   proxima_consulta DATE,
-  imagen_url TEXT,                             -- URL de imagen adjunta (Supabase Storage)
+  imagen_url TEXT,                             -- Path relativo al bucket 'caballos' (signed URL en frontend)
   -- 'pendiente' = consulta agendada desde el calendario, sin ficha clínica
   -- cargada todavía; pasa a 'realizada' al completarla (migración 20260806120000)
   estado TEXT NOT NULL DEFAULT 'realizada'
@@ -1394,10 +1394,33 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 
 **`lead`**
 - INSERT: anon y authenticated (formulario público)
-- SELECT/UPDATE: cualquier authenticated
+- SELECT/UPDATE: solo `is_superadmin()` (migración `20260926120000_fix_lead_rls`)
 
 **Catálogos** (`cat_*`)
 - SELECT: cualquier autenticado (`true`)
+
+### Storage (Supabase Storage)
+
+Ambos buckets son **privados** (`public = false`). El frontend usa **signed URLs**
+(`createSignedUrl`, TTL 1 hora) para mostrar las imágenes. No se usan URLs públicas.
+Migración `20260926120001_fix_storage_policies`.
+
+**Bucket `caballos`** (fotos de caballos y de consultas)
+- El nombre del objeto es el UUID del caballo (`{caballoId}`)
+- Imágenes de consultas en subcarpeta `consultas/{caballoId}/{timestamp}.{ext}`
+- SELECT (fotos): solo usuarios con membresía activa en la sociedad del caballo,
+  o veterinarios con `acceso_vet` activo sobre el caballo
+- SELECT (consultas): cualquier `authenticated` si la carpeta es `consultas/`
+- INSERT (fotos): cualquier `authenticated` (la política de subida existente)
+- INSERT (consultas): vets y admins (política preexistente)
+- DELETE: solo usuarios con membresía activa en la sociedad del caballo,
+  o veterinarios con `acceso_vet` activo sobre el caballo
+- UPDATE: cualquier `authenticated` (reemplazo de fotos, política preexistente)
+
+**Bucket `fichas-historicas`** (fichas HTML exportadas antes de transferencias)
+- Path: `{sociedadId}/{caballoId}/{timestamp}.html`
+- SELECT / INSERT / DELETE: solo usuarios con membresía activa en la sociedad
+  (verificado via `(storage.foldername(name))[1]::uuid` = `sociedad_id`)
 
 ---
 

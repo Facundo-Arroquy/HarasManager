@@ -84,8 +84,9 @@ export const historialService = {
     const path = `consultas/${caballoId}/${Date.now()}.${ext}`
     const { error } = await supabase.storage.from('caballos').upload(path, file, { upsert: true })
     if (error) throw error
-    const { data } = supabase.storage.from('caballos').getPublicUrl(path)
-    return data.publicUrl
+    // Guardar el path relativo al bucket (no la URL pública).
+    // Al mostrar la imagen se genera una signed URL bajo demanda.
+    return path
   },
 
   async listarRecientesVet(limit = 5): Promise<HistorialResumen[]> {

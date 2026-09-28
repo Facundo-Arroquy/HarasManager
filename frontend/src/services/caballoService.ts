@@ -441,9 +441,6 @@ export const caballoService = {
 
     const { error } = await supabase.rpc('editar_masivo_veterinario', {
       p_caballo_ids:  ids,
-      // Si el campo viene en los cambios y el valor es null → el usuario eligió
-      // "Sin asignar", se envía el UUID centinela. Si viene con un UUID real,
-      // se envía ese UUID. Si no viene en los cambios, se envía null (no tocar).
       p_campo_id:     'campo_id' in cambios
                         ? (cambios.campo_id ?? UUID_CERO)
                         : null,

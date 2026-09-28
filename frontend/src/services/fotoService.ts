@@ -2,22 +2,29 @@ import { getSupabaseClient } from '../lib/supabase'
 
 const BUCKET = 'caballos'
 const VERSION_KEY = (id: string) => `hm_foto_v_${id}`
+/** Duración de las signed URLs en segundos (1 hora). */
+const SIGNED_URL_TTL = 3600
 
 export const fotoService = {
   /**
-   * URL pública de la foto. Devuelve cadena vacía si nunca se subió una foto
-   * para este caballo (no hay versión en localStorage), evitando requests HTTP
-   * que terminarían en 404.
+   * Genera una signed URL para la foto del caballo.
+   * Devuelve cadena vacía si nunca se subió una foto (no hay versión en
+   * localStorage) o si la generación falla.
    */
-  getUrl(caballoId: string): string {
-    const base = import.meta.env.VITE_SUPABASE_URL
-    if (!base) return ''
+  async getUrl(caballoId: string): Promise<string> {
     const v = localStorage.getItem(VERSION_KEY(caballoId))
     if (!v) return ''
-    return `${base}/storage/v1/object/public/${BUCKET}/${caballoId}?v=${v}`
+
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(caballoId, SIGNED_URL_TTL)
+
+    if (error || !data?.signedUrl) return ''
+    return data.signedUrl
   },
 
-  /** Sube (o reemplaza) la foto del caballo. Devuelve la URL resultante. */
+  /** Sube (o reemplaza) la foto del caballo. Devuelve la signed URL resultante. */
   async subir(caballoId: string, file: File): Promise<string> {
     const supabase = getSupabaseClient()
     // Intentar borrar si ya existe para evitar conflictos de UPDATE en RLS

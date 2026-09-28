@@ -120,7 +120,7 @@ export function reglasParaRegistro(
       reglas.push(inseminada
         ? { tipo: 'Flushing', calcularFecha: (f) => sumarDias(f, cfg.donante_ov_a_flushing) }
         : { tipo: 'Dar PG',   calcularFecha: (f) => sumarDias(f, cfg.donante_ov_sin_in_a_dar_pg) })
-    if (chips.includes('PG'))
+    if (chips.some((c) => c === 'PG' || c === '1PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.donante_pg_a_revision_pg) })
     if (chips.includes('Flushing'))
       reglas.push({ tipo: 'Revisión Flushing', calcularFecha: (f) => sumarDias(f, cfg.donante_flushing_a_revision) })
@@ -129,7 +129,7 @@ export function reglasParaRegistro(
   if (rolReproductivo === 'Receptora') {
     if (chips.includes('Strelin'))
       reglas.push({ tipo: 'Revisión Strelin', calcularFecha: (f) => proximoMWF(f) })
-    if (chips.includes('PG'))
+    if (chips.some((c) => c === 'PG' || c === '1PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.receptora_pg_a_revision_pg) })
     const tieneOV = registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV')
     const fueTransferida = chips.includes('Transferida')

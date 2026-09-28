@@ -42,7 +42,7 @@ export type NuevoCatChipObsPayload = Pick<CatChipObs, 'veterinario_id' | 'nombre
  * reglas que los leen.
  */
 export const CHIPS_CON_RECORDATORIO = [
-  'Strelin', 'IN', 'OV', 'PG', 'Flushing', 'Transferida',
+  'Strelin', 'IN', 'OV', 'PG', '1PG', 'Flushing', 'Transferida',
 ] as const
 
 /** Sugerencias para el vet que arranca con la lista vacía. */

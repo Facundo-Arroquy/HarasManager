@@ -67,9 +67,12 @@ export const fichaHistoricaService = {
 
   /** Abre la ficha en una nueva pestaña (imprimible / descargable). */
   async abrir(ficha: FichaHistorica): Promise<void> {
-    const base = import.meta.env.VITE_SUPABASE_URL
-    if (!base) return
-    window.open(`${base}/storage/v1/object/public/${BUCKET}/${ficha.path}`, '_blank')
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(ficha.path, 3600)
+    if (error || !data?.signedUrl) return
+    window.open(data.signedUrl, '_blank')
   },
 
   /** Elimina una ficha (solo admin). */
