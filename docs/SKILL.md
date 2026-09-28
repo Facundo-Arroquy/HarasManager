@@ -235,9 +235,12 @@ CREATE TABLE caballo (
   madre_id UUID REFERENCES caballo(id),
   madre_nombre TEXT,
   -- prenada/fecha_prenez se setean a mano desde la ficha del caballo Y solos
-  -- desde el centro de cría (migración 20260824120000): la transferencia
-  -- embrionaria marca preñada con fecha = fecha de la transferencia, y una
-  -- ecografía 'abortada' saca el tag. Ver trg_sincronizar_prenez_ecografia.
+  -- desde el centro de cría. REGLA CLAVE (migración 20260928130000):
+  -- la transferencia embrionaria NO marca prenada = true; la receptora queda
+  -- con prenada = false hasta que la Eco 1 devuelve resultado = 'prenada'.
+  -- Es el trigger trg_sincronizar_prenez_ecografia el que setea prenada y
+  -- fecha_prenez (con la fecha de la transferencia original). Una ecografía
+  -- 'abortada' también pasa por ese trigger y saca el tag.
   prenada BOOLEAN DEFAULT FALSE,
   fecha_prenez DATE,
   en_venta_pendiente BOOLEAN DEFAULT FALSE,    -- bloquea nueva venta mientras hay una activa
@@ -1151,7 +1154,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | `get_alertas_vet()` | Alertas de los próximos 30 días del vet autenticado. Excluye caballos dados de baja (`c.activo = true`, migración `20260812120300`) — antes un caballo inactivo seguía generando alertas para siempre |
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
-| `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Acepta como estado de partida `'disponible'`, `'congelado'` o `'en_nube'`. Además marca a la receptora `prenada = true` con `fecha_prenez = p_fecha` (migración `20260824120000`) y agenda los recordatorios `'Eco 1'`, `'Eco 2'` y `'Eco 3'` con los plazos de `cria_plazo_vet` del vet que transfiere — 30/60/90 días si el vet no tiene fila (migración `20260824130000`). Devuelve `jsonb` con los tres ids (migraciones `20260724000626`, `20260823120000`, `20260824120000`, `20260824130000`) |
+| `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Acepta como estado de partida `'disponible'`, `'congelado'` o `'en_nube'`. **NO marca `prenada = true`** — la receptora queda con `prenada = false`; la preñez se confirma solo cuando la Eco 1 da resultado `'prenada'` via `trg_sincronizar_prenez_ecografia` (fix migración `20260928130000`). Agenda los recordatorios `'Eco 1'`, `'Eco 2'` y `'Eco 3'` con los plazos de `cria_plazo_vet` del vet que transfiere — 30/60/90 días si el vet no tiene fila (migración `20260824130000`). Devuelve `jsonb` con los tres ids (migraciones `20260724000626`, `20260823120000`, `20260824120000`, `20260824130000`, `20260928130000`) |
 | `ancestros_caballo(p_caballo_id, p_gen)` | Ancestros de un caballo hasta N generaciones (incluye el propio en nivel 0). Base del cálculo de parentesco (migración `20260802120100`) |
 | `es_familiar_directo(p_a, p_b, p_gen)` | TRUE si los dos comparten un ancestro dentro de `p_gen` generaciones. Con el default (2) cubre padres, abuelos, hijos, nietos, hermanos/medios hermanos y tíos |
 | `get_padrillos_familiares(p_donante_id, p_padrillo_ids)` | De la lista de padrillos que muestra la UI, cuáles son familiares y con qué parentesco ('Padre', 'Abuelo', 'Hijo', 'Nieto', 'Hermano', 'Familiar'). Alimenta la etiqueta roja del selector |
