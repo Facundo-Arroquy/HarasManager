@@ -239,8 +239,13 @@ CREATE TABLE caballo (
   -- la transferencia embrionaria NO marca prenada = true; la receptora queda
   -- con prenada = false hasta que la Eco 1 devuelve resultado = 'prenada'.
   -- Es el trigger trg_sincronizar_prenez_ecografia el que setea prenada y
-  -- fecha_prenez (con la fecha de la transferencia original). Una ecografía
-  -- 'abortada' también pasa por ese trigger y saca el tag.
+  -- fecha_prenez (tomada de v_fecha_transf: la fecha de la transferencia
+  -- original, no de la RPC). Una ecografía 'abortada' también pasa por ese
+  -- trigger y saca el tag.
+  -- NOTA (migración 20260928140000): registrar_transferencia_embrionaria tiene
+  -- SET search_path TO 'public' por ser SECURITY DEFINER. El UPDATE de limpieza
+  -- se acota a receptoras con cria_transferencia vigente sin eco positiva, para
+  -- no afectar yeguas preñadas por cubrición natural (toggle_prenada_veterinario).
   prenada BOOLEAN DEFAULT FALSE,
   fecha_prenez DATE,
   en_venta_pendiente BOOLEAN DEFAULT FALSE,    -- bloquea nueva venta mientras hay una activa
