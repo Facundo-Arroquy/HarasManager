@@ -329,7 +329,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
           </div>
 
           {/* Campo / Caballeriza */}
-          {<div className="space-y-1.5">
+          <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-500">Campo / Caballeriza</label>
             <select
               value={form.campo_id}
@@ -339,7 +339,7 @@ export default function EditarCaballoModal({ caballo, onClose, onSuccess, vetMod
               <option value="">— Sin asignar —</option>
               {campos.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
-          </div>}
+          </div>
 
           {/* Chip + Registro */}
           <div className="grid grid-cols-2 gap-3">

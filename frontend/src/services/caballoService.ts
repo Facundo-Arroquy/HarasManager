@@ -433,10 +433,19 @@ export const caballoService = {
     cambios: { campo_id?: string | null; categoria?: string; rol_reproductivo?: string | null; prenada?: boolean | null }
   ): Promise<void> {
     const supabase = getSupabaseClient()
+
+    // UUID centinela: la RPC interpreta NULL en p_campo_id como "no tocar".
+    // Para comunicar "quitar campo" (Sin asignar), mandamos este UUID y la RPC
+    // lo convierte en campo_id = NULL en el UPDATE.
+    const UUID_CERO = '00000000-0000-0000-0000-000000000000'
+
     const { error } = await supabase.rpc('editar_masivo_veterinario', {
       p_caballo_ids:  ids,
-      p_campo_id:     'campo_id' in cambios ? (cambios.campo_id ?? null) : null,
+      p_campo_id:     'campo_id' in cambios
+                        ? (cambios.campo_id ?? UUID_CERO)
+                        : null,
       p_categoria:    cambios.categoria ?? null,
+      // '' significa "quitar rol reproductivo"; la RPC usa NULLIF para convertirlo en NULL.
       p_subcategoria: 'rol_reproductivo' in cambios ? (cambios.rol_reproductivo ?? '') : null,
       p_prenada:      'prenada' in cambios ? (cambios.prenada ?? false) : null,
     })
