@@ -8,8 +8,14 @@ import EcografiaModal from '../../components/centro-cria/EcografiaModal'
 import EditarTransferenciaModal from '../../components/centro-cria/EditarTransferenciaModal'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import Spinner from '../../components/ui/Spinner'
-import { LABEL_RESULTADO_ECO } from '../../types/crianza'
 import type { Ecografia, ResultadoEcografia, TransferenciaEmbrionaria } from '../../types/crianza'
+
+/** Labels específicos para la vista de Transferidas — más claros que los genéricos. */
+const LABEL_RESULTADO_TRANSF: Record<ResultadoEcografia, string> = {
+  prenada:   'PREÑEZ POSITIVA',
+  abortada:  'Vacía',
+  pendiente: 'Pendiente',
+}
 
 const RESULTADO_BADGE: Record<ResultadoEcografia, string> = {
   prenada:   'bg-emerald-100 text-emerald-700',
@@ -178,10 +184,10 @@ export default function TransferenciasPage() {
                                 title={`Editar la Eco ${e.numero}`}
                                 className="hover:underline"
                               >
-                                Eco {e.numero}: {LABEL_RESULTADO_ECO[e.resultado]}
+                                Eco {e.numero}: {LABEL_RESULTADO_TRANSF[e.resultado]}
                               </button>
                             ) : (
-                              <>Eco {e.numero}: {LABEL_RESULTADO_ECO[e.resultado]}</>
+                              <>Eco {e.numero}: {LABEL_RESULTADO_TRANSF[e.resultado]}</>
                             )}
                             {e.id === ultimaEco?.id && e.veterinario_id === userId && (
                               <button

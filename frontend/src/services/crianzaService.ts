@@ -305,7 +305,7 @@ export const crianzaService = {
       .from('cria_transferencia')
       .select(`
         *,
-        receptora:caballo_receptora_id(nombre),
+        receptora:caballo_receptora_id(nombre, prenada),
         donante:caballo_donante_id(nombre),
         padrillo:padrillo_id(nombre),
         veterinario:veterinario_id(nombre, apellido)
@@ -352,7 +352,7 @@ export const crianzaService = {
       .from('cria_transferencia')
       .select(`
         *,
-        receptora:caballo_receptora_id(nombre),
+        receptora:caballo_receptora_id(nombre, prenada),
         donante:caballo_donante_id(nombre),
         padrillo:padrillo_id(nombre),
         veterinario:veterinario_id(nombre, apellido)
@@ -471,7 +471,7 @@ export const crianzaService = {
       .from('cria_transferencia')
       .select(`
         *,
-        receptora:caballo_receptora_id(nombre),
+        receptora:caballo_receptora_id(nombre, prenada),
         donante:caballo_donante_id(nombre),
         padrillo:padrillo_id(nombre),
         veterinario:veterinario_id(nombre, apellido)
@@ -544,7 +544,7 @@ export const crianzaService = {
       .from('cria_transferencia')
       .select(`
         *,
-        receptora:caballo_receptora_id(nombre),
+        receptora:caballo_receptora_id(nombre, prenada),
         donante:caballo_donante_id(nombre),
         padrillo:padrillo_id(nombre),
         veterinario:veterinario_id(nombre, apellido)
@@ -563,7 +563,7 @@ export const crianzaService = {
       .from('cria_ecografia')
       .select(`
         *,
-        receptora:caballo_receptora_id(nombre),
+        receptora:caballo_receptora_id(nombre, prenada),
         veterinario:veterinario_id(nombre, apellido)
       `)
       .eq('sociedad_id', sociedadId)
@@ -578,7 +578,7 @@ export const crianzaService = {
       .from('cria_ecografia')
       .select(`
         *,
-        receptora:caballo_receptora_id(nombre),
+        receptora:caballo_receptora_id(nombre, prenada),
         veterinario:veterinario_id(nombre, apellido)
       `)
       .order('fecha', { ascending: false })
@@ -603,7 +603,7 @@ export const crianzaService = {
       .insert(payload)
       .select(`
         *,
-        receptora:caballo_receptora_id(nombre),
+        receptora:caballo_receptora_id(nombre, prenada),
         veterinario:veterinario_id(nombre, apellido)
       `)
       .single()

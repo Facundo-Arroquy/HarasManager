@@ -246,6 +246,10 @@ CREATE TABLE caballo (
   -- SET search_path TO 'public' por ser SECURITY DEFINER. El UPDATE de limpieza
   -- se acota a receptoras con cria_transferencia vigente sin eco positiva, para
   -- no afectar yeguas preñadas por cubrición natural (toggle_prenada_veterinario).
+  -- NOTA (migración 20260930120000): la RPC cancela recordatorios 'Dar PG'
+  -- pendientes/vencidos de la receptora al transferir (ya no corresponde darle
+  -- PG si entró al flujo de ecografías). Nuevo tipo 'Revisión Eco' para cuando
+  -- la eco da 'pendiente' y el vet pide revisar en X días.
   prenada BOOLEAN DEFAULT FALSE,
   fecha_prenez DATE,
   en_venta_pendiente BOOLEAN DEFAULT FALSE,    -- bloquea nueva venta mientras hay una activa
@@ -751,7 +755,7 @@ CREATE TABLE cria_recordatorio (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   caballo_id UUID NOT NULL REFERENCES caballo(id),
   sociedad_id UUID NOT NULL REFERENCES sociedad(id),
-  tipo TEXT NOT NULL,  -- 'IN' | 'OXI' | 'Flushing' | 'Revisión Flushing' | 'Revisión PG' | 'Dar PG' | 'Revisión Strelin' | 'Revisión'
+  tipo TEXT NOT NULL,  -- 'IN' | 'OXI' | 'Flushing' | 'Revisión Flushing' | 'Revisión PG' | 'Dar PG' | 'Revisión Strelin' | 'Revisión' | 'Eco 1' | 'Eco 2' | 'Eco 3' | 'Revisión Eco'
   fecha_vto DATE NOT NULL,
   estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','vencido','hecho','cancelado')),
   veterinario_id UUID REFERENCES usuario(id),
@@ -1159,7 +1163,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | `get_alertas_vet()` | Alertas de los próximos 30 días del vet autenticado. Excluye caballos dados de baja (`c.activo = true`, migración `20260812120300`) — antes un caballo inactivo seguía generando alertas para siempre |
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
-| `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Acepta como estado de partida `'disponible'`, `'congelado'` o `'en_nube'`. **NO marca `prenada = true`** — la receptora queda con `prenada = false`; la preñez se confirma solo cuando la Eco 1 da resultado `'prenada'` via `trg_sincronizar_prenez_ecografia` (fix migración `20260928130000`). Agenda los recordatorios `'Eco 1'`, `'Eco 2'` y `'Eco 3'` con los plazos de `cria_plazo_vet` del vet que transfiere — 30/60/90 días si el vet no tiene fila (migración `20260824130000`). Devuelve `jsonb` con los tres ids (migraciones `20260724000626`, `20260823120000`, `20260824120000`, `20260824130000`, `20260928130000`) |
+| `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Acepta como estado de partida `'disponible'`, `'congelado'` o `'en_nube'`. **NO marca `prenada = true`** — la receptora queda con `prenada = false`; la preñez se confirma solo cuando la Eco 1 da resultado `'prenada'` via `trg_sincronizar_prenez_ecografia` (fix migración `20260928130000`). **Cancela recordatorios 'Dar PG' pendientes/vencidos** de la receptora al transferir — ya no corresponde darle PG si entró al flujo de ecografías (migración `20260930120000`). Agenda los recordatorios `'Eco 1'`, `'Eco 2'` y `'Eco 3'` con los plazos de `cria_plazo_vet` del vet que transfiere — 30/60/90 días si el vet no tiene fila (migración `20260824130000`). Devuelve `jsonb` con los tres ids (migraciones `20260724000626`, `20260823120000`, `20260824120000`, `20260824130000`, `20260928130000`, `20260930120000`) |
 | `ancestros_caballo(p_caballo_id, p_gen)` | Ancestros de un caballo hasta N generaciones (incluye el propio en nivel 0). Base del cálculo de parentesco (migración `20260802120100`) |
 | `es_familiar_directo(p_a, p_b, p_gen)` | TRUE si los dos comparten un ancestro dentro de `p_gen` generaciones. Con el default (2) cubre padres, abuelos, hijos, nietos, hermanos/medios hermanos y tíos |
 | `get_padrillos_familiares(p_donante_id, p_padrillo_ids)` | De la lista de padrillos que muestra la UI, cuáles son familiares y con qué parentesco ('Padre', 'Abuelo', 'Hijo', 'Nieto', 'Hermano', 'Familiar'). Alimenta la etiqueta roja del selector |

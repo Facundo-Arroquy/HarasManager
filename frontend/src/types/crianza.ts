@@ -250,6 +250,8 @@ export type TipoRecordatorio =
   | 'Eco 1'
   | 'Eco 2'
   | 'Eco 3'
+  // Se agenda cuando la Eco da resultado 'pendiente' y el vet pide revisar en X dias
+  | 'Revisión Eco'
 
 export interface RecordatorioCria {
   id:                  string
@@ -425,7 +427,7 @@ export interface TransferenciaEmbrionaria {
   created_at:           string
   updated_at:           string
   // joins opcionales
-  receptora?:           { nombre: string }
+  receptora?:           { nombre: string; prenada?: boolean }
   donante?:             { nombre: string }
   padrillo?:            { nombre: string } | null
   veterinario?:         { nombre: string; apellido: string }
