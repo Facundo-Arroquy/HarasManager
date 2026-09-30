@@ -422,7 +422,18 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
   registrarTransferencia: async (payload) => {
     const transferencia = await crianzaService.registrarTransferenciaEmbrionaria(payload)
-    set((s) => ({ transferencias: [transferencia, ...s.transferencias] }))
+    set((s) => ({
+      transferencias: [transferencia, ...s.transferencias],
+      // La RPC cancela los "Dar PG" pendientes/vencidos de la receptora en la DB.
+      // Reflejar lo mismo en memoria para que la UI no los muestre más.
+      recordatorios: s.recordatorios.map((r) =>
+        r.caballo_id === payload.caballo_receptora_id &&
+        r.tipo === 'Dar PG' &&
+        (r.estado === 'pendiente' || r.estado === 'vencido')
+          ? { ...r, estado: 'cancelado' as EstadoRecordatorio, cancel_motivo: 'Receptora transferida' }
+          : r
+      ),
+    }))
     return transferencia
   },
 

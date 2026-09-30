@@ -8,9 +8,12 @@ import { crianzaService } from '../../services/crianzaService'
 import { CHIPS_OI_OD, LABEL_RESULTADO_ECO } from '../../types/crianza'
 import type {
   Ecografia, ResultadoEcografia, TransferenciaEmbrionaria, RecordatorioCria,
+  EstadoRecordatorio,
 } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import { hoyAR, formatFecha } from '../../utils/fecha'
+
+const REVISION_DIAS_RAPIDOS = [7, 14, 21, 30] as const
 
 interface Props {
   transferencia: TransferenciaEmbrionaria
@@ -59,12 +62,14 @@ export default function EcografiaModal({
 
   const [numero,     setNumero]     = useState<number>(ecografiaEditar?.numero ?? proximoNumero)
   const [fecha,      setFecha]      = useState(ecografiaEditar?.fecha ?? hoyAR())
+  // Pre-seleccionar 'prenada' si la receptora ya lo está (PR #104)
   const resultadoInicial: ResultadoEcografia =
     ecografiaEditar?.resultado ?? (transferencia.receptora?.prenada ? 'prenada' : 'pendiente')
   const [resultado,  setResultado]  = useState<ResultadoEcografia>(resultadoInicial)
   const [ovarioIzq,  setOvarioIzq]  = useState<string[]>(ecografiaEditar?.ovario_izq ?? [])
   const [ovarioDer,  setOvarioDer]  = useState<string[]>(ecografiaEditar?.ovario_der ?? [])
   const [notas,      setNotas]      = useState(ecografiaEditar?.notas ?? '')
+  const [revisionDias, setRevisionDias] = useState<number | null>(null)
 
   const { saving, error, setError, execute } = useSaveHandler('Error al guardar.')
 
@@ -107,6 +112,31 @@ export default function EcografiaModal({
       // La eco que pedía el recordatorio ya está cargada: si no se cierra, se
       // sigue ofreciendo y la próxima vez se carga de nuevo.
       if (recordatorio) await actualizarEstadoRecordatorio(recordatorio.id, 'hecho')
+
+      // Si el resultado es 'pendiente' y el vet pidió revisar en X días,
+      // crear un recordatorio 'Revisión Eco' para volver a ecografiar.
+      if (resultado === 'pendiente' && revisionDias) {
+        const fechaVto = new Date(fecha + 'T12:00:00Z')
+        fechaVto.setUTCDate(fechaVto.getUTCDate() + revisionDias)
+        const fechaVtoStr = fechaVto.toISOString().split('T')[0]
+        try {
+          await crianzaService.crearRecordatorio({
+            caballo_id:         transferencia.caballo_receptora_id,
+            sociedad_id:        efectivaSociedadId,
+            tipo:               'Revisión Eco',
+            fecha_vto:          fechaVtoStr,
+            estado:             'pendiente' as EstadoRecordatorio,
+            veterinario_id:     user.id,
+            notas:              `Revisar en ${revisionDias} días (Eco ${numero} pendiente)`,
+            auto_generado:      true,
+            origen_registro_id: null,
+            cancel_motivo:      null,
+          })
+        } catch (e) {
+          console.error('[EcografiaModal] Error creando recordatorio de revisión:', e)
+        }
+      }
+
       onSuccess?.()
       onClose()
     })
@@ -210,6 +240,46 @@ export default function EcografiaModal({
               </p>
             )}
           </div>
+
+          {/* Volver a revisar en X días (solo si resultado = pendiente y no es edición) */}
+          {resultado === 'pendiente' && !ecografiaEditar && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-500">Volver a revisar en</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {REVISION_DIAS_RAPIDOS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setRevisionDias(revisionDias === d ? null : d)}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+                      revisionDias === d
+                        ? 'bg-brand-100 text-brand-700 border-brand-300'
+                        : 'bg-slate-100 text-slate-500 border-slate-300 hover:border-slate-400'
+                    }`}
+                  >
+                    {d} días
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  placeholder="Otro"
+                  value={revisionDias && !REVISION_DIAS_RAPIDOS.includes(revisionDias as typeof REVISION_DIAS_RAPIDOS[number]) ? revisionDias : ''}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    setRevisionDias(v >= 1 && v <= 120 ? v : null)
+                  }}
+                  className="w-20 rounded-md border border-slate-300 bg-slate-100 px-2 py-1.5 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+              </div>
+              {revisionDias && (
+                <p className="text-[11px] text-brand-600">
+                  Se creará un recordatorio "Revisión Eco" para dentro de {revisionDias} {revisionDias === 1 ? 'día' : 'días'}.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Ovarios */}
           <ChipSelector

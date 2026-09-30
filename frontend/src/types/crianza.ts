@@ -250,6 +250,8 @@ export type TipoRecordatorio =
   | 'Eco 1'
   | 'Eco 2'
   | 'Eco 3'
+  // Se agenda cuando la Eco da resultado 'pendiente' y el vet pide revisar en X dias
+  | 'Revisión Eco'
 
 export interface RecordatorioCria {
   id:                  string

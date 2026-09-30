@@ -7,7 +7,7 @@ import type {
 } from '../types/crianza'
 
 /** Recordatorios que se resuelven cargando una ecografía, no un registro. */
-export const TIPOS_ECO = ['Eco 1', 'Eco 2', 'Eco 3']
+export const TIPOS_ECO = ['Eco 1', 'Eco 2', 'Eco 3', 'Revisión Eco']
 
 /**
  * Qué modal abre un recordatorio al ir a hacerlo. Vive acá y no en cada página
