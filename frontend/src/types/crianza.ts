@@ -425,7 +425,7 @@ export interface TransferenciaEmbrionaria {
   created_at:           string
   updated_at:           string
   // joins opcionales
-  receptora?:           { nombre: string }
+  receptora?:           { nombre: string; prenada?: boolean }
   donante?:             { nombre: string }
   padrillo?:            { nombre: string } | null
   veterinario?:         { nombre: string; apellido: string }

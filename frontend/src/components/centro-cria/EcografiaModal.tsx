@@ -59,7 +59,9 @@ export default function EcografiaModal({
 
   const [numero,     setNumero]     = useState<number>(ecografiaEditar?.numero ?? proximoNumero)
   const [fecha,      setFecha]      = useState(ecografiaEditar?.fecha ?? hoyAR())
-  const [resultado,  setResultado]  = useState<ResultadoEcografia>(ecografiaEditar?.resultado ?? 'pendiente')
+  const resultadoInicial: ResultadoEcografia =
+    ecografiaEditar?.resultado ?? (transferencia.receptora?.prenada ? 'prenada' : 'pendiente')
+  const [resultado,  setResultado]  = useState<ResultadoEcografia>(resultadoInicial)
   const [ovarioIzq,  setOvarioIzq]  = useState<string[]>(ecografiaEditar?.ovario_izq ?? [])
   const [ovarioDer,  setOvarioDer]  = useState<string[]>(ecografiaEditar?.ovario_der ?? [])
   const [notas,      setNotas]      = useState(ecografiaEditar?.notas ?? '')
