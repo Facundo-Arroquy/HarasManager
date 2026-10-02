@@ -1,6 +1,7 @@
 # Plan de monetización — HarasManager
 
 > **Estado:** propuesta para discutir entre Facu y el colaborador. No hay nada implementado a partir de este documento.
+> **Siguiente paso operativo:** [`docs/PROXIMAS-ACCIONES.md`](PROXIMAS-ACCIONES.md) (qué hacer, en qué orden y cómo saber que terminó, para lanzar el MVP).
 > **Fecha:** 2026-10-01 · **Rama:** `claude/charming-wozniak-xjnroc` (base `main` @ `95c0caf`)
 >
 > **De dónde salen los datos:** (a) el repo (`docs/SKILL.md`, `TASKS.md`, `docs/specs/*`, `docs/BACKEND-API-TASKS.md`, código del front y Edge Functions) y (b) un relevamiento interno del uso real de la plataforma, **cuyos números se dejan fuera de este documento porque el repositorio es público**. Acá solo figuran conclusiones cualitativas.
@@ -70,7 +71,7 @@ El uso reciente puede ser estacional (la camada va de julio a junio, según Gero
 | Emails transaccionales (no hay proveedor; plan con Resend anotado en `BACKEND-API-TASKS.md`, fila 2026-08-15) | Sin avisos de vencimiento ni recibos |
 | Jobs programados (nadie recalcula vencimientos si el vet no abre la app) | Estados de suscripción desactualizados |
 | Alertas fuera de la app (los recordatorios solo se ven al abrir la app) | Pierde el mayor argumento de valor del Centro de Cría |
-| Importador de datos del cliente (la carga del cliente ancla se hizo con migraciones SQL a mano) | Cada cliente nuevo cuesta días de un dev |
+| Importación de datos del cliente: **ya existe** un importador de caballos por Excel para admins (no para veterinarios); el historial, los registros reproductivos y los propietarios se cargaron con migraciones SQL a mano | Cada cliente nuevo con datos históricos cuesta días de un dev |
 | Métricas de negocio (MRR, activación, retención) | Hoy se contesta con SQL a mano |
 | Separación demo/producción (las cuentas de demo conviven en la misma base que los clientes reales) | Riesgo operativo y de datos |
 | Pricing público | La landing no dice cuánto cuesta |
@@ -238,7 +239,7 @@ Estimaciones de esfuerzo **gruesas** (S ≈ 1–2 días · M ≈ 3–5 · L ≈ 
 - [ ] Banner de estado de cuenta para el admin (trial, vence en N días, vencida). *(S)*
 - [ ] **Métricas de negocio** en el superadmin, derivadas de la base (vistas SQL + una pestaña "Métricas"): MRR, haras activos, caballos activos, usuarios activos 30d, registros por módulo, activación por sociedad. Sin sumar dependencias de analytics: la base ya tiene lo necesario (`auditoria`, `superadmin_actividad_usuarios()`). *(M)*
 - [ ] **Higiene de producto que un cliente pago espera** (ya existen como tickets): *Cambiar contraseña*, *Accesos* (el admin gestiona), cerrar el QA de *Definir roles y membresías*. *(S–M)*
-- [ ] **Importador de planillas** (Excel/CSV) para altas de caballos. El proyecto ya usa `xlsx`. Hoy cada carga es una migración SQL hecha a mano. *(L — empezar el diseño acá, terminar en Fase 2)*
+- [ ] **Ampliar el importador de planillas.** Ya existe para caballos (admin, con plantilla y validación por fila); falta habilitarlo para veterinarios, endurecerlo (límites, reporte por fila) y decidir si el historial se importa o se ofrece como servicio. *(M–L — ver `docs/PROXIMAS-ACCIONES.md`, tarea E4)*
 
 **Criterio de salida:** el cliente ancla con contrato firmado y primer período cobrado y facturado; sus límites y su estado de cuenta visibles en la app; métricas básicas funcionando.
 
@@ -254,7 +255,7 @@ Estimaciones de esfuerzo **gruesas** (S ≈ 1–2 días · M ≈ 3–5 · L ≈ 
 - [ ] **Facturación electrónica**: automatizarla con un proveedor o integración, según lo que indique el contador. *(M–L)*
 - [ ] **Funnel comercial:** landing con precios y capturas reales (pendiente en `TASKS.md`), pipeline de leads con los estados nuevos, y demo reproducible con el entorno separado. *(M)*
 - [ ] **Alertas fuera de la app** (email/WhatsApp) para recordatorios del Centro de Cría: hoy solo se ven al abrir la app. Candidato a add-on pago y a herramienta de retención. *(L; el costo por mensaje de WhatsApp hay que verificarlo antes de ponerle precio)*
-- [ ] **Terminar el importador de planillas** y convertirlo en parte del onboarding. Mientras no esté, cobrar el onboarding como servicio. *(L)*
+- [ ] **Terminar la ampliación del importador** y convertirlo en parte del onboarding. Mientras no cubra el historial, cobrar esa carga como servicio. *(M–L)*
 - [ ] Reprecio de Vet Pro y revisión de límites con datos reales de uso.
 
 **Criterio de salida:** ≥ 3 haras pagos (al menos uno distinto del cliente ancla), cobro y renovación sin intervención manual, MRR medido, onboarding en menos de un día de trabajo.
