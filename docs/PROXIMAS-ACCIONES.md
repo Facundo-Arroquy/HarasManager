@@ -451,6 +451,8 @@ Para no inflar el alcance, esto queda **explícitamente fuera** del Hito 2:
 
 ## 8. Mantenimiento de este documento
 
+- Los tickets de las **semanas 1 y 2** (5 al 16 de octubre) ya están en `TASKS.md`, en la sección "Lanzamiento del MVP". Los de las semanas siguientes se generan de este archivo (§3) al cerrar la semana 2.
+
 - Revisarlo **una vez por semana** con el equipo: tildar lo hecho, mover fechas, anotar bloqueos.
 - Cada tarea que arranca pasa a `TASKS.md` con responsable; cuando termina se tilda acá y se actualiza `docs/SKILL.md` si tocó schema.
 - Si cambia una decisión de la sección 1, actualizar las tareas que dependen de ella.
