@@ -120,25 +120,28 @@
 - **Hecho cuando:** cada punto quedó corregido y verificado de nuevo, o descartado/aceptado por escrito con responsable.
 
 ### [ ] A2 · Actualizar dependencias con vulnerabilidades conocidas
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Semana:** 2
 - **Descripción:** `npm audit` marca 10 vulnerabilidades en el árbol actual y la mayoría tiene arreglo automático. Correr `npm audit fix` en una rama y probar a mano ruteo, build e importación de caballos. `xlsx` no tiene arreglo en npm: reemplazarlo por una alternativa mantenida (verificar licencia y tamaño; `CLAUDE.md` pide justificar dependencias nuevas) y mantenerlo cargado de forma lazy como hoy.
 - **Hecho cuando:** `npm audit` no muestra vulnerabilidades altas, o las que quedan están justificadas por escrito.
+- **Avance:** dependencias actualizadas; `xlsx` fue reemplazado por ExcelJS 4.4.0 (MIT) y se mantiene lazy. `npm audit` quedó sin vulnerabilidades altas (2 moderadas transitivas de `uuid` vía ExcelJS). Build y tests automáticos pasan; falta QA manual del ruteo y de una importación real.
 
 ### [ ] A3 · Fijar versiones de las Edge Functions
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Semana:** 2
 - **Descripción:** Las 5 funciones importan `@supabase/supabase-js@2` desde una CDN sin versión exacta. Fijar una versión exacta (o usar `npm:`/`jsr:`), volver a desplegar en staging y probar crear y cancelar suscripción y el webhook en modo prueba.
 - **Hecho cuando:** ninguna función importa una versión flotante y las pruebas pasan.
+- **Avance:** las 5 funciones usan `npm:@supabase/supabase-js@2.105.4`, versión exacta. Falta desplegar y probar en staging cuando D1 esté disponible; no se desplegó en producción.
 
 ### [ ] A6 · Headers de seguridad en Vercel
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Semana:** 2
 - **Descripción:** `vercel.json` hoy solo tiene el *rewrite*. Agregar `Content-Security-Policy`, `frame-ancestors`/`X-Frame-Options`, `X-Content-Type-Options` y `Referrer-Policy`. Probar en un preview que no se rompan las fuentes de Google, el video de la landing ni el checkout de MercadoPago.
 - **Hecho cuando:** un escáner de headers da una nota razonable y la app funciona completa en el preview.
+- **Avance:** `vercel.json` incorpora CSP, anti-framing, `nosniff` y política de referrer. El build pasa; falta validar fuentes, video, Supabase y checkout en un preview.
 
 ### [ ] A7 · Revisar la configuración de Auth en Supabase
 - **Estado:** pendiente
@@ -171,11 +174,12 @@
 - **Hecho cuando:** hay un registro de una restauración exitosa con fecha y tiempo que tardó.
 
 ### [ ] H1–H3 · Corregir documentación desactualizada
-- **Estado:** pendiente
+- **Estado:** QA
 - **Asignado:** -
 - **Semana:** 2
 - **Descripción:** `docs/specs/mercadopago-setup.md`: los ejemplos usan $25.000 y el precio vigente es $10.000; además afirma que no hay botón de baja y `MembresiaVetCard` ya lo tiene. `CLAUDE.md`: dice "sin producción aún" (la app ya está en producción), pide `VITE_SUPABASE_ANON_KEY` cuando el nombre real es `VITE_SUPABASE_ANON`, y conviene sumar la regla "repositorio público: sin datos de clientes ni detalles de seguridad". `frontend/.env.example`: quitar las variables de un proyecto Kanban separado que no se usan en el front.
 - **Hecho cuando:** los tres archivos coinciden con la realidad y el cambio de `CLAUDE.md` fue revisado por el otro dev.
+- **Avance:** precios y flujo de baja corregidos en la guía de MercadoPago; `CLAUDE.md` refleja producción, el nombre real de la variable y la regla del repo público; `.env.example` ya no incluye el Kanban. Falta revisión del otro dev.
 
 ### [ ] C3 (parte 2) · Investigar alternativas y referencias de precio
 - **Estado:** pendiente
