@@ -15,11 +15,11 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/supabase-js": "^2.105.4",
+    "exceljs": "^4.4.0",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.15.0",
-    "xlsx": "^0.18.5",
     "zustand": "^5.0.13"
   },
   "devDependencies": {

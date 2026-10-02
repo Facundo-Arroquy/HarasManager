@@ -11,7 +11,7 @@
 // Variables de entorno (secrets del proyecto Supabase):
 //   MP_ACCESS_TOKEN — access token de la aplicación de MercadoPago
 //   APP_URL         — origen del frontend, para el back_url del checkout
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.105.4'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
