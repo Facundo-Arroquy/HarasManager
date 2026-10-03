@@ -74,6 +74,8 @@ export interface PlazosVet {
   donante_ov_sin_in_a_dar_pg:  number
   donante_pg_a_revision_pg:    number
   donante_flushing_a_revision: number
+  /** El protocolo de flushing marca PG y agenda Revisión PG automáticamente. */
+  donante_flushing_aplica_pg:  boolean
   receptora_pg_a_revision_pg:  number
   receptora_ov_a_dar_pg:       number
   // Ecografías post-transferencia (migración 20260824130000). Rango 1..365:
@@ -90,6 +92,7 @@ export const PLAZOS_VET_DEFAULTS: PlazosVet = {
   donante_ov_sin_in_a_dar_pg:  4,
   donante_pg_a_revision_pg:    3,
   donante_flushing_a_revision: 4,
+  donante_flushing_aplica_pg:  true,
   receptora_pg_a_revision_pg:  4,
   receptora_ov_a_dar_pg:       3,
   receptora_transf_a_eco1:     30,

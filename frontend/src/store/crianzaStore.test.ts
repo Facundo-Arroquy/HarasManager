@@ -78,6 +78,13 @@ describe('reglasParaRegistro — prioridad de acciones manuales', () => {
   })
 })
 
+describe('protocolo de flushing — configuración PG', () => {
+  it('aplica PG automáticamente por defecto y conserva el plazo de Revisión PG', () => {
+    expect(PLAZOS_VET_DEFAULTS.donante_flushing_aplica_pg).toBe(true)
+    expect(PLAZOS_VET_DEFAULTS.donante_pg_a_revision_pg).toBe(3)
+  })
+})
+
 // ── Listado diario: agrupar por fecha_vto (mismo criterio que              ──
 // ── ProgramaSemanalPage.eventosPorDia) ──────────────────────────────────────
 
