@@ -31,15 +31,21 @@ const ESTADO_BADGE: Record<EstadoEmbrion, string> = {
 const FILTROS: Array<EstadoEmbrion | 'todos'> = ['todos', 'disponible', 'transferido', 'congelado', 'en_nube', 'descartado']
 
 const ECO_BADGE: Record<ResultadoEcografia, string> = {
-  prenada:   'bg-emerald-100 text-emerald-700',
-  abortada:  'bg-red-100     text-red-700',
-  pendiente: 'bg-amber-100   text-amber-700',
+  prenada:             'bg-emerald-100 text-emerald-700',
+  abortada:            'bg-red-100     text-red-700',
+  pendiente:           'bg-amber-100   text-amber-700',
+  vacia:               'bg-slate-100   text-slate-600',
+  volver_a_ver:        'bg-yellow-100  text-yellow-700',
+  vacia_resincronizar: 'bg-orange-100  text-orange-700',
 }
 
 const ECO_LABEL: Record<ResultadoEcografia, string> = {
-  prenada:   'Preñada',
-  abortada:  'Abortada',
-  pendiente: 'Revisar',
+  prenada:             'Preñada',
+  abortada:            'Abortada',
+  pendiente:           'Revisar',
+  vacia:               'Vacía',
+  volver_a_ver:        'Volver a ver',
+  vacia_resincronizar: 'Vacía – resincronizar',
 }
 
 const NUMEROS_ECO = [1, 2, 3]

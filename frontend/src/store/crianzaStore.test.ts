@@ -21,7 +21,7 @@ const { useCrianzaStore, reglasParaRegistro } = await import('./crianzaStore')
 const FECHA_BASE = '2026-09-17'
 
 function registroBase(reviewDias: number | null): Pick<
-  NuevoRegistroCriaPayload, 'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_dias'
+  NuevoRegistroCriaPayload, 'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_dias' | 'fecha_flushing_programada'
 > {
   return {
     fecha:       FECHA_BASE,
