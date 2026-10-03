@@ -83,6 +83,15 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [ovDias,        setOvDias]        = useState<string>(registroEditar?.ov_dias != null ? String(registroEditar.ov_dias) : '')
   const [reviewDias,    setReviewDias]    = useState<number | null>(registroEditar?.review_dias ?? null)
   const [reviewDesc,    setReviewDesc]    = useState(registroEditar?.review_desc ?? '')
+  const registroEsOvulacion = Boolean(
+    registroEditar?.ovario_izq.includes('OV') || registroEditar?.ovario_der.includes('OV'),
+  )
+  const [fechaFlushing, setFechaFlushing] = useState(
+    registroEditar?.fecha_flushing_programada ??
+      (registroEditar && registroEsOvulacion
+        ? sumarDias(registroEditar.fecha, plazos.donante_ov_a_flushing)
+        : ''),
+  )
   const [observaciones, setObservaciones] = useState(registroEditar?.observaciones ?? '')
   // Si el animal no tiene rol asignado, el vet elige uno en el modal
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
@@ -248,12 +257,16 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       ov_dias:       mostrarOvDias && ovDias !== '' ? Number(ovDias) : null,
       review_dias:   reviewDias,
       review_desc:   reviewDias && reviewDesc ? reviewDesc : null,
+      fecha_flushing_programada: mostrarOvDias && fechaFlushing ? fechaFlushing : null,
       observaciones: observaciones.trim() || null,
     }
 
     await execute(async () => {
       if (registroEditar) {
-        await crianzaService.actualizarRegistro(registroEditar.id, datos)
+        if (registroEsOvulacion && fechaFlushing) {
+          await crianzaService.editarOvulacion(registroEditar.id, fecha, fechaFlushing, user.id, caballoId)
+        }
+        await crianzaService.actualizarRegistro(registroEditar.id, { ...datos, caballo_id: caballoId })
       } else {
         await crearRegistro(
           {
@@ -348,9 +361,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                   setRolManual(null)
                 }}
                 // El recordatorio es de este animal: cambiarlo acá marcaría
-                // hecho lo de una yegua y registraría lo de otra. Al editar,
-                // el animal tampoco se cambia: de él cuelgan los recordatorios.
-                disabled={cargandoAnimales || !!recordatorio || !!registroEditar}
+                // hecho lo de una yegua y registraría lo de otra. Una OV ya
+                // guardada sí puede reasignarse y la RPC mueve su actividad.
+                disabled={cargandoAnimales || !!recordatorio}
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
               >
                 <option value="">— Seleccioná —</option>
@@ -437,6 +450,23 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                 placeholder="0"
                 className="w-24 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
+            </div>
+          )}
+
+          {mostrarOvDias && rolEfectivo === 'Donante' && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-500">Fecha de flushing programada</label>
+              <input
+                type="date"
+                value={fechaFlushing}
+                onChange={(e) => setFechaFlushing(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+              {registroEditar && (
+                <p className="text-[11px] text-slate-400">
+                  Cambiarla mueve la actividad existente y deja auditoría; no crea otra ovulación.
+                </p>
+              )}
             </div>
           )}
 
@@ -650,7 +680,8 @@ function RecordatoriosPreview({
   // preview podía mostrar recordatorios que después no se creaban.
   const tieneOV = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
   const items = reglasParaRegistro(
-    { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer, review_dias: reviewDias },
+    { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer,
+      review_dias: reviewDias, fecha_flushing_programada: null },
     rol, cfg, inseminada, propias,
   ).map((r) => ({
     tipo:  r.tipo,

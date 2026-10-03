@@ -131,6 +131,17 @@ export const crianzaService = {
     if (error) throw error
   },
 
+  async editarOvulacion(
+    id: string, fecha: string, fechaFlushing: string,
+    veterinarioId: string, caballoId: string,
+  ): Promise<void> {
+    const { error } = await getSupabaseClient().rpc('editar_ovulacion', {
+      p_registro_id: id, p_fecha: fecha, p_fecha_flushing: fechaFlushing,
+      p_veterinario_id: veterinarioId, p_caballo_id: caballoId,
+    })
+    if (error) throw error
+  },
+
   // ── Recordatorios ─────────────────────────────────────────────────────────
 
   async listarRecordatorios(sociedadId: string): Promise<RecordatorioCria[]> {
@@ -609,6 +620,24 @@ export const crianzaService = {
       .single()
     if (error) throw error
     return data as Ecografia
+  },
+
+  async registrarResultadoEcografia(
+    payload: NuevaEcografiaPayload,
+    revisionDias: number | null,
+  ): Promise<void> {
+    const { error } = await getSupabaseClient().rpc('registrar_resultado_ecografia', {
+      p_transferencia_id: payload.transferencia_id,
+      p_numero: payload.numero,
+      p_fecha: payload.fecha,
+      p_resultado: payload.resultado,
+      p_ovario_izq: payload.ovario_izq,
+      p_ovario_der: payload.ovario_der,
+      p_notas: payload.notas,
+      p_origen_recordatorio_id: payload.origen_recordatorio_id,
+      p_revision_dias: revisionDias,
+    })
+    if (error) throw error
   },
 
   /**

@@ -29,6 +29,7 @@ function registroBase(reviewDias: number | null): Pick<
     ovario_izq:  [],
     ovario_der:  [],
     review_dias: reviewDias,
+    fecha_flushing_programada: null,
   }
 }
 
@@ -51,6 +52,29 @@ describe('reglasParaRegistro — revisión programable a N días', () => {
     const reglas = reglasParaRegistro(registroBase(60), null, PLAZOS_VET_DEFAULTS, false)
     const revision = reglas.find((r) => r.tipo === 'Revisión')!
     expect(revision.calcularFecha(FECHA_BASE)).toBe('2026-11-16')
+  })
+})
+
+describe('reglasParaRegistro — prioridad de acciones manuales', () => {
+  it('Strelin + IN no programa otra IN y sí programa OXI', () => {
+    const reglas = reglasParaRegistro({
+      ...registroBase(null),
+      obs_chips: ['Strelin', 'IN'],
+    }, 'Donante', PLAZOS_VET_DEFAULTS, true)
+
+    expect(reglas.some((r) => r.tipo === 'IN')).toBe(false)
+    expect(reglas.find((r) => r.tipo === 'OXI')?.calcularFecha(FECHA_BASE))
+      .toBe(sumarDias(FECHA_BASE, PLAZOS_VET_DEFAULTS.donante_in_a_oxi))
+  })
+
+  it('OXI programa el primer chequeo de ovulación para el día siguiente', () => {
+    const reglas = reglasParaRegistro({
+      ...registroBase(null),
+      obs_chips: ['OXI'],
+    }, 'Donante', PLAZOS_VET_DEFAULTS, true)
+
+    expect(reglas.find((r) => r.tipo === 'Revisión')?.calcularFecha(FECHA_BASE))
+      .toBe(sumarDias(FECHA_BASE, 1))
   })
 })
 

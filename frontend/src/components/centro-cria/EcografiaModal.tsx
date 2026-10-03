@@ -3,12 +3,10 @@ import { useEscapeClose } from '../../hooks/useEscapeClose'
 import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { X, AlertCircle, Activity } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
 import { CHIPS_OI_OD, LABEL_RESULTADO_ECO } from '../../types/crianza'
 import type {
   Ecografia, ResultadoEcografia, TransferenciaEmbrionaria, RecordatorioCria,
-  EstadoRecordatorio,
 } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import { hoyAR, formatFecha } from '../../utils/fecha'
@@ -36,12 +34,15 @@ interface Props {
   onSuccess?: () => void
 }
 
-const RESULTADOS: ResultadoEcografia[] = ['prenada', 'abortada', 'pendiente']
+const RESULTADOS: ResultadoEcografia[] = ['prenada', 'volver_a_ver', 'vacia', 'vacia_resincronizar']
 
 const RESULTADO_STYLE: Record<ResultadoEcografia, string> = {
   prenada:   'bg-emerald-100 text-emerald-700 border-emerald-300',
   abortada:  'bg-red-100 text-red-700 border-red-300',
   pendiente: 'bg-amber-100 text-amber-700 border-amber-300',
+  volver_a_ver: 'bg-amber-100 text-amber-700 border-amber-300',
+  vacia: 'bg-slate-200 text-slate-700 border-slate-400',
+  vacia_resincronizar: 'bg-red-100 text-red-700 border-red-300',
 }
 
 export default function EcografiaModal({
@@ -49,8 +50,6 @@ export default function EcografiaModal({
   puedeCambiarResultado = true, onClose, onSuccess,
 }: Props) {
   const { user, sociedadActiva } = useAuth()
-  const registrarEcografia = useCrianzaStore((s) => s.registrarEcografia)
-  const actualizarEstadoRecordatorio = useCrianzaStore((s) => s.actualizarEstadoRecordatorio)
 
   // Sugerir el próximo número de eco según las ya registradas (habitualmente
   // son 3, pero puede haber más).
@@ -64,7 +63,7 @@ export default function EcografiaModal({
   const [fecha,      setFecha]      = useState(ecografiaEditar?.fecha ?? hoyAR())
   // Pre-seleccionar 'prenada' si la receptora ya lo está (PR #104)
   const resultadoInicial: ResultadoEcografia =
-    ecografiaEditar?.resultado ?? (transferencia.receptora?.prenada ? 'prenada' : 'pendiente')
+    ecografiaEditar?.resultado ?? (transferencia.receptora?.prenada ? 'prenada' : 'volver_a_ver')
   const [resultado,  setResultado]  = useState<ResultadoEcografia>(resultadoInicial)
   const [ovarioIzq,  setOvarioIzq]  = useState<string[]>(ecografiaEditar?.ovario_izq ?? [])
   const [ovarioDer,  setOvarioDer]  = useState<string[]>(ecografiaEditar?.ovario_der ?? [])
@@ -96,7 +95,7 @@ export default function EcografiaModal({
         onClose()
         return
       }
-      await registrarEcografia({
+      await crianzaService.registrarResultadoEcografia({
         sociedad_id:          efectivaSociedadId,
         transferencia_id:     transferencia.id,
         caballo_receptora_id: transferencia.caballo_receptora_id,
@@ -108,34 +107,7 @@ export default function EcografiaModal({
         ovario_der:           ovarioDer,
         notas:                notas.trim() || null,
         origen_recordatorio_id: recordatorio?.id ?? null,
-      })
-      // La eco que pedía el recordatorio ya está cargada: si no se cierra, se
-      // sigue ofreciendo y la próxima vez se carga de nuevo.
-      if (recordatorio) await actualizarEstadoRecordatorio(recordatorio.id, 'hecho')
-
-      // Si el resultado es 'pendiente' y el vet pidió revisar en X días,
-      // crear un recordatorio 'Revisión Eco' para volver a ecografiar.
-      if (resultado === 'pendiente' && revisionDias) {
-        const fechaVto = new Date(fecha + 'T12:00:00Z')
-        fechaVto.setUTCDate(fechaVto.getUTCDate() + revisionDias)
-        const fechaVtoStr = fechaVto.toISOString().split('T')[0]
-        try {
-          await crianzaService.crearRecordatorio({
-            caballo_id:         transferencia.caballo_receptora_id,
-            sociedad_id:        efectivaSociedadId,
-            tipo:               'Revisión Eco',
-            fecha_vto:          fechaVtoStr,
-            estado:             'pendiente' as EstadoRecordatorio,
-            veterinario_id:     user.id,
-            notas:              `Revisar en ${revisionDias} días (Eco ${numero} pendiente)`,
-            auto_generado:      true,
-            origen_registro_id: null,
-            cancel_motivo:      null,
-          })
-        } catch (e) {
-          console.error('[EcografiaModal] Error creando recordatorio de revisión:', e)
-        }
-      }
+      }, revisionDias)
 
       onSuccess?.()
       onClose()
@@ -229,9 +201,9 @@ export default function EcografiaModal({
                 Solo la última ecografía de la transferencia puede cambiar de resultado.
               </p>
             )}
-            {resultado === 'abortada' && (
+            {resultado === 'vacia_resincronizar' && (
               <p className="text-[11px] text-red-500">
-                La yegua pasará a estado «Vacía» y volverá al circuito de revisión.
+                Finaliza este seguimiento y habilita un protocolo nuevo de sincronización.
               </p>
             )}
             {resultado === 'prenada' && (
@@ -242,7 +214,7 @@ export default function EcografiaModal({
           </div>
 
           {/* Volver a revisar en X días (solo si resultado = pendiente y no es edición) */}
-          {resultado === 'pendiente' && !ecografiaEditar && (
+          {resultado === 'volver_a_ver' && !ecografiaEditar && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-500">Volver a revisar en</label>
               <div className="flex gap-1.5 flex-wrap">
