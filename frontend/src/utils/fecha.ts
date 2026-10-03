@@ -26,6 +26,11 @@ export function sumarDias(fecha: string, dias: number): string {
   return d.toISOString().split('T')[0]
 }
 
+/** Devuelve `true` si la fecha 'YYYY-MM-DD' cae en domingo. */
+export function esDomingo(fecha: string): boolean {
+  return new Date(fecha + 'T12:00:00Z').getUTCDay() === 0
+}
+
 /** Días enteros entre dos fechas 'YYYY-MM-DD' (`hasta - desde`). */
 export function diffDias(desde: string, hasta: string): number {
   const a = new Date(desde + 'T12:00:00Z').getTime()

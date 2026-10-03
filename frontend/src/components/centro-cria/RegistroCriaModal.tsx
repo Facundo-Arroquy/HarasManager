@@ -15,7 +15,7 @@ import type {
 } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import PadrilloSelect from './PadrilloSelect'
-import { hoyAR, sumarDias, formatFecha as formatFechaAR } from '../../utils/fecha'
+import { hoyAR, sumarDias, esDomingo, formatFecha as formatFechaAR } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
 
 interface Props {
@@ -97,6 +97,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
   // IN en los días previos: decide si la OV de la donante agenda Flushing o Dar PG
   const [inseminadaPrevia, setInseminadaPrevia] = useState(false)
+
+  // Ajuste de domingo: -1 = sábado, 0 = domingo, 1 = lunes
+  const [ajustesDomingo, setAjustesDomingo] = useState<Record<string, -1 | 0 | 1>>({})
 
   // Para vets sin sociedadActiva: se deriva del caballo seleccionado
   const [animalSociedadId, setAnimalSociedadId] = useState('')
@@ -281,7 +284,8 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
             // esto queda 'hecho' y no hay forma de ver con qué.
             origen_recordatorio_id: recordatorio?.id ?? null,
           },
-          rolEfectivo
+          rolEfectivo,
+          Object.keys(ajustesDomingo).length > 0 ? ajustesDomingo : undefined,
         )
       }
 
@@ -621,6 +625,10 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               inseminada={obsChips.includes('IN') || inseminadaPrevia}
               cfg={plazos}
               propias={reglasPropias}
+              ajustesDomingo={ajustesDomingo}
+              onAjusteDomingo={(tipo, offset) =>
+                setAjustesDomingo((prev) => ({ ...prev, [tipo]: offset }))
+              }
             />
           )}
 
@@ -662,6 +670,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
 function RecordatoriosPreview({
   obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewDias, inseminada, cfg, propias,
+  ajustesDomingo, onAjusteDomingo,
 }: {
   obsChips: string[]
   ovarioIzq: string[]
@@ -675,6 +684,8 @@ function RecordatoriosPreview({
   cfg: PlazosVet
   /** Reglas propias del vet, que se suman a las fijas. */
   propias: ReglaRecordatorioVet[]
+  ajustesDomingo: Record<string, -1 | 0 | 1>
+  onAjusteDomingo: (tipo: string, offset: -1 | 0 | 1) => void
 }) {
   // Las mismas reglas que aplica el store al guardar: con una copia propia, el
   // preview podía mostrar recordatorios que después no se creaban.
@@ -683,14 +694,21 @@ function RecordatoriosPreview({
     { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer,
       review_dias: reviewDias, fecha_flushing_programada: null },
     rol, cfg, inseminada, propias,
-  ).map((r) => ({
-    tipo:  r.tipo,
-    fecha: r.calcularFecha(fecha),
-    // El Dar PG de la donante sale de una OV sin IN previa: se aclara por qué.
-    nota:  rol === 'Donante' && tieneOV && !inseminada && r.tipo === 'Dar PG'
-      ? `sin IN en los últimos ${VENTANA_INSEMINACION_DIAS} días`
-      : undefined,
-  }))
+  ).map((r) => {
+    const fechaBase = r.calcularFecha(fecha)
+    const caeDomingo = esDomingo(fechaBase)
+    const ajuste = ajustesDomingo[r.tipo] ?? 0
+    const fechaFinal = caeDomingo && ajuste !== 0 ? sumarDias(fechaBase, ajuste) : fechaBase
+    return {
+      tipo:  r.tipo,
+      fechaBase,
+      fecha: fechaFinal,
+      caeDomingo,
+      nota:  rol === 'Donante' && tieneOV && !inseminada && r.tipo === 'Dar PG'
+        ? `sin IN en los últimos ${VENTANA_INSEMINACION_DIAS} días`
+        : undefined,
+    }
+  })
 
   if (items.length === 0) return null
 
@@ -700,12 +718,35 @@ function RecordatoriosPreview({
         Recordatorios a generar
       </p>
       {items.map((item, i) => (
-        <div key={i} className="flex items-center justify-between text-xs">
-          <span className="text-slate-600">
-            {item.tipo}
-            {item.nota && <span className="text-slate-400"> · {item.nota}</span>}
-          </span>
-          <span className="text-slate-400">{formatFecha(item.fecha)}</span>
+        <div key={i}>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-600">
+              {item.tipo}
+              {item.nota && <span className="text-slate-400"> · {item.nota}</span>}
+            </span>
+            <span className="text-slate-400">{formatFecha(item.fecha)}</span>
+          </div>
+          {item.caeDomingo && (
+            <div className="mt-1 flex items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-1.5">
+              <span className="text-[11px] text-amber-700 shrink-0">Cae domingo</span>
+              <div className="flex gap-1 ml-auto">
+                {([[-1, 'Sáb'], [0, 'Dom'], [1, 'Lun']] as const).map(([offset, label]) => (
+                  <button
+                    key={offset}
+                    type="button"
+                    onClick={() => onAjusteDomingo(item.tipo, offset)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
+                      (ajustesDomingo[item.tipo] ?? 0) === offset
+                        ? 'border-amber-500 bg-amber-200 text-amber-800'
+                        : 'border-amber-200 bg-white text-amber-600 hover:bg-amber-100'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>

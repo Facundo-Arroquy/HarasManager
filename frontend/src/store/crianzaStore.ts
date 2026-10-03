@@ -180,7 +180,8 @@ interface CrianzaState {
   // Registros clínicos
   crearRegistro: (
     payload: NuevoRegistroCriaPayload,
-    rolReproductivo: RolReproductivo
+    rolReproductivo: RolReproductivo,
+    ajustesDomingo?: Record<string, number>,
   ) => Promise<RegistroClinicoCria>
 
   /**
@@ -290,7 +291,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
   // ── Registros clínicos ────────────────────────────────────────────────────
 
-  crearRegistro: async (payload, rolReproductivo) => {
+  crearRegistro: async (payload, rolReproductivo, ajustesDomingo) => {
     // La OV de la donante agenda Flushing solo si hubo IN antes. Se consulta
     // antes de insertar: si falla, no queda un registro con el recordatorio
     // equivocado. Solo hace falta ir a la base si este registro no trae IN.
@@ -335,18 +336,23 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
         }
       }
 
-      const recPayloads: NuevoRecordatorioPayload[] = reglas.map((regla) => ({
-        caballo_id:         payload.caballo_id,
-        sociedad_id:        payload.sociedad_id,
-        tipo:               regla.tipo,
-        fecha_vto:          regla.calcularFecha(payload.fecha),
-        estado:             'pendiente' as EstadoRecordatorio,
-        veterinario_id:     payload.veterinario_id,
-        notas:              null,
-        auto_generado:      true,
-        origen_registro_id: registro.id,
-        cancel_motivo:      null,
-      }))
+      const recPayloads: NuevoRecordatorioPayload[] = reglas.map((regla) => {
+        let fechaVto = regla.calcularFecha(payload.fecha)
+        const ajuste = ajustesDomingo?.[regla.tipo]
+        if (ajuste) fechaVto = sumarDias(fechaVto, ajuste)
+        return {
+          caballo_id:         payload.caballo_id,
+          sociedad_id:        payload.sociedad_id,
+          tipo:               regla.tipo,
+          fecha_vto:          fechaVto,
+          estado:             'pendiente' as EstadoRecordatorio,
+          veterinario_id:     payload.veterinario_id,
+          notas:              null,
+          auto_generado:      true,
+          origen_registro_id: registro.id,
+          cancel_motivo:      null,
+        }
+      })
       try {
         const recs = await crianzaService.crearRecordatoriosBatch(recPayloads)
         set((s) => ({ recordatorios: [...s.recordatorios, ...recs] }))
