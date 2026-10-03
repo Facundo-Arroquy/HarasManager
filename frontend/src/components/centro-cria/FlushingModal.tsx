@@ -13,7 +13,7 @@ import {
   ZONAS_EMBRION as ZONAS,
 } from '../../types/crianza'
 import type { RecordatorioCria, DestinoEmbrion, NuevoEmbrionPayload } from '../../types/crianza'
-import { hoyAR, formatFecha } from '../../utils/fecha'
+import { hoyAR, formatFecha, sumarDias } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
 import { ultimaInseminacion } from '../../utils/inseminacion'
 import SelectorReceptoras from './SelectorReceptoras'
@@ -60,7 +60,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
   const { user, sociedadActiva } = useAuth()
   const {
     crearFlushing, actualizarEstadoRecordatorio, registrarTransferencia,
-    registros,
+    registros, plazos,
   } = useCrianzaStore()
 
   const [animales,  setAnimales]  = useState<AnimalItem[]>([])
@@ -76,9 +76,15 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
   const [padrilloId,    setPadrilloId]    = useState('')
   const [padrilloTexto, setPadrilloTexto] = useState('')
   const [pgGiven,       setPgGiven]       = useState(false)
+  const [pgVerificada,  setPgVerificada]  = useState(false)
   const [notas,         setNotas]         = useState('')
 
   const { saving, error, setError, execute } = useSaveHandler('Error al guardar.')
+  const pgAutomatica = plazos.donante_flushing_aplica_pg
+
+  useEffect(() => {
+    if (pgAutomatica) setPgGiven(true)
+  }, [pgAutomatica])
 
   // Para el rol 'veterinario', sociedadActiva es null (vet global sin sociedad fija).
   // En ese caso derivamos el sociedad_id del recordatorio o del caballoIdInicial.
@@ -171,6 +177,9 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
     if (!caballoId) return setError('Seleccioná la donante.')
     if (!fecha)     return setError('La fecha es requerida.')
     if (!user?.id || !efectivaSociedadId) return
+    if (pgAutomatica && !pgVerificada) {
+      return setError('Confirmá que verificaste la aplicación de PG antes de aceptar.')
+    }
 
     const aTransferir = esNegativo ? [] : embriones.filter((e) => e.destino === 'transferir')
     if (aTransferir.some((e) => !e.receptoraId)) {
@@ -499,12 +508,31 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
                   type="checkbox"
                   checked={pgGiven}
                   onChange={(e) => setPgGiven(e.target.checked)}
+                  disabled={pgAutomatica}
                   className="rounded border-slate-400 bg-slate-100 text-brand-500 focus:ring-brand-500"
                 />
                 <span className="text-sm text-slate-600">
-                  {esNegativo ? 'Se dio prostaglandina (PG) de rutina' : 'PG administrada'}
+                  {pgAutomatica
+                    ? 'PG marcada automáticamente por el protocolo'
+                    : esNegativo ? 'Se dio prostaglandina (PG) de rutina' : 'PG administrada'}
                 </span>
               </label>
+
+              {pgAutomatica && (
+                <label className="flex items-start gap-2.5 rounded-md border border-amber-200 bg-amber-50 p-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={pgVerificada}
+                    onChange={(e) => setPgVerificada(e.target.checked)}
+                    className="mt-0.5 rounded border-amber-400 bg-white text-brand-500 focus:ring-brand-500"
+                  />
+                  <span className="text-xs text-amber-800">
+                    Verifiqué la aplicación de PG. Al aceptar se programará “Revisión PG”
+                    a los {plazos.donante_pg_a_revision_pg} días
+                    ({formatFecha(sumarDias(fecha, plazos.donante_pg_a_revision_pg))}).
+                  </span>
+                </label>
+              )}
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">Notas</label>
@@ -608,7 +636,8 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
               <button
                 type="button"
                 onClick={irAlDestino}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors"
+                disabled={pgAutomatica && !pgVerificada}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors disabled:opacity-50"
               >
                 Continuar al destino
                 <ArrowRight size={14} />
@@ -617,7 +646,7 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
               <button
                 type="button"
                 onClick={guardar}
-                disabled={saving}
+                disabled={saving || (pgAutomatica && !pgVerificada)}
                 className="px-4 py-2 text-sm font-medium rounded-md bg-brand-500 hover:bg-brand-400 text-white transition-colors disabled:opacity-50"
               >
                 {saving ? 'Guardando…' : 'Guardar flushing'}

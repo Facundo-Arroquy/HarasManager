@@ -15,7 +15,7 @@ import type {
 } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import PadrilloSelect from './PadrilloSelect'
-import { hoyAR, sumarDias, formatFecha as formatFechaAR } from '../../utils/fecha'
+import { hoyAR, sumarDias, esDomingo, formatFecha as formatFechaAR } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
 
 interface Props {
@@ -83,11 +83,23 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [ovDias,        setOvDias]        = useState<string>(registroEditar?.ov_dias != null ? String(registroEditar.ov_dias) : '')
   const [reviewDias,    setReviewDias]    = useState<number | null>(registroEditar?.review_dias ?? null)
   const [reviewDesc,    setReviewDesc]    = useState(registroEditar?.review_desc ?? '')
+  const registroEsOvulacion = Boolean(
+    registroEditar?.ovario_izq.includes('OV') || registroEditar?.ovario_der.includes('OV'),
+  )
+  const [fechaFlushing, setFechaFlushing] = useState(
+    registroEditar?.fecha_flushing_programada ??
+      (registroEditar && registroEsOvulacion
+        ? sumarDias(registroEditar.fecha, plazos.donante_ov_a_flushing)
+        : ''),
+  )
   const [observaciones, setObservaciones] = useState(registroEditar?.observaciones ?? '')
   // Si el animal no tiene rol asignado, el vet elige uno en el modal
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
   // IN en los días previos: decide si la OV de la donante agenda Flushing o Dar PG
   const [inseminadaPrevia, setInseminadaPrevia] = useState(false)
+
+  // Ajuste de domingo: -1 = sábado, 0 = domingo, 1 = lunes
+  const [ajustesDomingo, setAjustesDomingo] = useState<Record<string, -1 | 0 | 1>>({})
 
   // Para vets sin sociedadActiva: se deriva del caballo seleccionado
   const [animalSociedadId, setAnimalSociedadId] = useState('')
@@ -248,12 +260,16 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       ov_dias:       mostrarOvDias && ovDias !== '' ? Number(ovDias) : null,
       review_dias:   reviewDias,
       review_desc:   reviewDias && reviewDesc ? reviewDesc : null,
+      fecha_flushing_programada: mostrarOvDias && fechaFlushing ? fechaFlushing : null,
       observaciones: observaciones.trim() || null,
     }
 
     await execute(async () => {
       if (registroEditar) {
-        await crianzaService.actualizarRegistro(registroEditar.id, datos)
+        if (registroEsOvulacion && fechaFlushing) {
+          await crianzaService.editarOvulacion(registroEditar.id, fecha, fechaFlushing, user.id, caballoId)
+        }
+        await crianzaService.actualizarRegistro(registroEditar.id, { ...datos, caballo_id: caballoId })
       } else {
         await crearRegistro(
           {
@@ -268,7 +284,8 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
             // esto queda 'hecho' y no hay forma de ver con qué.
             origen_recordatorio_id: recordatorio?.id ?? null,
           },
-          rolEfectivo
+          rolEfectivo,
+          Object.keys(ajustesDomingo).length > 0 ? ajustesDomingo : undefined,
         )
       }
 
@@ -348,9 +365,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                   setRolManual(null)
                 }}
                 // El recordatorio es de este animal: cambiarlo acá marcaría
-                // hecho lo de una yegua y registraría lo de otra. Al editar,
-                // el animal tampoco se cambia: de él cuelgan los recordatorios.
-                disabled={cargandoAnimales || !!recordatorio || !!registroEditar}
+                // hecho lo de una yegua y registraría lo de otra. Una OV ya
+                // guardada sí puede reasignarse y la RPC mueve su actividad.
+                disabled={cargandoAnimales || !!recordatorio}
                 className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
               >
                 <option value="">— Seleccioná —</option>
@@ -437,6 +454,23 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                 placeholder="0"
                 className="w-24 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
+            </div>
+          )}
+
+          {mostrarOvDias && rolEfectivo === 'Donante' && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-500">Fecha de flushing programada</label>
+              <input
+                type="date"
+                value={fechaFlushing}
+                onChange={(e) => setFechaFlushing(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+              {registroEditar && (
+                <p className="text-[11px] text-slate-400">
+                  Cambiarla mueve la actividad existente y deja auditoría; no crea otra ovulación.
+                </p>
+              )}
             </div>
           )}
 
@@ -591,6 +625,10 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               inseminada={obsChips.includes('IN') || inseminadaPrevia}
               cfg={plazos}
               propias={reglasPropias}
+              ajustesDomingo={ajustesDomingo}
+              onAjusteDomingo={(tipo, offset) =>
+                setAjustesDomingo((prev) => ({ ...prev, [tipo]: offset }))
+              }
             />
           )}
 
@@ -632,6 +670,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
 function RecordatoriosPreview({
   obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewDias, inseminada, cfg, propias,
+  ajustesDomingo, onAjusteDomingo,
 }: {
   obsChips: string[]
   ovarioIzq: string[]
@@ -645,21 +684,31 @@ function RecordatoriosPreview({
   cfg: PlazosVet
   /** Reglas propias del vet, que se suman a las fijas. */
   propias: ReglaRecordatorioVet[]
+  ajustesDomingo: Record<string, -1 | 0 | 1>
+  onAjusteDomingo: (tipo: string, offset: -1 | 0 | 1) => void
 }) {
   // Las mismas reglas que aplica el store al guardar: con una copia propia, el
   // preview podía mostrar recordatorios que después no se creaban.
   const tieneOV = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
   const items = reglasParaRegistro(
-    { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer, review_dias: reviewDias },
+    { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer,
+      review_dias: reviewDias, fecha_flushing_programada: null },
     rol, cfg, inseminada, propias,
-  ).map((r) => ({
-    tipo:  r.tipo,
-    fecha: r.calcularFecha(fecha),
-    // El Dar PG de la donante sale de una OV sin IN previa: se aclara por qué.
-    nota:  rol === 'Donante' && tieneOV && !inseminada && r.tipo === 'Dar PG'
-      ? `sin IN en los últimos ${VENTANA_INSEMINACION_DIAS} días`
-      : undefined,
-  }))
+  ).map((r) => {
+    const fechaBase = r.calcularFecha(fecha)
+    const caeDomingo = esDomingo(fechaBase)
+    const ajuste = ajustesDomingo[r.tipo] ?? 0
+    const fechaFinal = caeDomingo && ajuste !== 0 ? sumarDias(fechaBase, ajuste) : fechaBase
+    return {
+      tipo:  r.tipo,
+      fechaBase,
+      fecha: fechaFinal,
+      caeDomingo,
+      nota:  rol === 'Donante' && tieneOV && !inseminada && r.tipo === 'Dar PG'
+        ? `sin IN en los últimos ${VENTANA_INSEMINACION_DIAS} días`
+        : undefined,
+    }
+  })
 
   if (items.length === 0) return null
 
@@ -669,12 +718,35 @@ function RecordatoriosPreview({
         Recordatorios a generar
       </p>
       {items.map((item, i) => (
-        <div key={i} className="flex items-center justify-between text-xs">
-          <span className="text-slate-600">
-            {item.tipo}
-            {item.nota && <span className="text-slate-400"> · {item.nota}</span>}
-          </span>
-          <span className="text-slate-400">{formatFecha(item.fecha)}</span>
+        <div key={i}>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-600">
+              {item.tipo}
+              {item.nota && <span className="text-slate-400"> · {item.nota}</span>}
+            </span>
+            <span className="text-slate-400">{formatFecha(item.fecha)}</span>
+          </div>
+          {item.caeDomingo && (
+            <div className="mt-1 flex items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-1.5">
+              <span className="text-[11px] text-amber-700 shrink-0">Cae domingo</span>
+              <div className="flex gap-1 ml-auto">
+                {([[-1, 'Sáb'], [0, 'Dom'], [1, 'Lun']] as const).map(([offset, label]) => (
+                  <button
+                    key={offset}
+                    type="button"
+                    onClick={() => onAjusteDomingo(item.tipo, offset)}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
+                      (ajustesDomingo[item.tipo] ?? 0) === offset
+                        ? 'border-amber-500 bg-amber-200 text-amber-800'
+                        : 'border-amber-200 bg-white text-amber-600 hover:bg-amber-100'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>

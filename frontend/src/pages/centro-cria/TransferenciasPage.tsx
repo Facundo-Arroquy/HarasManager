@@ -12,15 +12,21 @@ import type { Ecografia, ResultadoEcografia, TransferenciaEmbrionaria } from '..
 
 /** Labels específicos para la vista de Transferidas — más claros que los genéricos. */
 const LABEL_RESULTADO_TRANSF: Record<ResultadoEcografia, string> = {
-  prenada:   'PREÑEZ POSITIVA',
-  abortada:  'Vacía',
-  pendiente: 'Pendiente',
+  prenada:             'PREÑEZ POSITIVA',
+  abortada:            'Vacía',
+  pendiente:           'Pendiente',
+  vacia:               'Vacía',
+  volver_a_ver:        'Volver a ver',
+  vacia_resincronizar: 'Vacía – resincronizar',
 }
 
 const RESULTADO_BADGE: Record<ResultadoEcografia, string> = {
-  prenada:   'bg-emerald-100 text-emerald-700',
-  abortada:  'bg-red-100 text-red-700',
-  pendiente: 'bg-amber-100 text-amber-700',
+  prenada:             'bg-emerald-100 text-emerald-700',
+  abortada:            'bg-red-100 text-red-700',
+  pendiente:           'bg-amber-100 text-amber-700',
+  vacia:               'bg-slate-100 text-slate-600',
+  volver_a_ver:        'bg-yellow-100 text-yellow-700',
+  vacia_resincronizar: 'bg-orange-100 text-orange-700',
 }
 
 export default function TransferenciasPage() {

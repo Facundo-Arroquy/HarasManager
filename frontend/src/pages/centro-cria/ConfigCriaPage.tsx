@@ -248,8 +248,15 @@ function PlazosSection() {
   // Sincronizar cuando el store termina de cargar los plazos del vet
   useEffect(() => { setLocal(plazos) }, [plazos])
 
-  function setField(key: keyof PlazosVet, value: number) {
+  type PlazoNumerico = Exclude<keyof PlazosVet, 'donante_flushing_aplica_pg'>
+
+  function setField(key: PlazoNumerico, value: number) {
     setLocal((prev) => ({ ...prev, [key]: value }))
+    setGuardado(false)
+  }
+
+  function setPgAutomatica(value: boolean) {
+    setLocal((prev) => ({ ...prev, donante_flushing_aplica_pg: value }))
     setGuardado(false)
   }
 
@@ -306,6 +313,20 @@ function PlazosSection() {
           default_={PLAZOS_VET_DEFAULTS.donante_pg_a_revision_pg}
           onChange={(v) => setField('donante_pg_a_revision_pg', v)}
         />
+        <label className="flex items-start gap-3 px-4 py-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={local.donante_flushing_aplica_pg}
+            onChange={(e) => setPgAutomatica(e.target.checked)}
+            className="mt-0.5 rounded border-slate-400 bg-slate-100 text-brand-500 focus:ring-brand-500"
+          />
+          <span>
+            <span className="block text-sm text-slate-700">Aplicar PG automáticamente al registrar un flushing</span>
+            <span className="block text-xs text-slate-400 mt-0.5">
+              También genera Revisión PG usando el plazo configurado arriba.
+            </span>
+          </span>
+        </label>
         <Regla
           label="Flushing → Revisión Flushing"
           valor={local.donante_flushing_a_revision}

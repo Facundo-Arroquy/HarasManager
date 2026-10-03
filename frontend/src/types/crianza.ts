@@ -74,6 +74,8 @@ export interface PlazosVet {
   donante_ov_sin_in_a_dar_pg:  number
   donante_pg_a_revision_pg:    number
   donante_flushing_a_revision: number
+  /** El protocolo de flushing marca PG y agenda Revisión PG automáticamente. */
+  donante_flushing_aplica_pg:  boolean
   receptora_pg_a_revision_pg:  number
   receptora_ov_a_dar_pg:       number
   // Ecografías post-transferencia (migración 20260824130000). Rango 1..365:
@@ -90,6 +92,7 @@ export const PLAZOS_VET_DEFAULTS: PlazosVet = {
   donante_ov_sin_in_a_dar_pg:  4,
   donante_pg_a_revision_pg:    3,
   donante_flushing_a_revision: 4,
+  donante_flushing_aplica_pg:  true,
   receptora_pg_a_revision_pg:  4,
   receptora_ov_a_dar_pg:       3,
   receptora_transf_a_eco1:     30,
@@ -152,7 +155,9 @@ export type EstadoReproductivoDonante =
   | 'revision' | 'strelling' | 'inseminacion' | 'oxy' | 'ov' | 'flushing' | 'pg' | 'espera'
 
 export type EstadoReproductivoReceptora =
-  | 'revision' | 'ov' | 'disponible' | 'transferida' | 'eco1' | 'eco2' | 'eco3' | 'prenada' | 'vacia'
+  | 'revision' | 'ov' | 'sincronizando' | 'disponible' | 'lista_transferencia'
+  | 'transferida' | 'pendiente_eco' | 'eco1' | 'eco2' | 'eco3' | 'prenada'
+  | 'vacia' | 'volviendo_sincronizar'
 
 export type EstadoReproductivo = EstadoReproductivoDonante | EstadoReproductivoReceptora | null
 
@@ -176,12 +181,16 @@ export const LABEL_ESTADO: Record<string, string> = {
   pg:           'PG',
   espera:       'Espera',
   disponible:   'Disponible',
+  sincronizando: 'Sincronizando',
+  lista_transferencia: 'Lista para transferencia',
   transferida:  'Transferida',
+  pendiente_eco: 'Pendiente de Eco',
   eco1:         'Eco 1',
   eco2:         'Eco 2',
   eco3:         'Eco 3',
   prenada:      'Preñada',
   vacia:        'Vacía',
+  volviendo_sincronizar: 'Volviendo a sincronizar',
 }
 
 // ---------------------------------------------------------------------------
@@ -208,6 +217,7 @@ export interface RegistroClinicoCria {
    */
   review_dias:       number | null
   review_desc:       string | null
+  fecha_flushing_programada?: string | null
   motivo:            string | null
   diagnostico:       string | null
   tratamiento:       string | null
@@ -460,12 +470,17 @@ export interface RegistrarTransferenciaPayload {
 // Ecografía post-transferencia (Eco 1 / 2 / 3)
 // ---------------------------------------------------------------------------
 
-export type ResultadoEcografia = 'prenada' | 'abortada' | 'pendiente'
+export type ResultadoEcografia =
+  | 'prenada' | 'volver_a_ver' | 'vacia' | 'vacia_resincronizar'
+  | 'abortada' | 'pendiente'
 
 export const LABEL_RESULTADO_ECO: Record<ResultadoEcografia, string> = {
   prenada:   'Preñada',
   abortada:  'Abortada',
   pendiente: 'Revisar',
+  volver_a_ver: 'Volver a ver',
+  vacia: 'Vacía',
+  vacia_resincronizar: 'Vacía – volver a sincronizar',
 }
 
 export interface Ecografia {
