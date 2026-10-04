@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { LayoutGrid, AlertTriangle, ClipboardList, ChevronRight, Clock, Building2, Stethoscope } from 'lucide-react'
+import { LayoutGrid, AlertTriangle, ClipboardList, ChevronRight, Clock, Building2, Stethoscope, HeartPulse } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService, type Caballo } from '../../services/caballoService'
 import { historialService, type AlertaVet } from '../../services/historialService'
@@ -54,6 +54,7 @@ export default function PanelVetPage() {
   const [error,     setError]     = useState<string | null>(null)
 
   const cantCaballos = caballos.length
+  const cantPrenadas = caballos.filter((c) => c.categoria === 'Yegua' && c.prenada === true).length
 
   useEffect(() => {
     if (!userId) { setLoading(false); return }
@@ -138,7 +139,7 @@ export default function PanelVetPage() {
       )}
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <div className="flex items-center gap-2 text-slate-400 mb-2">
             <LayoutGrid size={15} />
@@ -149,6 +150,17 @@ export default function PanelVetPage() {
             {error && cantCaballos === 0 ? '—' : cantCaballos}
           </p>
           <p className="text-xs text-slate-400 mt-0.5">asignados</p>
+        </div>
+
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4">
+          <div className="flex items-center gap-2 text-emerald-600 mb-2">
+            <HeartPulse size={15} />
+            <span className="text-xs font-medium uppercase tracking-wide">Yeguas preñadas</span>
+          </div>
+          <p className="text-3xl font-bold text-emerald-700">
+            {error && cantCaballos === 0 ? '—' : cantPrenadas}
+          </p>
+          <p className="text-xs text-emerald-600/70 mt-0.5">gestaciones activas</p>
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-4">

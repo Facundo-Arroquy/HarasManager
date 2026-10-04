@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { MapPin, Stethoscope, AlertCircle, Calendar, Tag, Syringe } from 'lucide-react'
+import { MapPin, Stethoscope, AlertCircle, Calendar, Tag, Syringe, HeartPulse } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService } from '../../services/caballoService'
@@ -36,6 +36,7 @@ export default function DashboardPage() {
   const [campos,    setCampos]    = useState<CampoConConteo[]>([])
   const [historial, setHistorial] = useState<HistResumen[]>([])
   const [trabajos,  setTrabajos]  = useState<TrabajoSanitario[]>([])
+  const [prenadas,  setPrenadas]  = useState<number | null>(null)
   const [loading,   setLoading]   = useState(true)
 
   useEffect(() => {
@@ -43,11 +44,13 @@ export default function DashboardPage() {
     setLoading(true)
     Promise.all([
       caballoService.dashboardStats(sociedadId),
+      caballoService.contarYeguasPrenadas(sociedadId).catch(() => null),
       campoService.listarConConteo(sociedadId),
       historialService.listarRecientesTodos(sociedadId, 10),
       sanidadService.listarTrabajos(sociedadId).catch(() => [] as TrabajoSanitario[]),
-    ]).then(([s, f, h, t]) => {
+    ]).then(([s, p, f, h, t]) => {
       setStats(s)
+      setPrenadas(p)
       setCampos(f)
       setHistorial(h)
       setTrabajos(t)
@@ -95,12 +98,19 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard
           label="Caballos activos"
           value={stats.total}
           icon={<Stethoscope size={15} />}
           accent="emerald"
+        />
+        <KpiCard
+          label="Yeguas preñadas"
+          value={prenadas ?? '—'}
+          icon={<HeartPulse size={15} />}
+          accent="emerald"
+          onClick={() => navigate('/caballos')}
         />
         <KpiCard
           label="Sin campo asignado"
@@ -263,7 +273,7 @@ export default function DashboardPage() {
 
 interface KpiCardProps {
   label: string
-  value: number
+  value: React.ReactNode
   icon: React.ReactNode
   accent: 'emerald' | 'brand' | 'rose' | 'zinc'
   onClick?: () => void

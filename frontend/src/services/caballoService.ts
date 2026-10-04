@@ -240,6 +240,20 @@ export const caballoService = {
     return data as { total: number; sinCampo: number; sinChip: number; porCategoria: Record<string, number> }
   },
 
+  /** Conteo liviano para el KPI del panel: PostgREST no devuelve las filas. */
+  async contarYeguasPrenadas(sociedadId: string): Promise<number> {
+    const supabase = getSupabaseClient()
+    const { count, error } = await supabase
+      .from('caballo')
+      .select('id', { count: 'exact', head: true })
+      .eq('sociedad_id', sociedadId)
+      .eq('activo', true)
+      .eq('categoria', 'Yegua')
+      .eq('prenada', true)
+    if (error) throw error
+    return count ?? 0
+  },
+
   /**
    * Todos los caballos activos de una sociedad via RPC SECURITY DEFINER.
    * Chequea membresía una sola vez en lugar de evaluar 4 policies RLS por fila.
