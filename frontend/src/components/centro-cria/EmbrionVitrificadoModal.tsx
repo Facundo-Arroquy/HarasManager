@@ -49,6 +49,8 @@ export default function EmbrionVitrificadoModal({ onClose, onSuccess }: Props) {
   const [estadio,       setEstadio]       = useState('')
   const [grado,         setGrado]         = useState<1 | 2 | 3 | 4 | ''>('')
   const [zona,          setZona]          = useState('')
+  const [fechaExtraccion, setFechaExtraccion] = useState('')
+  const [lugarAlmacenamiento, setLugarAlmacenamiento] = useState('')
   const [notas,         setNotas]         = useState('')
 
   const { saving, error, setError, execute } = useSaveHandler('No se pudo guardar el embrión.')
@@ -72,6 +74,7 @@ export default function EmbrionVitrificadoModal({ onClose, onSuccess }: Props) {
 
   async function guardar() {
     if (!donanteId) return setError('Seleccioná la donante.')
+    if (!fechaExtraccion) return setError('Ingresá la fecha de extracción.')
     if (!user?.id) return
     const donante = animales.find((a) => a.id === donanteId)
     const sociedadId = sociedadActiva?.id ?? donante?.sociedad_id
@@ -91,6 +94,8 @@ export default function EmbrionVitrificadoModal({ onClose, onSuccess }: Props) {
       tamanio:            tamanio || null,
       zona_pelucida:      zona || null,
       estado:             'congelado',
+      fecha_extraccion:   fechaExtraccion,
+      lugar_almacenamiento: lugarAlmacenamiento.trim() || null,
       notas:              notasFinales,
     }
 
@@ -198,6 +203,33 @@ export default function EmbrionVitrificadoModal({ onClose, onSuccess }: Props) {
                 <option value="">Zona pel. —</option>
                 {ZONAS.map((z) => <option key={z} value={z}>{z}</option>)}
               </select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
+              Trazabilidad{cantidad > 1 ? ' (se aplica a todos)' : ''}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500">Fecha de extracción *</label>
+                <input
+                  type="date"
+                  value={fechaExtraccion}
+                  onChange={(e) => setFechaExtraccion(e.target.value)}
+                  className={SELECT_CLS}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500">Lugar de almacenamiento</label>
+                <input
+                  type="text"
+                  value={lugarAlmacenamiento}
+                  onChange={(e) => setLugarAlmacenamiento(e.target.value)}
+                  placeholder="Tanque, centro, laboratorio…"
+                  className={SELECT_CLS}
+                />
+              </div>
             </div>
           </div>
 

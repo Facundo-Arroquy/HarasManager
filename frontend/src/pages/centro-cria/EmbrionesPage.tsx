@@ -225,6 +225,8 @@ export default function EmbrionesPage() {
               <tr className="border-b border-slate-200 bg-slate-50 text-left">
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 sticky left-0 z-10 bg-slate-50 border-r border-slate-200">Receptora</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Estado</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Fecha extracción</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Lugar de almacenamiento</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Pelaje</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Fecha transferencia</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500">Madre</th>
@@ -304,6 +306,12 @@ export default function EmbrionesPage() {
                           <Trash2 size={12} />
                         </button>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                      {e.fecha_extraccion ? formatFecha(e.fecha_extraccion) : VACIO}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap max-w-56 truncate" title={e.lugar_almacenamiento ?? undefined}>
+                      {e.lugar_almacenamiento || VACIO}
                     </td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                       {transf?.receptora?.pelaje?.nombre ?? VACIO}

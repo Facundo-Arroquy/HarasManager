@@ -394,7 +394,11 @@ export const crianzaService = {
 
   async actualizarEmbrion(
     id: string,
-    payload: Pick<Embrion, 'estado' | 'estadio' | 'grado' | 'tamanio' | 'zona_pelucida' | 'notas'>,
+    payload: Pick<
+      Embrion,
+      'estado' | 'estadio' | 'grado' | 'tamanio' | 'zona_pelucida' |
+      'fecha_extraccion' | 'lugar_almacenamiento' | 'notas'
+    >,
   ): Promise<void> {
     const { error } = await getSupabaseClient().from('embrion').update(payload).eq('id', id)
     if (error) throw error
