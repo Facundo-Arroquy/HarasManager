@@ -40,13 +40,13 @@ export default function MobileDrawer({ open, onClose }: Props) {
 
       {/* Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-white shadow-xl transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-surface shadow-2xl transition-transform duration-300 ease-in-out md:hidden ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
         {/* Header del drawer */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-brand-700/10">
           <div className="flex items-center gap-2.5">
             <img src={logoUrl} alt="HarasManager" className="h-8 w-8 object-contain" />
             <span className="text-sm font-bold text-slate-800">HarasManager</span>
@@ -61,7 +61,7 @@ export default function MobileDrawer({ open, onClose }: Props) {
 
         {/* Establecimiento */}
         {sociedadActiva && (
-          <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
+          <div className="mx-3 mt-3 rounded-xl border border-brand-700/10 bg-surface-alt px-4 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">
               Establecimiento
             </p>
@@ -85,13 +85,13 @@ export default function MobileDrawer({ open, onClose }: Props) {
                     <NavLink
                       key={item.to}
                       to={item.to}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                        isActive
-                          ? 'bg-brand-50 text-brand-700 font-semibold'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
+                      isActive
+                          ? 'bg-brand-700 text-white font-semibold shadow-[0_3px_0_#6B4E1D]'
+                          : 'text-slate-600 hover:bg-surface-alt hover:text-slate-900'
                       }`}
                     >
-                      <span className={isActive ? 'text-brand-500' : 'text-slate-400'}>
+                      <span className={isActive ? 'text-white' : 'text-slate-400'}>
                         {item.icon}
                       </span>
                       {item.label}
@@ -104,7 +104,7 @@ export default function MobileDrawer({ open, onClose }: Props) {
         </nav>
 
         {/* Footer usuario */}
-        <div className="border-t border-slate-100 p-3 space-y-2">
+        <div className="m-3 rounded-2xl border border-brand-700/10 bg-surface-alt p-3 space-y-2">
           <div className="px-2">
             <p className="text-sm font-medium text-slate-700 truncate">{user?.email ?? '—'}</p>
             <p className="text-xs text-slate-400 capitalize">{rol ?? '—'}</p>

@@ -14,17 +14,22 @@ export default function Sidebar() {
   if (rol === 'superadmin') return null
 
   return (
-    <aside className="hidden md:flex h-screen w-60 flex-col border-r border-slate-200 bg-white">
+    <aside className="hidden md:flex h-full w-64 shrink-0 flex-col overflow-hidden rounded-[24px] border border-brand-700/10 bg-surface shadow-card">
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-slate-100">
-        <img src={logoUrl} alt="HarasManager" className="h-8 w-8 object-contain" />
-        <span className="text-sm font-bold text-slate-800">HarasManager</span>
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-brand-700/10">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-app ring-1 ring-brand-700/10">
+          <img src={logoUrl} alt="HarasManager" className="h-8 w-8 object-contain" />
+        </div>
+        <div className="min-w-0">
+          <span className="block text-sm font-bold text-text-primary">HarasManager</span>
+          <span className="block text-[9px] font-semibold uppercase tracking-[0.18em] text-brand">Gestión ecuestre</span>
+        </div>
         <div className="ml-auto"><CampanaNotificaciones /></div>
       </div>
 
       {/* Establecimiento */}
       {sociedadActiva && (
-        <div className="px-5 py-3 border-b border-slate-100 bg-slate-50">
+        <div className="mx-3 mt-3 rounded-xl border border-brand-700/10 bg-surface-alt px-4 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-0.5">
             Establecimiento
           </p>
@@ -48,13 +53,13 @@ export default function Sidebar() {
                   <NavLink
                     key={item.to}
                     to={item.to}
-                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                    className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition-all ${
                       isActive
-                        ? 'bg-brand-50 text-brand-700 font-semibold'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        ? 'bg-brand-700 text-white font-semibold shadow-[0_3px_0_#6B4E1D] translate-y-0'
+                        : 'text-slate-600 hover:bg-surface-alt hover:text-slate-900'
                     }`}
                   >
-                    <span className={isActive ? 'text-brand-500' : 'text-slate-400'}>
+                    <span className={isActive ? 'text-white' : 'text-slate-400'}>
                       {item.icon}
                     </span>
                     {item.label}
@@ -67,8 +72,8 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-slate-100 p-3 space-y-1">
-        <div className="px-2 py-1">
+      <div className="m-3 mt-0 rounded-2xl border border-brand-700/10 bg-surface-alt p-2 space-y-1">
+        <div className="px-2 py-1.5">
           <p className="text-sm font-medium text-slate-700 truncate">{user?.email ?? '—'}</p>
           <p className="text-xs text-slate-400 capitalize">{rol ?? '—'}</p>
         </div>
