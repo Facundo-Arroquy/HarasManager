@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Plus, Check, Clock, AlertCircle, X } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
+import { crianzaService } from '../../services/crianzaService'
 import Spinner from '../../components/ui/Spinner'
 import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
@@ -89,6 +90,9 @@ interface Evento {
   caballoId:     string
   caballoNombre: string
   rol:           RolReproductivo
+  empresa:       string
+  campo:         string
+  actividad:     string
   etiqueta:      string
   tipo:          TipoEvento
   veterinario:   string | null
@@ -144,6 +148,8 @@ const ICONO_ESTADO_EVENTO: Record<TipoEvento, typeof Check> = {
 
 /** Lo que filtra y ordena cada columna de la tabla del día (filtros tipo Excel). */
 const COLUMNAS_TABLA = {
+  empresa:     (e: Evento) => e.empresa,
+  campo:       (e: Evento) => e.campo,
   caballo:     (e: Evento) => e.caballoNombre,
   rol:         (e: Evento) => e.rol,
   tipo:        (e: Evento) => e.etiqueta,
@@ -153,6 +159,8 @@ const COLUMNAS_TABLA = {
 }
 
 const ENCABEZADOS: { col: keyof typeof COLUMNAS_TABLA; titulo: string }[] = [
+  { col: 'empresa',     titulo: 'Empresa' },
+  { col: 'campo',       titulo: 'Campo' },
   { col: 'caballo',     titulo: 'Caballo' },
   { col: 'rol',         titulo: 'Rol' },
   { col: 'tipo',        titulo: 'Tipo' },
@@ -168,10 +176,61 @@ function nombreVet(v?: { nombre: string; apellido: string } | null): string | nu
 /** Los modales del calendario: los del recordatorio, más el alta desde cero. */
 type Accion = AccionRecordatorio | { modal: 'registro'; recordatorio?: undefined }
 
+interface UbicacionAnimal {
+  empresa: string
+  campo:   string
+}
+
+interface AnimalConUbicacion {
+  id: string
+  campo?: { nombre: string } | null
+  marca?: { nombre: string } | null
+}
+
+const SIN_EMPRESA = 'Sin empresa'
+const SIN_CAMPO   = 'Sin campo'
+
+const collator = new Intl.Collator('es', { sensitivity: 'base', numeric: true })
+
+function agruparPor<T>(items: T[], clave: (item: T) => string): Map<string, T[]> {
+  const grupos = new Map<string, T[]>()
+  for (const item of items) {
+    const key = clave(item)
+    const grupo = grupos.get(key)
+    if (grupo) grupo.push(item)
+    else grupos.set(key, [item])
+  }
+  return grupos
+}
+
+function compararEvento(a: Evento, b: Evento): number {
+  const rolOrden: Record<string, number> = { Donante: 0, Receptora: 1 }
+  const empresa = a.empresa === b.empresa
+    ? 0
+    : a.empresa === SIN_EMPRESA
+      ? 1
+      : b.empresa === SIN_EMPRESA
+        ? -1
+        : collator.compare(a.empresa, b.empresa)
+  const campo = a.campo === b.campo
+    ? 0
+    : a.campo === SIN_CAMPO
+      ? 1
+      : b.campo === SIN_CAMPO
+        ? -1
+        : collator.compare(a.campo, b.campo)
+  return empresa
+    || campo
+    || (rolOrden[a.rol ?? ''] ?? 2) - (rolOrden[b.rol ?? ''] ?? 2)
+    || collator.compare(a.actividad, b.actividad)
+    || collator.compare(a.caballoNombre, b.caballoNombre)
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function ProgramaSemanalPage() {
-  const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
+  const sociedad   = useAuthStore((s) => s.sociedadActiva)
+  const sociedadId = sociedad?.id
   const rol        = useAuthStore((s) => s.rol)
   const esVet      = rol === 'veterinario'
   const {
@@ -185,6 +244,7 @@ export default function ProgramaSemanalPage() {
   const [diaSelec,  setDiaSelec]  = useState(hoy)
   const [accion,    setAccion]    = useState<Accion | null>(null)
   const [avisoEco,  setAvisoEco]  = useState('')
+  const [ubicaciones, setUbicaciones] = useState<Map<string, UbicacionAnimal>>(new Map())
 
   const dias = useMemo(() => semana(inicioRef), [inicioRef])
 
@@ -192,9 +252,24 @@ export default function ProgramaSemanalPage() {
   // "solo si está vacío" quedaban los datos de otra sociedad al cambiar de
   // establecimiento, o lo que se había cargado desde otra pantalla.
   useEffect(() => {
-    if (sociedadId) cargar(sociedadId)
-    else if (esVet) cargarParaVet()
-  }, [sociedadId, esVet]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (sociedadId) {
+      cargar(sociedadId)
+      crianzaService.listarAnimalesReproductivos(sociedadId)
+        .then((animales: AnimalConUbicacion[]) => setUbicaciones(new Map(animales.map((a) => [a.id, {
+          empresa: sociedad?.nombre ?? SIN_EMPRESA,
+          campo: a.campo?.nombre ?? SIN_CAMPO,
+        }]))))
+        .catch(() => setUbicaciones(new Map()))
+    } else if (esVet) {
+      cargarParaVet()
+      crianzaService.listarAnimalesReproductivosVet()
+        .then((animales: AnimalConUbicacion[]) => setUbicaciones(new Map(animales.map((a) => [a.id, {
+          empresa: a.marca?.nombre ?? SIN_EMPRESA,
+          campo: a.campo?.nombre ?? SIN_CAMPO,
+        }]))))
+        .catch(() => setUbicaciones(new Map()))
+    }
+  }, [sociedadId, sociedad?.nombre, esVet]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Cambiar de semana lleva también el día de la tabla, al mismo día de la semana. */
   function moverSemana(dias: number) {
@@ -237,14 +312,20 @@ export default function ProgramaSemanalPage() {
   const eventos = useMemo<Evento[]>(() => {
     const out: Evento[] = []
 
+    const datosUbicacion = (caballoId: string): UbicacionAnimal =>
+      ubicaciones.get(caballoId) ?? { empresa: sociedad?.nombre ?? SIN_EMPRESA, campo: SIN_CAMPO }
+
     for (const r of recordatorios) {
       if (r.estado !== 'pendiente' && r.estado !== 'vencido') continue
+      const ubicacion = datosUbicacion(r.caballo_id)
       out.push({
         id:            `rec-${r.id}`,
         fecha:         r.fecha_vto,
         caballoId:     r.caballo_id,
         caballoNombre: r.caballo?.nombre ?? '—',
         rol:           r.caballo?.rol_reproductivo ?? null,
+        ...ubicacion,
+        actividad:     r.tipo,
         etiqueta:      r.tipo,
         tipo:          r.estado === 'vencido' ? 'vencido' : 'pendiente',
         veterinario:   nombreVet(r.veterinario),
@@ -254,6 +335,7 @@ export default function ProgramaSemanalPage() {
     }
 
     for (const r of registros) {
+      const ubicacion = datosUbicacion(r.caballo_id)
       const ovarios = [
         r.ovario_izq.length ? `OI: ${r.ovario_izq.join(', ')}` : null,
         r.ovario_der.length ? `OD: ${r.ovario_der.join(', ')}` : null,
@@ -265,6 +347,8 @@ export default function ProgramaSemanalPage() {
         caballoId:     r.caballo_id,
         caballoNombre: r.caballo?.nombre ?? '—',
         rol:           r.caballo?.rol_reproductivo ?? null,
+        ...ubicacion,
+        actividad:     r.obs_chips.length > 0 ? r.obs_chips.join(', ') : 'Revisión',
         etiqueta:      r.obs_chips.length > 0 ? r.obs_chips.join(', ') : 'Revisión',
         tipo:          'registro',
         veterinario:   nombreVet(r.veterinario),
@@ -276,6 +360,7 @@ export default function ProgramaSemanalPage() {
     // esta vuelta, hacer el flushing hacía desaparecer a la donante del día.
     for (const f of flushings) {
       if (f.cancelado) continue
+      const ubicacion = datosUbicacion(f.caballo_id)
       const resultado = f.es_negativo
         ? 'sin embriones'
         : `${f.cantidad ?? 0} embri${f.cantidad === 1 ? 'ón' : 'ones'}`
@@ -285,6 +370,8 @@ export default function ProgramaSemanalPage() {
         caballoId:     f.caballo_id,
         caballoNombre: f.caballo?.nombre ?? '—',
         rol:           'Donante',
+        ...ubicacion,
+        actividad:     'Flushing',
         etiqueta:      `Flushing: ${resultado}`,
         tipo:          'flushing',
         veterinario:   nombreVet(f.veterinario),
@@ -295,12 +382,15 @@ export default function ProgramaSemanalPage() {
     // Ídem las ecografías: cierran un recordatorio 'Eco 1/2/3' y hasta ahora no
     // se veían en ningún lado del programa.
     for (const e of ecografias) {
+      const ubicacion = datosUbicacion(e.caballo_receptora_id)
       out.push({
         id:            `eco-${e.id}`,
         fecha:         e.fecha,
         caballoId:     e.caballo_receptora_id,
         caballoNombre: e.receptora?.nombre ?? '—',
         rol:           'Receptora',
+        ...ubicacion,
+        actividad:     `Eco ${e.numero}`,
         etiqueta:      `Eco ${e.numero}: ${LABEL_RESULTADO_ECO[e.resultado]}`,
         tipo:          'ecografia',
         veterinario:   nombreVet(e.veterinario),
@@ -309,6 +399,7 @@ export default function ProgramaSemanalPage() {
     }
 
     for (const t of transferencias) {
+      const ubicacion = datosUbicacion(t.caballo_receptora_id)
       out.push({
         id:            `tra-${t.id}`,
         fecha:         t.fecha,
@@ -316,6 +407,8 @@ export default function ProgramaSemanalPage() {
         caballoNombre: t.receptora?.nombre ?? '—',
         // La transferencia siempre se le hace a la receptora.
         rol:           'Receptora',
+        ...ubicacion,
+        actividad:     'Transferencia',
         etiqueta:      'Transferencia',
         tipo:          'transferencia',
         veterinario:   nombreVet(t.veterinario),
@@ -323,8 +416,8 @@ export default function ProgramaSemanalPage() {
       })
     }
 
-    return out
-  }, [registros, recordatorios, transferencias, flushings, ecografias])
+    return out.sort(compararEvento)
+  }, [registros, recordatorios, transferencias, flushings, ecografias, ubicaciones, sociedad?.nombre])
 
   const eventosPorDia = useMemo(() => {
     const mapa: Record<string, Evento[]> = {}
@@ -413,10 +506,6 @@ export default function ProgramaSemanalPage() {
             const esHoy   = iso === hoy
             const esSelec = iso === diaSelec
             const delDia  = eventosPorDia[iso] ?? []
-            const donantes   = delDia.filter((e) => e.rol === 'Donante')
-            const receptoras = delDia.filter((e) => e.rol === 'Receptora')
-            // Sin rol reproductivo cargado: se muestran aparte para no perderlos.
-            const otros      = delDia.filter((e) => e.rol !== 'Donante' && e.rol !== 'Receptora')
 
             return (
               <div
@@ -438,9 +527,7 @@ export default function ProgramaSemanalPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <GrupoDia titulo="Donantes"   eventos={donantes}   esVet={esVet} onAbrir={abrirEvento} />
-                    <GrupoDia titulo="Receptoras" eventos={receptoras} esVet={esVet} onAbrir={abrirEvento} />
-                    <GrupoDia titulo="Sin rol"    eventos={otros}      esVet={esVet} onAbrir={abrirEvento} />
+                    <GruposDia eventos={delDia} esVet={esVet} onAbrir={abrirEvento} />
                   </div>
                 )}
               </div>
@@ -506,6 +593,8 @@ export default function ProgramaSemanalPage() {
                 )}
                 {filtros.filas.map((e) => (
                   <tr key={e.id} className="border-b border-slate-100 last:border-0">
+                    <td className="py-2 pr-3 text-slate-600">{e.empresa}</td>
+                    <td className="py-2 pr-3 text-slate-500">{e.campo}</td>
                     <td className="py-2 pr-3 font-medium text-slate-800">
                       <NombreCaballoLink id={e.caballoId} nombre={e.caballoNombre} />
                     </td>
@@ -580,45 +669,70 @@ function Tile({ valor, label, color }: { valor: number; label: string; color: st
   )
 }
 
-/** Bloque Donantes / Receptoras dentro de la columna de un día. */
-function GrupoDia({
-  titulo, eventos, esVet, onAbrir,
+/** Empresa → campo → rol → actividad dentro de la columna de un día. */
+function GruposDia({
+  eventos, esVet, onAbrir,
 }: {
-  titulo: string
   eventos: Evento[]
   esVet: boolean
   onAbrir: (evento: Evento) => void
 }) {
-  if (eventos.length === 0) return null
+  const empresas = agruparPor(eventos, (e) => e.empresa)
 
-  return (
-    <div>
-      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-        {titulo} <span className="font-normal">({eventos.length})</span>
-      </p>
-      <div className="space-y-2">
-        {eventos.map((e) => {
-          // Un registro cargado o una transferencia hecha ya son historia: se
-          // abren para mirarlas en la tabla del día, no para cargarlas de nuevo.
-          const accionable = esVet && !!e.recordatorio
+  return [...empresas.entries()].map(([empresa, eventosEmpresa]) => {
+    const campos = agruparPor(eventosEmpresa, (e) => e.campo)
+    return (
+      <section key={empresa} className="space-y-2">
+        <p className="border-b border-slate-200 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+          {empresa} <span className="font-normal text-slate-400">({eventosEmpresa.length})</span>
+        </p>
+        {[...campos.entries()].map(([campo, eventosCampo]) => {
+          const roles = agruparPor(eventosCampo, (e) => e.rol ?? 'Sin rol')
           return (
-            <div
-              key={e.id}
-              onClick={(ev) => { ev.stopPropagation(); onAbrir(e) }}
-              title={accionable
-                ? `Hacer ${e.etiqueta} de ${e.caballoNombre}`
-                : `${e.caballoNombre} — ya registrado, no hay nada que cargar`}
-              className={`cursor-pointer rounded-lg border p-2 hover:brightness-95 ${ESTILO_EVENTO[e.tipo]}`}
-            >
-              <NombreCaballoLink id={e.caballoId} nombre={e.caballoNombre} className="text-xs font-medium" />
-              <div className="truncate text-[11px] opacity-75">{e.etiqueta}</div>
-              {/* El tag es lo que evita apretar lo que ya está hecho esperando
-                  que abra algo: el tilde no abre nada, el reloj sí. */}
-              <BadgeEstado tipo={e.tipo} compacto />
+            <div key={campo} className="space-y-2 pl-1">
+              <p className="text-[10px] font-semibold text-slate-500">{campo}</p>
+              {[...roles.entries()].map(([rol, eventosRol]) => {
+                const actividades = agruparPor(eventosRol, (e) => e.actividad)
+                return (
+                  <div key={rol} className="space-y-1.5 pl-1">
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">{rol}</p>
+                    {[...actividades.entries()].map(([actividad, eventosActividad]) => (
+                      <div key={actividad} className="space-y-1">
+                        <p className="text-[10px] font-semibold text-slate-600">
+                          {actividad} <span className="font-normal text-slate-400">({eventosActividad.length})</span>
+                        </p>
+                        {eventosActividad.map((e) => {
+                          // Un registro cargado o una transferencia hecha ya son historia: se
+                          // abren para mirarlas en la tabla del día, no para cargarlas de nuevo.
+                          const accionable = esVet && !!e.recordatorio
+                          return (
+                            <div
+                              key={e.id}
+                              onClick={(ev) => { ev.stopPropagation(); onAbrir(e) }}
+                              title={accionable
+                                ? `Hacer ${e.etiqueta} de ${e.caballoNombre}`
+                                : `${e.caballoNombre} — ya registrado, no hay nada que cargar`}
+                              className={`cursor-pointer rounded-lg border p-2 hover:brightness-95 ${ESTILO_EVENTO[e.tipo]}`}
+                            >
+                              <NombreCaballoLink id={e.caballoId} nombre={e.caballoNombre} className="text-xs font-medium" />
+                              {e.etiqueta !== actividad && (
+                                <div className="truncate text-[11px] opacity-75">{e.etiqueta}</div>
+                              )}
+                              {/* El tag es lo que evita apretar lo que ya está hecho esperando
+                                  que abra algo: el tilde no abre nada, el reloj sí. */}
+                              <BadgeEstado tipo={e.tipo} compacto />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
             </div>
           )
         })}
-      </div>
-    </div>
-  )
+      </section>
+    )
+  })
 }

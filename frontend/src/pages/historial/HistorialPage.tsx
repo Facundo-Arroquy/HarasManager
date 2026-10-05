@@ -77,7 +77,9 @@ export default function HistorialPage() {
   // resalta dentro del historial.
   const consultaDestacada = searchParams.get('consulta')
 
-  const [tab, setTab] = useState<'clinico' | 'sanidad' | 'reproductivo' | 'genealogia' | 'foto'>('clinico')
+  const [tab, setTab] = useState<'clinico' | 'sanidad' | 'reproductivo' | 'genealogia' | 'foto'>(
+    consultaDestacada ? 'clinico' : 'genealogia',
+  )
   const [repLoading,    setRepLoading]    = useState(false)
   const [registrosCria, setRegistrosCria] = useState<RegistroClinicoCria[]>([])
   const [flushings,     setFlushings]     = useState<Flushing[]>([])
@@ -223,6 +225,9 @@ export default function HistorialPage() {
 
   useEffect(() => {
     if (!id) return
+    // Cada perfil abre en el árbol, salvo los enlaces del calendario que deben
+    // llevar a una consulta clínica concreta.
+    setTab(consultaDestacada ? 'clinico' : 'genealogia')
     setLoading(true)
     // Prefetch catálogos en paralelo: cuando el usuario abra "Nueva consulta"
     // ya van a estar en caché y el modal aparece instantáneo.
@@ -235,6 +240,15 @@ export default function HistorialPage() {
       .then(([cab, hist]) => {
         setCaballo(cab)
         setHistorial(hist as object[])
+        // El árbol es la vista inicial del perfil: cargar sus relaciones sin
+        // esperar a que el usuario cambie de pestaña. Para el vet se usa su
+        // listado multiempresa; para los demás, el de la sociedad del caballo.
+        const cargarArbol = rol === 'veterinario'
+          ? caballoService.listarDelVeterinario()
+          : caballoService.listar(cab.sociedad_id)
+        cargarArbol
+          .then((data) => setTodosCaballos(data as Caballo[]))
+          .catch(() => { /* los nombres directos siguen visibles aunque falle el listado */ })
         // Inicializar estados de preñada desde los datos del caballo
         const datosPren = cab as { prenada?: boolean | null; fecha_prenez?: string | null }
         const p = datosPren.prenada ?? false
@@ -244,7 +258,7 @@ export default function HistorialPage() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, rol, consultaDestacada])
 
   async function guardarPrenada() {
     if (!caballo) return

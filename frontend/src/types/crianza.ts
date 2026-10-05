@@ -378,6 +378,10 @@ export interface Embrion {
   tamanio:            string | null
   zona_pelucida:      string | null
   estado:             EstadoEmbrion
+  /** Día exacto de recuperación; en embriones de flushing coincide con su fecha. */
+  fecha_extraccion:   string | null
+  /** Texto libre: tanque, centro, laboratorio o destino donde se conserva. */
+  lugar_almacenamiento: string | null
   notas:              string | null
   created_at:         string
   updated_at:         string
