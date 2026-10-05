@@ -821,6 +821,8 @@ CREATE TABLE embrion (
   grado SMALLINT CHECK (grado >= 1 AND grado <= 4),
   tamanio TEXT,
   zona_pelucida TEXT,
+  fecha_extraccion DATE,        -- fecha exacta de extracción; se copia de cria_flushing.fecha al crear. NULL en vitrificados manuales antiguos (migración 20261004195709)
+  lugar_almacenamiento TEXT,    -- texto libre: dónde se conserva o a dónde se envió (migración 20261004195709)
   estado TEXT NOT NULL DEFAULT 'disponible'
     -- 'en_nube' agregado en 20260823120000. Nombre provisorio pedido por Facu;
     -- el término correcto lo define Gero y se renombra después.
