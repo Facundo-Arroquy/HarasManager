@@ -1,6 +1,23 @@
 @import "tailwindcss";
 
 @theme {
+  /* Sistema visual "Talabartería Digital" */
+  --color-app: #FEF6E4;
+  --color-surface: #FFFCF8;
+  --color-surface-alt: #F9F1DF;
+  --color-brand: #8C6828;
+  --color-brand-hover: #6B4E1D;
+  --color-text-primary: #2C2C2C;
+  --color-text-secondary: #736B5E;
+  --color-status-success-bg: #E2EBDD;
+  --color-status-success-text: #4A6B46;
+  --color-status-warning-bg: #FDF1DB;
+  --color-status-warning-text: #B27B2B;
+  --shadow-card: 0 8px 24px rgba(140, 104, 40, 0.08);
+  --shadow-physical: 0 4px 0 #6B4E1D;
+  --font-sans: 'DM Sans', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+
   --color-brand-50:  #FEF6E4;
   --color-brand-100: #FDE9BF;
   --color-brand-200: #F7D08A;
@@ -36,7 +53,7 @@
     margin: 0;
     background-color: #09090b; /* zinc-950 */
     color: #f4f4f5;            /* zinc-100 */
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -44,6 +61,108 @@
   #root {
     min-height: 100svh;
   }
+}
+
+/*
+ * Talabartería Digital
+ * Scopeado al layout autenticado para no alterar la landing ni las pantallas
+ * de acceso. Estas reglas reinterpretan las utilities ya usadas por todas las
+ * vistas; así preservamos su lógica y evitamos duplicar componentes.
+ */
+.hm-app {
+  color: #2C2C2C;
+  background:
+    radial-gradient(circle at 88% 5%, rgba(196, 148, 53, .12), transparent 26rem),
+    #FEF6E4;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.hm-app .font-mono,
+.hm-app [class*="tabular-nums"] {
+  font-family: 'DM Mono', monospace;
+}
+
+/* Superficies cálidas y elevadas */
+.hm-app .bg-white {
+  background-color: #FFFCF8;
+}
+
+.hm-app .bg-slate-50,
+.hm-app .bg-slate-50\/50,
+.hm-app .bg-slate-50\/80,
+.hm-app .bg-slate-100 {
+  background-color: #F9F1DF;
+}
+
+.hm-app .border-slate-100,
+.hm-app .border-slate-200,
+.hm-app .border-slate-300 {
+  border-color: rgba(140, 104, 40, .14);
+}
+
+.hm-app .text-slate-900,
+.hm-app .text-slate-800,
+.hm-app .text-slate-700 {
+  color: #2C2C2C;
+}
+
+.hm-app .text-slate-600,
+.hm-app .text-slate-500,
+.hm-app .text-slate-400 {
+  color: #736B5E;
+}
+
+/* Las tarjetas existentes ganan volumen sin perder sus dimensiones. */
+.hm-app :is(div, section, article)[class*="rounded-xl"][class*="border"][class*="bg-white"],
+.hm-app :is(div, section, article)[class*="rounded-2xl"][class*="border"][class*="bg-white"] {
+  border-color: rgba(140, 104, 40, .12);
+  box-shadow: 0 8px 24px rgba(140, 104, 40, .08);
+}
+
+/* Controles con tacto más amable y un foco accesible. */
+.hm-app :is(input, select, textarea) {
+  background-color: #FFFCF8;
+  border-color: rgba(140, 104, 40, .22);
+  color: #2C2C2C;
+}
+
+.hm-app :is(input, select, textarea):focus {
+  border-color: #8C6828;
+  outline: 3px solid rgba(140, 104, 40, .13);
+  outline-offset: 1px;
+}
+
+/* Botones de marca: sombra sólida que se comporta como una pieza física. */
+.hm-app :is(button, a)[class*="bg-brand-600"],
+.hm-app :is(button, a)[class*="bg-brand-700"] {
+  background-color: #8C6828;
+  box-shadow: 0 4px 0 #6B4E1D;
+  transform: translateY(0);
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 160ms ease;
+}
+
+.hm-app :is(button, a)[class*="bg-brand-600"]:hover,
+.hm-app :is(button, a)[class*="bg-brand-700"]:hover {
+  background-color: #6B4E1D;
+}
+
+.hm-app :is(button, a)[class*="bg-brand-600"]:active,
+.hm-app :is(button, a)[class*="bg-brand-700"]:active {
+  box-shadow: none;
+  transform: translateY(4px);
+}
+
+.hm-app table tbody tr:nth-child(even) {
+  background-color: rgba(249, 241, 223, .62);
+}
+
+.hm-app table tbody tr {
+  border-color: rgba(140, 104, 40, .10);
+}
+
+.hm-content-scroll {
+  scrollbar-color: rgba(140, 104, 40, .35) transparent;
+  scrollbar-width: thin;
 }
 
 /* iOS Safari hace auto-zoom al enfocar un input con font-size < 16px, y como

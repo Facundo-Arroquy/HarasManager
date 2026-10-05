@@ -12,7 +12,7 @@ export default function AppLayout() {
   const { rol } = useAuth()
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="hm-app flex h-screen overflow-hidden bg-app p-0 md:p-3 md:gap-3">
       {/* Sidebar — solo desktop */}
       <Sidebar />
 
@@ -23,7 +23,7 @@ export default function AppLayout() {
       <main className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar mobile */}
         {rol !== 'superadmin' && (
-          <header className="flex items-center gap-3 px-4 py-3 bg-white border-b border-slate-200 md:hidden shrink-0">
+          <header className="flex items-center gap-3 px-4 py-3 bg-surface border-b border-brand-700/10 md:hidden shrink-0 shadow-card">
             <button
               onClick={() => setDrawerOpen(true)}
               className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
@@ -40,7 +40,7 @@ export default function AppLayout() {
         )}
 
         {/* Contenido de la página */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="hm-content-scroll flex-1 overflow-y-auto md:rounded-[24px]">
           <Outlet />
         </div>
       </main>
