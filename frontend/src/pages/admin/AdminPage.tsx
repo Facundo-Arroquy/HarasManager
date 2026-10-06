@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import UsuariosTab from './UsuariosTab'
 import AccesosVetTab from './AccesosVetTab'
-import InvitarUsuarioTab from './InvitarUsuarioTab'
 import PermisosCentroTab from './PermisosCentroTab'
+import CamposConfig from '../config/CamposConfig'
+import DatosPersonalesCard from '../../components/domain/DatosPersonalesCard'
 
-type Tab = 'usuarios' | 'accesos' | 'permisos' | 'invitar'
+type Tab = 'usuarios' | 'accesos' | 'permisos' | 'configuracion'
 
 const TABS: { id: Tab; label: string; labelMobile?: string }[] = [
   { id: 'usuarios', label: 'Usuarios' },
   { id: 'accesos',  label: 'Accesos veterinario', labelMobile: 'Accesos vet' },
   { id: 'permisos', label: 'Permisos Centro Cría', labelMobile: 'Permisos' },
-  { id: 'invitar',  label: 'Invitar usuario',      labelMobile: 'Invitar' },
+  { id: 'configuracion', label: 'Configuración', labelMobile: 'Config.' },
 ]
 
 export default function AdminPage() {
@@ -47,8 +48,24 @@ export default function AdminPage() {
         {activeTab === 'usuarios' && <UsuariosTab />}
         {activeTab === 'accesos'  && <AccesosVetTab />}
         {activeTab === 'permisos' && <PermisosCentroTab />}
-        {activeTab === 'invitar'  && <InvitarUsuarioTab />}
+        {activeTab === 'configuracion' && <ConfiguracionTab />}
       </div>
+    </div>
+  )
+}
+
+function ConfiguracionTab() {
+  return (
+    <div className="space-y-8">
+      <section>
+        <h2 className="mb-4 text-sm font-semibold text-slate-600">Campos y Caballerizas</h2>
+        <CamposConfig />
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-sm font-semibold text-slate-600">Privacidad</h2>
+        <DatosPersonalesCard />
+      </section>
     </div>
   )
 }

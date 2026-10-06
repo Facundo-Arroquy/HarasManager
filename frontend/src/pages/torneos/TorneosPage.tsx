@@ -31,7 +31,7 @@ function periodo(torneo: Torneo): string {
 export default function TorneosPage() {
   const sociedadId = useAuthStore((s) => s.sociedadActiva?.id)
   const rol        = useAuthStore((s) => s.rol)
-  const esAdmin    = rol === 'admin'
+  const puedeGestionar = rol === 'admin' || rol === 'piloto'
   const navigate   = useNavigate()
 
   const [torneos,   setTorneos]   = useState<Torneo[]>([])
@@ -79,7 +79,7 @@ export default function TorneosPage() {
             Organización de caballos por jugador para cada competencia
           </p>
         </div>
-        {esAdmin && (
+        {puedeGestionar && (
           <button
             onClick={() => setShowNuevo(true)}
             className="flex items-center gap-1.5 rounded-lg bg-brand-500 hover:bg-brand-400 px-3 py-2 text-sm font-medium text-white transition-colors"
@@ -100,7 +100,7 @@ export default function TorneosPage() {
       {!loading && !error && torneos.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-sm">
           <Trophy size={28} className="mb-2 opacity-30" />
-          {esAdmin
+          {puedeGestionar
             ? 'Sin torneos todavía. Creá el primero con “Nuevo torneo”.'
             : 'Todavía no hay torneos cargados.'}
         </div>
@@ -114,7 +114,7 @@ export default function TorneosPage() {
                 <TorneoRow
                   key={t.id}
                   torneo={t}
-                  esAdmin={esAdmin}
+                  puedeGestionar={puedeGestionar}
                   onEliminar={() => handleEliminar(t)}
                 />
               ))}
@@ -126,7 +126,7 @@ export default function TorneosPage() {
                 <TorneoRow
                   key={t.id}
                   torneo={t}
-                  esAdmin={esAdmin}
+                  puedeGestionar={puedeGestionar}
                   onEliminar={() => handleEliminar(t)}
                 />
               ))}
@@ -155,10 +155,10 @@ function Seccion({ titulo, children }: { titulo: string; children: React.ReactNo
 }
 
 function TorneoRow({
-  torneo, esAdmin, onEliminar,
+  torneo, puedeGestionar, onEliminar,
 }: {
   torneo: Torneo
-  esAdmin: boolean
+  puedeGestionar: boolean
   onEliminar: () => void
 }) {
   return (
@@ -185,7 +185,7 @@ function TorneoRow({
           </span>
         </div>
       </Link>
-      {esAdmin && (
+      {puedeGestionar && (
         <button
           onClick={onEliminar}
           title="Eliminar torneo"

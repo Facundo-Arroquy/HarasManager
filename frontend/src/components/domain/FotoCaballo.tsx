@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera } from 'lucide-react'
+import { Camera, Trash2 } from 'lucide-react'
 import { fotoService } from '../../services/fotoService'
 
 interface Props {
@@ -53,6 +53,20 @@ export default function FotoCaballo({
     } finally {
       setUploading(false)
       if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm(`¿Eliminar la foto de ${nombre}?`)) return
+    setUploading(true)
+    try {
+      await fotoService.eliminar(caballoId)
+      setSrc('')
+      setHasError(false)
+    } catch (err) {
+      console.error('[FotoCaballo] Error al eliminar foto:', err)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -114,6 +128,18 @@ export default function FotoCaballo({
               <Camera size={badgeSize * 0.5} className="text-white" />
             )}
           </button>
+          {showImg && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={uploading}
+              title="Eliminar foto"
+              className="absolute bottom-0 left-0 flex items-center justify-center rounded-full bg-red-400 border-2 border-white hover:bg-red-500 transition-colors cursor-pointer disabled:opacity-50"
+              style={{ width: badgeSize, height: badgeSize }}
+            >
+              <Trash2 size={badgeSize * 0.5} className="text-white" />
+            </button>
+          )}
           <input
             ref={inputRef}
             type="file"

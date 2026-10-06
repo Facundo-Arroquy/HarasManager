@@ -12,7 +12,7 @@ import CaballoCard from '../../components/domain/CaballoCard'
 import CaballoGridCard from '../../components/domain/CaballoGridCard'
 import CaballoDetalleModal from '../../components/domain/CaballoDetalleModal'
 import EditarCaballoModal from '../../components/domain/EditarCaballoModal'
-import { tagService, type Tag } from '../../services/tagService'
+import { TAG_JUGADOR, tagService, type Tag } from '../../services/tagService'
 import { catalogoService } from '../../services/catalogoService'
 import { textoBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
@@ -87,7 +87,7 @@ export default function CaballosPage() {
   const [detalle,  setDetalle]  = useState<Caballo | null>(null)
   const [editando, setEditando] = useState<Caballo | null>(null)
 
-  const puedeEditarCaballo = rol === 'admin' || rol === 'veterinario'
+  const puedeEditarCaballo = rol === 'admin' || rol === 'piloto' || rol === 'veterinario'
 
   const [vista, setVista] = useState<Vista>(leerVistaGuardada)
 
@@ -107,6 +107,7 @@ export default function CaballosPage() {
   // edición masiva: tag_id → SIN_CAMBIO | 'true' (poner) | 'false' (sacar).
   const [tags,     setTags]     = useState<Tag[]>([])
   const [bulkTags, setBulkTags] = useState<Record<number, string>>({})
+  const [cambiandoJugador, setCambiandoJugador] = useState<Set<string>>(new Set())
 
   // ── Infinite scroll (se configura después de calcular filtradosOrdenados) ──
 
@@ -196,6 +197,52 @@ export default function CaballosPage() {
   useEffect(() => {
     tagService.listar().then(setTags).catch(() => setTags([]))
   }, [])
+
+  const tagJugador = useMemo(
+    () => tags.find((tag) => tag.nombre === TAG_JUGADOR) ?? null,
+    [tags],
+  )
+
+  async function toggleJugador(caballo: Caballo) {
+    if (!tagJugador || cambiandoJugador.has(caballo.id)) return
+    const activo = (caballo.tags ?? []).some((tag) => tag.id === tagJugador.id)
+
+    setCambiandoJugador((prev) => new Set(prev).add(caballo.id))
+    setError(null)
+    setCaballos((prev) => prev.map((item) => {
+      if (item.id !== caballo.id) return item
+      const tagsActuales = item.tags ?? []
+      return {
+        ...item,
+        tags: activo
+          ? tagsActuales.filter((tag) => tag.id !== tagJugador.id)
+          : [...tagsActuales, tagJugador],
+      }
+    }))
+
+    try {
+      await tagService.asignarMasivo([caballo.id], tagJugador.id, !activo)
+    } catch (e: unknown) {
+      // Volver al estado real si la escritura falla.
+      setCaballos((prev) => prev.map((item) => {
+        if (item.id !== caballo.id) return item
+        const tagsActuales = item.tags ?? []
+        return {
+          ...item,
+          tags: activo
+            ? [...tagsActuales.filter((tag) => tag.id !== tagJugador.id), tagJugador]
+            : tagsActuales.filter((tag) => tag.id !== tagJugador.id),
+        }
+      }))
+      setError(mensajeError(e, 'No se pudo actualizar el tag Jugador'))
+    } finally {
+      setCambiandoJugador((prev) => {
+        const next = new Set(prev)
+        next.delete(caballo.id)
+        return next
+      })
+    }
+  }
 
   // Cerrar dropdowns al hacer click fuera
   useOutsideClick(empresaRef, useCallback(() => setShowEmpresaDD(false), []))
@@ -624,6 +671,11 @@ export default function CaballosPage() {
                   onToggle={modoSeleccion ? () => toggleSeleccion(caballo.id) : undefined}
                   empresaNombre={esVet ? caballo.empresa_nombre ?? undefined : undefined}
                   dadoDeBaja={verBaja}
+                  jugadorActivo={(caballo.tags ?? []).some((tag) => tag.nombre === TAG_JUGADOR)}
+                  cambiandoJugador={cambiandoJugador.has(caballo.id)}
+                  onToggleJugador={puedeEditarCaballo && tagJugador && !verBaja
+                    ? () => toggleJugador(caballo)
+                    : undefined}
                 />
               ))}
             </div>
@@ -637,6 +689,11 @@ export default function CaballosPage() {
                   seleccionado={modoSeleccion ? seleccionados.has(caballo.id) : undefined}
                   onToggle={modoSeleccion ? () => toggleSeleccion(caballo.id) : undefined}
                   empresaNombre={esVet ? caballo.empresa_nombre ?? undefined : undefined}
+                  jugadorActivo={(caballo.tags ?? []).some((tag) => tag.nombre === TAG_JUGADOR)}
+                  cambiandoJugador={cambiandoJugador.has(caballo.id)}
+                  onToggleJugador={puedeEditarCaballo && tagJugador && !verBaja
+                    ? () => toggleJugador(caballo)
+                    : undefined}
                 />
               ))}
             </div>

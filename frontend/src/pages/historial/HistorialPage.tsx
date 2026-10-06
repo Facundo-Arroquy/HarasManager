@@ -324,7 +324,7 @@ export default function HistorialPage() {
             <FotoCaballo
               caballoId={caballo.id}
               nombre={caballo.nombre}
-              canEdit={rol === 'admin' || rol === 'veterinario'}
+              canEdit={rol === 'admin' || rol === 'piloto' || rol === 'veterinario'}
               size={72}
             />
             <div>
@@ -463,7 +463,7 @@ export default function HistorialPage() {
       )}
 
       {/* Tabs */}
-      {(rol === 'veterinario' || rol === 'admin') && (
+      {(rol === 'veterinario' || rol === 'admin' || rol === 'piloto') && (
         <div className="flex gap-1 border-b border-slate-200 mb-5">
           <button
             onClick={() => setTab('clinico')}
@@ -487,18 +487,20 @@ export default function HistorialPage() {
             <ShieldCheck size={13} />
             Sanidad
           </button>
-          <button
-            onClick={handleTabReproductivo}
-            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              tab === 'reproductivo'
-                ? 'border-blue-500 text-slate-900'
-                : 'border-transparent text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <FlaskConical size={13} />
-            Reproductivo
-            <Tooltip text="Muestra ecografías, flushings y transferencias de embriones registradas para este animal." />
-          </button>
+          {(rol === 'veterinario' || rol === 'admin') && (
+            <button
+              onClick={handleTabReproductivo}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                tab === 'reproductivo'
+                  ? 'border-blue-500 text-slate-900'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <FlaskConical size={13} />
+              Reproductivo
+              <Tooltip text="Muestra ecografías, flushings y transferencias de embriones registradas para este animal." />
+            </button>
+          )}
           <button
             onClick={handleTabGenealogia}
             className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
@@ -898,12 +900,12 @@ export default function HistorialPage() {
           <FotoCaballo
             caballoId={caballo.id}
             nombre={caballo.nombre}
-            canEdit={rol === 'admin' || rol === 'veterinario'}
+            canEdit={rol === 'admin' || rol === 'piloto' || rol === 'veterinario'}
             size={260}
           />
-          {(rol === 'admin' || rol === 'veterinario') && (
+          {(rol === 'admin' || rol === 'piloto' || rol === 'veterinario') && (
             <p className="text-xs text-slate-400">
-              Hacé click en el ícono de cámara para cambiar la foto
+              Usá la cámara para cambiar la foto o el tacho para eliminarla
             </p>
           )}
         </div>

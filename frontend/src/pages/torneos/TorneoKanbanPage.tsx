@@ -13,11 +13,12 @@ import { CSS } from '@dnd-kit/utilities'
 import { useDroppable } from '@dnd-kit/core'
 import {
   ArrowLeft, GripVertical, Users, Plus, Trash2, MapPin, CheckCircle2, RotateCcw,
+  Search, X,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { torneoService } from '../../services/torneoService'
 import { mensajeError } from '../../utils/error'
-import { nombreCaballo } from '../../utils/caballo'
+import { nombreCaballo, textoBusquedaCaballo } from '../../utils/caballo'
 import {
   COLUMNA_DISPONIBLES, LABEL_ESTADO_TORNEO,
   type CaballoTorneo, type TableroTorneo, type TorneoJugador,
@@ -44,8 +45,8 @@ function ordenarPorNombre(caballos: CaballoTorneo[]): CaballoTorneo[] {
 
 export default function TorneoKanbanPage() {
   const { id: torneoId } = useParams<{ id: string }>()
-  const rol     = useAuthStore((s) => s.rol)
-  const esAdmin = rol === 'admin'
+  const rol             = useAuthStore((s) => s.rol)
+  const puedeGestionar  = rol === 'admin' || rol === 'piloto'
 
   const [tablero,  setTablero]  = useState<TableroTorneo | null>(null)
   const [columnas, setColumnas] = useState<Record<string, CaballoTorneo[]>>({})
@@ -54,6 +55,7 @@ export default function TorneoKanbanPage() {
   const [guardando, setGuardando] = useState(false)
   const [arrastrado, setArrastrado] = useState<CaballoTorneo | null>(null)
   const [nuevoJugador, setNuevoJugador] = useState('')
+  const [busquedaDisponibles, setBusquedaDisponibles] = useState('')
 
   // Columna donde arrancó el drag: onDragOver ya movió la tarjeta, así que al
   // soltar no se puede deducir del estado.
@@ -79,7 +81,7 @@ export default function TorneoKanbanPage() {
 
   useEffect(() => { cargar() }, [cargar])
 
-  const editable = esAdmin && tablero?.torneo.estado === 'activo'
+  const editable = puedeGestionar && tablero?.torneo.estado === 'activo'
 
   const sensors = useSensors(
     // Un umbral de 6px evita que un tap para hacer scroll arranque un drag.
@@ -238,6 +240,15 @@ export default function TorneoKanbanPage() {
   if (!tablero) return null
 
   const { torneo, jugadores } = tablero
+  const disponibles = columnas[COLUMNA_DISPONIBLES] ?? []
+  const terminoBusqueda = busquedaDisponibles.trim().toLowerCase()
+  const disponiblesFiltrados = terminoBusqueda
+    ? disponibles.filter((caballo) => {
+        const texto = `${textoBusquedaCaballo(caballo)} ${caballo.pelaje ?? ''} ${caballo.campo ?? ''}`
+          .toLowerCase()
+        return texto.includes(terminoBusqueda)
+      })
+    : disponibles
 
   return (
     <div className="p-4 md:p-6 pb-24">
@@ -265,7 +276,7 @@ export default function TorneoKanbanPage() {
           </p>
         </div>
 
-        {esAdmin && (
+        {puedeGestionar && (
           <button
             onClick={handleCambiarEstado}
             className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
@@ -285,9 +296,9 @@ export default function TorneoKanbanPage() {
 
       {!editable && (
         <p className="mb-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
-          {esAdmin
+          {puedeGestionar
             ? 'El torneo está finalizado: la conformación queda como historial. Reabrilo para modificarla.'
-            : 'Solo un administrador puede modificar la asignación de caballos.'}
+            : 'Solo un administrador o piloto puede modificar la asignación de caballos.'}
         </p>
       )}
 
@@ -303,9 +314,12 @@ export default function TorneoKanbanPage() {
             id={COLUMNA_DISPONIBLES}
             titulo="Caballos disponibles"
             subtitulo="Con tag Jugador"
-            caballos={columnas[COLUMNA_DISPONIBLES] ?? []}
+            caballos={disponiblesFiltrados}
+            totalCaballos={disponibles.length}
             editable={editable}
             destacada
+            busqueda={busquedaDisponibles}
+            onBusqueda={setBusquedaDisponibles}
           />
 
           {jugadores.map((j) => (
@@ -317,11 +331,11 @@ export default function TorneoKanbanPage() {
               caballos={columnas[j.id] ?? []}
               editable={editable}
               numerada
-              onQuitar={esAdmin ? () => handleQuitarJugador(j) : undefined}
+              onQuitar={puedeGestionar ? () => handleQuitarJugador(j) : undefined}
             />
           ))}
 
-          {esAdmin && torneo.estado === 'activo' && (
+          {puedeGestionar && torneo.estado === 'activo' && (
             <div className="w-64 shrink-0 rounded-xl border border-dashed border-slate-200 p-3">
               <label className="mb-1 block text-xs font-medium text-slate-500">
                 Agregar jugador
@@ -353,16 +367,20 @@ export default function TorneoKanbanPage() {
 }
 
 function Columna({
-  id, titulo, subtitulo, caballos, editable, destacada, numerada, onQuitar,
+  id, titulo, subtitulo, caballos, totalCaballos, editable, destacada, numerada, onQuitar,
+  busqueda, onBusqueda,
 }: {
   id: string
   titulo: string
   subtitulo?: string
   caballos: CaballoTorneo[]
+  totalCaballos?: number
   editable: boolean
   destacada?: boolean
   numerada?: boolean
   onQuitar?: () => void
+  busqueda?: string
+  onBusqueda?: (valor: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id })
 
@@ -379,7 +397,8 @@ function Columna({
             {titulo}
           </h2>
           <p className="text-[11px] text-slate-400">
-            {subtitulo ? `${subtitulo} · ` : ''}{caballos.length} caballo{caballos.length === 1 ? '' : 's'}
+            {subtitulo ? `${subtitulo} · ` : ''}{totalCaballos ?? caballos.length} caballo
+            {(totalCaballos ?? caballos.length) === 1 ? '' : 's'}
           </p>
         </div>
         {onQuitar && (
@@ -392,6 +411,34 @@ function Columna({
           </button>
         )}
       </div>
+
+      {onBusqueda && (
+        <div className="relative mb-2">
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <input
+            type="search"
+            value={busqueda ?? ''}
+            onChange={(e) => onBusqueda(e.target.value)}
+            placeholder="Buscar caballo…"
+            aria-label={`Buscar en ${titulo}`}
+            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-8 text-xs text-slate-700 outline-none placeholder:text-slate-400 focus:border-brand-400"
+          />
+          {busqueda && (
+            <button
+              type="button"
+              onClick={() => onBusqueda('')}
+              title="Limpiar búsqueda"
+              aria-label="Limpiar búsqueda"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      )}
 
       <SortableContext
         id={id}
@@ -409,7 +456,7 @@ function Columna({
           ))}
           {caballos.length === 0 && (
             <div className="rounded-lg border border-dashed border-slate-200 py-6 text-center text-[11px] text-slate-300">
-              Soltá caballos acá
+              {busqueda ? 'No hay caballos que coincidan' : 'Soltá caballos acá'}
             </div>
           )}
         </div>
