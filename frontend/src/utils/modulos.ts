@@ -13,5 +13,8 @@ export function tieneAccesoModulo(
   const acceso = modulos[codigo]
   if (!acceso) return false
   if (rol === 'veterinario') return acceso.usuario
+  // Polo es parte operativa del rol piloto: alcanza con que la organización
+  // tenga el módulo habilitado, igual que para el admin.
+  if (codigo === 'polo' && rol === 'piloto') return acceso.org
   return acceso.org && (rol === 'admin' || acceso.usuario)
 }

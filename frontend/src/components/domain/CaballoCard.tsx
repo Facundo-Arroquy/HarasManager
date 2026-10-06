@@ -21,6 +21,9 @@ interface CaballoCardProps {
   seleccionado?: boolean
   onToggle?: () => void
   empresaNombre?: string
+  jugadorActivo?: boolean
+  cambiandoJugador?: boolean
+  onToggleJugador?: () => void
 }
 
 const CATEGORIA_STYLE: Record<string, string> = {
@@ -35,7 +38,16 @@ const SUBCATEGORIA_STYLE: Record<string, string> = {
   Receptora: 'bg-teal-100 text-teal-700 ring-1 ring-teal-200',
 }
 
-export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, empresaNombre }: CaballoCardProps) {
+export default function CaballoCard({
+  caballo,
+  onClick,
+  seleccionado,
+  onToggle,
+  empresaNombre,
+  jugadorActivo,
+  cambiandoJugador,
+  onToggleJugador,
+}: CaballoCardProps) {
   const enModoSeleccion = onToggle !== undefined
   const badgeClass      = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
   const subBadgeClass   = caballo.rol_reproductivo ? SUBCATEGORIA_STYLE[caballo.rol_reproductivo] : undefined
@@ -94,6 +106,29 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
 
       {/* Badges */}
       <span className="flex items-center gap-1.5 shrink-0">
+        {onToggleJugador && !enModoSeleccion && (
+          <span
+            role="checkbox"
+            aria-checked={jugadorActivo}
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); onToggleJugador() }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                e.stopPropagation()
+                onToggleJugador()
+              }
+            }}
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 transition cursor-pointer ${
+              jugadorActivo
+                ? 'bg-teal-100 text-teal-700 ring-teal-200'
+                : 'bg-white text-slate-400 ring-slate-200 hover:text-teal-700 hover:ring-teal-200'
+            } ${cambiandoJugador ? 'pointer-events-none opacity-50' : ''}`}
+            title={jugadorActivo ? 'Quitar tag Jugador' : 'Marcar como Jugador'}
+          >
+            {cambiandoJugador ? 'Guardando…' : jugadorActivo ? 'Jugador activo' : '+ Jugador'}
+          </span>
+        )}
         {caballo.categoria && (
           <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badgeClass}`}>
             {caballo.categoria}
@@ -109,7 +144,7 @@ export default function CaballoCard({ caballo, onClick, seleccionado, onToggle, 
             Preñada
           </span>
         )}
-        {(caballo.tags ?? []).map((t) => (
+        {(caballo.tags ?? []).filter((t) => t.nombre !== 'Jugador').map((t) => (
           <span
             key={t.id}
             className="rounded-full px-2 py-0.5 text-[11px] font-medium bg-teal-100 text-teal-700 ring-1 ring-teal-200"

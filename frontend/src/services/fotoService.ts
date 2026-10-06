@@ -41,7 +41,8 @@ export const fotoService = {
   /** Elimina la foto del caballo. */
   async eliminar(caballoId: string): Promise<void> {
     const supabase = getSupabaseClient()
-    await supabase.storage.from(BUCKET).remove([caballoId])
+    const { error } = await supabase.storage.from(BUCKET).remove([caballoId])
+    if (error) throw new Error(error.message)
     localStorage.removeItem(VERSION_KEY(caballoId))
   },
 }

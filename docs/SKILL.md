@@ -1135,6 +1135,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | `es_veterinario(sociedad_id)` | Tiene rol 'veterinario' en membresia **o** `usuario.rol = 'veterinario'` |
 | `is_superadmin()` | `usuario.rol = 'superadmin' AND activo = true` |
 | `puede_gestionar_campo(sociedad_id)` | Tiene rol admin, jugador, piloto o peticero activo en esa sociedad (peticero desde migración `20260923133759`) |
+| `puede_gestionar_ficha_caballo(sociedad_id)` | Tiene rol admin o piloto activo en esa sociedad; habilita alta/edición de `caballo` y gestión de `caballo_tag` |
 | `vet_tiene_acceso(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo **y** que el usuario sea veterinario activo; usado en políticas de centro de embriones (corregida en `20260611155651` — antes ignoraba el parámetro) |
 | `vet_tiene_acceso_caballo(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo específico |
 | `vet_limite_gratuito()` | Constante del plan gratuito (hoy 5). Única fuente del número: la comparten `vet_puede_agregar_caballo` y `vet_estado_limite` para que no se desincronicen (migración `20260812120000`). **Con EXECUTE para `anon`** (migración `20260812130000`): es solo un entero sin datos de usuario, y la página pública de registro la necesita para no hardcodear el número en el marketing copy |
@@ -1222,6 +1223,21 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | **Jugador / Piloto / Peticero** | Todos los de su sociedad | Todos los de su sociedad |
 | **Veterinario** (global) | Solo los que tiene en `acceso_vet` activo | Solo los de caballos con acceso |
 
+En la ficha del caballo, el piloto tiene visibles las pestañas Clínico, Sanidad,
+Genealogía y Foto. Puede gestionar la foto; Clínico y Sanidad conservan sus
+reglas de escritura propias. La pestaña Reproductivo sigue limitada a admin y
+veterinario.
+
+El panel de Caballos ofrece un toggle rápido del tag `Jugador` en cada fila o
+tarjeta activa. Admin, piloto y veterinario con acceso pueden activarlo o
+quitarlo sin abrir la ficha; usa las mismas políticas de `caballo_tag` que la
+edición individual y masiva.
+
+Para el rol admin, la gestión de Campos/Caballerizas y Privacidad vive dentro
+de Administración → Configuración. La pestaña Invitar usuario no se muestra;
+el alta de usuarios sigue siendo una operación administrada del backend. Los
+roles jugador, piloto y peticero conservan la ruta independiente `/config`.
+
 ### Política RLS por tabla
 
 **`sociedad`**
@@ -1260,9 +1276,9 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 
 **`caballo`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(id)` o `vet_tiene_acceso_caballo(id)` o superadmin
-- INSERT admin: `es_admin(sociedad_id)`
+- INSERT organización: `puede_gestionar_ficha_caballo(sociedad_id)` (admin o piloto)
 - INSERT vet: `vet_owner_id = auth.uid() AND sociedad_id IS NULL AND vet_puede_agregar_caballo(auth.uid())` (vet crea sin sociedad, con gate del límite freemium — defensa en profundidad: el enforcement real vive en `crear_caballo_veterinario`, ver más abajo; migración `20260811150200`)
-- UPDATE admin: `es_admin(sociedad_id)` — **es la única policy de UPDATE de la tabla**
+- UPDATE organización: `puede_gestionar_ficha_caballo(sociedad_id)` (admin o piloto) — **es la única policy de UPDATE directo de la tabla**
 - UPDATE vet: no existe como policy. Un caballo propio del vet tiene `sociedad_id NULL`,
   con lo que `es_admin(NULL)` es false y **todo UPDATE directo del vet no afecta ninguna
   fila y no da error** (la RLS filtra en silencio). El vet escribe siempre por RPC
@@ -1332,7 +1348,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 
 **`caballo_tag`**
 - SELECT: `tiene_membresia` (vía `caballo.sociedad_id`) o `vet_tiene_acceso(caballo_id)` o `is_superadmin()`
-- INSERT/UPDATE/DELETE: `es_admin` (vía `caballo.sociedad_id`) o `vet_tiene_acceso(caballo_id)` o `is_superadmin()`
+- INSERT/UPDATE/DELETE: `puede_gestionar_ficha_caballo` (admin o piloto, vía `caballo.sociedad_id`) o `vet_tiene_acceso(caballo_id)` o `is_superadmin()`
 
 **`cat_modulo`** (migración `20260810140000`)
 - SELECT: cualquier autenticado
@@ -1354,9 +1370,9 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(donante_id)` o `is_superadmin()`
 - INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` o `vet_tiene_acceso(donante_id)` o `is_superadmin()` — en la práctica se escribe siempre vía `guardar_ranking_padrillos()`
 
-**`torneo` / `torneo_jugador` / `torneo_asignacion`** (migración `20260803120000`)
+**`torneo` / `torneo_jugador` / `torneo_asignacion`** (migraciones `20260803120000`, `20261006125112`)
 - SELECT: `tiene_membresia(sociedad_id)` o `is_superadmin()` — el jugador y el piloto ven la conformación de equipos
-- INSERT/UPDATE/DELETE: `es_admin(sociedad_id)` o `is_superadmin()`
+- INSERT/UPDATE/DELETE: `puede_gestionar_polo(sociedad_id)` (admin o piloto con membresía activa) o `is_superadmin()`
 - En las tablas hijas la sociedad se resuelve con un `EXISTS` contra el `torneo` padre
 - Las asignaciones se escriben en la práctica vía `guardar_asignaciones_torneo()`
 
@@ -1514,7 +1530,7 @@ No se usa `supabase db push` ni `supabase migration up`.
 | Gestionar sus propios campos (`/config-vet/campos`) | — | — | ✅ | ❌ |
 | Crear torneos y asignar caballos | ✅ | ✅ | ❌ | ❌ (solo lectura) |
 | Acceso centro de embriones | — | Según `sociedad_modulo`+`membresia_modulo` ('centro_cria') | Según `usuario_modulo` ('centro_cria') | Solo lectura, según `sociedad_modulo`+`membresia_modulo`; sin acceso a la configuración del centro |
-| Acceso Polo / Torneos | — | Según `sociedad_modulo`+`membresia_modulo` ('polo') | ❌ | Solo lectura, según `sociedad_modulo`+`membresia_modulo` ('polo') |
+| Acceso Polo / Torneos | — | Gestión completa si la sociedad tiene `polo` habilitado | ❌ | Piloto: gestión completa si la sociedad tiene `polo` habilitado. Jugador/peticero: solo lectura si además tienen permiso en `membresia_modulo` |
 
 ---
 
