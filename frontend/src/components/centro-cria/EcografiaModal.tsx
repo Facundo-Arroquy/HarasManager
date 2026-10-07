@@ -4,6 +4,7 @@ import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { X, AlertCircle, Activity } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { crianzaService } from '../../services/crianzaService'
+import { useCrianzaStore } from '../../store/crianzaStore'
 import { CHIPS_OI_OD, LABEL_RESULTADO_ECO } from '../../types/crianza'
 import type {
   Ecografia, ResultadoEcografia, TransferenciaEmbrionaria, RecordatorioCria,
@@ -50,6 +51,7 @@ export default function EcografiaModal({
   puedeCambiarResultado = true, onClose, onSuccess,
 }: Props) {
   const { user, sociedadActiva } = useAuth()
+  const cerrarRecordatoriosResueltos = useCrianzaStore((s) => s.cerrarRecordatoriosResueltos)
 
   // Sugerir el próximo número de eco según las ya registradas (habitualmente
   // son 3, pero puede haber más).
@@ -108,6 +110,11 @@ export default function EcografiaModal({
         notas:                notas.trim() || null,
         origen_recordatorio_id: recordatorio?.id ?? null,
       }, revisionDias)
+      // Cargada sin entrar por el recordatorio, la eco agendada para ese día
+      // tiene que quedar hecha igual.
+      await cerrarRecordatoriosResueltos(
+        transferencia.caballo_receptora_id, fecha, { clase: 'ecografia', numero },
+      )
 
       onSuccess?.()
       onClose()
