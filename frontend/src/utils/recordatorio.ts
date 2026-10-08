@@ -5,6 +5,7 @@ import type {
   Flushing,
   Ecografia,
 } from '../types/crianza'
+import { TIPO_CHEQUEAR_OV, TIPO_REINSEMINAR } from './circuitoOvulacion'
 
 /** Recordatorios que se resuelven cargando una ecografía, no un registro. */
 export const TIPOS_ECO = ['Eco 1', 'Eco 2', 'Eco 3', 'Revisión Eco']
@@ -17,6 +18,8 @@ export const TIPOS_ECO = ['Eco 1', 'Eco 2', 'Eco 3', 'Revisión Eco']
 export type AccionRecordatorio =
   | { modal: 'registro'; recordatorio: RecordatorioCria }
   | { modal: 'flushing'; recordatorio: RecordatorioCria }
+  /** Decisión del vet a las 48 h sin OV: reinseminar (carga una IN) o cerrar el circuito. */
+  | { modal: 'reinseminar'; recordatorio: RecordatorioCria }
   | { modal: 'eco'; recordatorio: RecordatorioCria; transferencia: TransferenciaEmbrionaria }
   /** Es una eco pero no se encontró de qué transferencia: no hay qué abrir. */
   | { modal: 'falta-transferencia'; recordatorio: RecordatorioCria }
@@ -26,6 +29,7 @@ export function accionParaRecordatorio(
   transferencias: TransferenciaEmbrionaria[],
 ): AccionRecordatorio {
   if (rec.tipo === 'Flushing') return { modal: 'flushing', recordatorio: rec }
+  if (rec.tipo === TIPO_REINSEMINAR) return { modal: 'reinseminar', recordatorio: rec }
 
   if (TIPOS_ECO.includes(rec.tipo)) {
     // La eco cuelga de la transferencia y el recordatorio solo guarda la
@@ -83,6 +87,7 @@ export type ActoCria =
 /** Chip del registro que hace lo que pide cada recordatorio, cuando no se llaman igual. */
 const CHIPS_QUE_RESUELVEN: Record<string, string[]> = {
   'Dar PG': ['PG', '1PG'],
+  [TIPO_REINSEMINAR]: ['IN'],
 }
 
 /** Los chips de registro que hacen lo que pide un recordatorio de este tipo. */
@@ -97,7 +102,9 @@ export function chipsDeRecordatorio(tipo: string): string[] {
  * consulta se cargó sin entrar por el recordatorio.
  *
  * - Una consulta es una revisión: cierra cualquier "Revisión …" salvo la de
- *   eco, que se hace cargando la ecografía.
+ *   eco, que se hace cargando la ecografía, y el "Chequear ovulación" (el
+ *   control de ovarios del circuito post-IN).
+ * - Reinseminar lo cierra una IN.
  * - El resto lo cierra la acción que pide (IN con el chip IN, Dar PG con PG,
  *   las reglas propias con el chip del mismo nombre).
  */
@@ -108,7 +115,8 @@ export function actoResuelveRecordatorio(tipo: string, acto: ActoCria): boolean 
     case 'ecografia':
       return tipo === `Eco ${acto.numero}` || tipo === 'Revisión Eco'
     case 'registro':
-      if (tipo === 'Revisión' || (tipo.startsWith('Revisión ') && tipo !== 'Revisión Eco')) return true
+      if (tipo === 'Revisión' || tipo === TIPO_CHEQUEAR_OV ||
+        (tipo.startsWith('Revisión ') && tipo !== 'Revisión Eco')) return true
       return chipsDeRecordatorio(tipo).some((c) => acto.chips.includes(c))
   }
 }

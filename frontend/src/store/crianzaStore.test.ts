@@ -12,6 +12,7 @@ vi.mock('../services/crianzaService', () => ({
     crearRecordatoriosBatch:  vi.fn(),
     cancelarRecordatorios:    vi.fn(),
     huboInseminacionEntre:    vi.fn(),
+    listarRecordatoriosAbiertosDeTipos: vi.fn().mockResolvedValue([]),
     listarRecordatoriosAbiertosDelDia: vi.fn().mockResolvedValue([]),
     marcarRecordatoriosHechos:         vi.fn().mockResolvedValue(undefined),
   },
@@ -69,14 +70,15 @@ describe('reglasParaRegistro — prioridad de acciones manuales', () => {
       .toBe(sumarDias(FECHA_BASE, PLAZOS_VET_DEFAULTS.donante_in_a_oxi))
   })
 
-  it('OXI programa el primer chequeo de ovulación para el día siguiente', () => {
+  it('OXI sin circuito abierto programa el chequeo de ovulación para el día siguiente', () => {
     const reglas = reglasParaRegistro({
       ...registroBase(null),
       obs_chips: ['OXI'],
     }, 'Donante', PLAZOS_VET_DEFAULTS, true)
 
-    expect(reglas.find((r) => r.tipo === 'Revisión')?.calcularFecha(FECHA_BASE))
+    expect(reglas.find((r) => r.tipo === 'Chequear ovulación')?.calcularFecha(FECHA_BASE))
       .toBe(sumarDias(FECHA_BASE, 1))
+    expect(reglas.some((r) => r.tipo === 'Revisión')).toBe(false)
   })
 })
 

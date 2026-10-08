@@ -256,6 +256,9 @@ export type TipoRecordatorio =
   | 'Revisión PG'
   | 'Revisión Flushing'
   | 'Revisión'
+  // Circuito post-IN de la donante (utils/circuitoOvulacion.ts)
+  | 'Chequear ovulación'
+  | 'Reinseminar'
   // Las agenda registrar_transferencia_embrionaria con los plazos del vet
   | 'Eco 1'
   | 'Eco 2'

@@ -123,7 +123,10 @@
 - [ ] Chips de observaciones (Strelin, IN, OXI, PG, etc.) funcionan
 - [ ] Al guardar se generan los recordatorios automáticos según las reglas:
   - [ ] Donante + Strelin → recordatorio IN en +1 día
-  - [ ] Donante + IN → recordatorio OXI en +1 día
+  - [ ] Donante + IN → recordatorio OXI en +1 día, Chequear ovulación y Reinseminar en +2 días
+  - [ ] Circuito post-IN: un control sin OV cierra el "Chequear ovulación" y agenda otro para el día siguiente (sin un Reinseminar nuevo)
+  - [ ] Circuito post-IN: OV en cualquier ovario cancela lo abierto del circuito (no aparece más Chequear ni Reinseminar)
+  - [ ] Circuito post-IN: tocar "Reinseminar" ofrece Reinseminar (abre el registro con IN marcada → circuito nuevo) o No reinseminar (cancela Reinseminar y los chequeos; no vuelve a aparecer a los 4 días)
   - [ ] Donante + OV → recordatorio Flushing en +6 días
   - [ ] Donante + PG → recordatorio Revisión PG en +3 días
   - [ ] Receptora + Strelin → recordatorio Revisión Strelin próximo Lun/Mié/Vie

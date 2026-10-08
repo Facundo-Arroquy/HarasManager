@@ -10,6 +10,7 @@ import Spinner from '../../components/ui/Spinner'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
 import EcografiaModal from '../../components/centro-cria/EcografiaModal'
 import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
+import ReinseminarModal from '../../components/centro-cria/ReinseminarModal'
 import FlushingBanner from '../../components/centro-cria/FlushingBanner'
 import EditarRecordatorioModal from '../../components/centro-cria/EditarRecordatorioModal'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
@@ -186,6 +187,15 @@ export default function RecordatoriosPage() {
       {accion?.modal === 'registro' && (
         <RegistroCriaModal
           recordatorio={accion.recordatorio}
+          onClose={() => setAccion(null)}
+          onSuccess={recargar}
+        />
+      )}
+
+      {accion?.modal === 'reinseminar' && (
+        <ReinseminarModal
+          recordatorio={accion.recordatorio}
+          onReinseminar={() => setAccion({ modal: 'registro', recordatorio: accion.recordatorio })}
           onClose={() => setAccion(null)}
           onSuccess={recargar}
         />

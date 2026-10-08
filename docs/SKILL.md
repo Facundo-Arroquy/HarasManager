@@ -755,7 +755,13 @@ CREATE TABLE cria_recordatorio (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   caballo_id UUID NOT NULL REFERENCES caballo(id),
   sociedad_id UUID NOT NULL REFERENCES sociedad(id),
-  tipo TEXT NOT NULL,  -- 'IN' | 'OXI' | 'Flushing' | 'Revisión Flushing' | 'Revisión PG' | 'Dar PG' | 'Revisión Strelin' | 'Revisión' | 'Eco 1' | 'Eco 2' | 'Eco 3' | 'Revisión Eco'
+  tipo TEXT NOT NULL,  -- 'IN' | 'OXI' | 'Chequear ovulación' | 'Reinseminar' | 'Flushing' | 'Revisión Flushing' | 'Revisión PG' | 'Dar PG' | 'Revisión Strelin' | 'Revisión' | 'Eco 1' | 'Eco 2' | 'Eco 3' | 'Revisión Eco'
+  -- 'Chequear ovulación' y 'Reinseminar' son el circuito post-IN de la donante
+  -- (frontend/src/utils/circuitoOvulacion.ts, sin cambios de esquema):
+  -- IN → +1 OXI → +2 Chequear ovulación + Reinseminar; cada control sin OV
+  -- agenda otro chequeo al día siguiente; OV cierra el circuito (cancela lo
+  -- abierto); una IN nueva lo reinicia; "No reinseminar" cancela Reinseminar
+  -- y los chequeos con cancel_motivo. Cuelgan (origen_registro_id) de la IN.
   fecha_vto DATE NOT NULL,
   estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','vencido','hecho','cancelado')),
   veterinario_id UUID REFERENCES usuario(id),

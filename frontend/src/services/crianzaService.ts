@@ -185,13 +185,15 @@ export const crianzaService = {
     if (error) throw error
   },
 
-  /** Cancela en lote (p.ej. revisiones que un registro más nuevo reemplaza). */
+  /** Cancela en lote (p.ej. revisiones que un registro más nuevo reemplaza); los ya cerrados no se tocan. */
   async cancelarRecordatorios(ids: string[], motivo: string): Promise<void> {
+    if (ids.length === 0) return
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from('cria_recordatorio')
       .update({ estado: 'cancelado', cancel_motivo: motivo })
       .in('id', ids)
+      .in('estado', ['pendiente', 'vencido'])
     if (error) throw error
   },
 
@@ -216,6 +218,19 @@ export const crianzaService = {
       .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
       .eq('caballo_id', caballoId)
       .eq('fecha_vto', fecha)
+      .in('estado', ['pendiente', 'vencido'])
+    if (error) throw error
+    return data as RecordatorioCria[]
+  },
+
+  /** Los recordatorios todavía abiertos de un animal de ciertos tipos, sin importar la fecha. */
+  async listarRecordatoriosAbiertosDeTipos(caballoId: string, tipos: string[]): Promise<RecordatorioCria[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_recordatorio')
+      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
+      .eq('caballo_id', caballoId)
+      .in('tipo', tipos)
       .in('estado', ['pendiente', 'vencido'])
     if (error) throw error
     return data as RecordatorioCria[]

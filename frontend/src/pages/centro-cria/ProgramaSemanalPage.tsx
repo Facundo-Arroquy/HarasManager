@@ -7,6 +7,7 @@ import Spinner from '../../components/ui/Spinner'
 import RegistroCriaModal from '../../components/centro-cria/RegistroCriaModal'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
 import EcografiaModal from '../../components/centro-cria/EcografiaModal'
+import ReinseminarModal from '../../components/centro-cria/ReinseminarModal'
 import FlushingBanner from '../../components/centro-cria/FlushingBanner'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import FiltroColumna from '../../components/ui/FiltroColumna'
@@ -612,6 +613,15 @@ export default function ProgramaSemanalPage() {
           recordatorio={accion.recordatorio}
           onClose={() => setAccion(null)}
           onSuccess={() => { setAccion(null); recargar() }}
+        />
+      )}
+
+      {accion?.modal === 'reinseminar' && esVet && (
+        <ReinseminarModal
+          recordatorio={accion.recordatorio}
+          onReinseminar={() => setAccion({ modal: 'registro', recordatorio: accion.recordatorio })}
+          onClose={() => setAccion(null)}
+          onSuccess={recargar}
         />
       )}
 

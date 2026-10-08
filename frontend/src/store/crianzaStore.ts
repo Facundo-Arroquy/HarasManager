@@ -4,6 +4,11 @@ import { useToastStore } from './toastStore'
 import { mensajeError } from '../utils/error'
 import { hoyAR } from '../utils/fecha'
 import { actoResuelveRecordatorio, type ActoCria } from '../utils/recordatorio'
+import {
+  TIPO_CHEQUEAR_OV, TIPO_REINSEMINAR, TIPOS_CIRCUITO_OV, DIAS_VENTANA_SEMEN,
+  MOTIVO_NO_REINSEMINAR, MOTIVO_CIRCUITO_NO_REINSEMINAR,
+  cambiosCircuitoPorRegistro, controlaChequeoAbierto, tieneOV as registroTieneOV,
+} from '../utils/circuitoOvulacion'
 import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
 import type {
   PlazosVet,
@@ -34,6 +39,11 @@ import type {
 // Donante:
 //   Strelin → IN           +1 día
 //   IN      → OXI          +1 día
+//   IN sin OV → Chequear ovulación  +2 días (OXI + 1)
+//             → Reinseminar         +2 días (ventana del semen, una sola vez)
+//   Chequeo sin OV ni IN → Chequear ovulación +1 día, hasta que haya OV
+//   OXI sin circuito abierto → Chequear ovulación +1 día
+//   (circuito completo en utils/circuitoOvulacion.ts)
 //   OV (inseminada)     → Flushing  +6 días
 //   OV (sin inseminar)  → Dar PG    +4 días
 //   PG      → Revisión PG  +3 días
@@ -103,6 +113,8 @@ export function reglasParaRegistro(
   /** Hubo IN en este registro o en los VENTANA_INSEMINACION_DIAS previos. */
   inseminada: boolean,
   propias: ReglaRecordatorioVet[] = [],
+  /** fecha_vto de los 'Chequear ovulación' abiertos de la yegua (circuito post-IN). */
+  chequeosAbiertos: string[] = [],
 ): ReglaRecordatorio[] {
   const chips = registro.obs_chips
   const reglas: ReglaRecordatorio[] = []
@@ -113,8 +125,20 @@ export function reglasParaRegistro(
       reglas.push({ tipo: 'IN', calcularFecha: (f) => sumarDias(f, cfg.donante_strelin_a_in) })
     if (chips.includes('IN'))
       reglas.push({ tipo: 'OXI', calcularFecha: (f) => sumarDias(f, cfg.donante_in_a_oxi) })
-    if (chips.includes('OXI'))
-      reglas.push({ tipo: 'Revisión', calcularFecha: (f) => sumarDias(f, 1) })
+    // Circuito post-IN: cada IN arranca uno nuevo; mientras no haya OV, cada
+    // control agenda el del día siguiente. La OV lo cierra (no agenda nada).
+    const ov = registroTieneOV(registro)
+    if (chips.includes('IN') && !ov) {
+      reglas.push({ tipo: TIPO_CHEQUEAR_OV, calcularFecha: (f) => sumarDias(f, cfg.donante_in_a_oxi + 1) })
+      reglas.push({ tipo: TIPO_REINSEMINAR, calcularFecha: (f) => sumarDias(f, DIAS_VENTANA_SEMEN) })
+    } else if (!ov && (
+      controlaChequeoAbierto(base, chequeosAbiertos) ||
+      // OXI sin IN cargada en el sistema: igual se controla al día siguiente.
+      // Con un circuito abierto ese control ya está agendado.
+      (chips.includes('OXI') && chequeosAbiertos.length === 0)
+    )) {
+      reglas.push({ tipo: TIPO_CHEQUEAR_OV, calcularFecha: (f) => sumarDias(f, 1) })
+    }
     // Solo por el estado ovárico, igual que el preview de RegistroCriaModal:
     // 'OV' no es un obs_chip (es un chip de ovario), así que chequearlo en
     // `chips` era condición muerta y además divergía del preview.
@@ -190,6 +214,16 @@ interface CrianzaState {
    * (inclusive). Decide si la OV de la donante agenda Flushing o Dar PG.
    */
   consultarInseminacionReciente: (caballoId: string, fecha: string) => Promise<boolean>
+
+  /** Recordatorios abiertos del circuito post-IN de la yegua (Chequear ovulación, Reinseminar). */
+  consultarCircuitoOvulacion: (caballoId: string) => Promise<RecordatorioCria[]>
+
+  /**
+   * El vet decide no reinseminar: el Reinseminar se cancela y el circuito de
+   * esa IN se cierra (no se siguen agendando chequeos). Vuelve a empezar solo
+   * con una IN nueva.
+   */
+  decidirNoReinseminar: (recordatorio: RecordatorioCria) => Promise<void>
 
   // Recordatorios
   actualizarEstadoRecordatorio: (
@@ -309,6 +343,11 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
       payload.obs_chips.includes('IN') ||
       (rolReproductivo === 'Donante' && tieneOV &&
         await get().consultarInseminacionReciente(payload.caballo_id, payload.fecha))
+    // Lo abierto del circuito post-IN decide si este registro agenda el
+    // chequeo de mañana. Igual que la IN previa, se consulta antes de insertar.
+    const circuito = rolReproductivo === 'Donante'
+      ? await get().consultarCircuitoOvulacion(payload.caballo_id)
+      : []
 
     const registro = await crianzaService.crearRegistro(payload)
     set((s) => ({ registros: [registro, ...s.registros] }))
@@ -319,9 +358,33 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
       payload.caballo_id, payload.fecha, { clase: 'registro', chips: payload.obs_chips },
     )
 
+    // El circuito post-IN: el chequeo hecho (aunque sea con atraso) se cierra,
+    // la OV termina el circuito y una IN nueva reemplaza al anterior.
+    if (circuito.length > 0) {
+      const cambios = cambiosCircuitoPorRegistro(payload, circuito)
+      try {
+        await crianzaService.marcarRecordatoriosHechos(cambios.hechos)
+        if (cambios.motivo) await crianzaService.cancelarRecordatorios(cambios.cancelados, cambios.motivo)
+        set((s) => ({
+          recordatorios: s.recordatorios.map((r) =>
+            cambios.hechos.includes(r.id) && r.estado !== 'hecho'
+              ? { ...r, estado: 'hecho' as EstadoRecordatorio }
+              : cambios.cancelados.includes(r.id)
+                ? { ...r, estado: 'cancelado' as EstadoRecordatorio, cancel_motivo: cambios.motivo }
+                : r
+          ),
+        }))
+      } catch (e) {
+        console.error('[crianzaStore] circuito de ovulación:', mensajeError(e))
+      }
+    }
+
     // Auto-generar recordatorios según chips (insert batch para evitar N+1).
     // Los plazos son los del vet autenticado = el que hace el registro.
-    const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, inseminada, get().reglasPropias)
+    const reglas = reglasParaRegistro(
+      payload, rolReproductivo, get().plazos, inseminada, get().reglasPropias,
+      circuito.filter((r) => r.tipo === TIPO_CHEQUEAR_OV).map((r) => r.fecha_vto),
+    )
     if (reglas.length > 0) {
       // Este registro puede traer su propia 'Revisión' (review_dias). Si el
       // animal ya tenía una pendiente o vencida de un registro anterior, se
@@ -394,6 +457,27 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
       sumarDias(fecha, -VENTANA_INSEMINACION_DIAS),
       fecha,
     ),
+
+  consultarCircuitoOvulacion: (caballoId) =>
+    crianzaService.listarRecordatoriosAbiertosDeTipos(caballoId, TIPOS_CIRCUITO_OV),
+
+  decidirNoReinseminar: async (recordatorio) => {
+    const chequeos = (await get().consultarCircuitoOvulacion(recordatorio.caballo_id))
+      .filter((r) => r.tipo === TIPO_CHEQUEAR_OV)
+      .map((r) => r.id)
+    await crianzaService.cancelarRecordatorios([recordatorio.id], MOTIVO_NO_REINSEMINAR)
+    if (chequeos.length > 0)
+      await crianzaService.cancelarRecordatorios(chequeos, MOTIVO_CIRCUITO_NO_REINSEMINAR)
+    set((s) => ({
+      recordatorios: s.recordatorios.map((r) =>
+        r.id === recordatorio.id
+          ? { ...r, estado: 'cancelado' as EstadoRecordatorio, cancel_motivo: MOTIVO_NO_REINSEMINAR }
+          : chequeos.includes(r.id)
+            ? { ...r, estado: 'cancelado' as EstadoRecordatorio, cancel_motivo: MOTIVO_CIRCUITO_NO_REINSEMINAR }
+            : r
+      ),
+    }))
+  },
 
   // ── Recordatorios ─────────────────────────────────────────────────────────
 

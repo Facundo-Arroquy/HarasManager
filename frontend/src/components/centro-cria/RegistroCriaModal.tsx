@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { X, AlertCircle, Settings2 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCrianzaStore, reglasParaRegistro, VENTANA_INSEMINACION_DIAS } from '../../store/crianzaStore'
+import { TIPO_CHEQUEAR_OV, TIPO_REINSEMINAR } from '../../utils/circuitoOvulacion'
 import { crianzaService } from '../../services/crianzaService'
 import {
   CHIPS_OI_OD, CHIPS_UTERO, admiteRegistroCria,
@@ -45,6 +46,7 @@ const CHIP_QUE_RESUELVE: Record<string, string> = {
   IN:      'IN',
   OXI:     'OXI',
   'Dar PG': 'PG',
+  [TIPO_REINSEMINAR]: 'IN',
 }
 
 type AnimalItem = {
@@ -60,7 +62,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const { user, sociedadActiva, rol } = useAuth()
   const {
     crearRegistro, plazos, reglasPropias, cargarPlazos, actualizarEstadoRecordatorio,
-    consultarInseminacionReciente,
+    consultarInseminacionReciente, consultarCircuitoOvulacion,
   } = useCrianzaStore()
 
   const [animales, setAnimales] = useState<AnimalItem[]>([])
@@ -97,6 +99,8 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
   // IN en los días previos: decide si la OV de la donante agenda Flushing o Dar PG
   const [inseminadaPrevia, setInseminadaPrevia] = useState(false)
+  // Fechas de los 'Chequear ovulación' abiertos: deciden si se agenda el de mañana
+  const [chequeosAbiertos, setChequeosAbiertos] = useState<string[]>([])
 
   // Ajuste de domingo: -1 = sábado, 0 = domingo, 1 = lunes
   const [ajustesDomingo, setAjustesDomingo] = useState<Record<string, -1 | 0 | 1>>({})
@@ -172,6 +176,19 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       .catch(() => { if (!cancelado) setInseminadaPrevia(false) })
     return () => { cancelado = true }
   }, [consultarIN, caballoId, fecha, consultarInseminacionReciente])
+
+  // Para el preview del circuito post-IN: la misma consulta que hace el store.
+  const consultarCircuito = rolEfectivo === 'Donante' && !!caballoId && !registroEditar
+  useEffect(() => {
+    if (!consultarCircuito) { setChequeosAbiertos([]); return }
+    let cancelado = false
+    consultarCircuitoOvulacion(caballoId)
+      .then((recs) => {
+        if (!cancelado) setChequeosAbiertos(recs.filter((r) => r.tipo === TIPO_CHEQUEAR_OV).map((r) => r.fecha_vto))
+      })
+      .catch(() => { if (!cancelado) setChequeosAbiertos([]) })
+    return () => { cancelado = true }
+  }, [consultarCircuito, caballoId, consultarCircuitoOvulacion])
 
   // ── Carga del catálogo de acciones del vet autenticado ────────────────────
   // La lista es propia de cada veterinario (RLS filtra por auth.uid()) y viaja
@@ -623,6 +640,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               rol={rolEfectivo}
               reviewDias={reviewDias}
               inseminada={obsChips.includes('IN') || inseminadaPrevia}
+              chequeosAbiertos={chequeosAbiertos}
               cfg={plazos}
               propias={reglasPropias}
               ajustesDomingo={ajustesDomingo}
@@ -670,7 +688,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
 function RecordatoriosPreview({
   obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewDias, inseminada, cfg, propias,
-  ajustesDomingo, onAjusteDomingo,
+  chequeosAbiertos, ajustesDomingo, onAjusteDomingo,
 }: {
   obsChips: string[]
   ovarioIzq: string[]
@@ -684,6 +702,8 @@ function RecordatoriosPreview({
   cfg: PlazosVet
   /** Reglas propias del vet, que se suman a las fijas. */
   propias: ReglaRecordatorioVet[]
+  /** fecha_vto de los 'Chequear ovulación' abiertos de la yegua. */
+  chequeosAbiertos: string[]
   ajustesDomingo: Record<string, -1 | 0 | 1>
   onAjusteDomingo: (tipo: string, offset: -1 | 0 | 1) => void
 }) {
@@ -693,7 +713,7 @@ function RecordatoriosPreview({
   const items = reglasParaRegistro(
     { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer,
       review_dias: reviewDias, fecha_flushing_programada: null },
-    rol, cfg, inseminada, propias,
+    rol, cfg, inseminada, propias, chequeosAbiertos,
   ).map((r) => {
     const fechaBase = r.calcularFecha(fecha)
     const caeDomingo = esDomingo(fechaBase)
