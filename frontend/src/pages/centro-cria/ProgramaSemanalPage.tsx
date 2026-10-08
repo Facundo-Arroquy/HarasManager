@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Check, Clock, AlertCircle, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Plus, Check, Clock, AlertCircle, X, Building2, ChevronDown } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
@@ -245,6 +245,8 @@ export default function ProgramaSemanalPage() {
   const [accion,    setAccion]    = useState<Accion | null>(null)
   const [avisoEco,  setAvisoEco]  = useState('')
   const [ubicaciones, setUbicaciones] = useState<Map<string, UbicacionAnimal>>(new Map())
+  /** `null` = todas las empresas (sin filtro). */
+  const [empresasFiltro, setEmpresasFiltro] = useState<Set<string> | null>(null)
 
   const dias = useMemo(() => semana(inicioRef), [inicioRef])
 
@@ -419,23 +421,35 @@ export default function ProgramaSemanalPage() {
     return out.sort(compararEvento)
   }, [registros, recordatorios, transferencias, flushings, ecografias, ubicaciones, sociedad?.nombre])
 
+  /** Nombres únicos de empresa, ordenados alfabéticamente. */
+  const empresasDisponibles = useMemo(() => {
+    const set = new Set(eventos.map((e) => e.empresa))
+    return [...set].sort((a, b) => collator.compare(a, b))
+  }, [eventos])
+
+  /** Eventos después de aplicar el filtro global de empresas. */
+  const eventosFiltrados = useMemo(() => {
+    if (!empresasFiltro) return eventos
+    return eventos.filter((e) => empresasFiltro.has(e.empresa))
+  }, [eventos, empresasFiltro])
+
   const eventosPorDia = useMemo(() => {
     const mapa: Record<string, Evento[]> = {}
-    for (const e of eventos) (mapa[e.fecha] ??= []).push(e)
+    for (const e of eventosFiltrados) (mapa[e.fecha] ??= []).push(e)
     return mapa
-  }, [eventos])
+  }, [eventosFiltrados])
 
   // ── Métricas de la semana en pantalla ──────────────────────────────────────
   const resumen = useMemo(() => {
     const isoSemana = new Set(dias.map(toISO))
-    const deLaSemana = eventos.filter((e) => isoSemana.has(e.fecha))
+    const deLaSemana = eventosFiltrados.filter((e) => isoSemana.has(e.fecha))
     return {
       vencidos:       deLaSemana.filter((e) => e.tipo === 'vencido').length,
-      hoy:            eventos.filter((e) => e.fecha === hoy).length,
+      hoy:            eventosFiltrados.filter((e) => e.fecha === hoy).length,
       programados:    deLaSemana.filter((e) => e.tipo === 'pendiente').length,
       transferencias: deLaSemana.filter((e) => e.tipo === 'transferencia').length,
     }
-  }, [eventos, dias, hoy])
+  }, [eventosFiltrados, dias, hoy])
 
   const eventosDia = eventosPorDia[diaSelec] ?? []
   // Los filtros quedan puestos al cambiar de día, como en una planilla.
@@ -486,6 +500,15 @@ export default function ProgramaSemanalPage() {
           )}
         </div>
       </div>
+
+      {/* Filtro global por empresa — solo si el vet trabaja con más de una */}
+      {empresasDisponibles.length > 1 && (
+        <FiltroEmpresas
+          empresas={empresasDisponibles}
+          seleccion={empresasFiltro}
+          onCambiar={setEmpresasFiltro}
+        />
+      )}
 
       {/* Flushings del día — solo aparece si hay alguno para hoy */}
       <FlushingBanner />
@@ -665,6 +688,99 @@ function Tile({ valor, label, color }: { valor: number; label: string; color: st
     <div className="rounded-xl border border-slate-200 bg-white p-4">
       <div className={`text-2xl font-bold ${color}`}>{valor}</div>
       <div className="text-sm text-slate-500">{label}</div>
+    </div>
+  )
+}
+
+/** Dropdown multi-select de empresas para filtrar todo el calendario. */
+function FiltroEmpresas({
+  empresas, seleccion, onCambiar,
+}: {
+  empresas: string[]
+  seleccion: Set<string> | null
+  onCambiar: (sel: Set<string> | null) => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!abierto) return
+    function onClickFuera(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setAbierto(false)
+    }
+    document.addEventListener('mousedown', onClickFuera)
+    return () => document.removeEventListener('mousedown', onClickFuera)
+  }, [abierto])
+
+  const todas = seleccion === null
+  const nSeleccionadas = seleccion?.size ?? empresas.length
+
+  function toggle(nombre: string) {
+    const sel = new Set(seleccion ?? empresas)
+    if (sel.has(nombre)) sel.delete(nombre)
+    else sel.add(nombre)
+    // Si vuelven a quedar todas, se limpia el filtro.
+    onCambiar(sel.size === empresas.length ? null : sel.size === 0 ? null : sel)
+  }
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+          todas
+            ? 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+            : 'border-brand-300 bg-brand-50 text-brand-700'
+        }`}
+      >
+        <Building2 size={14} />
+        <span>
+          {todas
+            ? 'Todas las empresas'
+            : nSeleccionadas === 1
+              ? [...seleccion!][0]
+              : `${nSeleccionadas} empresas`}
+        </span>
+        <ChevronDown size={14} className={`transition-transform ${abierto ? 'rotate-180' : ''}`} />
+      </button>
+
+      {abierto && (
+        <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+          <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50">
+            <input
+              type="checkbox"
+              checked={todas}
+              onChange={() => onCambiar(null)}
+              className="rounded border-slate-300"
+            />
+            <span className="font-medium text-slate-700">Todas</span>
+          </label>
+          <div className="mx-3 border-t border-slate-100" />
+          {empresas.map((nombre) => (
+            <label key={nombre} className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50">
+              <input
+                type="checkbox"
+                checked={seleccion === null || seleccion.has(nombre)}
+                onChange={() => toggle(nombre)}
+                className="rounded border-slate-300"
+              />
+              <span className="truncate text-slate-700">{nombre}</span>
+            </label>
+          ))}
+          {!todas && (
+            <div className="border-t border-slate-100 px-3 py-2">
+              <button
+                type="button"
+                onClick={() => onCambiar(null)}
+                className="text-xs text-brand-600 hover:text-brand-700"
+              >
+                Limpiar filtro
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
