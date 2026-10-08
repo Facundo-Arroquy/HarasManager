@@ -86,19 +86,52 @@ export function useAuthListener() {
       return
     }
 
+    // Guard para evitar que getSession() y onAuthStateChange disparen
+    // cargarPerfilProd en paralelo (race condition en redes lentas / iOS).
+    // Se resetea en SIGNED_OUT para permitir recarga tras re-login.
+    let perfilIniciado = false
+
+    const iniciarPerfil = (userId: string) => {
+      if (perfilIniciado) return
+      perfilIniciado = true
+      cargarPerfilProd(userId, supabase)
+    }
+
     supabase.auth.getSession().then(({ data }) => {
-      store.setSession(data.session)
-      if (data.session?.user?.id) {
-        cargarPerfilProd(data.session.user.id, supabase)
+      if (data.session) {
+        store.setSession(data.session)
+        if (data.session.user?.id) {
+          iniciarPerfil(data.session.user.id)
+        }
+      } else {
+        store.setLoading(false)
       }
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      store.setSession(session)
-      if (session?.user?.id) {
-        cargarPerfilProd(session.user.id, supabase)
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        // Cuando auth-js emite SIGNED_OUT ya borró la sesión del storage;
+        // intentar getSession() acá siempre devuelve null. Limpiar directo.
+        perfilIniciado = false
+        store.clear()
+        return
       }
-      if (!session) store.clear()
+
+      // TOKEN_REFRESHED: solo actualizar la sesión en el store.
+      // No recargar perfil — evita trabajo innecesario durante refresh storms
+      // (ej: clock skew en iOS que causa ráfagas de 30+ refreshes seguidos).
+      if (event === 'TOKEN_REFRESHED') {
+        if (session) store.setSession(session)
+        return
+      }
+
+      // SIGNED_IN, INITIAL_SESSION, USER_UPDATED, etc.
+      if (session) {
+        store.setSession(session)
+        if (session.user?.id) {
+          iniciarPerfil(session.user.id)
+        }
+      }
     })
 
     return () => listener.subscription.unsubscribe()
@@ -153,7 +186,10 @@ export function useAuth() {
 
   const signOut = async () => {
     const supabase = getSupabaseClient()
-    await supabase.auth.signOut()
+    // scope: 'local' para no revocar refresh tokens de otros dispositivos.
+    // Sin esto, cerrar sesión en la PC mata la sesión del iPhone en el
+    // próximo refresh (~30s).
+    await supabase.auth.signOut({ scope: 'local' })
     store.clear()
   }
 
