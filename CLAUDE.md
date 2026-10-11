@@ -3,7 +3,7 @@
 ## Qué es este proyecto
 
 Sistema web multi-tenant para gestión equina (haras y establecimientos).
-MVP en desarrollo activo, sin producción aún.
+MVP en producción y desarrollo activo.
 
 - **Repo:** https://github.com/Facundo-Arroquy/HarasManager
 - **Devs:** Facundo Arroquy + colaborador
@@ -26,7 +26,7 @@ MVP en desarrollo activo, sin producción aún.
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local   # completar VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
+cp .env.example .env.local   # completar VITE_SUPABASE_URL y VITE_SUPABASE_ANON
 npm run dev
 ```
 
@@ -92,6 +92,7 @@ bloques implementables de a uno.
 - No hace falta anotar CRUD común ni cambios de UI.
 
 **Lo que NO hacer**
+- No guardar en este repositorio público datos de clientes, credenciales ni detalles sensibles de seguridad
 - No crear un backend Express (no está en el plan del MVP)
 - No arrancar el backend FastAPI sin que se cumpla alguno de los disparadores del Bloque 0 de `docs/BACKEND-API-TASKS.md`
 - No hardcodear `sociedad_id` ni `usuario_id`

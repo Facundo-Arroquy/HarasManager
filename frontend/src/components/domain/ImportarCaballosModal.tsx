@@ -82,7 +82,7 @@ export default function ImportarCaballosModal({ onClose, onSuccess }: Props) {
       setParsedRows(parsed)
       setStep('preview')
     } catch {
-      setParseError('No se pudo leer el archivo. Asegurate de subir un .xlsx o .xls válido.')
+      setParseError('No se pudo leer el archivo. Asegurate de subir un .xlsx válido.')
     }
   }
 
@@ -193,7 +193,7 @@ export default function ImportarCaballosModal({ onClose, onSuccess }: Props) {
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
-                    onClick={() => generarPlantillaExcel(catalogs)}
+                    onClick={() => void generarPlantillaExcel(catalogs)}
                     className="flex items-center gap-2 rounded-lg border border-slate-300 hover:border-slate-400 hover:bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition-colors"
                   >
                     <Download size={14} />
@@ -220,12 +220,12 @@ export default function ImportarCaballosModal({ onClose, onSuccess }: Props) {
                 <FileSpreadsheet size={28} className="text-slate-300" />
                 <div className="text-center">
                   <p className="text-sm font-medium text-slate-600">Arrastrá el Excel acá o hacé click para buscarlo</p>
-                  <p className="text-xs text-slate-400 mt-0.5">.xlsx o .xls</p>
+                  <p className="text-xs text-slate-400 mt-0.5">.xlsx</p>
                 </div>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".xlsx,.xls"
+                  accept=".xlsx"
                   className="hidden"
                   onChange={onFileChange}
                 />

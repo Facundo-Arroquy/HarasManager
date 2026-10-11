@@ -20,7 +20,7 @@ import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
 import CargaMasivaProximamente from '../../components/domain/CargaMasivaProximamente'
 import Spinner from '../../components/ui/Spinner'
 
-// xlsx pesa ~600 KB — lazy import para que no entre en el chunk principal
+// La librería de Excel se carga junto con el modal para no entrar en el chunk principal.
 const ImportarCaballosModal = lazy(() => import('../../components/domain/ImportarCaballosModal'))
 
 type Caballo = Awaited<ReturnType<typeof caballoService.listar>>[number]

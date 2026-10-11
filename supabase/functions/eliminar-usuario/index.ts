@@ -18,7 +18,7 @@
 //
 // Quién la puede llamar: solo un superadmin. Se verifica contra la base con el
 // JWT del caller, nunca contra algo que venga en el body.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.105.4'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
