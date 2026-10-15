@@ -761,7 +761,10 @@ CREATE TABLE cria_recordatorio (
   veterinario_id UUID REFERENCES usuario(id),
   notas TEXT,
   auto_generado BOOLEAN DEFAULT FALSE,
-  origen_registro_id UUID REFERENCES cria_registro_clinico(id),
+  origen_registro_id UUID REFERENCES cria_registro_clinico(id) ON DELETE CASCADE,
+  transferencia_id UUID REFERENCES cria_transferencia(id) ON DELETE CASCADE,
+  flushing_id UUID REFERENCES cria_flushing(id) ON DELETE CASCADE,
+  eco_numero SMALLINT,
   cancel_motivo TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
 );
