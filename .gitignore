@@ -5,6 +5,7 @@ node_modules/
 backups/
 supabase/.branches/
 supabase/.temp/
+.firecrawl/
 supabase/config.toml
 GUIA_ADMIN.md
 ACCESOS_DEMO.md

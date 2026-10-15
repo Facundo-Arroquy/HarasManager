@@ -208,6 +208,31 @@ export const crianzaService = {
     if (error) throw error
   },
 
+  /** Los recordatorios todavía abiertos de un animal que vencen ese día. */
+  async listarRecordatoriosAbiertosDelDia(caballoId: string, fecha: string): Promise<RecordatorioCria[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_recordatorio')
+      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
+      .eq('caballo_id', caballoId)
+      .eq('fecha_vto', fecha)
+      .in('estado', ['pendiente', 'vencido'])
+    if (error) throw error
+    return data as RecordatorioCria[]
+  },
+
+  /** Marca hechos varios recordatorios de una vez; los ya cerrados no se tocan. */
+  async marcarRecordatoriosHechos(ids: string[]): Promise<void> {
+    if (ids.length === 0) return
+    const supabase = getSupabaseClient()
+    const { error } = await supabase
+      .from('cria_recordatorio')
+      .update({ estado: 'hecho' })
+      .in('id', ids)
+      .in('estado', ['pendiente', 'vencido'])
+    if (error) throw error
+  },
+
   /**
    * Corre la fecha de vencimiento de un recordatorio y lo devuelve a
    * 'pendiente'. Es lo que usa el banner de flushing para posponer al día

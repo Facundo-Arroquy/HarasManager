@@ -3,6 +3,7 @@ import { crianzaService } from '../services/crianzaService'
 import { useToastStore } from './toastStore'
 import { mensajeError } from '../utils/error'
 import { hoyAR } from '../utils/fecha'
+import { actoResuelveRecordatorio, type ActoCria } from '../utils/recordatorio'
 import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
 import type {
   PlazosVet,
@@ -200,6 +201,14 @@ interface CrianzaState {
   /** Corre el vencimiento un día (o los que se pidan) y lo deja pendiente. */
   posponerRecordatorio: (id: string, dias?: number) => Promise<void>
 
+  /**
+   * Marca `hecho` los recordatorios abiertos del animal para ese día que el acto
+   * recién cargado resuelve (ver `actoResuelveRecordatorio`). No falla: lo
+   * cargado ya quedó guardado y lo peor que pasa es que el recordatorio siga
+   * abierto, como antes.
+   */
+  cerrarRecordatoriosResueltos: (caballoId: string, fecha: string, acto: ActoCria) => Promise<void>
+
   // Flushings
   crearFlushing: (payload: NuevoFlushingPayload) => Promise<Flushing>
   actualizarFlushing: (id: string, payload: Partial<NuevoFlushingPayload>) => Promise<void>
@@ -304,6 +313,12 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     const registro = await crianzaService.crearRegistro(payload)
     set((s) => ({ registros: [registro, ...s.registros] }))
 
+    // Antes de agendar lo nuevo: lo que estaba agendado para hoy y esta
+    // consulta hizo pasa a hecho en vez de quedar "Falta hacer" al lado.
+    await get().cerrarRecordatoriosResueltos(
+      payload.caballo_id, payload.fecha, { clase: 'registro', chips: payload.obs_chips },
+    )
+
     // Auto-generar recordatorios según chips (insert batch para evitar N+1).
     // Los plazos son los del vet autenticado = el que hace el registro.
     const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, inseminada, get().reglasPropias)
@@ -393,6 +408,24 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     }))
   },
 
+  cerrarRecordatoriosResueltos: async (caballoId, fecha, acto) => {
+    try {
+      const abiertos = await crianzaService.listarRecordatoriosAbiertosDelDia(caballoId, fecha)
+      const ids = abiertos
+        .filter((r) => actoResuelveRecordatorio(r.tipo, acto))
+        .map((r) => r.id)
+      if (ids.length === 0) return
+      await crianzaService.marcarRecordatoriosHechos(ids)
+      set((s) => ({
+        recordatorios: s.recordatorios.map((r) =>
+          ids.includes(r.id) ? { ...r, estado: 'hecho' as EstadoRecordatorio } : r
+        ),
+      }))
+    } catch (e) {
+      console.error('[crianzaStore] cerrar recordatorios resueltos:', mensajeError(e))
+    }
+  },
+
   posponerRecordatorio: async (id, dias = 1) => {
     const actual = get().recordatorios.find((r) => r.id === id)
     if (!actual) return
@@ -415,6 +448,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   crearFlushing: async (payload) => {
     const flushing = await crianzaService.crearFlushing(payload)
     set((s) => ({ flushings: [flushing, ...s.flushings] }))
+    await get().cerrarRecordatoriosResueltos(payload.caballo_id, payload.fecha, { clase: 'flushing' })
     return flushing
   },
 

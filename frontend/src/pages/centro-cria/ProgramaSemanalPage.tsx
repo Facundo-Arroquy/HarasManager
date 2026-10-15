@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Check, Clock, AlertCircle, X, Building2, ChevronDown } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight, Plus, Check, Clock, AlertCircle, X } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
@@ -12,9 +12,9 @@ import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import FiltroColumna from '../../components/ui/FiltroColumna'
 import { useFiltrosTabla } from '../../hooks/useFiltrosTabla'
 import { hoyAR, sumarDias } from '../../utils/fecha'
-import { accionParaRecordatorio, type AccionRecordatorio } from '../../utils/recordatorio'
+import { accionParaRecordatorio, TIPOS_ECO, type AccionRecordatorio } from '../../utils/recordatorio'
+import { armarTarjetas, esPorHacer, type Evento, type Tarjeta, type TipoEvento } from '../../utils/programaSemanal'
 import { LABEL_RESULTADO_ECO } from '../../types/crianza'
-import type { RolReproductivo, RecordatorioCria } from '../../types/crianza'
 
 // ── Utilidades de fecha ───────────────────────────────────────────────────────
 
@@ -75,36 +75,6 @@ function formatDiaLargo(d: Date): string {
 
 // ── Eventos del programa ──────────────────────────────────────────────────────
 
-/**
- * Los tres orígenes de actividad del centro (recordatorios, registros clínicos y
- * transferencias) se normalizan a un mismo `Evento` para poder pintarlos juntos
- * en el calendario y listarlos en la tabla del día.
- */
-type TipoEvento =
-  | 'vencido' | 'pendiente'
-  | 'registro' | 'transferencia' | 'flushing' | 'ecografia'
-
-interface Evento {
-  id:            string
-  fecha:         string
-  caballoId:     string
-  caballoNombre: string
-  rol:           RolReproductivo
-  empresa:       string
-  campo:         string
-  actividad:     string
-  etiqueta:      string
-  tipo:          TipoEvento
-  veterinario:   string | null
-  detalle:       string | null
-  /**
-   * Solo en los eventos que todavía hay que hacer. Es lo que convierte el clic
-   * en "hacer lo agendado" y no en "cargar un registro nuevo": sin esto el
-   * recordatorio quedaba pendiente al lado del registro que lo resolvió.
-   */
-  recordatorio?: RecordatorioCria
-}
-
 const ESTILO_EVENTO: Record<TipoEvento, string> = {
   vencido:       'bg-red-50 border-red-200 text-red-900',
   pendiente:     'bg-green-50 border-green-200 text-green-900',
@@ -148,14 +118,14 @@ const ICONO_ESTADO_EVENTO: Record<TipoEvento, typeof Check> = {
 
 /** Lo que filtra y ordena cada columna de la tabla del día (filtros tipo Excel). */
 const COLUMNAS_TABLA = {
-  empresa:     (e: Evento) => e.empresa,
-  campo:       (e: Evento) => e.campo,
-  caballo:     (e: Evento) => e.caballoNombre,
-  rol:         (e: Evento) => e.rol,
-  tipo:        (e: Evento) => e.etiqueta,
-  veterinario: (e: Evento) => e.veterinario,
-  estado:      (e: Evento) => LABEL_ESTADO_EVENTO[e.tipo],
-  detalle:     (e: Evento) => e.detalle,
+  empresa:     (t: Tarjeta) => t.empresa,
+  campo:       (t: Tarjeta) => t.campo,
+  caballo:     (t: Tarjeta) => t.caballoNombre,
+  rol:         (t: Tarjeta) => t.rol,
+  tipo:        (t: Tarjeta) => t.etiqueta,
+  veterinario: (t: Tarjeta) => t.veterinario,
+  estado:      (t: Tarjeta) => LABEL_ESTADO_EVENTO[t.estado],
+  detalle:     (t: Tarjeta) => t.detalle,
 }
 
 const ENCABEZADOS: { col: keyof typeof COLUMNAS_TABLA; titulo: string }[] = [
@@ -163,7 +133,7 @@ const ENCABEZADOS: { col: keyof typeof COLUMNAS_TABLA; titulo: string }[] = [
   { col: 'campo',       titulo: 'Campo' },
   { col: 'caballo',     titulo: 'Caballo' },
   { col: 'rol',         titulo: 'Rol' },
-  { col: 'tipo',        titulo: 'Tipo' },
+  { col: 'tipo',        titulo: 'Actividades' },
   { col: 'veterinario', titulo: 'Veterinario' },
   { col: 'estado',      titulo: 'Estado' },
   { col: 'detalle',     titulo: 'Detalle' },
@@ -203,7 +173,8 @@ function agruparPor<T>(items: T[], clave: (item: T) => string): Map<string, T[]>
   return grupos
 }
 
-function compararEvento(a: Evento, b: Evento): number {
+/** Empresa → campo → rol → nombre, con "Sin empresa" y "Sin campo" al final. */
+function compararTarjeta(a: Tarjeta, b: Tarjeta): number {
   const rolOrden: Record<string, number> = { Donante: 0, Receptora: 1 }
   const empresa = a.empresa === b.empresa
     ? 0
@@ -222,7 +193,6 @@ function compararEvento(a: Evento, b: Evento): number {
   return empresa
     || campo
     || (rolOrden[a.rol ?? ''] ?? 2) - (rolOrden[b.rol ?? ''] ?? 2)
-    || collator.compare(a.actividad, b.actividad)
     || collator.compare(a.caballoNombre, b.caballoNombre)
 }
 
@@ -245,8 +215,6 @@ export default function ProgramaSemanalPage() {
   const [accion,    setAccion]    = useState<Accion | null>(null)
   const [avisoEco,  setAvisoEco]  = useState('')
   const [ubicaciones, setUbicaciones] = useState<Map<string, UbicacionAnimal>>(new Map())
-  /** `null` = todas las empresas (sin filtro). */
-  const [empresasFiltro, setEmpresasFiltro] = useState<Set<string> | null>(null)
 
   const dias = useMemo(() => semana(inicioRef), [inicioRef])
 
@@ -310,15 +278,18 @@ export default function ProgramaSemanalPage() {
     setAccion(accionRec)
   }
 
-  // ── Normalización de los tres orígenes a una lista única de eventos ─────────
-  const eventos = useMemo<Evento[]>(() => {
+  // ── Normalización de los orígenes a eventos, juntados por yegua y día ──────
+  const tarjetas = useMemo<Tarjeta[]>(() => {
     const out: Evento[] = []
 
     const datosUbicacion = (caballoId: string): UbicacionAnimal =>
       ubicaciones.get(caballoId) ?? { empresa: sociedad?.nombre ?? SIN_EMPRESA, campo: SIN_CAMPO }
 
+    // Los hechos también entran: son los que le ponen nombre a lo cargado
+    // ("Revisión PG ✓") o, marcados "Hecho" a mano, lo único que queda de eso.
     for (const r of recordatorios) {
-      if (r.estado !== 'pendiente' && r.estado !== 'vencido') continue
+      if (r.estado === 'cancelado') continue
+      const porHacer = r.estado === 'pendiente' || r.estado === 'vencido'
       const ubicacion = datosUbicacion(r.caballo_id)
       out.push({
         id:            `rec-${r.id}`,
@@ -329,10 +300,12 @@ export default function ProgramaSemanalPage() {
         ...ubicacion,
         actividad:     r.tipo,
         etiqueta:      r.tipo,
-        tipo:          r.estado === 'vencido' ? 'vencido' : 'pendiente',
+        tipo:          porHacer
+          ? (r.estado === 'vencido' ? 'vencido' : 'pendiente')
+          : r.tipo === 'Flushing' ? 'flushing' : TIPOS_ECO.includes(r.tipo) ? 'ecografia' : 'registro',
         veterinario:   nombreVet(r.veterinario),
         detalle:       r.notas,
-        recordatorio:  r,
+        ...(porHacer ? { recordatorio: r } : { recordatorioHecho: r }),
       })
     }
 
@@ -355,6 +328,7 @@ export default function ProgramaSemanalPage() {
         tipo:          'registro',
         veterinario:   nombreVet(r.veterinario),
         detalle:       ovarios || null,
+        acto:          { clase: 'registro', chips: r.obs_chips },
       })
     }
 
@@ -378,6 +352,7 @@ export default function ProgramaSemanalPage() {
         tipo:          'flushing',
         veterinario:   nombreVet(f.veterinario),
         detalle:       [f.pg_given ? 'Se dio PG' : null, f.notas].filter(Boolean).join(' · ') || null,
+        acto:          { clase: 'flushing' },
       })
     }
 
@@ -397,6 +372,7 @@ export default function ProgramaSemanalPage() {
         tipo:          'ecografia',
         veterinario:   nombreVet(e.veterinario),
         detalle:       e.notas,
+        acto:          { clase: 'ecografia', numero: e.numero },
       })
     }
 
@@ -418,42 +394,35 @@ export default function ProgramaSemanalPage() {
       })
     }
 
-    return out.sort(compararEvento)
+    return armarTarjetas(out).sort(compararTarjeta)
   }, [registros, recordatorios, transferencias, flushings, ecografias, ubicaciones, sociedad?.nombre])
 
-  /** Nombres únicos de empresa, ordenados alfabéticamente. */
-  const empresasDisponibles = useMemo(() => {
-    const set = new Set(eventos.map((e) => e.empresa))
-    return [...set].sort((a, b) => collator.compare(a, b))
-  }, [eventos])
-
-  /** Eventos después de aplicar el filtro global de empresas. */
-  const eventosFiltrados = useMemo(() => {
-    if (!empresasFiltro) return eventos
-    return eventos.filter((e) => empresasFiltro.has(e.empresa))
-  }, [eventos, empresasFiltro])
-
-  const eventosPorDia = useMemo(() => {
-    const mapa: Record<string, Evento[]> = {}
-    for (const e of eventosFiltrados) (mapa[e.fecha] ??= []).push(e)
+  const tarjetasPorDia = useMemo(() => {
+    const mapa: Record<string, Tarjeta[]> = {}
+    for (const t of tarjetas) (mapa[t.fecha] ??= []).push(t)
     return mapa
-  }, [eventosFiltrados])
+  }, [tarjetas])
 
   // ── Métricas de la semana en pantalla ──────────────────────────────────────
+  // Se cuentan yeguas, no actividades: es lo que hay que ir a ver.
   const resumen = useMemo(() => {
     const isoSemana = new Set(dias.map(toISO))
-    const deLaSemana = eventosFiltrados.filter((e) => isoSemana.has(e.fecha))
+    const deLaSemana = tarjetas.filter((t) => isoSemana.has(t.fecha))
+    const conActividad = (lista: Tarjeta[], tipo: TipoEvento) =>
+      lista.filter((t) => t.actividades.some((a) => a.tipo === tipo)).length
     return {
-      vencidos:       deLaSemana.filter((e) => e.tipo === 'vencido').length,
-      hoy:            eventosFiltrados.filter((e) => e.fecha === hoy).length,
-      programados:    deLaSemana.filter((e) => e.tipo === 'pendiente').length,
-      transferencias: deLaSemana.filter((e) => e.tipo === 'transferencia').length,
+      vencidos:       conActividad(deLaSemana, 'vencido'),
+      hoy:            tarjetas.filter((t) => t.fecha === hoy).length,
+      programados:    conActividad(deLaSemana, 'pendiente'),
+      transferencias: deLaSemana
+        .flatMap((t) => t.actividades)
+        .filter((a) => a.tipo === 'transferencia').length,
     }
-  }, [eventosFiltrados, dias, hoy])
+  }, [tarjetas, dias, hoy])
 
-  const eventosDia = eventosPorDia[diaSelec] ?? []
+  const tarjetasDia = tarjetasPorDia[diaSelec] ?? []
   // Los filtros quedan puestos al cambiar de día, como en una planilla.
-  const filtros = useFiltrosTabla(eventosDia, COLUMNAS_TABLA)
+  const filtros = useFiltrosTabla(tarjetasDia, COLUMNAS_TABLA)
 
   if (loading && registros.length === 0) {
     return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
@@ -501,15 +470,6 @@ export default function ProgramaSemanalPage() {
         </div>
       </div>
 
-      {/* Filtro global por empresa — solo si el vet trabaja con más de una */}
-      {empresasDisponibles.length > 1 && (
-        <FiltroEmpresas
-          empresas={empresasDisponibles}
-          seleccion={empresasFiltro}
-          onCambiar={setEmpresasFiltro}
-        />
-      )}
-
       {/* Flushings del día — solo aparece si hay alguno para hoy */}
       <FlushingBanner />
 
@@ -528,7 +488,7 @@ export default function ProgramaSemanalPage() {
             const iso     = toISO(dia)
             const esHoy   = iso === hoy
             const esSelec = iso === diaSelec
-            const delDia  = eventosPorDia[iso] ?? []
+            const delDia  = tarjetasPorDia[iso] ?? []
 
             return (
               <div
@@ -550,7 +510,7 @@ export default function ProgramaSemanalPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <GruposDia eventos={delDia} esVet={esVet} onAbrir={abrirEvento} />
+                    <GruposDia tarjetas={delDia} esVet={esVet} onAbrir={abrirEvento} />
                   </div>
                 )}
               </div>
@@ -574,7 +534,7 @@ export default function ProgramaSemanalPage() {
           {/* Visible aunque el día esté vacío: sin tabla no hay otra forma de sacarlos. */}
           {filtros.hayCambios && (
             <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span>Mostrando {filtros.filas.length} de {eventosDia.length}</span>
+              <span>Mostrando {filtros.filas.length} de {tarjetasDia.length}</span>
               <button
                 onClick={filtros.limpiar}
                 className="flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1 text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700"
@@ -585,7 +545,7 @@ export default function ProgramaSemanalPage() {
           )}
         </div>
 
-        {eventosDia.length === 0 ? (
+        {tarjetasDia.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">Sin actividad registrada.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -614,20 +574,22 @@ export default function ProgramaSemanalPage() {
                     </td>
                   </tr>
                 )}
-                {filtros.filas.map((e) => (
-                  <tr key={e.id} className="border-b border-slate-100 last:border-0">
-                    <td className="py-2 pr-3 text-slate-600">{e.empresa}</td>
-                    <td className="py-2 pr-3 text-slate-500">{e.campo}</td>
+                {filtros.filas.map((t) => (
+                  <tr key={t.id} className="border-b border-slate-100 last:border-0">
+                    <td className="py-2 pr-3 text-slate-600">{t.empresa}</td>
+                    <td className="py-2 pr-3 text-slate-500">{t.campo}</td>
                     <td className="py-2 pr-3 font-medium text-slate-800">
-                      <NombreCaballoLink id={e.caballoId} nombre={e.caballoNombre} />
+                      <NombreCaballoLink id={t.caballoId} nombre={t.caballoNombre} />
                     </td>
-                    <td className="py-2 pr-3 text-slate-500">{e.rol ?? '—'}</td>
-                    <td className="py-2 pr-3 text-slate-600">{e.etiqueta}</td>
-                    <td className="py-2 pr-3 text-slate-500">{e.veterinario ?? '—'}</td>
+                    <td className="py-2 pr-3 text-slate-500">{t.rol ?? '—'}</td>
+                    <td className="py-2 pr-3 text-slate-600">
+                      <ListaActividades actividades={t.actividades} esVet={esVet} onAbrir={abrirEvento} />
+                    </td>
+                    <td className="py-2 pr-3 text-slate-500">{t.veterinario ?? '—'}</td>
                     <td className="py-2 pr-3">
-                      <BadgeEstado tipo={e.tipo} />
+                      <BadgeEstado tipo={t.estado} />
                     </td>
-                    <td className="py-2 text-xs text-slate-500">{e.detalle ?? '—'}</td>
+                    <td className="py-2 text-xs text-slate-500">{t.detalle ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -692,159 +654,102 @@ function Tile({ valor, label, color }: { valor: number; label: string; color: st
   )
 }
 
-/** Dropdown multi-select de empresas para filtrar todo el calendario. */
-function FiltroEmpresas({
-  empresas, seleccion, onCambiar,
+/**
+ * Las actividades de una yegua en el día, separadas por "|". Lo hecho lleva
+ * tilde; lo que falta, reloj (o alerta si venció) y es lo único que se toca.
+ */
+function ListaActividades({
+  actividades, esVet, onAbrir, compacto = false,
 }: {
-  empresas: string[]
-  seleccion: Set<string> | null
-  onCambiar: (sel: Set<string> | null) => void
+  actividades: Evento[]
+  esVet: boolean
+  onAbrir: (evento: Evento) => void
+  compacto?: boolean
 }) {
-  const [abierto, setAbierto] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!abierto) return
-    function onClickFuera(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) setAbierto(false)
-    }
-    document.addEventListener('mousedown', onClickFuera)
-    return () => document.removeEventListener('mousedown', onClickFuera)
-  }, [abierto])
-
-  const todas = seleccion === null
-  const nSeleccionadas = seleccion?.size ?? empresas.length
-
-  function toggle(nombre: string) {
-    const sel = new Set(seleccion ?? empresas)
-    if (sel.has(nombre)) sel.delete(nombre)
-    else sel.add(nombre)
-    // Si vuelven a quedar todas, se limpia el filtro.
-    onCambiar(sel.size === empresas.length ? null : sel.size === 0 ? null : sel)
-  }
-
   return (
-    <div ref={ref} className="relative inline-block">
-      <button
-        type="button"
-        onClick={() => setAbierto((v) => !v)}
-        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-          todas
-            ? 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-            : 'border-brand-300 bg-brand-50 text-brand-700'
-        }`}
-      >
-        <Building2 size={14} />
-        <span>
-          {todas
-            ? 'Todas las empresas'
-            : nSeleccionadas === 1
-              ? [...seleccion!][0]
-              : `${nSeleccionadas} empresas`}
-        </span>
-        <ChevronDown size={14} className={`transition-transform ${abierto ? 'rotate-180' : ''}`} />
-      </button>
-
-      {abierto && (
-        <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-          <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50">
-            <input
-              type="checkbox"
-              checked={todas}
-              onChange={() => onCambiar(null)}
-              className="rounded border-slate-300"
-            />
-            <span className="font-medium text-slate-700">Todas</span>
-          </label>
-          <div className="mx-3 border-t border-slate-100" />
-          {empresas.map((nombre) => (
-            <label key={nombre} className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50">
-              <input
-                type="checkbox"
-                checked={seleccion === null || seleccion.has(nombre)}
-                onChange={() => toggle(nombre)}
-                className="rounded border-slate-300"
-              />
-              <span className="truncate text-slate-700">{nombre}</span>
-            </label>
-          ))}
-          {!todas && (
-            <div className="border-t border-slate-100 px-3 py-2">
-              <button
-                type="button"
-                onClick={() => onCambiar(null)}
-                className="text-xs text-brand-600 hover:text-brand-700"
-              >
-                Limpiar filtro
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    <span className={`flex flex-wrap items-center gap-x-1 gap-y-0.5 ${compacto ? 'text-[11px]' : 'text-sm'}`}>
+      {actividades.map((a, i) => {
+        const Icono = ICONO_ESTADO_EVENTO[a.tipo]
+        const accionable = esVet && !!a.recordatorio
+        return (
+          <span key={a.id} className="inline-flex items-center gap-1">
+            {i > 0 && <span className="text-slate-300">|</span>}
+            <span
+              onClick={accionable ? (ev) => { ev.stopPropagation(); onAbrir(a) } : undefined}
+              title={accionable ? `Hacer ${a.etiqueta}` : undefined}
+              className={`inline-flex items-center gap-0.5 ${
+                accionable ? 'cursor-pointer underline decoration-dotted underline-offset-2' : ''
+              } ${esPorHacer(a.tipo) ? 'font-medium' : 'opacity-75'}`}
+            >
+              {a.etiqueta}
+              <Icono size={compacto ? 10 : 12} className="shrink-0" />
+            </span>
+          </span>
+        )
+      })}
+    </span>
   )
 }
 
-/** Empresa → campo → rol → actividad dentro de la columna de un día. */
+/** Empresa → campo → rol → yegua dentro de la columna de un día. */
 function GruposDia({
-  eventos, esVet, onAbrir,
+  tarjetas, esVet, onAbrir,
 }: {
-  eventos: Evento[]
+  tarjetas: Tarjeta[]
   esVet: boolean
   onAbrir: (evento: Evento) => void
 }) {
-  const empresas = agruparPor(eventos, (e) => e.empresa)
+  const empresas = agruparPor(tarjetas, (t) => t.empresa)
 
-  return [...empresas.entries()].map(([empresa, eventosEmpresa]) => {
-    const campos = agruparPor(eventosEmpresa, (e) => e.campo)
+  return [...empresas.entries()].map(([empresa, tarjetasEmpresa]) => {
+    const campos = agruparPor(tarjetasEmpresa, (t) => t.campo)
     return (
       <section key={empresa} className="space-y-2">
         <p className="border-b border-slate-200 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-          {empresa} <span className="font-normal text-slate-400">({eventosEmpresa.length})</span>
+          {empresa} <span className="font-normal text-slate-400">({tarjetasEmpresa.length})</span>
         </p>
-        {[...campos.entries()].map(([campo, eventosCampo]) => {
-          const roles = agruparPor(eventosCampo, (e) => e.rol ?? 'Sin rol')
+        {[...campos.entries()].map(([campo, tarjetasCampo]) => {
+          const roles = agruparPor(tarjetasCampo, (t) => t.rol ?? 'Sin rol')
           return (
             <div key={campo} className="space-y-2 pl-1">
               <p className="text-[10px] font-semibold text-slate-500">{campo}</p>
-              {[...roles.entries()].map(([rol, eventosRol]) => {
-                const actividades = agruparPor(eventosRol, (e) => e.actividad)
-                return (
-                  <div key={rol} className="space-y-1.5 pl-1">
-                    <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">{rol}</p>
-                    {[...actividades.entries()].map(([actividad, eventosActividad]) => (
-                      <div key={actividad} className="space-y-1">
-                        <p className="text-[10px] font-semibold text-slate-600">
-                          {actividad} <span className="font-normal text-slate-400">({eventosActividad.length})</span>
-                        </p>
-                        {eventosActividad.map((e) => {
-                          // Un registro cargado o una transferencia hecha ya son historia: se
-                          // abren para mirarlas en la tabla del día, no para cargarlas de nuevo.
-                          const accionable = esVet && !!e.recordatorio
-                          return (
-                            <div
-                              key={e.id}
-                              onClick={(ev) => { ev.stopPropagation(); onAbrir(e) }}
-                              title={accionable
-                                ? `Hacer ${e.etiqueta} de ${e.caballoNombre}`
-                                : `${e.caballoNombre} — ya registrado, no hay nada que cargar`}
-                              className={`cursor-pointer rounded-lg border p-2 hover:brightness-95 ${ESTILO_EVENTO[e.tipo]}`}
-                            >
-                              <NombreCaballoLink id={e.caballoId} nombre={e.caballoNombre} className="text-xs font-medium" />
-                              {e.etiqueta !== actividad && (
-                                <div className="truncate text-[11px] opacity-75">{e.etiqueta}</div>
-                              )}
-                              {/* El tag es lo que evita apretar lo que ya está hecho esperando
-                                  que abra algo: el tilde no abre nada, el reloj sí. */}
-                              <BadgeEstado tipo={e.tipo} compacto />
-                            </div>
-                          )
-                        })}
+              {[...roles.entries()].map(([rol, tarjetasRol]) => (
+                <div key={rol} className="space-y-1.5 pl-1">
+                  <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                    {rol} <span className="font-normal">({tarjetasRol.length})</span>
+                  </p>
+                  {tarjetasRol.map((t) => {
+                    // Una sola cosa por hacer: tocar el cartel la abre, como antes.
+                    // Con varias, se elige tocando la actividad.
+                    const porHacer = t.actividades.filter((a) => a.recordatorio)
+                    const unica = porHacer.length === 1 ? porHacer[0] : null
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={(ev) => {
+                          // Sin una única cosa que abrir, el clic sigue de largo
+                          // y solo selecciona el día.
+                          if (!unica) return
+                          ev.stopPropagation()
+                          onAbrir(unica)
+                        }}
+                        title={esVet && porHacer.length > 0
+                          ? `${t.caballoNombre}: ${t.etiqueta}`
+                          : `${t.caballoNombre} — ya registrado, no hay nada que cargar`}
+                        className={`cursor-pointer rounded-lg border p-2 hover:brightness-95 ${ESTILO_EVENTO[t.estado]}`}
+                      >
+                        <NombreCaballoLink id={t.caballoId} nombre={t.caballoNombre} className="text-xs font-medium" />
+                        <div className="mt-0.5">
+                          <ListaActividades actividades={t.actividades} esVet={esVet} onAbrir={onAbrir} compacto />
+                        </div>
+                        {/* El tag es lo que evita apretar lo que ya está hecho esperando
+                            que abra algo: el tilde no abre nada, el reloj sí. */}
+                        <BadgeEstado tipo={t.estado} compacto />
                       </div>
-                    ))}
-                  </div>
-                )
-              })}
+                    )
+                  })}
+                </div>
+              ))}
             </div>
           )
         })}

@@ -28,6 +28,9 @@ interface CaballoGridCardProps {
   empresaNombre?: string
   /** Marca la tarjeta como inactiva (subsección "Dados de baja"). */
   dadoDeBaja?: boolean
+  jugadorActivo?: boolean
+  cambiandoJugador?: boolean
+  onToggleJugador?: () => void
 }
 
 const CATEGORIA_STYLE: Record<string, string> = {
@@ -45,6 +48,9 @@ export default function CaballoGridCard({
   onToggle,
   empresaNombre,
   dadoDeBaja,
+  jugadorActivo,
+  cambiandoJugador,
+  onToggleJugador,
 }: CaballoGridCardProps) {
   const enModoSeleccion = onToggle !== undefined
   const badgeClass      = CATEGORIA_STYLE[caballo.categoria ?? ''] ?? CATEGORIA_STYLE['Caballo']
@@ -111,7 +117,7 @@ export default function CaballoGridCard({
                     Preñada
                   </span>
                 )}
-                {(caballo.tags ?? []).map((t) => (
+                {(caballo.tags ?? []).filter((t) => t.nombre !== 'Jugador').map((t) => (
                   <span
                     key={t.id}
                     className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-medium text-teal-700 ring-1 ring-teal-200"
@@ -129,6 +135,22 @@ export default function CaballoGridCard({
           {edad}
           {empresaNombre && <span className="text-slate-400"> · {empresaNombre}</span>}
         </p>
+
+        {onToggleJugador && !enModoSeleccion && !dadoDeBaja && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleJugador() }}
+            disabled={cambiandoJugador}
+            className={`mt-3 self-start rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition disabled:opacity-50 ${
+              jugadorActivo
+                ? 'bg-teal-100 text-teal-700 ring-teal-200 hover:bg-teal-50'
+                : 'bg-white text-slate-500 ring-slate-200 hover:text-teal-700 hover:ring-teal-200'
+            }`}
+            title={jugadorActivo ? 'Quitar tag Jugador' : 'Marcar como Jugador'}
+          >
+            {cambiandoJugador ? 'Guardando…' : jugadorActivo ? '✓ Jugador activo' : '+ Marcar como jugador'}
+          </button>
+        )}
 
         {/* Datos */}
         <div className="mt-3 space-y-1 text-sm text-slate-600">

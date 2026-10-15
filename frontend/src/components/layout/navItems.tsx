@@ -34,7 +34,9 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/transferir-vet',    label: 'Compra/Venta Caballos', icon: <ArrowLeftRight size={18} />, roles: ['veterinario'] },
       { to: '/transferencias',    label: 'Compra/Venta Caballos', icon: <ArrowLeftRight size={18} />, roles: ['admin'] },
       { to: '/admin',             label: 'Administración',     icon: <Settings size={18} />,       roles: ['admin'] },
-      { to: '/config',            label: 'Configuración',      icon: <SlidersHorizontal size={18} />, roles: ['admin', 'jugador', 'piloto', 'peticero'] },
+      // Para el admin, Configuración vive como pestaña de Administración.
+      // Los demás roles operativos conservan el acceso directo.
+      { to: '/config',            label: 'Configuración',      icon: <SlidersHorizontal size={18} />, roles: ['jugador', 'piloto', 'peticero'] },
     ],
   },
   {
@@ -58,8 +60,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Polo',
     requiresModulo: 'polo',
     items: [
-      // El armado del torneo lo hace el admin; jugador, piloto y peticero entran
-      // a ver la conformación de equipos (la escritura la corta la RLS igual).
+      // Admin y piloto gestionan el torneo; jugador y peticero entran en modo lectura.
       { to: '/torneos', label: 'Torneos', icon: <Trophy size={18} />, matchPrefix: true, roles: ['admin', 'jugador', 'piloto', 'peticero'] },
     ],
   },

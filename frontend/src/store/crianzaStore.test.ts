@@ -12,6 +12,8 @@ vi.mock('../services/crianzaService', () => ({
     crearRecordatoriosBatch:  vi.fn(),
     cancelarRecordatorios:    vi.fn(),
     huboInseminacionEntre:    vi.fn(),
+    listarRecordatoriosAbiertosDelDia: vi.fn().mockResolvedValue([]),
+    marcarRecordatoriosHechos:         vi.fn().mockResolvedValue(undefined),
   },
 }))
 
@@ -184,5 +186,45 @@ describe('crearRegistro — revisión duplicada para el mismo animal', () => {
     await useCrianzaStore.getState().crearRegistro(payload, null)
 
     expect(crianzaService.cancelarRecordatorios).not.toHaveBeenCalled()
+  })
+})
+
+// ── crearRegistro: lo agendado para ese día queda hecho, no duplicado ───────
+
+describe('crearRegistro — cierra lo agendado del día que la consulta resolvió', () => {
+  function recordatorio(id: string, tipo: string): RecordatorioCria {
+    return {
+      id, caballo_id: 'estrella', sociedad_id: 'soc-1', tipo, fecha_vto: FECHA_BASE,
+      estado: 'pendiente', veterinario_id: 'vet-1', notas: null, auto_generado: true,
+      origen_registro_id: null, cancel_motivo: null, created_at: '', updated_at: '',
+    }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useCrianzaStore.setState({
+      registros: [], recordatorios: [], flushings: [], transferencias: [], ecografias: [],
+      plazos: PLAZOS_VET_DEFAULTS, reglasPropias: [], loading: false, error: null,
+    })
+  })
+
+  it('una consulta cargada sin entrar por el recordatorio cierra la Revisión PG y deja el Flushing', async () => {
+    const abiertos = [recordatorio('rec-flu', 'Flushing'), recordatorio('rec-rpg', 'Revisión PG')]
+    useCrianzaStore.setState({ recordatorios: abiertos })
+    vi.mocked(crianzaService.listarRecordatoriosAbiertosDelDia).mockResolvedValue(abiertos)
+    vi.mocked(crianzaService.crearRegistro).mockResolvedValue({ id: 'reg-1' } as never)
+
+    await useCrianzaStore.getState().crearRegistro({
+      caballo_id: 'estrella', sociedad_id: 'soc-1', fecha: FECHA_BASE, veterinario_id: 'vet-1',
+      ovario_izq: [], ovario_der: [], utero: [], obs_chips: [],
+      padrillo_id: null, ov_dias: null, review_dias: null, review_desc: null,
+      motivo: null, diagnostico: null, tratamiento: null, observaciones: null,
+      origen_recordatorio_id: null,
+    }, 'Donante')
+
+    expect(crianzaService.listarRecordatoriosAbiertosDelDia).toHaveBeenCalledWith('estrella', FECHA_BASE)
+    expect(crianzaService.marcarRecordatoriosHechos).toHaveBeenCalledWith(['rec-rpg'])
+    const estados = Object.fromEntries(useCrianzaStore.getState().recordatorios.map((r) => [r.id, r.estado]))
+    expect(estados).toEqual({ 'rec-flu': 'pendiente', 'rec-rpg': 'hecho' })
   })
 })

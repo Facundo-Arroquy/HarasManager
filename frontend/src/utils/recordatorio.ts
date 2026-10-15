@@ -73,3 +73,42 @@ export function fichaDeRecordatorio(
 
   return null
 }
+
+/** Lo que el vet acaba de cargar, visto desde los recordatorios que puede cerrar. */
+export type ActoCria =
+  | { clase: 'registro';  chips: string[] }
+  | { clase: 'flushing' }
+  | { clase: 'ecografia'; numero: number }
+
+/** Chip del registro que hace lo que pide cada recordatorio, cuando no se llaman igual. */
+const CHIPS_QUE_RESUELVEN: Record<string, string[]> = {
+  'Dar PG': ['PG', '1PG'],
+}
+
+/** Los chips de registro que hacen lo que pide un recordatorio de este tipo. */
+export function chipsDeRecordatorio(tipo: string): string[] {
+  return CHIPS_QUE_RESUELVEN[tipo] ?? [tipo]
+}
+
+/**
+ * Si cargar `acto` es hacer lo que pedía un recordatorio de tipo `tipo` del
+ * mismo animal y el mismo día. Es lo que evita que en el programa semanal
+ * quede "Falta hacer" al lado del "Registrado" que lo resolvió cuando la
+ * consulta se cargó sin entrar por el recordatorio.
+ *
+ * - Una consulta es una revisión: cierra cualquier "Revisión …" salvo la de
+ *   eco, que se hace cargando la ecografía.
+ * - El resto lo cierra la acción que pide (IN con el chip IN, Dar PG con PG,
+ *   las reglas propias con el chip del mismo nombre).
+ */
+export function actoResuelveRecordatorio(tipo: string, acto: ActoCria): boolean {
+  switch (acto.clase) {
+    case 'flushing':
+      return tipo === 'Flushing'
+    case 'ecografia':
+      return tipo === `Eco ${acto.numero}` || tipo === 'Revisión Eco'
+    case 'registro':
+      if (tipo === 'Revisión' || (tipo.startsWith('Revisión ') && tipo !== 'Revisión Eco')) return true
+      return chipsDeRecordatorio(tipo).some((c) => acto.chips.includes(c))
+  }
+}
