@@ -62,9 +62,9 @@ async function cargarPerfilProd(
     )
     store.setLoading(false)
   } catch {
-    // Asegurar que el spinner se desbloquea aunque falle la carga del perfil
-    store.setPerfilCargado()
-    store.setLoading(false)
+    // Si falla la carga del perfil, limpiar todo: session quedaba seteada
+    // sin perfil, la UI se veía logueada pero las queries salían como anon.
+    store.clear()
   }
 }
 
