@@ -44,6 +44,7 @@ const ConfigVetCriaPage      = lazy(() => import('./pages/centro-cria/ConfigCria
 const RankingPadrillosConfig = lazy(() => import('./pages/centro-cria/RankingPadrillosConfig'))
 const CaballosCentroPage     = lazy(() => import('./pages/centro-cria/CaballosCentroPage'))
 const EmbrionesPage          = lazy(() => import('./pages/centro-cria/EmbrionesPage'))
+const FlushingOvuladosPage   = lazy(() => import('./pages/centro-cria/FlushingOvuladosPage'))
 const TorneosPage            = lazy(() => import('./pages/torneos/TorneosPage'))
 const TorneoKanbanPage       = lazy(() => import('./pages/torneos/TorneoKanbanPage'))
 const TransferirEmpresaPage  = lazy(() => import('./pages/transferencias/TransferirEmpresaPage'))
@@ -293,6 +294,7 @@ export default function App() {
             <Route path="/centro-cria" element={<Navigate to="/centro-cria/programa" replace />} />
             <Route path="/centro-cria/caballos" element={<CaballosCentroPage />} />
             <Route path="/centro-cria/programa" element={<ProgramaSemanalPage />} />
+            <Route path="/centro-cria/flushing-ovulados" element={<FlushingOvuladosPage />} />
             <Route path="/centro-cria/recordatorios" element={<RecordatoriosPage />} />
             <Route path="/centro-cria/transferencias" element={<TransferenciasPage />} />
             {/* La sección de flushings se absorbió en "Embriones vitrificados";

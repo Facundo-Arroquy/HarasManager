@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, LayoutGrid, Settings, SlidersHorizontal,
   ClipboardList, Bell, ArrowLeftRight, FlaskConical,
-  CalendarDays, Settings2, Syringe, Trophy,
+  CalendarDays, Settings2, Syringe, Trophy, Droplets,
 } from 'lucide-react'
 import type { ModuloCodigo } from '../../types/modulo'
 
@@ -44,6 +44,7 @@ export const NAV_GROUPS: NavGroup[] = [
     requiresModulo: 'centro_cria',
     items: [
       { to: '/centro-cria/programa',       label: 'Programa semanal',   icon: <CalendarDays size={18} /> },
+      { to: '/centro-cria/flushing-ovulados', label: 'Flushing y Ovulados', icon: <Droplets size={18} /> },
       { to: '/centro-cria/caballos',       label: 'Caballos Centro',    icon: <LayoutGrid size={18} /> },
       { to: '/centro-cria/recordatorios',  label: 'Recordatorios',      icon: <Bell size={18} /> },
       // Los flushings se registran desde "Embriones": la sección
