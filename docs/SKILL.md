@@ -338,6 +338,23 @@ CREATE TABLE acceso_vet (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(vet_id, caballo_id)
 );
+
+-- Acceso total de un vet a todos los caballos de una sociedad (migración 20261018140000).
+-- Si el vet tiene una fila activa acá, ve TODOS los caballos de esa sociedad
+-- (actuales y futuros) sin intervención del admin. `vet_tiene_acceso()` y las
+-- funciones `get_caballos_veterinario`, `get_caballos_pedigree_vet`,
+-- `get_empresas_visibles`, `caballos_sin_acceso_vet` miran esta tabla además
+-- de `acceso_vet`. Las policies inline de `historial_clinico`,
+-- `historial_parte_afectada`, `historial_medicamento` y storage también.
+CREATE TABLE acceso_vet_sociedad (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vet_id       UUID NOT NULL REFERENCES usuario(id),
+  sociedad_id  UUID NOT NULL REFERENCES sociedad(id),
+  otorgado_por UUID REFERENCES usuario(id),
+  activo       BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(vet_id, sociedad_id)
+);
 ```
 
 ### Suscripción de veterinarios independientes
@@ -757,6 +774,7 @@ CREATE TABLE cria_recordatorio (
   sociedad_id UUID NOT NULL REFERENCES sociedad(id),
   tipo TEXT NOT NULL,  -- 'IN' | 'OXI' | 'Flushing' | 'Revisión Flushing' | 'Revisión PG' | 'Dar PG' | 'Revisión Strelin' | 'Revisión' | 'Eco 1' | 'Eco 2' | 'Eco 3' | 'Revisión Eco'
   fecha_vto DATE NOT NULL,
+  fecha_original DATE,  -- fecha antes de cualquier reprogramación; NULL = nunca se pospuso (migración 20261018120000)
   estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','vencido','hecho','cancelado')),
   veterinario_id UUID REFERENCES usuario(id),
   notas TEXT,
@@ -767,6 +785,17 @@ CREATE TABLE cria_recordatorio (
   eco_numero SMALLINT,
   cancel_motivo TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Historial append-only de reprogramaciones (migración 20261018120000)
+CREATE TABLE cria_reprogramacion (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  recordatorio_id UUID NOT NULL REFERENCES cria_recordatorio(id) ON DELETE CASCADE,
+  fecha_anterior DATE NOT NULL,
+  fecha_nueva DATE NOT NULL,
+  motivo TEXT,
+  creado_por UUID NOT NULL REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE cria_flushing (
@@ -1112,7 +1141,7 @@ CREATE TABLE auditoria (
 | Grupo | Tablas | Eventos |
 |---|---|---|
 | Plata | `plan_suscripcion_vet`, `suscripcion_veterinario`, `pago_veterinario`, `venta_caballo` | INSERT / UPDATE / DELETE |
-| Permisos | `acceso_vet`, `membresia`, `membresia_modulo`, `sociedad_modulo`, `usuario_modulo` | INSERT / UPDATE / DELETE |
+| Permisos | `acceso_vet`, `acceso_vet_sociedad`, `membresia`, `membresia_modulo`, `sociedad_modulo`, `usuario_modulo` | INSERT / UPDATE / DELETE |
 | Usuarios | `usuario` | INSERT / DELETE / UPDATE **OF** `rol`, `activo` |
 | Propiedad | `propiedad`, `propietario` | INSERT / UPDATE / DELETE |
 | Caballos | `caballo` | DELETE / UPDATE **OF** `activo`, `sociedad_id` (baja y cambio de empresa; no cada edición de ficha) |
@@ -1139,7 +1168,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | `is_superadmin()` | `usuario.rol = 'superadmin' AND activo = true` |
 | `puede_gestionar_campo(sociedad_id)` | Tiene rol admin, jugador, piloto o peticero activo en esa sociedad (peticero desde migración `20260923133759`) |
 | `puede_gestionar_ficha_caballo(sociedad_id)` | Tiene rol admin o piloto activo en esa sociedad; habilita alta/edición de `caballo` y gestión de `caballo_tag` |
-| `vet_tiene_acceso(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo **y** que el usuario sea veterinario activo; usado en políticas de centro de embriones (corregida en `20260611155651` — antes ignoraba el parámetro) |
+| `vet_tiene_acceso(caballo_id)` | Verifica fila activa en `acceso_vet` **o** fila activa en `acceso_vet_sociedad` para la sociedad del caballo, **y** que el usuario sea veterinario activo; usado en políticas de centro de embriones. Reescrita en `20261018140000` para soportar acceso total por sociedad (corregida originalmente en `20260611155651`) |
 | `vet_tiene_acceso_caballo(caballo_id)` | Verifica fila activa en `acceso_vet` para ese caballo específico |
 | `vet_limite_gratuito()` | Constante del plan gratuito (hoy 5). Única fuente del número: la comparten `vet_puede_agregar_caballo` y `vet_estado_limite` para que no se desincronicen (migración `20260812120000`). **Con EXECUTE para `anon`** (migración `20260812130000`): es solo un entero sin datos de usuario, y la página pública de registro la necesita para no hardcodear el número en el marketing copy |
 | `vet_limite_pago()` | Constante del plan con membresía (hoy 25). La membresía **no es ilimitada** (migración `20260813120200`) |
@@ -1168,6 +1197,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | `get_consultas_recientes_vet(p_limit)` | Consultas recientes creadas por el vet autenticado |
 | `get_sociedades_activas()` | Lista de todas las sociedades activas |
 | `registrar_transferencia_embrionaria(...)` | Transferencia completa en una transacción: registro clínico con chip "Transferida" + `cria_transferencia` + embrión a `'transferido'`. Toma `FOR UPDATE` sobre el embrión para evitar doble transferencia. Acepta como estado de partida `'disponible'`, `'congelado'` o `'en_nube'`. **NO marca `prenada = true`** — la receptora queda con `prenada = false`; la preñez se confirma solo cuando la Eco 1 da resultado `'prenada'` via `trg_sincronizar_prenez_ecografia` (fix migración `20260928130000`). **Cancela recordatorios 'Dar PG' pendientes/vencidos** de la receptora al transferir — ya no corresponde darle PG si entró al flujo de ecografías (migración `20260930120000`). Agenda los recordatorios `'Eco 1'`, `'Eco 2'` y `'Eco 3'` con los plazos de `cria_plazo_vet` del vet que transfiere — 30/60/90 días si el vet no tiene fila (migración `20260824130000`). Devuelve `jsonb` con los tres ids (migraciones `20260724000626`, `20260823120000`, `20260824120000`, `20260824130000`, `20260928130000`, `20260930120000`) |
+| `registrar_resultado_ecografia(p_transferencia_id, p_numero, p_fecha, p_resultado, ...)` | Registra una eco (1/2/3) sobre una transferencia. Según resultado: `prenada` → agenda Eco 2 y 3; `volver_a_ver` → agenda Revisión Eco; `vacia` → cierra pipeline; `vacia_resincronizar` → cierra pipeline + cancela "Dar PG" previos + agenda nuevo "Dar PG" con plazo `receptora_ov_a_dar_pg` (default 3d). Valida acceso del vet, transferencia vigente, rango válido. `SECURITY DEFINER` (migración `20261018120100`) |
 | `ancestros_caballo(p_caballo_id, p_gen)` | Ancestros de un caballo hasta N generaciones (incluye el propio en nivel 0). Base del cálculo de parentesco (migración `20260802120100`) |
 | `es_familiar_directo(p_a, p_b, p_gen)` | TRUE si los dos comparten un ancestro dentro de `p_gen` generaciones. Con el default (2) cubre padres, abuelos, hijos, nietos, hermanos/medios hermanos y tíos |
 | `get_padrillos_familiares(p_donante_id, p_padrillo_ids)` | De la lista de padrillos que muestra la UI, cuáles son familiares y con qué parentesco ('Padre', 'Abuelo', 'Hijo', 'Nieto', 'Hermano', 'Familiar'). Alimenta la etiqueta roja del selector |
@@ -1193,8 +1223,8 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | `_cria_transferencia_vigente(p_transferencia_id)` | `true` si no hay otra transferencia posterior a la misma receptora (por `fecha`, desempata `created_at`). Es el único criterio de "vigente": lo usan el trigger de ecografías y `eliminar_ecografia_cria`. **Sin EXECUTE para nadie** (migración `ecografia_sincroniza_pipeline`) |
 | `_cria_cambiar_estado_reproductivo(p_caballo_id, p_sociedad_id, p_estado, p_motivo, p_creado_por)` | Mueve `caballo.estado_reproductivo` y deja la fila en `cria_estado_transicion`; no hace nada si ya estaba en ese estado. Existe porque el vet no puede escribir `caballo` desde el cliente (la policy de UPDATE es `es_admin`). **Sin EXECUTE para nadie** (migración `ecografia_sincroniza_pipeline`) |
 | `_cria_revertir_aborto(...)` | Deshace un aborto: vuelve la preñez de la transferencia y el pipeline al `estado_anterior` de la transición `'Ecografía N: abortada'`, solo si la yegua sigue en `vacia`. El que llama verifica antes que la transferencia es la vigente. **Sin EXECUTE para nadie** (migración `ecografia_sincroniza_pipeline`) |
-| `get_empresas_visibles()` | `(id, nombre)` de las sociedades donde el que pregunta tiene membresía **o** un `acceso_vet` activo sobre algún caballo. Existe porque la RLS de `sociedad` es `tiene_membresia(id)`: sin esto el veterinario no puede leer el nombre de las empresas con las que trabaja, y en el calendario veía un trabajo sin saber de qué haras venía. Mismo criterio que `get_caballos_veterinario` (migración `20260815000002`) |
-| `caballos_sin_acceso_vet(p_vet_id, p_caballo_ids)` | Los caballos del array a los que el vet **no** tiene `acceso_vet` activo. Lo consulta el front antes de crear o compartir un plan, para armar el cartel de confirmación. Filtra por `tiene_membresia` del que pregunta: no sirve para espiar el padrón de otra empresa (migración `20260815000001`) |
+| `get_empresas_visibles()` | `(id, nombre)` de las sociedades donde el que pregunta tiene membresía **o** un `acceso_vet` activo sobre algún caballo **o** un `acceso_vet_sociedad` activo. Existe porque la RLS de `sociedad` es `tiene_membresia(id)`: sin esto el veterinario no puede leer el nombre de las empresas con las que trabaja, y en el calendario veía un trabajo sin saber de qué haras venía. Mismo criterio que `get_caballos_veterinario` (migración `20260815000002`, extendida en `20261018140000`) |
+| `caballos_sin_acceso_vet(p_vet_id, p_caballo_ids)` | Los caballos del array a los que el vet **no** tiene `acceso_vet` activo **ni** `acceso_vet_sociedad` activo para la sociedad del caballo. Lo consulta el front antes de crear o compartir un plan, para armar el cartel de confirmación. Filtra por `tiene_membresia` del que pregunta: no sirve para espiar el padrón de otra empresa (migración `20260815000001`, extendida en `20261018140000`) |
 | `compartir_trabajos_con_vet(p_trabajo_ids, p_vet_id, p_otorgar_acceso)` | Asigna `compartido_con` a un lote de trabajos, otorga los `acceso_vet` faltantes si `p_otorgar_acceso` y deja **una** `notificacion` por lote. Si faltan accesos y no se autorizó otorgarlos, aborta. Valida que el destinatario sea un vet activo y que el que comparte tenga membresía / sea el autor. **Rechaza los planes con `vet_owner_id`**: `caballos_sin_acceso_vet` filtra por membresía, así que sobre caballos propios de un vet no detectaría los accesos faltantes y el destinatario terminaría viendo el plan pero no los caballos (migraciones `20260815000001` / `20260815000003`) |
 | `crear_plan_sanitario_compartido(p_items, p_vet_id, p_otorgar_acceso)` | Crea el plan entero y lo comparte en **una sola transacción**: `trabajo_sanitario` × N + `trabajo_sanitario_caballo` + `acceso_vet` + `notificacion`. `p_items` es `[{sociedad_id, nombre, fecha_programada, tratamiento, observaciones, caballo_ids}]` con `sociedad_id` NULL = plan sobre los caballos propios del vet (les pone `vet_owner_id`); todos los trabajos comparten `plan_id`. Reemplaza los N inserts sueltos que hacía `sanidadService.crearTrabajos()` desde el front. Valida que cada caballo pertenezca al dueño del trabajo — la función es `SECURITY DEFINER`, así que la RLS de `trabajo_sanitario_caballo` no alcanza para impedir mezclar padrones. Si el vet no tiene acceso a algún caballo y no se autorizó otorgarlo, la excepción se lleva puesta también la creación del plan — que es el "rollback" del flujo, sin nada que deshacer del lado del cliente. Devuelve el `plan_id` (migraciones `20260815000001` / `20260815000003`) |
 | `cerrar_plan_sanitario(p_items jsonb)` | Cierra la grilla de un plan en una transacción: `p_items` es `[{caballo_row_id, estado}]` sobre `trabajo_sanitario_caballo`. Guarda el `estado` de cada celda (sincronizando `excluido`) y escribe `historial_clinico` **solo** para los `'realizado'` sin historial previo. Cada `trabajo_sanitario` pasa a `'realizado'` cuando ya no le quedan celdas en NULL. Permiso: `tiene_membresia` **o** `is_superadmin()` **o** `creado_por = auth.uid()` **o** `compartido_con = auth.uid()` (migración `20260815000001`). Solo `authenticated`. Devuelve cuántos historiales creó (migración `20260806130000`) |
@@ -1224,7 +1254,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | **superadmin** | Todos | Todos |
 | **Admin** (membresia rol='admin') | Todos los de su sociedad | Todos los de su sociedad |
 | **Jugador / Piloto / Peticero** | Todos los de su sociedad | Todos los de su sociedad |
-| **Veterinario** (global) | Solo los que tiene en `acceso_vet` activo | Solo los de caballos con acceso |
+| **Veterinario** (global) | Los que tiene en `acceso_vet` activo **o** todos los de sociedades con `acceso_vet_sociedad` activo | Solo los de caballos con acceso (granular o total) |
 
 En la ficha del caballo, el piloto tiene visibles las pestañas Clínico, Sanidad,
 Genealogía y Foto. Puede gestionar la foto; Clínico y Sanidad conservan sus
@@ -1297,14 +1327,19 @@ roles jugador, piloto y peticero conservan la ruta independiente `/config`.
 - INSERT vet: `vet_id = auth.uid()` (vet se auto-inserta via función)
 - UPDATE admin: miembro activo de la sociedad del caballo
 
+**`acceso_vet_sociedad`** (migración `20261018140000`)
+- SELECT: `tiene_membresia(sociedad_id)` o `vet_id = auth.uid()` o `is_superadmin()`
+- INSERT: `es_admin(sociedad_id)` o `is_superadmin()`
+- UPDATE: `es_admin(sociedad_id)` o `is_superadmin()`
+
 **`historial_clinico`** (migración `20260818120000` sumó al admin)
-- SELECT: `anulada_at IS NULL` **y** (`tiene_membresia` del caballo o fila activa en `acceso_vet`). La rama de anuladas es de la migración `20260912220008`; las RPC `SECURITY DEFINER` que leen historial (`get_alertas_vet`, `get_consultas_recientes_vet`, `get_caballos_propios_vet[_inactivos]`) filtran a mano porque no pasan por la RLS — **toda RPC nueva que lea `historial_clinico` tiene que hacer lo mismo**
+- SELECT: `anulada_at IS NULL` **y** (`tiene_membresia` del caballo o fila activa en `acceso_vet` o fila activa en `acceso_vet_sociedad` para la sociedad del caballo — migración `20261018140000`). La rama de anuladas es de la migración `20260912220008`; las RPC `SECURITY DEFINER` que leen historial (`get_alertas_vet`, `get_consultas_recientes_vet`, `get_caballos_propios_vet[_inactivos]`) filtran a mano porque no pasan por la RLS — **toda RPC nueva que lea `historial_clinico` tiene que hacer lo mismo**
 - INSERT: `creado_por = auth.uid()` **y** (`es_admin` de la sociedad del caballo, o rol veterinario por membresía, o `usuario.rol = 'veterinario'`)
 - UPDATE: solo `creado_por = auth.uid()` — no mira el rol, así que cada quien corrige lo suyo y nadie toca lo ajeno (inmutabilidad del historial). El admin **ve** las consultas del vet pero su UPDATE no afecta ninguna fila (la RLS filtra en silencio); el front solo ofrece "Editar" cuando `creado_por` es el usuario
 - DELETE: `creado_por = auth.uid()` **y** `estado = 'pendiente'` (migración `20260819120000`). Solo se borra lo **agendado que nunca se hizo**. Una consulta `realizada` no se borra nunca: su autor la puede **anular** con `anular_consulta` (migración `20260912220008`), que la oculta sin eliminarla. Antes no había policy de DELETE y ninguna fila se borraba nunca, así que una consulta agendada por error quedaba para siempre en el calendario
 
 **`historial_parte_afectada` / `historial_medicamento`**
-- SELECT: `tiene_membresia` (vía caballo) o fila activa en `acceso_vet` sobre el caballo del historial padre — **la misma rama que `historial_clinico_select`** (migración `20260907120000`). Antes solo tenían `tiene_membresia`, así que el vet independiente (sin membresía) veía la consulta madre pero las partes y los medicamentos le venían vacíos, incluso los suyos
+- SELECT: `tiene_membresia` (vía caballo) o fila activa en `acceso_vet` o fila activa en `acceso_vet_sociedad` para la sociedad del caballo del historial padre — **la misma rama que `historial_clinico_select`** (migración `20260907120000`, extendida en `20261018140000`). Antes solo tenían `tiene_membresia`, así que el vet independiente (sin membresía) veía la consulta madre pero las partes y los medicamentos le venían vacíos, incluso los suyos
 - INSERT/UPDATE/DELETE: `creado_por` del historial = `auth.uid()`
 - El DELETE se agregó en `20260818120000`. Editar una consulta reescribe partes y medicamentos (borrar todo + reinsertar, en `historialService.actualizar`) y sin policy de DELETE ese borrado no afectaba ninguna fila ni daba error: las filas viejas quedaban duplicadas junto a las nuevas
 
@@ -1332,6 +1367,11 @@ roles jugador, piloto y peticero conservan la ruta independiente `/config`.
 - INSERT: `vet_tiene_acceso(caballo_id)` (solo vets activos)
 - UPDATE: `veterinario_id = auth.uid()` o `es_admin(sociedad_id)` (en recordatorio)
 - DELETE: sin policy. Se borra solo por las RPC `eliminar_{registro,recordatorio,flushing,transferencia}_cria` (solo el autor, sin dependencias; migración `20260912220008`)
+
+**`cria_reprogramacion`** (migración `20261018120000`)
+- SELECT: visible si el recordatorio padre es visible (subquery a `cria_recordatorio`)
+- INSERT: si el recordatorio padre es visible (misma subquery)
+- Sin UPDATE ni DELETE: tabla append-only
 
 **`embrion`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_donante_id)` o `is_superadmin()` (migración `20260723231443`)
