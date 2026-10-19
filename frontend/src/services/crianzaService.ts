@@ -24,6 +24,7 @@ import type {
   NuevaReglaRecordatorioPayload,
 } from '../types/crianza'
 import { PLAZOS_VET_DEFAULTS, ESTADOS_STOCK } from '../types/crianza'
+import { traerTodo } from '../utils/paginar'
 
 /**
  * Embrión + transferencia + ecografías de esa transferencia. El embed de
@@ -54,7 +55,7 @@ export const crianzaService = {
 
   async listarRegistros(sociedadId: string): Promise<RegistroClinicoCria[]> {
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase
+    const data = await traerTodo((desde, hasta) => supabase
       .from('cria_registro_clinico')
       .select(`
         *,
@@ -64,7 +65,8 @@ export const crianzaService = {
       `)
       .eq('sociedad_id', sociedadId)
       .order('fecha', { ascending: false })
-    if (error) throw error
+      .order('id')
+      .range(desde, hasta))
     return data as RegistroClinicoCria[]
   },
 
@@ -146,12 +148,15 @@ export const crianzaService = {
 
   async listarRecordatorios(sociedadId: string): Promise<RecordatorioCria[]> {
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase
+    // Por páginas: pasado el tope de la API la lista perdía lo más nuevo y el
+    // programa semanal mostraba "Sin actividades" de la fecha de corte en adelante.
+    const data = await traerTodo((desde, hasta) => supabase
       .from('cria_recordatorio')
       .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
       .eq('sociedad_id', sociedadId)
       .order('fecha_vto')
-    if (error) throw error
+      .order('id')
+      .range(desde, hasta))
     return data as RecordatorioCria[]
   },
 
@@ -467,7 +472,7 @@ export const crianzaService = {
 
   async listarRegistrosVet(): Promise<RegistroClinicoCria[]> {
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase
+    const data = await traerTodo((desde, hasta) => supabase
       .from('cria_registro_clinico')
       .select(`
         *,
@@ -476,17 +481,19 @@ export const crianzaService = {
         padrillo:padrillo_id(nombre)
       `)
       .order('fecha', { ascending: false })
-    if (error) throw error
+      .order('id')
+      .range(desde, hasta))
     return data as RegistroClinicoCria[]
   },
 
   async listarRecordatoriosVet(): Promise<RecordatorioCria[]> {
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase
+    const data = await traerTodo((desde, hasta) => supabase
       .from('cria_recordatorio')
       .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
       .order('fecha_vto')
-    if (error) throw error
+      .order('id')
+      .range(desde, hasta))
     return data as RecordatorioCria[]
   },
 
