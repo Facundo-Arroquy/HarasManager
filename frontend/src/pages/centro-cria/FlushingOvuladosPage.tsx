@@ -40,7 +40,7 @@ export default function FlushingOvuladosPage() {
   const esVet      = rol === 'veterinario'
 
   const {
-    registros, recordatorios, flushings, transferencias, plazos,
+    registros, recordatorios, transferencias, plazos,
     cargar, cargarParaVet, loading,
     posponerRecordatorio, posponerRecordatorioAFecha,
   } = useCrianzaStore()
@@ -71,9 +71,9 @@ export default function FlushingOvuladosPage() {
     } else if (esVet) {
       cargarParaVet()
       crianzaService.listarAnimalesReproductivosVet()
-        .then((animales) => setUbicaciones(new Map(animales.map((a) => [a.id, {
-          empresa: (a as { marca?: { nombre: string } | null }).marca?.nombre ?? SIN_EMPRESA,
-          campo: (a as { campo?: { nombre: string } | null }).campo?.nombre ?? SIN_CAMPO,
+        .then((animales: { id: string; marca?: { nombre: string } | null; campo?: { nombre: string } | null }[]) => setUbicaciones(new Map(animales.map((a) => [a.id, {
+          empresa: a.marca?.nombre ?? SIN_EMPRESA,
+          campo: a.campo?.nombre ?? SIN_CAMPO,
         }]))))
         .catch(() => setUbicaciones(new Map()))
     }
@@ -82,7 +82,6 @@ export default function FlushingOvuladosPage() {
   // ── Panel izquierdo: flushings pendientes ─────────────────────────────
 
   const flushingsPendientes = useMemo(() => {
-    const desde = hoy
     const hasta = sumarDias(hoy, 14)
     const pendientes: FlushingPendiente[] = []
 

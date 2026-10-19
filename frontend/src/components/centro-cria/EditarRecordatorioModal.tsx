@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useSaveHandler } from '../../hooks/useSaveHandler'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import type { RecordatorioCria } from '../../types/crianza'
-import { hoyAR, formatFecha, sumarDias, esFinDeSemana, esSabado } from '../../utils/fecha'
+import { formatFecha, sumarDias, esFinDeSemana, esSabado } from '../../utils/fecha'
 import ModalEdicion, { CampoFecha, CampoNotas } from './ModalEdicion'
 
 interface Props {

@@ -364,6 +364,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
           sociedad_id:        payload.sociedad_id,
           tipo:               regla.tipo,
           fecha_vto:          fechaVto,
+          fecha_original:     null,
           estado:             'pendiente' as EstadoRecordatorio,
           veterinario_id:     payload.veterinario_id,
           notas:              null,
