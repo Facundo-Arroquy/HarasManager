@@ -406,6 +406,7 @@ export interface EmbrionConSeguimiento extends Embrion {
   cria_transferencia?: Array<{
     fecha:                string
     caballo_receptora_id: string
+    clasificacion:        'Fresco' | 'Congelado' | null
     receptora:  { nombre: string; pelaje: { nombre: string } | null } | null
     cria_ecografia: Array<{
       numero:    number
