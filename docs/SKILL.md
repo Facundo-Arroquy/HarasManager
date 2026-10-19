@@ -1370,8 +1370,10 @@ roles jugador, piloto y peticero conservan la ruta independiente `/config`.
 
 **`cria_reprogramacion`** (migración `20261018120000`)
 - SELECT: visible si el recordatorio padre es visible (subquery a `cria_recordatorio`)
-- INSERT: si el recordatorio padre es visible (misma subquery)
+- INSERT: `creado_por = auth.uid()` y el recordatorio padre es visible (misma subquery) (migración `20261019150000`)
 - Sin UPDATE ni DELETE: tabla append-only
+
+**`cerrar_recordatorios_flushing(p_caballo_id)`** (RPC SECURITY DEFINER): exige sesión y `vet_tiene_acceso(caballo)` o `tiene_membresia(sociedad)` o `is_superadmin()`; EXECUTE solo para `authenticated` (migración `20261019150000`)
 
 **`embrion`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_donante_id)` o `is_superadmin()` (migración `20260723231443`)
