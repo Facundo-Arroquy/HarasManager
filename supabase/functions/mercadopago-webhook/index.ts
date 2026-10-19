@@ -21,7 +21,7 @@
 // Variables de entorno (secrets del proyecto Supabase):
 //   MP_ACCESS_TOKEN   — access token de la aplicación de MercadoPago
 //   MP_WEBHOOK_SECRET — "clave secreta" de Webhooks de la aplicación
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.105.4'
 
 /** Tópicos que nos interesan. El resto se ignora con 200. */
 const TOPIC_PREAPPROVAL = 'subscription_preapproval'

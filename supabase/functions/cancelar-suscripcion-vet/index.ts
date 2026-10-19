@@ -10,7 +10,7 @@
 //
 // Quién la puede llamar: el vet logueado, sobre su propia suscripción. El
 // `usuario_id` sale del JWT, nunca del body.
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.105.4'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

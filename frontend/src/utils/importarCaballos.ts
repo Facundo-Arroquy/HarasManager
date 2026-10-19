@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 export interface BulkCaballoPayload {
   nombre: string
@@ -94,8 +94,8 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
 }
 
-export function generarPlantillaExcel(catalogs: CatalogContext): void {
-  const wb = XLSX.utils.book_new()
+export async function generarPlantillaExcel(catalogs: CatalogContext): Promise<void> {
+  const wb = new ExcelJS.Workbook()
 
   const r1    = catalogs.razas[0]?.nombre   ?? ''
   const r2    = catalogs.razas[1]?.nombre   ?? r1
@@ -109,9 +109,9 @@ export function generarPlantillaExcel(catalogs: CatalogContext): void {
     ['La Niña',  '2019-03-20', 'Yegua',   'Donante', r2, p2, campo, '', '', '', 'Yegua Bonita', '', 'SI'],
   ]
 
-  const ws = XLSX.utils.aoa_to_sheet(sheetData)
-  ws['!cols'] = [...HEADERS, '_ejemplo'].map((h) => ({ wch: Math.max(h.length + 4, 18) }))
-  XLSX.utils.book_append_sheet(wb, ws, 'Importar Caballos')
+  const ws = wb.addWorksheet('Importar Caballos')
+  ws.addRows(sheetData)
+  ws.columns = [...HEADERS, '_ejemplo'].map((h) => ({ width: Math.max(h.length + 4, 18) }))
 
   const maxRows = Math.max(catalogs.razas.length, catalogs.pelajes.length, catalogs.campos.length, 1)
   const catData: (string | null)[][] = [
@@ -124,58 +124,65 @@ export function generarPlantillaExcel(catalogs: CatalogContext): void {
       catalogs.campos[i]?.nombre  ?? null,
     ])
   }
-  const wsCat = XLSX.utils.aoa_to_sheet(catData)
-  wsCat['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 24 }]
-  XLSX.utils.book_append_sheet(wb, wsCat, 'Catálogos')
+  const wsCat = wb.addWorksheet('Catálogos')
+  wsCat.addRows(catData)
+  wsCat.columns = [{ width: 22 }, { width: 22 }, { width: 24 }]
 
-  XLSX.writeFile(wb, 'plantilla_caballos.xlsx')
+  const bytes = await wb.xlsx.writeBuffer()
+  const blob = new Blob([new Uint8Array(bytes)], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'plantilla_caballos.xlsx'
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 export async function parsearExcel(file: File): Promise<ExcelRow[]> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const wb = XLSX.read(e.target?.result, { type: 'array', cellDates: true })
-        const ws = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(await file.arrayBuffer())
+  const ws = wb.worksheets[0]
+  if (!ws) return []
 
-        const get = (row: Record<string, unknown>, key: string): unknown => {
-          const entry = Object.entries(row).find(([k]) => k.toLowerCase().trim() === key)
-          return entry ? entry[1] : ''
-        }
-
-        const filteredRows = rows.filter((row) => {
-          const entry = Object.entries(row).find(([k]) => k.toLowerCase().trim() === '_ejemplo')
-          return !entry || String(entry[1]).trim().toUpperCase() !== 'SI'
-        })
-
-        const result: ExcelRow[] = filteredRows.map((row) => {
-          const raw = get(row, 'fecha_nacimiento')
-          return {
-            nombre:           str(get(row, 'nombre')),
-            fecha_nacimiento: raw instanceof Date ? raw.toISOString().slice(0, 10) : str(raw),
-            categoria:        str(get(row, 'categoria')),
-            rol_reproductivo: str(get(row, 'rol_reproductivo')),
-            raza:             str(get(row, 'raza')),
-            pelaje:           str(get(row, 'pelaje')),
-            campo:            str(get(row, 'campo')),
-            marca:            str(get(row, 'marca')),
-            numero_chip:      str(get(row, 'numero_chip')),
-            numero_registro:  str(get(row, 'numero_registro')),
-            padre_nombre:     str(get(row, 'padre_nombre')),
-            madre_nombre:     str(get(row, 'madre_nombre')),
-            domador:          str(get(row, 'domador')),
-          }
-        })
-        resolve(result)
-      } catch (err) {
-        reject(err)
-      }
-    }
-    reader.onerror = () => reject(reader.error)
-    reader.readAsArrayBuffer(file)
+  const headerByColumn = new Map<number, string>()
+  ws.getRow(1).eachCell((cell, column) => {
+    headerByColumn.set(column, str(cell.value).toLowerCase())
   })
+
+  const rows: Record<string, unknown>[] = []
+  ws.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return
+    const record: Record<string, unknown> = {}
+    row.eachCell({ includeEmpty: true }, (cell, column) => {
+      const header = headerByColumn.get(column)
+      if (header) record[header] = cell.value ?? ''
+    })
+    if (Object.values(record).some((value) => str(value) !== '')) rows.push(record)
+  })
+
+  const get = (row: Record<string, unknown>, key: string): unknown => row[key] ?? ''
+  return rows
+    .filter((row) => str(get(row, '_ejemplo')).toUpperCase() !== 'SI')
+    .map((row) => {
+      const raw = get(row, 'fecha_nacimiento')
+      return {
+        nombre:           str(get(row, 'nombre')),
+        fecha_nacimiento: raw instanceof Date ? raw.toISOString().slice(0, 10) : str(raw),
+        categoria:        str(get(row, 'categoria')),
+        rol_reproductivo: str(get(row, 'rol_reproductivo')),
+        raza:             str(get(row, 'raza')),
+        pelaje:           str(get(row, 'pelaje')),
+        campo:            str(get(row, 'campo')),
+        marca:            str(get(row, 'marca')),
+        numero_chip:      str(get(row, 'numero_chip')),
+        numero_registro:  str(get(row, 'numero_registro')),
+        padre_nombre:     str(get(row, 'padre_nombre')),
+        madre_nombre:     str(get(row, 'madre_nombre')),
+        domador:          str(get(row, 'domador')),
+      }
+    })
 }
 
 export function validarYMapear(rows: ExcelRow[], catalogs: CatalogContext): ParsedRow[] {

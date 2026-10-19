@@ -182,7 +182,7 @@ En el SQL Editor de Supabase:
 
 ```sql
 update plan_suscripcion_vet
-   set precio = 25000,                                  -- el precio real
+   set precio = 10000,                                  -- el precio vigente
        nombre = 'Membresía veterinario — mensual'        -- lo ve el vet en el checkout de MercadoPago
  where codigo = 'mensual';
 ```
@@ -310,7 +310,7 @@ Ahora sí, el circuito completo con un vet de mentira.
 3. Entrá al panel: `/panel-vet`.
 
 **Qué tenés que ver:** una tarjeta **Membresía** con la etiqueta gris **Plan
-gratuito** y un botón `Suscribirme — $25.000/mes` (con el precio del paso 6).
+gratuito** y un botón `Suscribirme — $10.000/mes` (con el precio del paso 6).
 
 > Si el botón dice **"no disponible"**, el plan no se está leyendo: revisá el
 > paso 6.
@@ -370,7 +370,7 @@ o falló. Mirá los logs:
    cancelá la suscripción desde la cuenta de MercadoPago del comprador de
    prueba, y esperá a que llegue el webhook de cancelación. Cuando la fecha de
    vencimiento pase, al entrar a la app tiene que aparecer el modal bloqueante
-   con el botón `Retomar membresía — $25.000/mes` habilitado.
+   con el botón `Retomar membresía — $10.000/mes` habilitado.
 
 > Ojo con este punto: cancelar **no** corta el acceso en el acto. El vet
 > conserva la membresía hasta la `fecha_vencimiento` que ya tenía paga. Es
@@ -413,8 +413,9 @@ de MercadoPago del pagador.
   cobrando el monto con el que se creó cada preapproval. Cambiar el precio a
   las suscripciones vivas requiere un `PUT /preapproval/{id}` por cada una, que
   hoy no está implementado.
-- **El vet cancela desde MercadoPago**, no desde la app. No hay botón de baja en
-  HarasManager; la tarjeta de membresía lo dice explícitamente.
+- **El vet puede cancelar desde la app** con el botón de baja de
+  `MembresiaVetCard`. La baja cancela la renovación en MercadoPago, pero conserva
+  el acceso hasta la `fecha_vencimiento` ya pagada.
 
 ---
 
