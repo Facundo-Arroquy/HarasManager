@@ -63,7 +63,7 @@ function embrionVacio(): EmbrionForm {
 export default function FlushingModal({ onClose, onSuccess, recordatorio, caballoIdInicial }: Props) {
   const { user, sociedadActiva } = useAuth()
   const {
-    crearFlushing, actualizarEstadoRecordatorio, registrarTransferencia,
+    crearFlushing, registrarTransferencia,
     registros, plazos,
   } = useCrianzaStore()
 
@@ -282,9 +282,9 @@ export default function FlushingModal({ onClose, onSuccess, recordatorio, caball
         }
       }
 
-      if (recordatorio?.id) {
-        await actualizarEstadoRecordatorio(recordatorio.id, 'hecho')
-      }
+      // Ya no hace falta cerrar el recordatorio individual: la RPC
+      // cerrar_recordatorios_flushing (llamada desde crearFlushing) cierra
+      // TODOS los de tipo Flushing abiertos de esta donante.
 
       onSuccess?.(flushing.id)
       onClose()

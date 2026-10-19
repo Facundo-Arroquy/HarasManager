@@ -127,7 +127,7 @@ describe('crearRegistro — revisión duplicada para el mismo animal', () => {
     const caballoId = 'caballo-1'
     const previa: RecordatorioCria = {
       id: 'rec-vieja', caballo_id: caballoId, sociedad_id: 'soc-1',
-      tipo: 'Revisión', fecha_vto: '2026-09-20', estado: 'pendiente',
+      tipo: 'Revisión', fecha_vto: '2026-09-20', fecha_original: null, estado: 'pendiente',
       veterinario_id: 'vet-1', notas: null, auto_generado: true,
       origen_registro_id: 'reg-anterior', cancel_motivo: null,
       created_at: '', updated_at: '',
@@ -195,7 +195,7 @@ describe('crearRegistro — cierra lo agendado del día que la consulta resolvi�
   function recordatorio(id: string, tipo: string): RecordatorioCria {
     return {
       id, caballo_id: 'estrella', sociedad_id: 'soc-1', tipo, fecha_vto: FECHA_BASE,
-      estado: 'pendiente', veterinario_id: 'vet-1', notas: null, auto_generado: true,
+      fecha_original: null, estado: 'pendiente', veterinario_id: 'vet-1', notas: null, auto_generado: true,
       origen_registro_id: null, cancel_motivo: null, created_at: '', updated_at: '',
     }
   }

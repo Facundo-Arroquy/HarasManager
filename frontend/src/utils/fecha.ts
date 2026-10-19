@@ -31,6 +31,23 @@ export function esDomingo(fecha: string): boolean {
   return new Date(fecha + 'T12:00:00Z').getUTCDay() === 0
 }
 
+/** Devuelve `true` si la fecha 'YYYY-MM-DD' cae en sábado. */
+export function esSabado(fecha: string): boolean {
+  return new Date(fecha + 'T12:00:00Z').getUTCDay() === 6
+}
+
+/** Devuelve `true` si la fecha 'YYYY-MM-DD' cae en sábado o domingo. */
+export function esFinDeSemana(fecha: string): boolean {
+  const day = new Date(fecha + 'T12:00:00Z').getUTCDay()
+  return day === 0 || day === 6
+}
+
+/** Devuelve el nombre corto del día: 'Lun', 'Mar', ..., 'Dom'. */
+export function diaDeSemana(fecha: string): string {
+  const NOMBRES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'] as const
+  return NOMBRES[new Date(fecha + 'T12:00:00Z').getUTCDay()]
+}
+
 /** Días enteros entre dos fechas 'YYYY-MM-DD' (`hasta - desde`). */
 export function diffDias(desde: string, hasta: string): number {
   const a = new Date(desde + 'T12:00:00Z').getTime()

@@ -134,3 +134,61 @@ export async function otorgarAcceso(
   }, { onConflict: 'vet_id,caballo_id' })
   if (error) throw error
 }
+
+// ── Acceso total vet → sociedad ─────────────────────────────────────────────
+
+export interface AccesoVetSociedad {
+  id: string
+  vet_id: string
+  sociedad_id: string
+  vet: { nombre: string; apellido: string; email: string }
+  activo: boolean
+}
+
+export async function getAccesosTotales(sociedadId: string): Promise<AccesoVetSociedad[]> {
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from('acceso_vet_sociedad')
+    .select(`
+      id, vet_id, sociedad_id, activo,
+      usuario:vet_id(nombre, apellido, email)
+    `)
+    .eq('sociedad_id', sociedadId)
+    .eq('activo', true)
+  if (error) throw error
+
+  return ((data ?? []) as unknown as {
+    id: string; vet_id: string; sociedad_id: string; activo: boolean
+    usuario: AccesoVetSociedad['vet']
+  }[]).map((a) => ({
+    id: a.id,
+    vet_id: a.vet_id,
+    sociedad_id: a.sociedad_id,
+    vet: a.usuario,
+    activo: a.activo,
+  }))
+}
+
+export async function otorgarAccesoTotal(
+  vetId: string,
+  sociedadId: string,
+  otorgadoPor: string
+): Promise<void> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase.from('acceso_vet_sociedad').upsert({
+    vet_id: vetId,
+    sociedad_id: sociedadId,
+    otorgado_por: otorgadoPor,
+    activo: true,
+  }, { onConflict: 'vet_id,sociedad_id' })
+  if (error) throw error
+}
+
+export async function revocarAccesoTotal(accesoId: string): Promise<void> {
+  const supabase = getSupabaseClient()
+  const { error } = await supabase
+    .from('acceso_vet_sociedad')
+    .update({ activo: false })
+    .eq('id', accesoId)
+  if (error) throw error
+}

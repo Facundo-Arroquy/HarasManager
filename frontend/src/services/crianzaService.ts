@@ -22,6 +22,7 @@ import type {
   PadrilloPreferido,
   ReglaRecordatorioVet,
   NuevaReglaRecordatorioPayload,
+  Reprogramacion,
 } from '../types/crianza'
 import { PLAZOS_VET_DEFAULTS, ESTADOS_STOCK } from '../types/crianza'
 import { traerTodo } from '../utils/paginar'
@@ -239,17 +240,61 @@ export const crianzaService = {
   },
 
   /**
-   * Corre la fecha de vencimiento de un recordatorio y lo devuelve a
-   * 'pendiente'. Es lo que usa el banner de flushing para posponer al día
-   * siguiente: el recordatorio no se pierde, aparece mañana.
+   * Corre la fecha de vencimiento de un recordatorio, registra la
+   * reprogramación en el historial y lo devuelve a 'pendiente'.
    */
-  async posponerRecordatorio(id: string, nuevaFecha: string): Promise<void> {
+  async posponerRecordatorio(
+    id: string,
+    nuevaFecha: string,
+    motivo: string | null,
+    creadoPor: string,
+  ): Promise<void> {
     const supabase = getSupabaseClient()
+
+    // Leer fecha actual y fecha_original
+    const { data: rec, error: errRead } = await supabase
+      .from('cria_recordatorio')
+      .select('fecha_vto, fecha_original')
+      .eq('id', id)
+      .single()
+    if (errRead) throw errRead
+
+    const fechaAnterior = rec.fecha_vto as string
+
+    // Insertar historial de reprogramación
+    const { error: errHist } = await supabase
+      .from('cria_reprogramacion')
+      .insert({
+        recordatorio_id: id,
+        fecha_anterior: fechaAnterior,
+        fecha_nueva: nuevaFecha,
+        motivo,
+        creado_por: creadoPor,
+      })
+    if (errHist) throw errHist
+
+    // Actualizar recordatorio: fecha_original solo se graba la primera vez
     const { error } = await supabase
       .from('cria_recordatorio')
-      .update({ fecha_vto: nuevaFecha, estado: 'pendiente' })
+      .update({
+        fecha_vto: nuevaFecha,
+        estado: 'pendiente',
+        ...(rec.fecha_original ? {} : { fecha_original: fechaAnterior }),
+      })
       .eq('id', id)
     if (error) throw error
+  },
+
+  /** Historial de reprogramaciones de un recordatorio, más reciente primero. */
+  async listarReprogramaciones(recordatorioId: string): Promise<Reprogramacion[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_reprogramacion')
+      .select('*')
+      .eq('recordatorio_id', recordatorioId)
+      .order('created_at', { ascending: true })
+    if (error) throw error
+    return data as Reprogramacion[]
   },
 
   // ── Flushings ─────────────────────────────────────────────────────────────
@@ -268,6 +313,14 @@ export const crianzaService = {
       .order('fecha', { ascending: false })
     if (error) throw error
     return data as Flushing[]
+  },
+
+  /** Cierra todos los recordatorios de Flushing abiertos de una donante (RPC SECURITY DEFINER). */
+  async cerrarRecordatoriosFlushing(caballoId: string): Promise<void> {
+    const { error } = await getSupabaseClient().rpc('cerrar_recordatorios_flushing', {
+      p_caballo_id: caballoId,
+    })
+    if (error) throw error
   },
 
   async crearFlushing(payload: NuevoFlushingPayload): Promise<Flushing> {

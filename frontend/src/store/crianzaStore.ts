@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { crianzaService } from '../services/crianzaService'
+import { useAuthStore } from './authStore'
 import { useToastStore } from './toastStore'
 import { mensajeError } from '../utils/error'
 import { hoyAR } from '../utils/fecha'
@@ -182,7 +183,7 @@ interface CrianzaState {
   crearRegistro: (
     payload: NuevoRegistroCriaPayload,
     rolReproductivo: RolReproductivo,
-    ajustesDomingo?: Record<string, number>,
+    ajustesFinDeSemana?: Record<string, number>,
   ) => Promise<RegistroClinicoCria>
 
   /**
@@ -199,7 +200,10 @@ interface CrianzaState {
   ) => Promise<void>
 
   /** Corre el vencimiento un día (o los que se pidan) y lo deja pendiente. */
-  posponerRecordatorio: (id: string, dias?: number) => Promise<void>
+  posponerRecordatorio: (id: string, dias?: number, motivo?: string) => Promise<void>
+
+  /** Pospone a una fecha específica elegida por el vet. */
+  posponerRecordatorioAFecha: (id: string, nuevaFecha: string, motivo?: string) => Promise<void>
 
   /**
    * Marca `hecho` los recordatorios abiertos del animal para ese día que el acto
@@ -300,7 +304,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
   // ── Registros clínicos ────────────────────────────────────────────────────
 
-  crearRegistro: async (payload, rolReproductivo, ajustesDomingo) => {
+  crearRegistro: async (payload, rolReproductivo, ajustesFinDeSemana) => {
     // La OV de la donante agenda Flushing solo si hubo IN antes. Se consulta
     // antes de insertar: si falla, no queda un registro con el recordatorio
     // equivocado. Solo hace falta ir a la base si este registro no trae IN.
@@ -353,13 +357,14 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
       const recPayloads: NuevoRecordatorioPayload[] = reglas.map((regla) => {
         let fechaVto = regla.calcularFecha(payload.fecha)
-        const ajuste = ajustesDomingo?.[regla.tipo]
+        const ajuste = ajustesFinDeSemana?.[regla.tipo]
         if (ajuste) fechaVto = sumarDias(fechaVto, ajuste)
         return {
           caballo_id:         payload.caballo_id,
           sociedad_id:        payload.sociedad_id,
           tipo:               regla.tipo,
           fecha_vto:          fechaVto,
+          fecha_original:     null,
           estado:             'pendiente' as EstadoRecordatorio,
           veterinario_id:     payload.veterinario_id,
           notas:              null,
@@ -426,18 +431,47 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     }
   },
 
-  posponerRecordatorio: async (id, dias = 1) => {
+  posponerRecordatorio: async (id, dias = 1, motivo) => {
     const actual = get().recordatorios.find((r) => r.id === id)
     if (!actual) return
+    const userId = useAuthStore.getState().user?.id
+    if (!userId) return
     // Se corre desde hoy, no desde fecha_vto: posponer uno que quedó vencido
     // hace una semana tiene que caer mañana, no el día siguiente al original.
     const base = actual.fecha_vto > hoyAR() ? actual.fecha_vto : hoyAR()
     const nuevaFecha = sumarDias(base, dias)
-    await crianzaService.posponerRecordatorio(id, nuevaFecha)
+    const motivoFinal = motivo ?? (dias === 1 ? 'pospuesto_1d' : `pospuesto_${dias}d`)
+    await crianzaService.posponerRecordatorio(id, nuevaFecha, motivoFinal, userId)
     set((s) => ({
       recordatorios: s.recordatorios.map((r) =>
         r.id === id
-          ? { ...r, fecha_vto: nuevaFecha, estado: 'pendiente' as EstadoRecordatorio }
+          ? {
+              ...r,
+              fecha_vto: nuevaFecha,
+              estado: 'pendiente' as EstadoRecordatorio,
+              fecha_original: r.fecha_original ?? actual.fecha_vto,
+            }
+          : r
+      ),
+    }))
+  },
+
+  posponerRecordatorioAFecha: async (id, nuevaFecha, motivo) => {
+    const actual = get().recordatorios.find((r) => r.id === id)
+    if (!actual) return
+    const userId = useAuthStore.getState().user?.id
+    if (!userId) return
+    if (nuevaFecha < hoyAR()) throw new Error('La fecha no puede ser anterior a hoy')
+    await crianzaService.posponerRecordatorio(id, nuevaFecha, motivo ?? 'manual', userId)
+    set((s) => ({
+      recordatorios: s.recordatorios.map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              fecha_vto: nuevaFecha,
+              estado: 'pendiente' as EstadoRecordatorio,
+              fecha_original: r.fecha_original ?? actual.fecha_vto,
+            }
           : r
       ),
     }))
@@ -448,7 +482,24 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   crearFlushing: async (payload) => {
     const flushing = await crianzaService.crearFlushing(payload)
     set((s) => ({ flushings: [flushing, ...s.flushings] }))
-    await get().cerrarRecordatoriosResueltos(payload.caballo_id, payload.fecha, { clase: 'flushing' })
+
+    // RPC SECURITY DEFINER: cierra TODOS los recordatorios de Flushing abiertos
+    // de esta donante, sin importar fecha ni quién los creó (fix bug fecha exacta + RLS).
+    try {
+      await crianzaService.cerrarRecordatoriosFlushing(payload.caballo_id)
+      set((s) => ({
+        recordatorios: s.recordatorios.map((r) =>
+          r.caballo_id === payload.caballo_id &&
+          r.tipo === 'Flushing' &&
+          (r.estado === 'pendiente' || r.estado === 'vencido')
+            ? { ...r, estado: 'hecho' as EstadoRecordatorio }
+            : r
+        ),
+      }))
+    } catch (e) {
+      console.error('[crianzaStore] cerrar recordatorios flushing:', mensajeError(e))
+    }
+
     return flushing
   },
 

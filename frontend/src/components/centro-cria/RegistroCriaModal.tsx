@@ -15,7 +15,7 @@ import type {
 } from '../../types/crianza'
 import ChipSelector from './ChipSelector'
 import PadrilloSelect from './PadrilloSelect'
-import { hoyAR, sumarDias, esDomingo, formatFecha as formatFechaAR } from '../../utils/fecha'
+import { hoyAR, sumarDias, esSabado, esFinDeSemana, formatFecha as formatFechaAR } from '../../utils/fecha'
 import { mensajeError } from '../../utils/error'
 
 interface Props {
@@ -99,7 +99,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [inseminadaPrevia, setInseminadaPrevia] = useState(false)
 
   // Ajuste de domingo: -1 = sábado, 0 = domingo, 1 = lunes
-  const [ajustesDomingo, setAjustesDomingo] = useState<Record<string, -1 | 0 | 1>>({})
+  const [ajustesFinDeSemana, setAjustesDomingo] = useState<Record<string, -1 | 0 | 1>>({})
 
   // Para vets sin sociedadActiva: se deriva del caballo seleccionado
   const [animalSociedadId, setAnimalSociedadId] = useState('')
@@ -285,7 +285,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
             origen_recordatorio_id: recordatorio?.id ?? null,
           },
           rolEfectivo,
-          Object.keys(ajustesDomingo).length > 0 ? ajustesDomingo : undefined,
+          Object.keys(ajustesFinDeSemana).length > 0 ? ajustesFinDeSemana : undefined,
         )
       }
 
@@ -625,7 +625,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               inseminada={obsChips.includes('IN') || inseminadaPrevia}
               cfg={plazos}
               propias={reglasPropias}
-              ajustesDomingo={ajustesDomingo}
+              ajustesFinDeSemana={ajustesFinDeSemana}
               onAjusteDomingo={(tipo, offset) =>
                 setAjustesDomingo((prev) => ({ ...prev, [tipo]: offset }))
               }
@@ -670,7 +670,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
 function RecordatoriosPreview({
   obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewDias, inseminada, cfg, propias,
-  ajustesDomingo, onAjusteDomingo,
+  ajustesFinDeSemana, onAjusteDomingo,
 }: {
   obsChips: string[]
   ovarioIzq: string[]
@@ -684,7 +684,7 @@ function RecordatoriosPreview({
   cfg: PlazosVet
   /** Reglas propias del vet, que se suman a las fijas. */
   propias: ReglaRecordatorioVet[]
-  ajustesDomingo: Record<string, -1 | 0 | 1>
+  ajustesFinDeSemana: Record<string, -1 | 0 | 1>
   onAjusteDomingo: (tipo: string, offset: -1 | 0 | 1) => void
 }) {
   // Las mismas reglas que aplica el store al guardar: con una copia propia, el
@@ -696,14 +696,15 @@ function RecordatoriosPreview({
     rol, cfg, inseminada, propias,
   ).map((r) => {
     const fechaBase = r.calcularFecha(fecha)
-    const caeDomingo = esDomingo(fechaBase)
-    const ajuste = ajustesDomingo[r.tipo] ?? 0
-    const fechaFinal = caeDomingo && ajuste !== 0 ? sumarDias(fechaBase, ajuste) : fechaBase
+    const caeFinde = esFinDeSemana(fechaBase)
+    const ajuste = ajustesFinDeSemana[r.tipo] ?? 0
+    const fechaFinal = caeFinde && ajuste !== 0 ? sumarDias(fechaBase, ajuste) : fechaBase
     return {
       tipo:  r.tipo,
       fechaBase,
       fecha: fechaFinal,
-      caeDomingo,
+      caeFinde,
+      esSab: esSabado(fechaBase),
       nota:  rol === 'Donante' && tieneOV && !inseminada && r.tipo === 'Dar PG'
         ? `sin IN en los últimos ${VENTANA_INSEMINACION_DIAS} días`
         : undefined,
@@ -726,17 +727,22 @@ function RecordatoriosPreview({
             </span>
             <span className="text-slate-400">{formatFecha(item.fecha)}</span>
           </div>
-          {item.caeDomingo && (
+          {item.caeFinde && (
             <div className="mt-1 flex items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-1.5">
-              <span className="text-[11px] text-amber-700 shrink-0">Cae domingo</span>
+              <span className="text-[11px] text-amber-700 shrink-0">
+                Cae {item.esSab ? 'sábado' : 'domingo'}
+              </span>
               <div className="flex gap-1 ml-auto">
-                {([[-1, 'Sáb'], [0, 'Dom'], [1, 'Lun']] as const).map(([offset, label]) => (
+                {(item.esSab
+                  ? ([[-1, 'Vie'], [0, 'Sáb'], [1, 'Lun']] as const)
+                  : ([[-1, 'Sáb'], [0, 'Dom'], [1, 'Lun']] as const)
+                ).map(([offset, label]) => (
                   <button
                     key={offset}
                     type="button"
                     onClick={() => onAjusteDomingo(item.tipo, offset)}
                     className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
-                      (ajustesDomingo[item.tipo] ?? 0) === offset
+                      (ajustesFinDeSemana[item.tipo] ?? 0) === offset
                         ? 'border-amber-500 bg-amber-200 text-amber-800'
                         : 'border-amber-200 bg-white text-amber-600 hover:bg-amber-100'
                     }`}

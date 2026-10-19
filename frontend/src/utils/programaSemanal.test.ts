@@ -7,7 +7,7 @@ const DIA = '2026-10-07'
 
 function rec(id: string, tipo: string, estado: RecordatorioCria['estado'] = 'pendiente'): RecordatorioCria {
   return {
-    id, caballo_id: 'estrella', sociedad_id: 'soc-1', tipo, fecha_vto: DIA, estado,
+    id, caballo_id: 'estrella', sociedad_id: 'soc-1', tipo, fecha_vto: DIA, fecha_original: null, estado,
     veterinario_id: null, notas: null, auto_generado: true, origen_registro_id: null,
     cancel_motivo: null, created_at: '', updated_at: '',
   }

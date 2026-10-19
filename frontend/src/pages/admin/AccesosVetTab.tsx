@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useSaveHandler } from '../../hooks/useSaveHandler'
-import { ShieldCheck, ShieldOff, Plus, X, CheckSquare } from 'lucide-react'
+import { ShieldCheck, ShieldOff, Plus, X, CheckSquare, Globe } from 'lucide-react'
 import Tooltip from '../../components/ui/Tooltip'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getAccesosVet, revocarAccesosBulk, otorgarAccesosBulk,
-  getVeterinariosPlataforma,
-  type AccesoVet, type VeterinarioPlataforma,
+  getVeterinariosPlataforma, getAccesosTotales, otorgarAccesoTotal, revocarAccesoTotal,
+  type AccesoVet, type VeterinarioPlataforma, type AccesoVetSociedad,
 } from '../../services/adminService'
 import { caballoService, type Caballo } from '../../services/caballoService'
 
@@ -238,26 +238,31 @@ function OtorgarModal({ vets, caballos, accesoActivos, otorgadoPor, vetError, on
 export default function AccesosVetTab() {
   const { sociedadActiva, user } = useAuth()
   const [accesos,  setAccesos]  = useState<AccesoVet[]>([])
+  const [accesosTotales, setAccesosTotales] = useState<AccesoVetSociedad[]>([])
   const [vets,     setVets]     = useState<VeterinarioPlataforma[]>([])
   const [caballos, setCaballos] = useState<Caballo[]>([])
   const [loading,  setLoading]  = useState(true)
   const [vetError, setVetError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
+  const [showModalTotal, setShowModalTotal] = useState(false)
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [revocandoIds, setRevocandoIds] = useState<Set<string>>(new Set())
   const [revocandoBulk, setRevocandoBulk] = useState(false)
+  const [revocandoTotalId, setRevocandoTotalId] = useState<string | null>(null)
 
   async function cargar() {
     if (!sociedadActiva) return
     setVetError(null)
 
-    // Cargar accesos y caballos — no dependen de los vets de plataforma
-    const [accesoResult, caballoResult] = await Promise.allSettled([
+    // Cargar accesos, accesos totales y caballos en paralelo
+    const [accesoResult, caballoResult, totalResult] = await Promise.allSettled([
       getAccesosVet(sociedadActiva.id),
       caballoService.listar(sociedadActiva.id),
+      getAccesosTotales(sociedadActiva.id),
     ])
     if (accesoResult.status === 'fulfilled') setAccesos(accesoResult.value)
     if (caballoResult.status === 'fulfilled') setCaballos(caballoResult.value)
+    if (totalResult.status === 'fulfilled') setAccesosTotales(totalResult.value)
 
     // Cargar vets de plataforma por separado para capturar el error real
     try {
@@ -313,20 +318,86 @@ export default function AccesosVetTab() {
     }
   }
 
+  async function handleRevocarTotal(accesoId: string) {
+    setRevocandoTotalId(accesoId)
+    try {
+      await revocarAccesoTotal(accesoId)
+      await cargar()
+    } finally {
+      setRevocandoTotalId(null)
+    }
+  }
+
   const anyRevocando = revocandoBulk || revocandoIds.size > 0
+  const vetsConAccesoTotal = new Set(accesosTotales.map((a) => a.vet_id))
 
   if (loading) return <p className="text-sm text-slate-400">Cargando accesos…</p>
 
   const todosSeleccionados = accesos.length > 0 && seleccionados.size === accesos.length
 
+  // Vets disponibles para otorgar acceso total (excluir los que ya lo tienen)
+  const vetsParaTotal = vets.filter((v) => !vetsConAccesoTotal.has(v.id))
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* ── Sección acceso total ──────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Globe size={14} className="text-emerald-500" />
+            <h2 className="text-sm font-medium text-slate-600">Acceso total</h2>
+            <Tooltip text="El veterinario ve automáticamente todos los caballos de esta empresa, actuales y futuros, sin necesidad de otorgar acceso caballo por caballo." />
+          </div>
+          <button
+            onClick={() => setShowModalTotal(true)}
+            disabled={vetsParaTotal.length === 0}
+            className="flex items-center gap-1.5 rounded-md bg-emerald-500 hover:bg-emerald-400 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+          >
+            <Plus size={14} />
+            Otorgar acceso total
+          </button>
+        </div>
+
+        {accesosTotales.length === 0 ? (
+          <p className="text-xs text-slate-400 py-2">
+            Ningún veterinario tiene acceso total a esta empresa.
+          </p>
+        ) : (
+          <div className="rounded-xl border border-emerald-200 overflow-hidden divide-y divide-emerald-100">
+            {accesosTotales.map((a) => (
+              <div key={a.id} className="flex items-center gap-3 px-4 py-3 bg-emerald-50/50">
+                <Globe size={14} className="text-emerald-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-700 truncate">
+                    {a.vet.nombre} {a.vet.apellido}
+                  </p>
+                  <p className="text-[11px] text-slate-400 font-mono truncate">{a.vet.email}</p>
+                </div>
+                <button
+                  onClick={() => handleRevocarTotal(a.id)}
+                  disabled={revocandoTotalId === a.id}
+                  className="shrink-0 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-rose-600 transition-colors disabled:opacity-40 py-1.5 px-2 rounded-md hover:bg-white"
+                  title="Revocar acceso total"
+                >
+                  <ShieldOff size={14} />
+                  <span className="hidden sm:inline">
+                    {revocandoTotalId === a.id ? 'Revocando…' : 'Revocar'}
+                  </span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Sección accesos individuales ──────────────────────────────────── */}
+      <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-slate-600">
-            {accesos.length} acceso{accesos.length !== 1 ? 's' : ''} activo{accesos.length !== 1 ? 's' : ''}
+            Accesos individuales ({accesos.length})
           </h2>
-          <Tooltip text="Los veterinarios solo pueden ver y registrar consultas en los caballos a los que se les dio acceso explícito desde acá." />
+          <Tooltip text="Acceso caballo por caballo. Si el veterinario ya tiene acceso total, estos accesos individuales son redundantes." />
         </div>
 
         <div className="flex items-center gap-2">
@@ -395,6 +466,12 @@ export default function AccesosVetTab() {
                     </p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <p className="text-[11px] text-slate-400 font-mono truncate">{a.vet.email}</p>
+                      {vetsConAccesoTotal.has(a.vet_id) && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 shrink-0">
+                          <Globe size={9} />
+                          Acceso total
+                        </span>
+                      )}
                       {a.caballo && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-600 shrink-0">
                           <ShieldCheck size={10} />
@@ -447,6 +524,113 @@ export default function AccesosVetTab() {
           onSuccess={() => { setShowModal(false); cargar() }}
         />
       )}
+      </div>{/* cierre sección accesos individuales */}
+
+      {/* ── Modal otorgar acceso total ───────────────────────────────────── */}
+      {showModalTotal && (
+        <OtorgarAccesoTotalModal
+          vets={vetsParaTotal}
+          sociedadId={sociedadActiva?.id ?? ''}
+          otorgadoPor={user?.id ?? ''}
+          vetError={vetError}
+          onClose={() => setShowModalTotal(false)}
+          onSuccess={() => { setShowModalTotal(false); cargar() }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Modal otorgar acceso total ──────────────────────────────────────────────
+
+interface OtorgarAccesoTotalModalProps {
+  vets: VeterinarioPlataforma[]
+  sociedadId: string
+  otorgadoPor: string
+  vetError: string | null
+  onClose: () => void
+  onSuccess: () => void
+}
+
+function OtorgarAccesoTotalModal({ vets, sociedadId, otorgadoPor, vetError, onClose, onSuccess }: OtorgarAccesoTotalModalProps) {
+  const [vetId, setVetId] = useState(vets[0]?.id ?? '')
+  const { saving, error, setError, execute } = useSaveHandler()
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!vetId) return setError('Seleccioná un veterinario.')
+
+    await execute(async () => {
+      await otorgarAccesoTotal(vetId, sociedadId, otorgadoPor)
+      onSuccess()
+    })
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-xl border border-slate-300 bg-white shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <h2 className="text-sm font-semibold text-slate-900">Otorgar acceso total</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={16} /></button>
+        </div>
+
+        {vets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+            <Globe size={28} className="text-slate-300" />
+            {vetError ? (
+              <>
+                <p className="text-sm font-medium text-rose-600">Error al cargar veterinarios</p>
+                <p className="text-xs text-slate-400 font-mono bg-slate-50 rounded p-2 max-w-xs break-all">{vetError}</p>
+              </>
+            ) : (
+              <p className="text-sm font-medium text-slate-600">
+                Todos los veterinarios ya tienen acceso total o no hay veterinarios registrados.
+              </p>
+            )}
+            <button type="button" onClick={onClose} className="mt-1 px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+              Cerrar
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-slate-500">Veterinario</label>
+              <select
+                value={vetId}
+                onChange={(e) => setVetId(e.target.value)}
+                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              >
+                {vets.map((v) => (
+                  <option key={v.id} value={v.id}>{v.nombre} {v.apellido} — {v.email}</option>
+                ))}
+              </select>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              El veterinario podrá ver y registrar consultas en <strong>todos</strong> los caballos de esta empresa, incluidos los que se agreguen en el futuro.
+            </p>
+
+            {error && <p className="text-xs text-rose-600">{error}</p>}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={saving || !vetId}
+                className="px-4 py-2 text-sm font-medium rounded-md bg-emerald-500 hover:bg-emerald-400 text-white transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Otorgando…' : 'Otorgar acceso total'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   )
 }

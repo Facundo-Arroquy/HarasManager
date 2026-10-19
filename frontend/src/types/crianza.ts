@@ -269,6 +269,8 @@ export interface RecordatorioCria {
   sociedad_id:         string
   tipo:                TipoRecordatorio | string
   fecha_vto:           string          // YYYY-MM-DD
+  /** Fecha original antes de cualquier reprogramación. NULL = nunca se pospuso. */
+  fecha_original:      string | null
   estado:              EstadoRecordatorio
   veterinario_id:      string | null
   notas:               string | null
@@ -280,6 +282,20 @@ export interface RecordatorioCria {
   // joins opcionales
   caballo?:            { nombre: string; rol_reproductivo: RolReproductivo }
   veterinario?:        { nombre: string; apellido: string } | null
+}
+
+// ---------------------------------------------------------------------------
+// Historial de reprogramaciones de recordatorios
+// ---------------------------------------------------------------------------
+
+export interface Reprogramacion {
+  id:               string
+  recordatorio_id:  string
+  fecha_anterior:   string
+  fecha_nueva:      string
+  motivo:           string | null
+  creado_por:       string
+  created_at:       string
 }
 
 export type NuevoRecordatorioPayload = Omit<
