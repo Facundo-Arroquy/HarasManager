@@ -280,7 +280,9 @@ export default function EmbrionesPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${ESTADO_BADGE[e.estado]}`}>
-                        {ESTADO_LABEL[e.estado]}
+                        {e.estado === 'transferido' && transf?.clasificacion === 'Congelado'
+                          ? 'Transf. de vitrificado'
+                          : ESTADO_LABEL[e.estado]}
                       </span>
                       {/* Solo el autor. Borrar, además, solo si nunca se transfirió. */}
                       {esAutor && (
