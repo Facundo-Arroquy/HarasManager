@@ -50,6 +50,8 @@ const TorneoKanbanPage       = lazy(() => import('./pages/torneos/TorneoKanbanPa
 const TransferirEmpresaPage  = lazy(() => import('./pages/transferencias/TransferirEmpresaPage'))
 const TransferirVetPage      = lazy(() => import('./pages/vet/TransferirVetPage'))
 const SanidadPage            = lazy(() => import('./pages/sanidad/SanidadPage'))
+const EstadisticasCaballoPage = lazy(() => import('./pages/estadisticas/EstadisticasCaballoPage'))
+const DescendenciaPage       = lazy(() => import('./pages/estadisticas/DescendenciaPage'))
 const CalendarioPage         = lazy(() => import('./pages/calendario/CalendarioPage'))
 const NotFoundPage           = lazy(() => import('./pages/NotFoundPage'))
 
@@ -264,6 +266,11 @@ export default function App() {
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
           <Route path="/sanidad" element={<SanidadPage />} />
+
+          {/* Descendencia — admin, veterinario y piloto */}
+          <Route element={<RequireRol roles={['admin', 'veterinario', 'piloto']} />}>
+            <Route path="/descendencia" element={<DescendenciaPage />} />
+          </Route>
           <Route path="/panel-vet" element={<PanelVetPage />} />
 
           {/* Secciones solo-veterinario */}
@@ -301,6 +308,7 @@ export default function App() {
                 se deja el redirect para los links guardados. */}
             <Route path="/centro-cria/flushings" element={<Navigate to="/centro-cria/embriones" replace />} />
             <Route path="/centro-cria/embriones" element={<EmbrionesPage />} />
+            <Route path="/centro-cria/estadisticas" element={<EstadisticasCaballoPage />} />
             {/* Configuración del centro: una subsección por pestaña */}
             {/* El resto del centro lo ve cualquiera con el módulo (el peticero,
                 solo lectura); la configuración queda para vet y admin. */}
