@@ -184,6 +184,23 @@ export const caballoService = {
     return ((data ?? []) as CaballoVetRow[]).map(mapVetRow) as unknown as Caballo[]
   },
 
+  /** Hijos de un caballo (donde es padre_id o madre_id). Incluye dados de baja. */
+  async listarDescendencia(caballoId: string): Promise<Caballo[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('caballo')
+      .select(`
+        id, nombre, fecha_nacimiento, categoria, sexo, activo, sociedad_id,
+        rol_reproductivo, estado_reproductivo, prenada,
+        cat_raza(nombre), cat_pelaje(nombre), campo(nombre),
+        padre:padre_id(id, nombre), madre:madre_id(id, nombre)
+      `)
+      .or(`padre_id.eq.${caballoId},madre_id.eq.${caballoId}`)
+      .order('nombre')
+    if (error) throw error
+    return (data ?? []) as unknown as Caballo[]
+  },
+
   /**
    * Caballos elegibles como padre/madre. A diferencia de `listar`, incluye los
    * dados de baja: el pedigree es histórico y un progenitor puede estar muerto.

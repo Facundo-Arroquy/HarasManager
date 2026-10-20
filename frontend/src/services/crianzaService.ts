@@ -881,6 +881,30 @@ export const crianzaService = {
     if (error) throw error
   },
 
+  /** Embriones de una donante con transferencia y ecografías embebidas. */
+  async listarEmbrionesPorDonante(caballoId: string): Promise<EmbrionConSeguimiento[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('embrion')
+      .select(SELECT_EMBRION_SEGUIMIENTO)
+      .eq('caballo_donante_id', caballoId)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return data as unknown as EmbrionConSeguimiento[]
+  },
+
+  /** Embriones donde el caballo fue el padrillo (semental). */
+  async listarEmbrionesPorPadrillo(padrilloId: string): Promise<EmbrionConSeguimiento[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('embrion')
+      .select(SELECT_EMBRION_SEGUIMIENTO)
+      .eq('padrillo_id', padrilloId)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return data as unknown as EmbrionConSeguimiento[]
+  },
+
   // ── Padrillos familiares — migración 20260802120100 ────────────────────────
 
   /**

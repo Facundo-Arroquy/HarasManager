@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, LayoutGrid, Settings, SlidersHorizontal,
   ClipboardList, Bell, ArrowLeftRight, FlaskConical,
-  CalendarDays, Settings2, Syringe, Trophy, Droplets,
+  CalendarDays, Settings2, Syringe, Trophy, Droplets, BarChart3,
 } from 'lucide-react'
 import type { ModuloCodigo } from '../../types/modulo'
 
@@ -28,6 +28,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/calendario',        label: 'Calendario',         icon: <CalendarDays size={18} />,      roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
       { to: '/caballos',          label: 'Caballos',           icon: <LayoutGrid size={18} /> },
       { to: '/sanidad',           label: 'Sanidad',            icon: <Syringe size={18} />,           roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
+      { to: '/descendencia',      label: 'Descendencia',       icon: <BarChart3 size={18} />,         roles: ['admin', 'veterinario', 'piloto'] },
       { to: '/revision-preventa', label: 'Revisión pre-venta', icon: <ClipboardList size={18} />, roles: ['veterinario'] },
       // Traspaso de caballos entre dueños/empresas. Una entrada por rol: el vet
       // mueve los caballos que creó él, el admin los de la sociedad.
@@ -54,6 +55,7 @@ export const NAV_GROUPS: NavGroup[] = [
       // Acciones y plazos son propios de cada veterinario; el ranking de
       // padrillos por donante sí es del establecimiento, así que el admin
       // también entra acá (definición de Gero, 2026-08-02).
+      { to: '/centro-cria/estadisticas',   label: 'Estadísticas',                icon: <BarChart3 size={18} /> },
       { to: '/centro-cria/config',         label: 'Configuración del centro',    icon: <Settings2 size={18} />, roles: ['veterinario', 'admin'] },
     ],
   },
