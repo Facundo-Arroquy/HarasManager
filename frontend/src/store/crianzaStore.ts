@@ -37,11 +37,13 @@ import type {
 //   IN      → OXI          +1 día
 //   OV (inseminada)     → Flushing  +6 días
 //   OV (sin inseminar)  → Dar PG    +4 días
-//   PG      → Revisión PG  +3 días
+//   1PG     → Revisión 1PG  +N días (elegidos por el vet)
+//   PG      → Revisión PG   +3 días
 //   Flushing→ Rev.Flushing +4 días
 //
 // Receptora:
 //   Strelin → Revisión Strelin  próximo MWF
+//   1PG     → Revisión 1PG      +N días (elegidos por el vet)
 //   PG      → Revisión PG       +4 días
 //   OV (sin Transferida) → Dar PG  +3 días
 //
@@ -104,6 +106,8 @@ export function reglasParaRegistro(
   /** Hubo IN en este registro o en los VENTANA_INSEMINACION_DIAS previos. */
   inseminada: boolean,
   propias: ReglaRecordatorioVet[] = [],
+  /** Días custom elegidos por el vet para la revisión de 1° PG. */
+  diasRevision1PG?: number | null,
 ): ReglaRecordatorio[] {
   const chips = registro.obs_chips
   const reglas: ReglaRecordatorio[] = []
@@ -125,7 +129,11 @@ export function reglasParaRegistro(
       reglas.push(inseminada
         ? { tipo: 'Flushing', calcularFecha: (f) => registro.fecha_flushing_programada ?? sumarDias(f, cfg.donante_ov_a_flushing) }
         : { tipo: 'Dar PG',   calcularFecha: (f) => sumarDias(f, cfg.donante_ov_sin_in_a_dar_pg) })
-    if (chips.some((c) => c === 'PG' || c === '1PG'))
+    // 1PG: días custom elegidos por el vet → "Revisión 1PG"
+    if (chips.includes('1PG') && diasRevision1PG)
+      reglas.push({ tipo: 'Revisión 1PG', calcularFecha: (f) => sumarDias(f, diasRevision1PG) })
+    // PG: plazo configurado → "Revisión PG" (sin cambios)
+    if (chips.includes('PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.donante_pg_a_revision_pg) })
     if (chips.includes('Flushing'))
       reglas.push({ tipo: 'Revisión Flushing', calcularFecha: (f) => sumarDias(f, cfg.donante_flushing_a_revision) })
@@ -134,7 +142,11 @@ export function reglasParaRegistro(
   if (rolReproductivo === 'Receptora') {
     if (chips.includes('Strelin'))
       reglas.push({ tipo: 'Revisión Strelin', calcularFecha: (f) => proximoMWF(f) })
-    if (chips.some((c) => c === 'PG' || c === '1PG'))
+    // 1PG: días custom elegidos por el vet → "Revisión 1PG"
+    if (chips.includes('1PG') && diasRevision1PG)
+      reglas.push({ tipo: 'Revisión 1PG', calcularFecha: (f) => sumarDias(f, diasRevision1PG) })
+    // PG: plazo configurado → "Revisión PG" (sin cambios)
+    if (chips.includes('PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.receptora_pg_a_revision_pg) })
     const tieneOV = registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV')
     const fueTransferida = chips.includes('Transferida')
@@ -184,6 +196,7 @@ interface CrianzaState {
     payload: NuevoRegistroCriaPayload,
     rolReproductivo: RolReproductivo,
     ajustesFinDeSemana?: Record<string, number>,
+    diasRevision1PG?: number | null,
   ) => Promise<RegistroClinicoCria>
 
   /**
@@ -304,7 +317,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
   // ── Registros clínicos ────────────────────────────────────────────────────
 
-  crearRegistro: async (payload, rolReproductivo, ajustesFinDeSemana) => {
+  crearRegistro: async (payload, rolReproductivo, ajustesFinDeSemana, diasRevision1PG) => {
     // La OV de la donante agenda Flushing solo si hubo IN antes. Se consulta
     // antes de insertar: si falla, no queda un registro con el recordatorio
     // equivocado. Solo hace falta ir a la base si este registro no trae IN.
@@ -325,7 +338,7 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
     // Auto-generar recordatorios según chips (insert batch para evitar N+1).
     // Los plazos son los del vet autenticado = el que hace el registro.
-    const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, inseminada, get().reglasPropias)
+    const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, inseminada, get().reglasPropias, diasRevision1PG)
     if (reglas.length > 0) {
       // Este registro puede traer su propia 'Revisión' (review_dias). Si el
       // animal ya tenía una pendiente o vencida de un registro anterior, se

@@ -254,6 +254,7 @@ export type TipoRecordatorio =
   | 'Dar PG'
   | 'Revisión Strelin'
   | 'Revisión PG'
+  | 'Revisión 1PG'
   | 'Revisión Flushing'
   | 'Revisión'
   // Las agenda registrar_transferencia_embrionaria con los plazos del vet
