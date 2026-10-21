@@ -3,7 +3,6 @@ import type {
   RegistroClinicoCria,
   NuevoRegistroCriaPayload,
   RecordatorioCria,
-  NuevoRecordatorioPayload,
   EstadoRecordatorio,
   Flushing,
   NuevoFlushingPayload,
@@ -108,22 +107,6 @@ export const crianzaService = {
     return (data ?? []).length > 0
   },
 
-  async crearRegistro(payload: NuevoRegistroCriaPayload): Promise<RegistroClinicoCria> {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('cria_registro_clinico')
-      .insert(payload)
-      .select(`
-        *,
-        caballo:caballo_id(nombre, rol_reproductivo),
-        veterinario:veterinario_id(nombre, apellido),
-        padrillo:padrillo_id(nombre)
-      `)
-      .single()
-    if (error) throw error
-    return data as RegistroClinicoCria
-  },
-
   async registrarActoReproductivo(
     payload: NuevoRegistroCriaPayload,
     rolReproductivo: Exclude<RolReproductivo, null>,
@@ -194,42 +177,11 @@ export const crianzaService = {
     return data as RecordatorioCria[]
   },
 
-  async crearRecordatorio(payload: NuevoRecordatorioPayload): Promise<RecordatorioCria> {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('cria_recordatorio')
-      .insert(payload)
-      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
-      .single()
-    if (error) throw error
-    return data as RecordatorioCria
-  },
-
-  async crearRecordatoriosBatch(payloads: NuevoRecordatorioPayload[]): Promise<RecordatorioCria[]> {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('cria_recordatorio')
-      .insert(payloads)
-      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
-    if (error) throw error
-    return data as RecordatorioCria[]
-  },
-
   async marcarVencidos(ids: string[]): Promise<void> {
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from('cria_recordatorio')
       .update({ estado: 'vencido' })
-      .in('id', ids)
-    if (error) throw error
-  },
-
-  /** Cancela en lote (p.ej. revisiones que un registro más nuevo reemplaza). */
-  async cancelarRecordatorios(ids: string[], motivo: string): Promise<void> {
-    const supabase = getSupabaseClient()
-    const { error } = await supabase
-      .from('cria_recordatorio')
-      .update({ estado: 'cancelado', cancel_motivo: motivo })
       .in('id', ids)
     if (error) throw error
   },

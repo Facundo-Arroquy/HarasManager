@@ -88,6 +88,11 @@ export interface ReglaRecordatorio {
  * cuenta como "inseminada antes de esta ovulación". Cubre la IN del ciclo
  * (1–2 días antes de ovular) y los re-registros de OV con días post-OV, sin
  * alcanzar la IN del ciclo anterior (12+ días antes).
+ *
+ * @deprecated La fuente de verdad es la RPC `registrar_acto_reproductivo` en
+ * PostgreSQL (campo `ventana_inseminacion_dias` de `get_configuracion_cria_efectiva`).
+ * Este valor solo se conserva para el preview del modal y la consulta de
+ * inseminación reciente del frontend. No modificarlo sin actualizar la RPC.
  */
 export const VENTANA_INSEMINACION_DIAS = 7
 
