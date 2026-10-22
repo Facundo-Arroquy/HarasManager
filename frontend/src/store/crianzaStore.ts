@@ -483,21 +483,35 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     const flushing = await crianzaService.crearFlushing(payload)
     set((s) => ({ flushings: [flushing, ...s.flushings] }))
 
-    // RPC SECURITY DEFINER: cierra TODOS los recordatorios de Flushing abiertos
-    // de esta donante, sin importar fecha ni quién los creó (fix bug fecha exacta + RLS).
+    // RPC SECURITY DEFINER: cierra TODOS los recordatorios del ciclo anterior
+    // de esta donante (excepto Eco, Revisión Eco y Revisión PG).
     try {
       await crianzaService.cerrarRecordatoriosFlushing(payload.caballo_id)
       set((s) => ({
         recordatorios: s.recordatorios.map((r) =>
           r.caballo_id === payload.caballo_id &&
-          r.tipo === 'Flushing' &&
-          (r.estado === 'pendiente' || r.estado === 'vencido')
-            ? { ...r, estado: 'hecho' as EstadoRecordatorio }
+          (r.estado === 'pendiente' || r.estado === 'vencido') &&
+          r.auto_generado &&
+          !['Eco 1', 'Eco 2', 'Eco 3', 'Revisión Eco', 'Revisión PG'].includes(r.tipo)
+            ? { ...r, estado: 'cancelado' as EstadoRecordatorio, cancel_motivo: 'Ciclo cerrado por nuevo flushing' }
             : r
         ),
       }))
     } catch (e) {
       console.error('[crianzaStore] cerrar recordatorios flushing:', mensajeError(e))
+    }
+
+    // El trigger trg_cria_flushing_sincronizar_revision_pg crea la "Revisión PG"
+    // en la DB pero el frontend no la tiene en memoria. La traemos y la sumamos.
+    try {
+      const nuevosRec = await crianzaService.listarRecordatoriosPorFlushing(flushing.id)
+      if (nuevosRec.length > 0) {
+        set((s) => ({
+          recordatorios: [...s.recordatorios, ...nuevosRec],
+        }))
+      }
+    } catch (e) {
+      console.error('[crianzaStore] traer recordatorios del flushing:', mensajeError(e))
     }
 
     return flushing

@@ -324,6 +324,18 @@ export const crianzaService = {
     if (error) throw error
   },
 
+  /** Recordatorios que el trigger de flushing creó (Revisión PG, etc.). */
+  async listarRecordatoriosPorFlushing(flushingId: string): Promise<RecordatorioCria[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_recordatorio')
+      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
+      .eq('flushing_id', flushingId)
+      .in('estado', ['pendiente', 'vencido'])
+    if (error) throw error
+    return data as RecordatorioCria[]
+  },
+
   async crearFlushing(payload: NuevoFlushingPayload): Promise<Flushing> {
     const supabase = getSupabaseClient()
     const { data, error } = await supabase
