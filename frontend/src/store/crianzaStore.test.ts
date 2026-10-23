@@ -85,6 +85,52 @@ describe('reglasParaRegistro — prioridad de acciones manuales', () => {
   })
 })
 
+describe('reglasParaRegistro — OXI y días de revisión en el mismo registro', () => {
+  it('agenda una sola Revisión (la de OXI, a +1 día) y no suma la de los días elegidos', () => {
+    const reglas = reglasParaRegistro({
+      ...registroBase(7),
+      obs_chips: ['OXI'],
+    }, 'Donante', TEST_PLAZOS, true)
+
+    const revisiones = reglas.filter((r) => r.tipo === 'Revisión')
+    expect(revisiones).toHaveLength(1)
+    expect(revisiones[0].calcularFecha(FECHA_BASE)).toBe(sumarDias(FECHA_BASE, 1))
+  })
+})
+
+describe('reglasParaRegistro — PG y 1PG ya no son lo mismo', () => {
+  const chips = (obs_chips: string[]) => ({ ...registroBase(null), obs_chips })
+
+  it.each(['Donante', 'Receptora'] as const)('%s: PG agenda Revisión PG con el plazo configurado', (rol) => {
+    const reglas = reglasParaRegistro(chips(['PG']), rol, TEST_PLAZOS, false)
+    const plazo = rol === 'Donante' ? TEST_PLAZOS.donante_pg_a_revision_pg : TEST_PLAZOS.receptora_pg_a_revision_pg
+
+    expect(reglas.map((r) => r.tipo)).toEqual(['Revisión PG'])
+    expect(reglas[0].calcularFecha(FECHA_BASE)).toBe(sumarDias(FECHA_BASE, plazo))
+  })
+
+  it.each(['Donante', 'Receptora'] as const)('%s: 1PG agenda Revisión 1PG a los días elegidos y no usa el plazo de PG', (rol) => {
+    const reglas = reglasParaRegistro(chips(['1PG']), rol, TEST_PLAZOS, false, [], 5)
+
+    expect(reglas.map((r) => r.tipo)).toEqual(['Revisión 1PG'])
+    expect(reglas[0].calcularFecha(FECHA_BASE)).toBe(sumarDias(FECHA_BASE, 5))
+  })
+
+  it('PG y 1PG juntos agendan las dos revisiones, cada una con su plazo', () => {
+    const reglas = reglasParaRegistro(chips(['PG', '1PG']), 'Receptora', TEST_PLAZOS, false, [], 2)
+    const fechas = Object.fromEntries(reglas.map((r) => [r.tipo, r.calcularFecha(FECHA_BASE)]))
+
+    expect(fechas).toEqual({
+      'Revisión 1PG': sumarDias(FECHA_BASE, 2),
+      'Revisión PG':  sumarDias(FECHA_BASE, TEST_PLAZOS.receptora_pg_a_revision_pg),
+    })
+  })
+
+  it('1PG sin días elegidos no agenda nada (el modal no deja guardar así)', () => {
+    expect(reglasParaRegistro(chips(['1PG']), 'Donante', TEST_PLAZOS, false)).toEqual([])
+  })
+})
+
 describe('protocolo de flushing — configuración PG', () => {
   it('aplica PG automáticamente por defecto y conserva el plazo de Revisión PG', () => {
     expect(TEST_PLAZOS.donante_flushing_aplica_pg).toBe(true)
@@ -159,7 +205,7 @@ describe('crearRegistro — revisión duplicada para el mismo animal', () => {
 
     // Se canceló la revisión vieja de este animal, no una de otro.
     expect(crianzaService.registrarActoReproductivo).toHaveBeenCalledWith(
-      payload, 'Donante', undefined,
+      payload, 'Donante', undefined, undefined,
     )
 
     const estadoFinal = useCrianzaStore.getState().recordatorios
@@ -186,6 +232,34 @@ describe('crearRegistro — revisión duplicada para el mismo animal', () => {
     await useCrianzaStore.getState().crearRegistro(payload, 'Donante')
 
     expect(crianzaService.registrarActoReproductivo).toHaveBeenCalledOnce()
+  })
+})
+
+describe('crearRegistro — 1PG', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useCrianzaStore.setState({
+      registros: [], recordatorios: [], flushings: [], transferencias: [], ecografias: [],
+      plazos: TEST_PLAZOS, configuracion: null, reglasPropias: [], loading: false, error: null,
+    })
+  })
+
+  it('le pasa a la función de base los días elegidos para la Revisión 1PG', async () => {
+    vi.mocked(crianzaService.registrarActoReproductivo).mockResolvedValue({
+      registro: { id: 'reg-1pg' } as never,
+      recordatorios: [],
+    })
+    const payload: NuevoRegistroCriaPayload = {
+      caballo_id: 'receptora-1', sociedad_id: 'soc-1', fecha: FECHA_BASE, veterinario_id: 'vet-1',
+      ovario_izq: [], ovario_der: [], utero: [], obs_chips: ['1PG'],
+      padrillo_id: null, ov_dias: null, review_dias: null, review_desc: null,
+      motivo: null, diagnostico: null, tratamiento: null, observaciones: null,
+      origen_recordatorio_id: null,
+    }
+
+    await useCrianzaStore.getState().crearRegistro(payload, 'Receptora', undefined, 4)
+
+    expect(crianzaService.registrarActoReproductivo).toHaveBeenCalledWith(payload, 'Receptora', undefined, 4)
   })
 })
 
