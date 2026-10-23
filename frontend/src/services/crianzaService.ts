@@ -303,12 +303,28 @@ export const crianzaService = {
     return data as Flushing[]
   },
 
-  /** Cierra todos los recordatorios de Flushing abiertos de una donante (RPC SECURITY DEFINER). */
-  async cerrarRecordatoriosFlushing(caballoId: string): Promise<void> {
+  /**
+   * Cancela los recordatorios auto-generados del ciclo anterior de una donante
+   * (RPC SECURITY DEFINER). Deja los que cuelgan del flushing recién creado.
+   */
+  async cerrarRecordatoriosFlushing(caballoId: string, flushingId: string): Promise<void> {
     const { error } = await getSupabaseClient().rpc('cerrar_recordatorios_flushing', {
-      p_caballo_id: caballoId,
+      p_caballo_id:  caballoId,
+      p_flushing_id: flushingId,
     })
     if (error) throw error
+  },
+
+  /** Recordatorios que el trigger de flushing creó (Revisión PG, etc.). */
+  async listarRecordatoriosPorFlushing(flushingId: string): Promise<RecordatorioCria[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_recordatorio')
+      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
+      .eq('flushing_id', flushingId)
+      .in('estado', ['pendiente', 'vencido'])
+    if (error) throw error
+    return data as RecordatorioCria[]
   },
 
   async crearFlushing(payload: NuevoFlushingPayload): Promise<Flushing> {
