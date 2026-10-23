@@ -36,11 +36,13 @@ import { plazosDesdeConfiguracion } from '../types/crianza'
 //   IN      → OXI          +1 día
 //   OV (inseminada)     → Flushing  +6 días
 //   OV (sin inseminar)  → Dar PG    +4 días
-//   PG      → Revisión PG  +3 días
+//   1PG     → Revisión 1PG  +N días (elegidos por el vet)
+//   PG      → Revisión PG   +3 días
 //   Flushing→ Rev.Flushing +4 días
 //
 // Receptora:
 //   Strelin → Revisión Strelin  próximo MWF
+//   1PG     → Revisión 1PG      +N días (elegidos por el vet)
 //   PG      → Revisión PG       +4 días
 //   OV (sin Transferida) → Dar PG  +3 días
 //
@@ -109,6 +111,8 @@ export function reglasParaRegistro(
   /** Hubo IN en este registro o en los VENTANA_INSEMINACION_DIAS previos. */
   inseminada: boolean,
   propias: ReglaRecordatorioVet[] = [],
+  /** Días custom elegidos por el vet para la revisión de 1° PG. */
+  diasRevision1PG?: number | null,
 ): ReglaRecordatorio[] {
   const chips = registro.obs_chips
   const reglas: ReglaRecordatorio[] = []
@@ -130,7 +134,11 @@ export function reglasParaRegistro(
       reglas.push(inseminada
         ? { tipo: 'Flushing', calcularFecha: (f) => registro.fecha_flushing_programada ?? sumarDias(f, cfg.donante_ov_a_flushing) }
         : { tipo: 'Dar PG',   calcularFecha: (f) => sumarDias(f, cfg.donante_ov_sin_in_a_dar_pg) })
-    if (chips.some((c) => c === 'PG' || c === '1PG'))
+    // 1PG: días custom elegidos por el vet → "Revisión 1PG"
+    if (chips.includes('1PG') && diasRevision1PG)
+      reglas.push({ tipo: 'Revisión 1PG', calcularFecha: (f) => sumarDias(f, diasRevision1PG) })
+    // PG: plazo configurado → "Revisión PG" (sin cambios)
+    if (chips.includes('PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.donante_pg_a_revision_pg) })
     if (chips.includes('Flushing'))
       reglas.push({ tipo: 'Revisión Flushing', calcularFecha: (f) => sumarDias(f, cfg.donante_flushing_a_revision) })
@@ -139,7 +147,11 @@ export function reglasParaRegistro(
   if (rolReproductivo === 'Receptora') {
     if (chips.includes('Strelin'))
       reglas.push({ tipo: 'Revisión Strelin', calcularFecha: (f) => proximoMWF(f) })
-    if (chips.some((c) => c === 'PG' || c === '1PG'))
+    // 1PG: días custom elegidos por el vet → "Revisión 1PG"
+    if (chips.includes('1PG') && diasRevision1PG)
+      reglas.push({ tipo: 'Revisión 1PG', calcularFecha: (f) => sumarDias(f, diasRevision1PG) })
+    // PG: plazo configurado → "Revisión PG" (sin cambios)
+    if (chips.includes('PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.receptora_pg_a_revision_pg) })
     const tieneOV = registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV')
     const fueTransferida = chips.includes('Transferida')
@@ -154,7 +166,9 @@ export function reglasParaRegistro(
     reglas.push({ tipo: p.accion_recordatorio, calcularFecha: (f) => sumarDias(f, p.dias) })
   }
 
-  if (registro.review_dias)
+  // Igual que registrar_acto_reproductivo: si OXI ya agendó una Revisión (+1 día),
+  // los días de revisión del registro no agendan una segunda.
+  if (registro.review_dias && !reglas.some((r) => r.tipo === 'Revisión'))
     reglas.push({ tipo: 'Revisión', calcularFecha: (f) => sumarDias(f, registro.review_dias!) })
 
   return reglas.map((r) => ({ ...r, calcularFecha: () => r.calcularFecha(base) }))
@@ -190,6 +204,7 @@ interface CrianzaState {
     payload: NuevoRegistroCriaPayload,
     rolReproductivo: RolReproductivo,
     ajustesFinDeSemana?: Record<string, number>,
+    diasRevision1PG?: number | null,
   ) => Promise<RegistroClinicoCria>
 
   /**
@@ -322,10 +337,10 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
 
   // ── Registros clínicos ────────────────────────────────────────────────────
 
-  crearRegistro: async (payload, rolReproductivo, ajustesFinDeSemana) => {
+  crearRegistro: async (payload, rolReproductivo, ajustesFinDeSemana, diasRevision1PG) => {
     if (!rolReproductivo) throw new Error('El acto reproductivo requiere rol de Donante o Receptora')
     const result = await crianzaService.registrarActoReproductivo(
-      payload, rolReproductivo, ajustesFinDeSemana,
+      payload, rolReproductivo, ajustesFinDeSemana, diasRevision1PG,
     )
     const idsActualizados = new Set(result.recordatorios.map((r) => r.id))
     set((s) => ({

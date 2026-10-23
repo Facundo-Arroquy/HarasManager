@@ -111,6 +111,8 @@ export const crianzaService = {
     payload: NuevoRegistroCriaPayload,
     rolReproductivo: Exclude<RolReproductivo, null>,
     ajustesFinDeSemana?: Record<string, number>,
+    /** Días hasta la «Revisión 1PG» (1..60). Obligatorio si el registro lleva el chip 1PG. */
+    diasRevision1PG?: number | null,
   ): Promise<{ registro: RegistroClinicoCria; recordatorios: RecordatorioCria[] }> {
     const { data, error } = await getSupabaseClient().rpc('registrar_acto_reproductivo', {
       p_caballo_id: payload.caballo_id,
@@ -133,6 +135,7 @@ export const crianzaService = {
       p_tratamiento: payload.tratamiento,
       p_origen_recordatorio_id: payload.origen_recordatorio_id,
       p_ajustes_fin_semana: ajustesFinDeSemana ?? {},
+      p_dias_revision_1pg: diasRevision1PG ?? null,
     })
     if (error) throw error
     return data as { registro: RegistroClinicoCria; recordatorios: RecordatorioCria[] }
