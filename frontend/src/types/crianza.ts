@@ -38,8 +38,9 @@ export type NuevoCatChipObsPayload = Pick<CatChipObs, 'veterinario_id' | 'nombre
  * la UI los marca para que sea una decisión informada: sin el chip no hay
  * recordatorio.
  *
- * Vive acá y no en la DB para que sea una sola fuente de verdad junto a las
- * reglas que los leen.
+ * Se conserva para señalar en la UI qué acciones tienen efecto. La generación
+ * real y sus comparaciones viven en `registrar_acto_reproductivo`; este listado
+ * no es una fuente de verdad de plazos ni crea recordatorios.
  */
 export const CHIPS_CON_RECORDATORIO = [
   'Strelin', 'IN', 'OV', 'PG', '1PG', 'Flushing', 'Transferida',
@@ -85,26 +86,40 @@ export interface PlazosVet {
   receptora_transf_a_eco3:     number
 }
 
-export const PLAZOS_VET_DEFAULTS: PlazosVet = {
-  donante_strelin_a_in:        1,
-  donante_in_a_oxi:            1,
-  donante_ov_a_flushing:       6,
-  donante_ov_sin_in_a_dar_pg:  4,
-  donante_pg_a_revision_pg:    3,
-  donante_flushing_a_revision: 4,
-  donante_flushing_aplica_pg:  true,
-  receptora_pg_a_revision_pg:  4,
-  receptora_ov_a_dar_pg:       3,
-  receptora_transf_a_eco1:     30,
-  receptora_transf_a_eco2:     60,
-  receptora_transf_a_eco3:     90,
+export interface ConfigItemCria {
+  valor: number | boolean | number[]
+  /** Default del sistema; permite restablecer sin repetirlo en el frontend. */
+  default: number | boolean | number[]
+  origen: 'sistema' | 'veterinario'
+  min?: number
+  max?: number
+  unidad?: 'dias' | 'dias_iso'
 }
 
-/** Plazos que admiten hasta 365 días; el resto se valida contra 30. */
-export const PLAZO_MAX_DIAS: Partial<Record<keyof PlazosVet, number>> = {
-  receptora_transf_a_eco1: 365,
-  receptora_transf_a_eco2: 365,
-  receptora_transf_a_eco3: 365,
+export type ConfiguracionCriaEfectiva = Record<string, ConfigItemCria>
+
+/** Extrae los campos persistibles de `cria_plazo_vet` de la respuesta de la RPC. */
+export function plazosDesdeConfiguracion(
+  config: ConfiguracionCriaEfectiva,
+  usarDefaults = false,
+): PlazosVet {
+  const valor = (clave: keyof PlazosVet) =>
+    usarDefaults ? config[clave].default : config[clave].valor
+
+  return {
+    donante_strelin_a_in:        valor('donante_strelin_a_in') as number,
+    donante_in_a_oxi:            valor('donante_in_a_oxi') as number,
+    donante_ov_a_flushing:       valor('donante_ov_a_flushing') as number,
+    donante_ov_sin_in_a_dar_pg:  valor('donante_ov_sin_in_a_dar_pg') as number,
+    donante_pg_a_revision_pg:    valor('donante_pg_a_revision_pg') as number,
+    donante_flushing_a_revision: valor('donante_flushing_a_revision') as number,
+    donante_flushing_aplica_pg:  valor('donante_flushing_aplica_pg') as boolean,
+    receptora_pg_a_revision_pg:  valor('receptora_pg_a_revision_pg') as number,
+    receptora_ov_a_dar_pg:       valor('receptora_ov_a_dar_pg') as number,
+    receptora_transf_a_eco1:     valor('receptora_transf_a_eco1') as number,
+    receptora_transf_a_eco2:     valor('receptora_transf_a_eco2') as number,
+    receptora_transf_a_eco3:     valor('receptora_transf_a_eco3') as number,
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -6,14 +6,13 @@ import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
 import { mensajeError } from '../../utils/error'
 import {
-  PLAZOS_VET_DEFAULTS,
-  PLAZO_MAX_DIAS,
   CHIPS_CON_RECORDATORIO,
   CHIPS_OBS_SUGERIDOS,
   ROLES_REGLA,
   type PlazosVet,
   type CatChipObs,
   type RolRegla,
+  plazosDesdeConfiguracion,
 } from '../../types/crianza'
 
 // =============================================================================
@@ -240,7 +239,7 @@ function CatalogoChips() {
 
 function PlazosSection() {
   const { user } = useAuth()
-  const { plazos, guardarPlazos } = useCrianzaStore()
+  const { plazos, configuracion, guardarPlazos } = useCrianzaStore()
   const [local, setLocal] = useState<PlazosVet>(plazos)
   const [guardado, setGuardado] = useState(false)
   const [error, setError] = useState('')
@@ -272,9 +271,18 @@ function PlazosSection() {
   }
 
   function handleReset() {
-    setLocal(PLAZOS_VET_DEFAULTS)
+    if (!configuracion) return
+    setLocal(plazosDesdeConfiguracion(configuracion, true))
     setGuardado(false)
   }
+
+  if (!configuracion) {
+    return <p className="text-sm text-slate-400">Cargando configuración…</p>
+  }
+
+  const defaults = plazosDesdeConfiguracion(configuracion, true)
+  const minimo = (clave: keyof PlazosVet) => configuracion[clave].min
+  const maximo = (clave: keyof PlazosVet) => configuracion[clave].max
 
   return (
     <>
@@ -286,31 +294,41 @@ function PlazosSection() {
         <Regla
           label="Strelin → Inseminación (IN)"
           valor={local.donante_strelin_a_in}
-          default_={PLAZOS_VET_DEFAULTS.donante_strelin_a_in}
+          default_={defaults.donante_strelin_a_in}
+          min={minimo('donante_strelin_a_in')}
+          max={maximo('donante_strelin_a_in')}
           onChange={(v) => setField('donante_strelin_a_in', v)}
         />
         <Regla
           label="Inseminación (IN) → OXI"
           valor={local.donante_in_a_oxi}
-          default_={PLAZOS_VET_DEFAULTS.donante_in_a_oxi}
+          default_={defaults.donante_in_a_oxi}
+          min={minimo('donante_in_a_oxi')}
+          max={maximo('donante_in_a_oxi')}
           onChange={(v) => setField('donante_in_a_oxi', v)}
         />
         <Regla
           label="Ovulación (OV) inseminada → Flushing"
           valor={local.donante_ov_a_flushing}
-          default_={PLAZOS_VET_DEFAULTS.donante_ov_a_flushing}
+          default_={defaults.donante_ov_a_flushing}
+          min={minimo('donante_ov_a_flushing')}
+          max={maximo('donante_ov_a_flushing')}
           onChange={(v) => setField('donante_ov_a_flushing', v)}
         />
         <Regla
           label="Ovulación (OV) sin inseminar → Dar PG"
           valor={local.donante_ov_sin_in_a_dar_pg}
-          default_={PLAZOS_VET_DEFAULTS.donante_ov_sin_in_a_dar_pg}
+          default_={defaults.donante_ov_sin_in_a_dar_pg}
+          min={minimo('donante_ov_sin_in_a_dar_pg')}
+          max={maximo('donante_ov_sin_in_a_dar_pg')}
           onChange={(v) => setField('donante_ov_sin_in_a_dar_pg', v)}
         />
         <Regla
           label="PG → Revisión PG"
           valor={local.donante_pg_a_revision_pg}
-          default_={PLAZOS_VET_DEFAULTS.donante_pg_a_revision_pg}
+          default_={defaults.donante_pg_a_revision_pg}
+          min={minimo('donante_pg_a_revision_pg')}
+          max={maximo('donante_pg_a_revision_pg')}
           onChange={(v) => setField('donante_pg_a_revision_pg', v)}
         />
         <label className="flex items-start gap-3 px-4 py-3 cursor-pointer">
@@ -330,7 +348,9 @@ function PlazosSection() {
         <Regla
           label="Flushing → Revisión Flushing"
           valor={local.donante_flushing_a_revision}
-          default_={PLAZOS_VET_DEFAULTS.donante_flushing_a_revision}
+          default_={defaults.donante_flushing_a_revision}
+          min={minimo('donante_flushing_a_revision')}
+          max={maximo('donante_flushing_a_revision')}
           onChange={(v) => setField('donante_flushing_a_revision', v)}
         />
       </Section>
@@ -343,13 +363,17 @@ function PlazosSection() {
         <Regla
           label="PG → Revisión PG"
           valor={local.receptora_pg_a_revision_pg}
-          default_={PLAZOS_VET_DEFAULTS.receptora_pg_a_revision_pg}
+          default_={defaults.receptora_pg_a_revision_pg}
+          min={minimo('receptora_pg_a_revision_pg')}
+          max={maximo('receptora_pg_a_revision_pg')}
           onChange={(v) => setField('receptora_pg_a_revision_pg', v)}
         />
         <Regla
           label="Ovulación (OV) → Dar PG"
           valor={local.receptora_ov_a_dar_pg}
-          default_={PLAZOS_VET_DEFAULTS.receptora_ov_a_dar_pg}
+          default_={defaults.receptora_ov_a_dar_pg}
+          min={minimo('receptora_ov_a_dar_pg')}
+          max={maximo('receptora_ov_a_dar_pg')}
           onChange={(v) => setField('receptora_ov_a_dar_pg', v)}
         />
       </Section>
@@ -362,22 +386,25 @@ function PlazosSection() {
         <Regla
           label="Transferencia → Eco 1"
           valor={local.receptora_transf_a_eco1}
-          default_={PLAZOS_VET_DEFAULTS.receptora_transf_a_eco1}
-          max={PLAZO_MAX_DIAS.receptora_transf_a_eco1}
+          default_={defaults.receptora_transf_a_eco1}
+          min={minimo('receptora_transf_a_eco1')}
+          max={maximo('receptora_transf_a_eco1')}
           onChange={(v) => setField('receptora_transf_a_eco1', v)}
         />
         <Regla
           label="Transferencia → Eco 2"
           valor={local.receptora_transf_a_eco2}
-          default_={PLAZOS_VET_DEFAULTS.receptora_transf_a_eco2}
-          max={PLAZO_MAX_DIAS.receptora_transf_a_eco2}
+          default_={defaults.receptora_transf_a_eco2}
+          min={minimo('receptora_transf_a_eco2')}
+          max={maximo('receptora_transf_a_eco2')}
           onChange={(v) => setField('receptora_transf_a_eco2', v)}
         />
         <Regla
           label="Transferencia → Eco 3"
           valor={local.receptora_transf_a_eco3}
-          default_={PLAZOS_VET_DEFAULTS.receptora_transf_a_eco3}
-          max={PLAZO_MAX_DIAS.receptora_transf_a_eco3}
+          default_={defaults.receptora_transf_a_eco3}
+          min={minimo('receptora_transf_a_eco3')}
+          max={maximo('receptora_transf_a_eco3')}
           onChange={(v) => setField('receptora_transf_a_eco3', v)}
         />
       </Section>
@@ -603,12 +630,13 @@ function Section({
 }
 
 function Regla({
-  label, valor, default_, max = 30, onChange,
+  label, valor, default_, min = 1, max = 30, onChange,
 }: {
   label: string
   valor: number
   default_: number
-  /** Tope en días. Los plazos de ecografía llegan a 365; el resto, a 30. */
+  /** Rango en días informado por la configuración efectiva de PostgreSQL. */
+  min?: number
   max?: number
   onChange: (v: number) => void
 }) {
@@ -626,7 +654,7 @@ function Regla({
 
   function handleBlur() {
     const v = parseInt(raw, 10)
-    if (!isNaN(v) && v >= 1 && v <= max) {
+    if (!isNaN(v) && v >= min && v <= max) {
       onChange(v)
       setRaw(String(v))
     } else {
@@ -649,7 +677,7 @@ function Regla({
         <div className="flex items-center gap-1.5">
           <input
             type="number"
-            min={1}
+            min={min}
             max={max}
             value={raw}
             onChange={handleChange}

@@ -1,11 +1,9 @@
 import { create } from 'zustand'
 import { crianzaService } from '../services/crianzaService'
 import { useAuthStore } from './authStore'
-import { useToastStore } from './toastStore'
 import { mensajeError } from '../utils/error'
 import { hoyAR } from '../utils/fecha'
 import { actoResuelveRecordatorio, type ActoCria } from '../utils/recordatorio'
-import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
 import type {
   PlazosVet,
   RegistroClinicoCria,
@@ -16,13 +14,14 @@ import type {
   Ecografia,
   NuevaEcografiaPayload,
   NuevoRegistroCriaPayload,
-  NuevoRecordatorioPayload,
   NuevoFlushingPayload,
   EstadoRecordatorio,
   TipoRecordatorio,
   RolReproductivo,
   ReglaRecordatorioVet,
+  ConfiguracionCriaEfectiva,
 } from '../types/crianza'
+import { plazosDesdeConfiguracion } from '../types/crianza'
 
 // =============================================================================
 // Auto-generación de recordatorios según chips seleccionados
@@ -89,6 +88,11 @@ export interface ReglaRecordatorio {
  * cuenta como "inseminada antes de esta ovulación". Cubre la IN del ciclo
  * (1–2 días antes de ovular) y los re-registros de OV con días post-OV, sin
  * alcanzar la IN del ciclo anterior (12+ días antes).
+ *
+ * @deprecated La fuente de verdad es la RPC `registrar_acto_reproductivo` en
+ * PostgreSQL (campo `ventana_inseminacion_dias` de `get_configuracion_cria_efectiva`).
+ * Este valor solo se conserva para el preview del modal y la consulta de
+ * inseminación reciente del frontend. No modificarlo sin actualizar la RPC.
  */
 export const VENTANA_INSEMINACION_DIAS = 7
 
@@ -96,6 +100,7 @@ export const VENTANA_INSEMINACION_DIAS = 7
  * Recordatorios que genera un registro. La usa el store al guardar y el preview
  * de RegistroCriaModal, para que lo que se muestra sea lo que se crea.
  */
+/** @deprecated Solo preview. La generación real vive en registrar_acto_reproductivo. */
 export function reglasParaRegistro(
   registro: Pick<NuevoRegistroCriaPayload,
     'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_dias' | 'fecha_flushing_programada'>,
@@ -167,6 +172,7 @@ interface CrianzaState {
   ecografias:     Ecografia[]
   /** Plazos del vet autenticado. Los usa reglasParaRegistro al crear recordatorios. */
   plazos:         PlazosVet
+  configuracion:  ConfiguracionCriaEfectiva | null
   /** Reglas propias del vet autenticado, que se suman a las fijas. */
   reglasPropias:  ReglaRecordatorioVet[]
   loading:        boolean
@@ -238,7 +244,10 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   flushings:      [],
   transferencias: [],
   ecografias:     [],
-  plazos:         PLAZOS_VET_DEFAULTS,
+  // Se hidrata desde get_configuracion_cria_efectiva antes de que haya datos
+  // reproductivos renderizables. No contiene defaults duplicados en el cliente.
+  plazos:         null as unknown as PlazosVet,
+  configuracion:  null,
   reglasPropias:  [],
   loading:        false,
   error:          null,
@@ -250,15 +259,18 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     try {
       const lbl = <T,>(name: string, p: Promise<T>): Promise<T> =>
         p.catch((e: unknown) => { throw new Error(`[${name}] ${mensajeError(e)}`) }) as Promise<T>
-      const [registros, recordatorios, flushings, transferencias, ecografias, plazos] = await Promise.all([
+      const vetId = useAuthStore.getState().user?.id
+      if (!vetId) throw new Error('No se pudo identificar al veterinario')
+      const [registros, recordatorios, flushings, transferencias, ecografias, configuracion] = await Promise.all([
         lbl('registros',      crianzaService.listarRegistros(sociedadId)),
         lbl('recordatorios',  crianzaService.listarRecordatorios(sociedadId)),
         lbl('flushings',      crianzaService.listarFlushings(sociedadId)),
         lbl('transferencias', crianzaService.listarTransferencias(sociedadId)),
         lbl('ecografias',     crianzaService.listarEcografias(sociedadId)),
-        lbl('plazos',         crianzaService.getMisPlazos()),
+        lbl('plazos',         crianzaService.getConfiguracionEfectiva(vetId)),
       ])
-      set({ registros, recordatorios, flushings, transferencias, ecografias, plazos })
+      set({ registros, recordatorios, flushings, transferencias, ecografias,
+        configuracion, plazos: plazosDesdeConfiguracion(configuracion) })
       get().sincronizarVencidos()
     } catch (err) {
       set({ error: mensajeError(err, 'Error al cargar datos') })
@@ -270,15 +282,18 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   cargarParaVet: async () => {
     set({ loading: true, error: null })
     try {
-      const [registros, recordatorios, flushings, transferencias, ecografias, plazos] = await Promise.all([
+      const vetId = useAuthStore.getState().user?.id
+      if (!vetId) throw new Error('No se pudo identificar al veterinario')
+      const [registros, recordatorios, flushings, transferencias, ecografias, configuracion] = await Promise.all([
         crianzaService.listarRegistrosVet(),
         crianzaService.listarRecordatoriosVet(),
         crianzaService.listarFlushingsVet(),
         crianzaService.listarTransferenciasVet(),
         crianzaService.listarEcografiasVet(),
-        crianzaService.getMisPlazos(),
+        crianzaService.getConfiguracionEfectiva(vetId),
       ])
-      set({ registros, recordatorios, flushings, transferencias, ecografias, plazos })
+      set({ registros, recordatorios, flushings, transferencias, ecografias,
+        configuracion, plazos: plazosDesdeConfiguracion(configuracion) })
       get().sincronizarVencidos()
     } catch (err) {
       set({ error: mensajeError(err, 'Error al cargar datos') })
@@ -290,107 +305,37 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   // ── Plazos del veterinario ────────────────────────────────────────────────
 
   cargarPlazos: async () => {
-    const [plazos, reglasPropias] = await Promise.all([
-      crianzaService.getMisPlazos(),
+    const vetId = useAuthStore.getState().user?.id
+    if (!vetId) throw new Error('No se pudo identificar al veterinario')
+    const [configuracion, reglasPropias] = await Promise.all([
+      crianzaService.getConfiguracionEfectiva(vetId),
       crianzaService.listarMisReglas(),
     ])
-    set({ plazos, reglasPropias })
+    set({ configuracion, plazos: plazosDesdeConfiguracion(configuracion), reglasPropias })
   },
 
   guardarPlazos: async (veterinarioId, plazos) => {
     await crianzaService.guardarMisPlazos(veterinarioId, plazos)
-    set({ plazos })
+    const configuracion = await crianzaService.getConfiguracionEfectiva(veterinarioId)
+    set({ configuracion, plazos: plazosDesdeConfiguracion(configuracion) })
   },
 
   // ── Registros clínicos ────────────────────────────────────────────────────
 
   crearRegistro: async (payload, rolReproductivo, ajustesFinDeSemana) => {
-    // La OV de la donante agenda Flushing solo si hubo IN antes. Se consulta
-    // antes de insertar: si falla, no queda un registro con el recordatorio
-    // equivocado. Solo hace falta ir a la base si este registro no trae IN.
-    const tieneOV = payload.ovario_izq.includes('OV') || payload.ovario_der.includes('OV')
-    const inseminada =
-      payload.obs_chips.includes('IN') ||
-      (rolReproductivo === 'Donante' && tieneOV &&
-        await get().consultarInseminacionReciente(payload.caballo_id, payload.fecha))
-
-    const registro = await crianzaService.crearRegistro(payload)
-    set((s) => ({ registros: [registro, ...s.registros] }))
-
-    // Antes de agendar lo nuevo: lo que estaba agendado para hoy y esta
-    // consulta hizo pasa a hecho en vez de quedar "Falta hacer" al lado.
-    await get().cerrarRecordatoriosResueltos(
-      payload.caballo_id, payload.fecha, { clase: 'registro', chips: payload.obs_chips },
+    if (!rolReproductivo) throw new Error('El acto reproductivo requiere rol de Donante o Receptora')
+    const result = await crianzaService.registrarActoReproductivo(
+      payload, rolReproductivo, ajustesFinDeSemana,
     )
-
-    // Auto-generar recordatorios según chips (insert batch para evitar N+1).
-    // Los plazos son los del vet autenticado = el que hace el registro.
-    const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, inseminada, get().reglasPropias)
-    if (reglas.length > 0) {
-      // Este registro puede traer su propia 'Revisión' (review_dias). Si el
-      // animal ya tenía una pendiente o vencida de un registro anterior, se
-      // cancela: la fecha nueva la reemplaza, y dos revisiones abiertas para
-      // la misma yegua solo duplicarían el animal en el programa del día.
-      // Criterio explícito (no se acumulan): la revisión vigente es siempre
-      // la del último registro que la pidió.
-      if (reglas.some((r) => r.tipo === 'Revisión')) {
-        const previas = get().recordatorios.filter((r) =>
-          r.caballo_id === payload.caballo_id && r.tipo === 'Revisión' &&
-          (r.estado === 'pendiente' || r.estado === 'vencido')
-        )
-        if (previas.length > 0) {
-          const motivo = 'Reemplazada por la revisión programada en un registro más nuevo'
-          try {
-            await crianzaService.cancelarRecordatorios(previas.map((r) => r.id), motivo)
-            set((s) => ({
-              recordatorios: s.recordatorios.map((r) =>
-                previas.some((p) => p.id === r.id)
-                  ? { ...r, estado: 'cancelado' as EstadoRecordatorio, cancel_motivo: motivo }
-                  : r
-              ),
-            }))
-          } catch (e) {
-            console.error('[crianzaStore] cancelar revisiones previas:', mensajeError(e))
-          }
-        }
-      }
-
-      const recPayloads: NuevoRecordatorioPayload[] = reglas.map((regla) => {
-        let fechaVto = regla.calcularFecha(payload.fecha)
-        const ajuste = ajustesFinDeSemana?.[regla.tipo]
-        if (ajuste) fechaVto = sumarDias(fechaVto, ajuste)
-        return {
-          caballo_id:         payload.caballo_id,
-          sociedad_id:        payload.sociedad_id,
-          tipo:               regla.tipo,
-          fecha_vto:          fechaVto,
-          fecha_original:     null,
-          estado:             'pendiente' as EstadoRecordatorio,
-          veterinario_id:     payload.veterinario_id,
-          notas:              null,
-          auto_generado:      true,
-          origen_registro_id: registro.id,
-          cancel_motivo:      null,
-        }
-      })
-      try {
-        const recs = await crianzaService.crearRecordatoriosBatch(recPayloads)
-        set((s) => ({ recordatorios: [...s.recordatorios, ...recs] }))
-      } catch (e) {
-        // El registro clínico ya quedó guardado. Si además propagáramos este
-        // error, el modal lo mostraría como fallo y el vet volvería a guardar,
-        // duplicando el registro y —al reintento exitoso— sus recordatorios.
-        // Se avisa y se sigue: los recordatorios se pueden cargar a mano.
-        useToastStore.getState().pushToast(
-          'error',
-          'El registro se guardó, pero no se pudieron generar los recordatorios automáticos. ' +
-            'Cargalos a mano desde el programa semanal.',
-        )
-        console.error('[crianzaStore] recordatorios automáticos:', mensajeError(e))
-      }
-    }
-
-    return registro
+    const idsActualizados = new Set(result.recordatorios.map((r) => r.id))
+    set((s) => ({
+      registros: [result.registro, ...s.registros],
+      recordatorios: [
+        ...result.recordatorios,
+        ...s.recordatorios.filter((r) => !idsActualizados.has(r.id)),
+      ],
+    }))
+    return result.registro
   },
 
   consultarInseminacionReciente: (caballoId, fecha) =>

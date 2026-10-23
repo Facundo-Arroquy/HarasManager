@@ -482,6 +482,7 @@ Decisiones explícitas para no rediscutirlas cada vez.
 
 | Fecha | Origen | Qué hay que implementar en el back |
 |---|---|---|
+| 2026-10-20 | `get_configuracion_cria_efectiva()` + `registrar_acto_reproductivo()` (migraciones `20261021003514` / `20261021003516`) | PostgreSQL quedó como autoridad de la configuración efectiva y del alta atómica de un acto reproductivo con sus recordatorios. El futuro backend debe conservar el contrato de ambas operaciones: defaults/rangos/origen salen del servidor; y registro, cierre/cancelación de recordatorios, consulta de inseminación reciente y generación de reglas fijas/propias se ejecutan en una sola transacción. Estas RPC reemplazan las implementaciones pendientes anotadas para `reglasParaRegistro()`, `crearRegistro()` y `cerrarRecordatoriosResueltos()`. |
 | 2026-07-24 | `registrar_transferencia_embrionaria()` (migración `20260724000626`) | Endpoint `POST /api/transferencias`. La RPC ya resuelve atomicidad, lock del embrión y permisos — es la especificación del endpoint. Ver Bloque 5. |
 | 2026-07-24 | `crianzaStore.ts` → `reglasParaRegistro()` | La generación automática de recordatorios del centro de cría es lógica de negocio viviendo en el store del front. Al migrar tiene que pasar al backend. Ver Bloque 6.4. |
 | 2026-07-24 | `crianzaStore.ts` → `sincronizarVencidos()` | Los estados reproductivos vencidos solo se recalculan cuando alguien abre la app. Tiene que ser un job programado. Ver Bloque 8. |
