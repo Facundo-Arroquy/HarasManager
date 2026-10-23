@@ -276,6 +276,8 @@ export interface RecordatorioCria {
   notas:               string | null
   auto_generado:       boolean
   origen_registro_id:  string | null
+  /** Flushing que originó el recordatorio (ej. su Revisión PG). NULL en el resto. */
+  flushing_id?:        string | null
   cancel_motivo:       string | null
   created_at:          string
   updated_at:          string

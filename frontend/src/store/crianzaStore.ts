@@ -484,15 +484,16 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     set((s) => ({ flushings: [flushing, ...s.flushings] }))
 
     // RPC SECURITY DEFINER: cierra TODOS los recordatorios del ciclo anterior
-    // de esta donante (excepto Eco, Revisión Eco y Revisión PG).
+    // de esta donante (excepto Eco, Revisión Eco y lo que cuelga de este flushing).
     try {
-      await crianzaService.cerrarRecordatoriosFlushing(payload.caballo_id)
+      await crianzaService.cerrarRecordatoriosFlushing(payload.caballo_id, flushing.id)
       set((s) => ({
         recordatorios: s.recordatorios.map((r) =>
           r.caballo_id === payload.caballo_id &&
           (r.estado === 'pendiente' || r.estado === 'vencido') &&
           r.auto_generado &&
-          !['Eco 1', 'Eco 2', 'Eco 3', 'Revisión Eco', 'Revisión PG'].includes(r.tipo)
+          !['Eco 1', 'Eco 2', 'Eco 3', 'Revisión Eco'].includes(r.tipo) &&
+          r.flushing_id !== flushing.id
             ? { ...r, estado: 'cancelado' as EstadoRecordatorio, cancel_motivo: 'Ciclo cerrado por nuevo flushing' }
             : r
         ),
