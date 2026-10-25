@@ -44,8 +44,43 @@ supabase db reset                          # probar desde cero
 ```
 
 Realtime y Analytics están apagados en `supabase/config.toml` (la app no los usa y
-ahorran ~900 MB de RAM). El seed está apagado hasta la F2: el `seed.sql` actual usa un
-modelo que nunca se aplicó en prod.
+ahorran ~900 MB de RAM).
+
+## Datos de prueba
+
+`supabase db reset` carga además los archivos de `supabase/seeds/` (ver el README de esa
+carpeta): 2 haras ficticios, 34 caballos, historial, sanidad, torneos y un centro de cría
+con ciclos completos. **12 usuarios con la contraseña `Local-dev-2026`**: los mismos emails
+que los demo de prod (`admin.demo1@haras.com`, `vet.demo1@haras.com`…) más un superadmin y un
+veterinario sin membresía. Para comprobar que el seed quedó bien:
+
+```bash
+./scripts/db-verificar-seed.sh
+```
+
+## Correr la app contra la base local
+
+```bash
+supabase start                                 # raíz del repo
+cd frontend && npm install
+cp .env.example .env.local                     # y pegar la ANON_KEY de `supabase status`
+npm run dev                                    # http://localhost:5173
+```
+
+`.env.local` no se versiona. Si la app queda apuntando a producción por error, el login
+con `Local-dev-2026` va a fallar: es la señal de que el `.env.local` está mal.
+
+## Edge Functions
+
+```bash
+cp supabase/functions/.env.example supabase/functions/.env.local   # una vez; no se versiona
+supabase functions serve --env-file supabase/functions/.env.local
+```
+
+Quedan en `http://127.0.0.1:55321/functions/v1/<nombre>` y usan la base local (las
+variables `SUPABASE_*` las inyecta el CLI). `create-user` está probada: crea el usuario de
+Auth, su fila de `usuario` y la membresía. Las de MercadoPago necesitan credenciales de
+**prueba** en `.env.local`; no están probadas en local.
 
 ## Comparar con producción
 
@@ -72,6 +107,15 @@ Correrlo antes de abrir un PR `develop` → `main`. Sale con código 1 si hay di
   si otro stack usa el mismo nombre).
 - **`supabase db dump --linked` tarda ~1 min por schema.** Es la latencia hasta
   `us-west-1`, no un cuelgue.
+
+## Fallas que también existen en producción
+
+La base local es idéntica a prod, así que reproduce sus bugs. Conocidos:
+
+- **Pestaña "Actividad" del panel de superadmin → 404.** El front llama a la función
+  `superadmin_actividad_usuarios()` (documentada en `docs/SKILL.md`), pero **no existe en
+  producción** ni, por lo tanto, acá. Es la única de las 48 RPC que usa el front que falta.
+  Se arregla con una migración nueva que la cree; no se tocó en la F2.
 
 ## Antes del primer deploy automático (F27)
 

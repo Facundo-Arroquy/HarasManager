@@ -20,7 +20,7 @@ Pasar de "el frontend habla directo con Supabase" a "el frontend habla con una A
 
 `BACKEND-API-TASKS.md` (Bloque 0) pedía un disparador objetivo antes de arrancar. Hoy se cumplen varios:
 
-- **Lógica de negocio en plpgsql:** el disparador era "más de ~10 funciones no triviales" y en julio había 2. Hoy el front invoca **49 RPCs distintas**, entre ellas `registrar_acto_reproductivo`, `registrar_transferencia_embrionaria` y seis `eliminar_*_cria`.
+- **Lógica de negocio en plpgsql:** el disparador era "más de ~10 funciones no triviales" y en julio había 2. Hoy el front invoca **48 RPCs distintas**, entre ellas `registrar_acto_reproductivo`, `registrar_transferencia_embrionaria` y seis `eliminar_*_cria`.
 - **Lógica de negocio todavía en el navegador:** `reglasParaRegistro` y `sincronizarVencidos` en `crianzaStore.ts`, la derivación de sexo en `caballoService`.
 - **Jobs que no existen** (`sincronizarVencidos` solo corre si alguien abre la app) y **5 Edge Functions** con secretos y dinero real (MercadoPago), sin estructura común.
 
@@ -31,7 +31,7 @@ Además es una decisión de arquitectura del equipo. Esto **cambia el "Stack ina
 | | Hoy | Julio 2026 |
 |---|---|---|
 | Services en el front | 22 archivos, 4.371 líneas | 15 archivos, ~3.100 |
-| RPCs distintas llamadas desde el front | 49 (piso, medido con `grep`) | 10 |
+| RPCs distintas llamadas desde el front | 48 (medido con `grep`) | 10 |
 | Edge Functions | 5 (911 líneas) | — |
 | Migraciones en `supabase/migrations/` | 137, **con drift** respecto a prod | — |
 | Tests en el front | 4 archivos | — |
@@ -122,7 +122,7 @@ Estimación gruesa en días de trabajo (±30%). Total: **≈45 días-persona**; 
 |---|---|---|---|---|
 | **F0** | Cerrar las decisiones de §6. Actualizar `CLAUDE.md` (flujo `feat/*` → `develop` → `main`, migraciones, MCP de solo lectura en prod). Nota en `SKILL.md` que apunte a este plan | Decisiones 1 a 6 confirmadas (7 y 8 abiertas a propósito); `CLAUDE.md` y nota en `SKILL.md` actualizados; PR a `develop` mergeado | 0,5 | hecha en `feat/plan-migracion-backend`; falta mergear a `develop` |
 | **F1** | Supabase local en Docker: `supabase init`; dump de **solo schema** de prod (lectura); archivar las 137 migraciones y reemplazarlas por una *baseline* contrastada con `list_migrations` de prod; `supabase start`; script que compara tablas, policies, funciones, triggers y buckets entre local y prod | `supabase start` levanta y el comparador da 0 diferencias | 1 | hecha en `feat/f1-supabase-local`; falta PR. Comparador: `scripts/db-compare.sh` (ver `docs/ENTORNO-LOCAL.md`) |
-| **F2** | Seed ficticio reescrito contra el schema real (el `seed.sql` actual usa el modelo de marca, que nunca se aplicó en prod). Usuarios demo en el Auth local con los emails de los demo de prod (lista a confirmar antes de escribirla en el repo público) y una contraseña de desarrollo. `frontend/.env.local` apuntando a local. Edge Functions locales con secretos de prueba | `supabase db reset` deja todo listo y se puede navegar la app completa contra local con cada rol | 1 | pendiente |
+| **F2** | Seed ficticio en `supabase/seeds/` (el `seed.sql` viejo usaba el modelo de marca, que nunca se aplicó en prod, y quedó archivado). Usuarios demo en el Auth local con los emails de los demo de prod (lista confirmada el 2026-10-25) más un superadmin y un vet sin membresía ficticios, y una contraseña de desarrollo. `frontend/.env.local` apuntando a local. Edge Functions locales con secretos de prueba | `supabase db reset` deja todo listo y se puede navegar la app completa contra local con cada rol | 1 | hecha en `feat/f1-supabase-local` (commits de F2 sobre la misma rama); falta PR. Verificación: `scripts/db-verificar-seed.sh` ||
 
 ### Etapa 1 — Cimientos del backend (5,5 días)
 

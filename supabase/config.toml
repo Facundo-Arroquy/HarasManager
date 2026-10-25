@@ -67,12 +67,9 @@ schema_paths = []
 
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.
-# Apagado en F1: el seed.sql actual usa el modelo de "marca", que nunca se aplicó
-# en prod, y falla contra el schema real. F2 lo reescribe y vuelve a prender esto.
-enabled = false
-# Specifies an ordered list of seed files to load during db reset.
-# Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-sql_paths = ["./seed.sql"]
+enabled = true
+# Se cargan en orden alfabético: catálogos, usuarios, datos demo. Ver supabase/seeds/README.md
+sql_paths = ["./seeds/*.sql"]
 
 [db.network_restrictions]
 # Enable management of network restrictions.
