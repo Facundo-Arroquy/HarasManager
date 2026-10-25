@@ -27,11 +27,28 @@ def test_local_rechaza_una_base_remota() -> None:
         crear_settings(environment="local", database_url=BASE_REMOTA)
 
 
+def test_local_rechaza_un_supabase_remoto() -> None:
+    """Si no, el backend local aceptaría tokens de producción."""
+    with pytest.raises(ValidationError, match="SUPABASE_URL"):
+        crear_settings(environment="local", supabase_url="https://abcdefgh.supabase.co")
+
+
 @pytest.mark.parametrize("entorno", ["staging", "production"])
 def test_staging_y_produccion_pueden_usar_una_base_remota(entorno: str) -> None:
     settings = crear_settings(environment=entorno, database_url=BASE_REMOTA)
 
     assert settings.environment == entorno
+
+
+def test_el_emisor_y_las_claves_salen_de_la_url_de_supabase() -> None:
+    settings = crear_settings(
+        environment="production",
+        database_url=BASE_REMOTA,
+        supabase_url="https://abcdefgh.supabase.co/",
+    )
+
+    assert settings.jwt_issuer == "https://abcdefgh.supabase.co/auth/v1"
+    assert settings.jwks_url == "https://abcdefgh.supabase.co/auth/v1/.well-known/jwks.json"
 
 
 def test_cors_origins_se_separa_por_coma_y_ignora_espacios() -> None:
