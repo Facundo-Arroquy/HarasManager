@@ -1,7 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Bell } from 'lucide-react'
 import { notificacionService, type Notificacion } from '../../services/notificacionService'
+
+const ANCHO_PANEL = 320 // w-80
+const MARGEN = 8
+
+/**
+ * Dónde poner el panel respecto de la campana, en coordenadas de la ventana.
+ * - Con lugar a la derecha (la campana del sidebar de escritorio): al costado,
+ *   alineado con la campana.
+ * - Si no (el header de mobile, que ocupa todo el ancho): debajo de la campana,
+ *   alineado a su borde derecho y sin salirse de la pantalla.
+ */
+function calcularPosicion(boton: DOMRect): { top: number; left: number } {
+  const ancho = Math.min(ANCHO_PANEL, window.innerWidth - MARGEN * 2)
+  if (window.innerWidth - boton.right - MARGEN >= ancho) {
+    return { top: boton.top, left: boton.right + MARGEN }
+  }
+  const left = Math.min(boton.right - ancho, window.innerWidth - ancho - MARGEN)
+  return { top: boton.bottom + 6, left: Math.max(MARGEN, left) }
+}
 
 /**
  * Campanita con las últimas notificaciones del usuario.
@@ -17,7 +37,9 @@ export default function CampanaNotificaciones() {
 
   const [items,   setItems]   = useState<Notificacion[]>([])
   const [abierto, setAbierto] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos,     setPos]     = useState<{ top: number; left: number } | null>(null)
+  const botonRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   const cargar = useCallback(() => {
     notificacionService.listar().then(setItems).catch(() => {})
@@ -25,10 +47,26 @@ export default function CampanaNotificaciones() {
 
   useEffect(() => { cargar() }, [cargar, location.pathname])
 
+  const posicionar = useCallback(() => {
+    if (botonRef.current) setPos(calcularPosicion(botonRef.current.getBoundingClientRect()))
+  }, [])
+
+  // El panel se dibuja en un portal (ver abajo): hay que calcular dónde va antes de pintarlo
+  // y recalcular si cambia el tamaño de la ventana.
+  useLayoutEffect(() => {
+    if (!abierto) return
+    posicionar()
+    window.addEventListener('resize', posicionar)
+    return () => window.removeEventListener('resize', posicionar)
+  }, [abierto, posicionar])
+
+  // El panel vive fuera del botón (portal), así que "afuera" es afuera de los dos.
   useEffect(() => {
     if (!abierto) return
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false)
+      const destino = e.target as Node
+      if (botonRef.current?.contains(destino) || panelRef.current?.contains(destino)) return
+      setAbierto(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -51,8 +89,9 @@ export default function CampanaNotificaciones() {
   }
 
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
+        ref={botonRef}
         onClick={() => setAbierto((v) => !v)}
         className="relative p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
         aria-label={sinLeer > 0 ? `${sinLeer} notificaciones sin leer` : 'Notificaciones'}
@@ -65,13 +104,18 @@ export default function CampanaNotificaciones() {
         )}
       </button>
 
-      {/* En mobile la campana está en un header de ancho completo y el panel abre
-          hacia la izquierda. En desktop vive en el sidebar (w-60 = 240px), que es
-          más angosto que el panel (w-80 = 320px): anclado a la derecha se salía
-          ~100px por el borde izquierdo de la pantalla y el `overflow-hidden` del
-          layout lo recortaba. En md+ abre hacia el contenido. */}
-      {abierto && (
-        <div className="absolute right-0 md:right-auto md:left-0 z-50 mt-1.5 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white shadow-lg">
+      {/* El panel va en un portal, con `position: fixed` calculado desde la campana.
+          Adentro del sidebar no se puede: el <aside> tiene `overflow-hidden` (lo
+          necesita para las esquinas redondeadas) y recortaba el panel, de 320px, en
+          el borde del sidebar, de 256px. Anclarlo con left/right no lo arregla. */}
+      {abierto && pos && createPortal(
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Notificaciones"
+          style={{ top: pos.top, left: pos.left }}
+          className="fixed z-[60] w-80 max-w-[calc(100vw-1rem)] rounded-lg border border-slate-200 bg-white shadow-lg"
+        >
           <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
             <span className="text-xs font-semibold text-slate-600">Notificaciones</span>
             {sinLeer > 0 && (
@@ -107,8 +151,9 @@ export default function CampanaNotificaciones() {
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-    </div>
+    </>
   )
 }
