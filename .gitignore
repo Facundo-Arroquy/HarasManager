@@ -13,8 +13,11 @@ ACTUALIZAR_TERMINOS.md
 PROMPT_TERMINOS.md
 info_facu.md
 Finanzas.md
-# Artefactos del CLI de Supabase
-supabase/.temp/
 
 # Permisos de Claude Code: son de cada máquina, no del repo
 .claude/settings.local.json
+
+# Dumps y videos sueltos en la raíz: van en `backups/` (ignorada) o fuera del repo.
+# Un dump de la base puede traer datos reales de clientes y el repo es público.
+/backup*.sql
+/*.mp4
