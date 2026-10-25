@@ -102,7 +102,7 @@ export default function FlushingBanner() {
 
   return (
     <>
-      <div className="rounded-lg border border-brand-200 border-l-[3px] border-l-brand-500 bg-white overflow-hidden">
+      <div className="rounded-lg border border-brand-200 border-l-[3px] border-l-brand-500 bg-white">
         <div className="flex items-center gap-2.5 px-4 pt-3 pb-2.5">
           <Droplets size={16} className="text-brand-600 shrink-0" />
           <div className="min-w-0">

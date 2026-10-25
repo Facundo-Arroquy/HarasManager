@@ -261,9 +261,9 @@ export default function FlushingOvuladosPage() {
             const esVencido = fecha < hoy
             const esHoy = fecha === hoy
             return (
-              <div key={fecha} className="rounded-lg border border-slate-200 overflow-hidden">
+              <div key={fecha} className="rounded-lg border border-slate-200">
                 {/* Header del día */}
-                <div className={`px-3 py-2 flex items-center gap-2 ${
+                <div className={`px-3 py-2 flex items-center gap-2 rounded-t-lg ${
                   esVencido ? 'bg-red-50 border-b border-red-200' :
                   esHoy ? 'bg-brand-50 border-b border-brand-200' :
                   'bg-slate-50 border-b border-slate-200'

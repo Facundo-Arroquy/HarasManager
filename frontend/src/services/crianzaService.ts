@@ -3,7 +3,6 @@ import type {
   RegistroClinicoCria,
   NuevoRegistroCriaPayload,
   RecordatorioCria,
-  NuevoRecordatorioPayload,
   EstadoRecordatorio,
   Flushing,
   NuevoFlushingPayload,
@@ -23,8 +22,9 @@ import type {
   ReglaRecordatorioVet,
   NuevaReglaRecordatorioPayload,
   Reprogramacion,
+  ConfiguracionCriaEfectiva,
 } from '../types/crianza'
-import { PLAZOS_VET_DEFAULTS, ESTADOS_STOCK } from '../types/crianza'
+import { ESTADOS_STOCK, plazosDesdeConfiguracion } from '../types/crianza'
 import { traerTodo } from '../utils/paginar'
 
 /**
@@ -107,20 +107,38 @@ export const crianzaService = {
     return (data ?? []).length > 0
   },
 
-  async crearRegistro(payload: NuevoRegistroCriaPayload): Promise<RegistroClinicoCria> {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('cria_registro_clinico')
-      .insert(payload)
-      .select(`
-        *,
-        caballo:caballo_id(nombre, rol_reproductivo),
-        veterinario:veterinario_id(nombre, apellido),
-        padrillo:padrillo_id(nombre)
-      `)
-      .single()
+  async registrarActoReproductivo(
+    payload: NuevoRegistroCriaPayload,
+    rolReproductivo: Exclude<RolReproductivo, null>,
+    ajustesFinDeSemana?: Record<string, number>,
+    /** Días hasta la «Revisión 1PG» (1..60). Obligatorio si el registro lleva el chip 1PG. */
+    diasRevision1PG?: number | null,
+  ): Promise<{ registro: RegistroClinicoCria; recordatorios: RecordatorioCria[] }> {
+    const { data, error } = await getSupabaseClient().rpc('registrar_acto_reproductivo', {
+      p_caballo_id: payload.caballo_id,
+      p_sociedad_id: payload.sociedad_id,
+      p_fecha: payload.fecha,
+      p_ovario_izq: payload.ovario_izq,
+      p_ovario_der: payload.ovario_der,
+      p_utero: payload.utero,
+      p_obs_chips: payload.obs_chips,
+      p_observaciones: payload.observaciones,
+      p_veterinario_id: payload.veterinario_id,
+      p_rol_reproductivo: rolReproductivo,
+      p_padrillo_id: payload.padrillo_id,
+      p_ov_dias: payload.ov_dias,
+      p_review_dias: payload.review_dias,
+      p_review_desc: payload.review_desc,
+      p_fecha_flushing_programada: payload.fecha_flushing_programada ?? null,
+      p_motivo: payload.motivo,
+      p_diagnostico: payload.diagnostico,
+      p_tratamiento: payload.tratamiento,
+      p_origen_recordatorio_id: payload.origen_recordatorio_id,
+      p_ajustes_fin_semana: ajustesFinDeSemana ?? {},
+      p_dias_revision_1pg: diasRevision1PG ?? null,
+    })
     if (error) throw error
-    return data as RegistroClinicoCria
+    return data as { registro: RegistroClinicoCria; recordatorios: RecordatorioCria[] }
   },
 
   async actualizarRegistro(
@@ -162,42 +180,11 @@ export const crianzaService = {
     return data as RecordatorioCria[]
   },
 
-  async crearRecordatorio(payload: NuevoRecordatorioPayload): Promise<RecordatorioCria> {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('cria_recordatorio')
-      .insert(payload)
-      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
-      .single()
-    if (error) throw error
-    return data as RecordatorioCria
-  },
-
-  async crearRecordatoriosBatch(payloads: NuevoRecordatorioPayload[]): Promise<RecordatorioCria[]> {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('cria_recordatorio')
-      .insert(payloads)
-      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
-    if (error) throw error
-    return data as RecordatorioCria[]
-  },
-
   async marcarVencidos(ids: string[]): Promise<void> {
     const supabase = getSupabaseClient()
     const { error } = await supabase
       .from('cria_recordatorio')
       .update({ estado: 'vencido' })
-      .in('id', ids)
-    if (error) throw error
-  },
-
-  /** Cancela en lote (p.ej. revisiones que un registro más nuevo reemplaza). */
-  async cancelarRecordatorios(ids: string[], motivo: string): Promise<void> {
-    const supabase = getSupabaseClient()
-    const { error } = await supabase
-      .from('cria_recordatorio')
-      .update({ estado: 'cancelado', cancel_motivo: motivo })
       .in('id', ids)
     if (error) throw error
   },
@@ -316,12 +303,28 @@ export const crianzaService = {
     return data as Flushing[]
   },
 
-  /** Cierra todos los recordatorios de Flushing abiertos de una donante (RPC SECURITY DEFINER). */
-  async cerrarRecordatoriosFlushing(caballoId: string): Promise<void> {
+  /**
+   * Cancela los recordatorios auto-generados del ciclo anterior de una donante
+   * (RPC SECURITY DEFINER). Deja los que cuelgan del flushing recién creado.
+   */
+  async cerrarRecordatoriosFlushing(caballoId: string, flushingId: string): Promise<void> {
     const { error } = await getSupabaseClient().rpc('cerrar_recordatorios_flushing', {
-      p_caballo_id: caballoId,
+      p_caballo_id:  caballoId,
+      p_flushing_id: flushingId,
     })
     if (error) throw error
+  },
+
+  /** Recordatorios que el trigger de flushing creó (Revisión PG, etc.). */
+  async listarRecordatoriosPorFlushing(flushingId: string): Promise<RecordatorioCria[]> {
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('cria_recordatorio')
+      .select(`*, caballo(nombre, rol_reproductivo), veterinario:veterinario_id(nombre, apellido)`)
+      .eq('flushing_id', flushingId)
+      .in('estado', ['pendiente', 'vencido'])
+    if (error) throw error
+    return data as RecordatorioCria[]
   },
 
   async crearFlushing(payload: NuevoFlushingPayload): Promise<Flushing> {
@@ -857,19 +860,16 @@ export const crianzaService = {
     if (error) throw error
   },
 
-  async getMisPlazos(): Promise<PlazosVet> {
-    const supabase = getSupabaseClient()
-    const { data, error } = await supabase
-      .from('cria_plazo_vet')
-      .select('*')
-      .maybeSingle()
+  async getConfiguracionEfectiva(veterinarioId: string): Promise<ConfiguracionCriaEfectiva> {
+    const { data, error } = await getSupabaseClient().rpc('get_configuracion_cria_efectiva', {
+      p_veterinario_id: veterinarioId,
+    })
     if (error) throw error
-    if (!data) return PLAZOS_VET_DEFAULTS
-    const fila = data as PlazosVet
-    // Solo las claves de PlazosVet: la fila trae además veterinario_id y timestamps.
-    return Object.fromEntries(
-      Object.keys(PLAZOS_VET_DEFAULTS).map((k) => [k, fila[k as keyof PlazosVet]])
-    ) as unknown as PlazosVet
+    return data as ConfiguracionCriaEfectiva
+  },
+
+  async getMisPlazos(veterinarioId: string): Promise<PlazosVet> {
+    return plazosDesdeConfiguracion(await this.getConfiguracionEfectiva(veterinarioId))
   },
 
   /** Guarda los plazos del vet autenticado (crea la fila la primera vez). */

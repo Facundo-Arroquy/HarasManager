@@ -97,6 +97,8 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [rolManual,     setRolManual]     = useState<RolReproductivo>(null)
   // IN en los días previos: decide si la OV de la donante agenda Flushing o Dar PG
   const [inseminadaPrevia, setInseminadaPrevia] = useState(false)
+  // Días custom para la revisión de "1° de PG" (el vet elige cuántos días)
+  const [dias1PG, setDias1PG] = useState<number | null>(null)
 
   // Ajuste de domingo: -1 = sábado, 0 = domingo, 1 = lunes
   const [ajustesFinDeSemana, setAjustesDomingo] = useState<Record<string, -1 | 0 | 1>>({})
@@ -172,6 +174,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
       .catch(() => { if (!cancelado) setInseminadaPrevia(false) })
     return () => { cancelado = true }
   }, [consultarIN, caballoId, fecha, consultarInseminacionReciente])
+
+  // Si el vet deselecciona 1PG, limpiar los días custom.
+  useEffect(() => { if (!obsChips.includes('1PG')) setDias1PG(null) }, [obsChips])
 
   // ── Carga del catálogo de acciones del vet autenticado ────────────────────
   // La lista es propia de cada veterinario (RLS filtra por auth.uid()) y viaja
@@ -249,6 +254,9 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
     if (reviewDias != null && (!Number.isInteger(reviewDias) || reviewDias < REVIEW_DIAS_MIN || reviewDias > REVIEW_DIAS_MAX)) {
       return setError(`Los días de revisión deben ser un número entero entre ${REVIEW_DIAS_MIN} y ${REVIEW_DIAS_MAX}.`)
     }
+    if (obsChips.includes('1PG') && !dias1PG) {
+      return setError('Indicá en cuántos días revisar la 1° de PG.')
+    }
 
     const datos = {
       fecha,
@@ -286,6 +294,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
           },
           rolEfectivo,
           Object.keys(ajustesFinDeSemana).length > 0 ? ajustesFinDeSemana : undefined,
+          dias1PG,
         )
       }
 
@@ -511,6 +520,49 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
             />
           )}
 
+          {/* Días hasta revisión de 1° PG — visible cuando se marcó 1PG */}
+          {obsChips.includes('1PG') && (
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-violet-600">
+                ¿En cuántos días revisar la 1° de PG? *
+              </label>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDias1PG(dias1PG === d ? null : d)}
+                    className={`h-8 w-8 rounded-md border text-xs font-medium transition-colors ${
+                      dias1PG === d
+                        ? 'border-violet-500 bg-violet-50 text-violet-700'
+                        : 'border-slate-300 text-slate-500 hover:border-slate-400'
+                    }`}
+                  >
+                    {d}
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  min={8}
+                  max={60}
+                  value={dias1PG != null && dias1PG > 7 ? dias1PG : ''}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setDias1PG(v === '' ? null : Number(v))
+                  }}
+                  placeholder="8-60"
+                  className="w-16 rounded-md border border-slate-300 bg-slate-100 px-2 py-1.5 text-xs text-slate-700 placeholder-slate-300 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                />
+                <span className="text-[11px] text-slate-400">días</span>
+              </div>
+              {dias1PG != null && dias1PG >= 1 && dias1PG <= 60 && (
+                <p className="text-xs text-violet-600">
+                  Se revisará el {formatFechaAR(sumarDias(fecha, dias1PG))}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Padrillo — visible cuando se marcó IN */}
           {mostrarPadrillo && (
             <div className="space-y-1.5">
@@ -629,6 +681,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               onAjusteDomingo={(tipo, offset) =>
                 setAjustesDomingo((prev) => ({ ...prev, [tipo]: offset }))
               }
+              dias1PG={dias1PG}
             />
           )}
 
@@ -670,7 +723,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
 function RecordatoriosPreview({
   obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewDias, inseminada, cfg, propias,
-  ajustesFinDeSemana, onAjusteDomingo,
+  ajustesFinDeSemana, onAjusteDomingo, dias1PG,
 }: {
   obsChips: string[]
   ovarioIzq: string[]
@@ -686,6 +739,7 @@ function RecordatoriosPreview({
   propias: ReglaRecordatorioVet[]
   ajustesFinDeSemana: Record<string, -1 | 0 | 1>
   onAjusteDomingo: (tipo: string, offset: -1 | 0 | 1) => void
+  dias1PG: number | null
 }) {
   // Las mismas reglas que aplica el store al guardar: con una copia propia, el
   // preview podía mostrar recordatorios que después no se creaban.
@@ -693,7 +747,7 @@ function RecordatoriosPreview({
   const items = reglasParaRegistro(
     { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer,
       review_dias: reviewDias, fecha_flushing_programada: null },
-    rol, cfg, inseminada, propias,
+    rol, cfg, inseminada, propias, dias1PG,
   ).map((r) => {
     const fechaBase = r.calcularFecha(fecha)
     const caeFinde = esFinDeSemana(fechaBase)

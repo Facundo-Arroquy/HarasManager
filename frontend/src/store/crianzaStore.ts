@@ -1,11 +1,9 @@
 import { create } from 'zustand'
 import { crianzaService } from '../services/crianzaService'
 import { useAuthStore } from './authStore'
-import { useToastStore } from './toastStore'
 import { mensajeError } from '../utils/error'
 import { hoyAR } from '../utils/fecha'
 import { actoResuelveRecordatorio, type ActoCria } from '../utils/recordatorio'
-import { PLAZOS_VET_DEFAULTS } from '../types/crianza'
 import type {
   PlazosVet,
   RegistroClinicoCria,
@@ -16,13 +14,14 @@ import type {
   Ecografia,
   NuevaEcografiaPayload,
   NuevoRegistroCriaPayload,
-  NuevoRecordatorioPayload,
   NuevoFlushingPayload,
   EstadoRecordatorio,
   TipoRecordatorio,
   RolReproductivo,
   ReglaRecordatorioVet,
+  ConfiguracionCriaEfectiva,
 } from '../types/crianza'
+import { plazosDesdeConfiguracion } from '../types/crianza'
 
 // =============================================================================
 // Auto-generación de recordatorios según chips seleccionados
@@ -37,11 +36,13 @@ import type {
 //   IN      → OXI          +1 día
 //   OV (inseminada)     → Flushing  +6 días
 //   OV (sin inseminar)  → Dar PG    +4 días
-//   PG      → Revisión PG  +3 días
+//   1PG     → Revisión 1PG  +N días (elegidos por el vet)
+//   PG      → Revisión PG   +3 días
 //   Flushing→ Rev.Flushing +4 días
 //
 // Receptora:
 //   Strelin → Revisión Strelin  próximo MWF
+//   1PG     → Revisión 1PG      +N días (elegidos por el vet)
 //   PG      → Revisión PG       +4 días
 //   OV (sin Transferida) → Dar PG  +3 días
 //
@@ -89,6 +90,11 @@ export interface ReglaRecordatorio {
  * cuenta como "inseminada antes de esta ovulación". Cubre la IN del ciclo
  * (1–2 días antes de ovular) y los re-registros de OV con días post-OV, sin
  * alcanzar la IN del ciclo anterior (12+ días antes).
+ *
+ * @deprecated La fuente de verdad es la RPC `registrar_acto_reproductivo` en
+ * PostgreSQL (campo `ventana_inseminacion_dias` de `get_configuracion_cria_efectiva`).
+ * Este valor solo se conserva para el preview del modal y la consulta de
+ * inseminación reciente del frontend. No modificarlo sin actualizar la RPC.
  */
 export const VENTANA_INSEMINACION_DIAS = 7
 
@@ -96,6 +102,7 @@ export const VENTANA_INSEMINACION_DIAS = 7
  * Recordatorios que genera un registro. La usa el store al guardar y el preview
  * de RegistroCriaModal, para que lo que se muestra sea lo que se crea.
  */
+/** @deprecated Solo preview. La generación real vive en registrar_acto_reproductivo. */
 export function reglasParaRegistro(
   registro: Pick<NuevoRegistroCriaPayload,
     'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_dias' | 'fecha_flushing_programada'>,
@@ -104,6 +111,8 @@ export function reglasParaRegistro(
   /** Hubo IN en este registro o en los VENTANA_INSEMINACION_DIAS previos. */
   inseminada: boolean,
   propias: ReglaRecordatorioVet[] = [],
+  /** Días custom elegidos por el vet para la revisión de 1° PG. */
+  diasRevision1PG?: number | null,
 ): ReglaRecordatorio[] {
   const chips = registro.obs_chips
   const reglas: ReglaRecordatorio[] = []
@@ -125,7 +134,11 @@ export function reglasParaRegistro(
       reglas.push(inseminada
         ? { tipo: 'Flushing', calcularFecha: (f) => registro.fecha_flushing_programada ?? sumarDias(f, cfg.donante_ov_a_flushing) }
         : { tipo: 'Dar PG',   calcularFecha: (f) => sumarDias(f, cfg.donante_ov_sin_in_a_dar_pg) })
-    if (chips.some((c) => c === 'PG' || c === '1PG'))
+    // 1PG: días custom elegidos por el vet → "Revisión 1PG"
+    if (chips.includes('1PG') && diasRevision1PG)
+      reglas.push({ tipo: 'Revisión 1PG', calcularFecha: (f) => sumarDias(f, diasRevision1PG) })
+    // PG: plazo configurado → "Revisión PG" (sin cambios)
+    if (chips.includes('PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.donante_pg_a_revision_pg) })
     if (chips.includes('Flushing'))
       reglas.push({ tipo: 'Revisión Flushing', calcularFecha: (f) => sumarDias(f, cfg.donante_flushing_a_revision) })
@@ -134,7 +147,11 @@ export function reglasParaRegistro(
   if (rolReproductivo === 'Receptora') {
     if (chips.includes('Strelin'))
       reglas.push({ tipo: 'Revisión Strelin', calcularFecha: (f) => proximoMWF(f) })
-    if (chips.some((c) => c === 'PG' || c === '1PG'))
+    // 1PG: días custom elegidos por el vet → "Revisión 1PG"
+    if (chips.includes('1PG') && diasRevision1PG)
+      reglas.push({ tipo: 'Revisión 1PG', calcularFecha: (f) => sumarDias(f, diasRevision1PG) })
+    // PG: plazo configurado → "Revisión PG" (sin cambios)
+    if (chips.includes('PG'))
       reglas.push({ tipo: 'Revisión PG', calcularFecha: (f) => sumarDias(f, cfg.receptora_pg_a_revision_pg) })
     const tieneOV = registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV')
     const fueTransferida = chips.includes('Transferida')
@@ -149,7 +166,9 @@ export function reglasParaRegistro(
     reglas.push({ tipo: p.accion_recordatorio, calcularFecha: (f) => sumarDias(f, p.dias) })
   }
 
-  if (registro.review_dias)
+  // Igual que registrar_acto_reproductivo: si OXI ya agendó una Revisión (+1 día),
+  // los días de revisión del registro no agendan una segunda.
+  if (registro.review_dias && !reglas.some((r) => r.tipo === 'Revisión'))
     reglas.push({ tipo: 'Revisión', calcularFecha: (f) => sumarDias(f, registro.review_dias!) })
 
   return reglas.map((r) => ({ ...r, calcularFecha: () => r.calcularFecha(base) }))
@@ -167,6 +186,7 @@ interface CrianzaState {
   ecografias:     Ecografia[]
   /** Plazos del vet autenticado. Los usa reglasParaRegistro al crear recordatorios. */
   plazos:         PlazosVet
+  configuracion:  ConfiguracionCriaEfectiva | null
   /** Reglas propias del vet autenticado, que se suman a las fijas. */
   reglasPropias:  ReglaRecordatorioVet[]
   loading:        boolean
@@ -184,6 +204,7 @@ interface CrianzaState {
     payload: NuevoRegistroCriaPayload,
     rolReproductivo: RolReproductivo,
     ajustesFinDeSemana?: Record<string, number>,
+    diasRevision1PG?: number | null,
   ) => Promise<RegistroClinicoCria>
 
   /**
@@ -238,7 +259,10 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   flushings:      [],
   transferencias: [],
   ecografias:     [],
-  plazos:         PLAZOS_VET_DEFAULTS,
+  // Se hidrata desde get_configuracion_cria_efectiva antes de que haya datos
+  // reproductivos renderizables. No contiene defaults duplicados en el cliente.
+  plazos:         null as unknown as PlazosVet,
+  configuracion:  null,
   reglasPropias:  [],
   loading:        false,
   error:          null,
@@ -250,15 +274,18 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     try {
       const lbl = <T,>(name: string, p: Promise<T>): Promise<T> =>
         p.catch((e: unknown) => { throw new Error(`[${name}] ${mensajeError(e)}`) }) as Promise<T>
-      const [registros, recordatorios, flushings, transferencias, ecografias, plazos] = await Promise.all([
+      const vetId = useAuthStore.getState().user?.id
+      if (!vetId) throw new Error('No se pudo identificar al veterinario')
+      const [registros, recordatorios, flushings, transferencias, ecografias, configuracion] = await Promise.all([
         lbl('registros',      crianzaService.listarRegistros(sociedadId)),
         lbl('recordatorios',  crianzaService.listarRecordatorios(sociedadId)),
         lbl('flushings',      crianzaService.listarFlushings(sociedadId)),
         lbl('transferencias', crianzaService.listarTransferencias(sociedadId)),
         lbl('ecografias',     crianzaService.listarEcografias(sociedadId)),
-        lbl('plazos',         crianzaService.getMisPlazos()),
+        lbl('plazos',         crianzaService.getConfiguracionEfectiva(vetId)),
       ])
-      set({ registros, recordatorios, flushings, transferencias, ecografias, plazos })
+      set({ registros, recordatorios, flushings, transferencias, ecografias,
+        configuracion, plazos: plazosDesdeConfiguracion(configuracion) })
       get().sincronizarVencidos()
     } catch (err) {
       set({ error: mensajeError(err, 'Error al cargar datos') })
@@ -270,15 +297,18 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   cargarParaVet: async () => {
     set({ loading: true, error: null })
     try {
-      const [registros, recordatorios, flushings, transferencias, ecografias, plazos] = await Promise.all([
+      const vetId = useAuthStore.getState().user?.id
+      if (!vetId) throw new Error('No se pudo identificar al veterinario')
+      const [registros, recordatorios, flushings, transferencias, ecografias, configuracion] = await Promise.all([
         crianzaService.listarRegistrosVet(),
         crianzaService.listarRecordatoriosVet(),
         crianzaService.listarFlushingsVet(),
         crianzaService.listarTransferenciasVet(),
         crianzaService.listarEcografiasVet(),
-        crianzaService.getMisPlazos(),
+        crianzaService.getConfiguracionEfectiva(vetId),
       ])
-      set({ registros, recordatorios, flushings, transferencias, ecografias, plazos })
+      set({ registros, recordatorios, flushings, transferencias, ecografias,
+        configuracion, plazos: plazosDesdeConfiguracion(configuracion) })
       get().sincronizarVencidos()
     } catch (err) {
       set({ error: mensajeError(err, 'Error al cargar datos') })
@@ -290,107 +320,37 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
   // ── Plazos del veterinario ────────────────────────────────────────────────
 
   cargarPlazos: async () => {
-    const [plazos, reglasPropias] = await Promise.all([
-      crianzaService.getMisPlazos(),
+    const vetId = useAuthStore.getState().user?.id
+    if (!vetId) throw new Error('No se pudo identificar al veterinario')
+    const [configuracion, reglasPropias] = await Promise.all([
+      crianzaService.getConfiguracionEfectiva(vetId),
       crianzaService.listarMisReglas(),
     ])
-    set({ plazos, reglasPropias })
+    set({ configuracion, plazos: plazosDesdeConfiguracion(configuracion), reglasPropias })
   },
 
   guardarPlazos: async (veterinarioId, plazos) => {
     await crianzaService.guardarMisPlazos(veterinarioId, plazos)
-    set({ plazos })
+    const configuracion = await crianzaService.getConfiguracionEfectiva(veterinarioId)
+    set({ configuracion, plazos: plazosDesdeConfiguracion(configuracion) })
   },
 
   // ── Registros clínicos ────────────────────────────────────────────────────
 
-  crearRegistro: async (payload, rolReproductivo, ajustesFinDeSemana) => {
-    // La OV de la donante agenda Flushing solo si hubo IN antes. Se consulta
-    // antes de insertar: si falla, no queda un registro con el recordatorio
-    // equivocado. Solo hace falta ir a la base si este registro no trae IN.
-    const tieneOV = payload.ovario_izq.includes('OV') || payload.ovario_der.includes('OV')
-    const inseminada =
-      payload.obs_chips.includes('IN') ||
-      (rolReproductivo === 'Donante' && tieneOV &&
-        await get().consultarInseminacionReciente(payload.caballo_id, payload.fecha))
-
-    const registro = await crianzaService.crearRegistro(payload)
-    set((s) => ({ registros: [registro, ...s.registros] }))
-
-    // Antes de agendar lo nuevo: lo que estaba agendado para hoy y esta
-    // consulta hizo pasa a hecho en vez de quedar "Falta hacer" al lado.
-    await get().cerrarRecordatoriosResueltos(
-      payload.caballo_id, payload.fecha, { clase: 'registro', chips: payload.obs_chips },
+  crearRegistro: async (payload, rolReproductivo, ajustesFinDeSemana, diasRevision1PG) => {
+    if (!rolReproductivo) throw new Error('El acto reproductivo requiere rol de Donante o Receptora')
+    const result = await crianzaService.registrarActoReproductivo(
+      payload, rolReproductivo, ajustesFinDeSemana, diasRevision1PG,
     )
-
-    // Auto-generar recordatorios según chips (insert batch para evitar N+1).
-    // Los plazos son los del vet autenticado = el que hace el registro.
-    const reglas = reglasParaRegistro(payload, rolReproductivo, get().plazos, inseminada, get().reglasPropias)
-    if (reglas.length > 0) {
-      // Este registro puede traer su propia 'Revisión' (review_dias). Si el
-      // animal ya tenía una pendiente o vencida de un registro anterior, se
-      // cancela: la fecha nueva la reemplaza, y dos revisiones abiertas para
-      // la misma yegua solo duplicarían el animal en el programa del día.
-      // Criterio explícito (no se acumulan): la revisión vigente es siempre
-      // la del último registro que la pidió.
-      if (reglas.some((r) => r.tipo === 'Revisión')) {
-        const previas = get().recordatorios.filter((r) =>
-          r.caballo_id === payload.caballo_id && r.tipo === 'Revisión' &&
-          (r.estado === 'pendiente' || r.estado === 'vencido')
-        )
-        if (previas.length > 0) {
-          const motivo = 'Reemplazada por la revisión programada en un registro más nuevo'
-          try {
-            await crianzaService.cancelarRecordatorios(previas.map((r) => r.id), motivo)
-            set((s) => ({
-              recordatorios: s.recordatorios.map((r) =>
-                previas.some((p) => p.id === r.id)
-                  ? { ...r, estado: 'cancelado' as EstadoRecordatorio, cancel_motivo: motivo }
-                  : r
-              ),
-            }))
-          } catch (e) {
-            console.error('[crianzaStore] cancelar revisiones previas:', mensajeError(e))
-          }
-        }
-      }
-
-      const recPayloads: NuevoRecordatorioPayload[] = reglas.map((regla) => {
-        let fechaVto = regla.calcularFecha(payload.fecha)
-        const ajuste = ajustesFinDeSemana?.[regla.tipo]
-        if (ajuste) fechaVto = sumarDias(fechaVto, ajuste)
-        return {
-          caballo_id:         payload.caballo_id,
-          sociedad_id:        payload.sociedad_id,
-          tipo:               regla.tipo,
-          fecha_vto:          fechaVto,
-          fecha_original:     null,
-          estado:             'pendiente' as EstadoRecordatorio,
-          veterinario_id:     payload.veterinario_id,
-          notas:              null,
-          auto_generado:      true,
-          origen_registro_id: registro.id,
-          cancel_motivo:      null,
-        }
-      })
-      try {
-        const recs = await crianzaService.crearRecordatoriosBatch(recPayloads)
-        set((s) => ({ recordatorios: [...s.recordatorios, ...recs] }))
-      } catch (e) {
-        // El registro clínico ya quedó guardado. Si además propagáramos este
-        // error, el modal lo mostraría como fallo y el vet volvería a guardar,
-        // duplicando el registro y —al reintento exitoso— sus recordatorios.
-        // Se avisa y se sigue: los recordatorios se pueden cargar a mano.
-        useToastStore.getState().pushToast(
-          'error',
-          'El registro se guardó, pero no se pudieron generar los recordatorios automáticos. ' +
-            'Cargalos a mano desde el programa semanal.',
-        )
-        console.error('[crianzaStore] recordatorios automáticos:', mensajeError(e))
-      }
-    }
-
-    return registro
+    const idsActualizados = new Set(result.recordatorios.map((r) => r.id))
+    set((s) => ({
+      registros: [result.registro, ...s.registros],
+      recordatorios: [
+        ...result.recordatorios,
+        ...s.recordatorios.filter((r) => !idsActualizados.has(r.id)),
+      ],
+    }))
+    return result.registro
   },
 
   consultarInseminacionReciente: (caballoId, fecha) =>
@@ -483,21 +443,36 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     const flushing = await crianzaService.crearFlushing(payload)
     set((s) => ({ flushings: [flushing, ...s.flushings] }))
 
-    // RPC SECURITY DEFINER: cierra TODOS los recordatorios de Flushing abiertos
-    // de esta donante, sin importar fecha ni quién los creó (fix bug fecha exacta + RLS).
+    // RPC SECURITY DEFINER: cierra TODOS los recordatorios del ciclo anterior
+    // de esta donante (excepto Eco, Revisión Eco y lo que cuelga de este flushing).
     try {
-      await crianzaService.cerrarRecordatoriosFlushing(payload.caballo_id)
+      await crianzaService.cerrarRecordatoriosFlushing(payload.caballo_id, flushing.id)
       set((s) => ({
         recordatorios: s.recordatorios.map((r) =>
           r.caballo_id === payload.caballo_id &&
-          r.tipo === 'Flushing' &&
-          (r.estado === 'pendiente' || r.estado === 'vencido')
-            ? { ...r, estado: 'hecho' as EstadoRecordatorio }
+          (r.estado === 'pendiente' || r.estado === 'vencido') &&
+          r.auto_generado &&
+          !['Eco 1', 'Eco 2', 'Eco 3', 'Revisión Eco'].includes(r.tipo) &&
+          r.flushing_id !== flushing.id
+            ? { ...r, estado: 'cancelado' as EstadoRecordatorio, cancel_motivo: 'Ciclo cerrado por nuevo flushing' }
             : r
         ),
       }))
     } catch (e) {
       console.error('[crianzaStore] cerrar recordatorios flushing:', mensajeError(e))
+    }
+
+    // El trigger trg_cria_flushing_sincronizar_revision_pg crea la "Revisión PG"
+    // en la DB pero el frontend no la tiene en memoria. La traemos y la sumamos.
+    try {
+      const nuevosRec = await crianzaService.listarRecordatoriosPorFlushing(flushing.id)
+      if (nuevosRec.length > 0) {
+        set((s) => ({
+          recordatorios: [...s.recordatorios, ...nuevosRec],
+        }))
+      }
+    } catch (e) {
+      console.error('[crianzaStore] traer recordatorios del flushing:', mensajeError(e))
     }
 
     return flushing
