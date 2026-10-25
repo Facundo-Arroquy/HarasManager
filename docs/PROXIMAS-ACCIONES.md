@@ -144,7 +144,7 @@ Bloquean otras tareas. Una reunión de ~90 minutos entre Facu, el colaborador y 
 ### C. Cobro y planes
 
 #### C1 — Terminar MercadoPago (cobro de vets) · `config` + QA · M
-- **Cómo:** seguir `docs/specs/mercadopago-setup.md` pasos 1–10 **en modo prueba** primero (secrets, deploy de las 3 funciones con `--no-verify-jwt` en el webhook, URL completa del webhook, pago con usuario y tarjeta de prueba), correr el checklist de `QA.md`, y pasar a producción con **un cobro real propio** que se cancela después.
+- **Cómo:** seguir `docs/specs/mercadopago-setup.md` pasos 1–10 **en modo prueba** primero (secrets, deploy de las 3 funciones con `--no-verify-jwt` en el webhook, URL completa del webhook, pago con usuario y tarjeta de prueba), correr el checklist de `docs/QA.md`, y pasar a producción con **un cobro real propio** que se cancela después.
 - **Ojo:** corregir primero el documento (tarea H1): los ejemplos usan $25.000 y el precio vigente es $10.000.
 - **Hecho cuando:** un pago real aprobado activó una suscripción sin intervención manual y su cancelación funcionó.
 
@@ -252,11 +252,11 @@ Bloquean otras tareas. Una reunión de ~90 minutos entre Facu, el colaborador y 
 - **Hecho cuando:** un usuario nuevo llega a su primer registro en menos de 15 minutos sin preguntar.
 
 #### E6 — Cerrar los tickets en QA · `código` + QA · M
-- **Cómo:** pasar a "terminado" o devolver a pendiente cada ticket que figura en `QA` en `TASKS.md`: freemium de vets, downgrade, cobro de MercadoPago, roles y membresías, alertas en el dashboard, Centro de Embriones editable, filtro por camada, partes afectadas del vet independiente, lista para la temporada. Usar las listas de `QA.md` en staging.
+- **Cómo:** pasar a "terminado" o devolver a pendiente cada ticket que figura en `QA` en `TASKS.md`: freemium de vets, downgrade, cobro de MercadoPago, roles y membresías, alertas en el dashboard, Centro de Embriones editable, filtro por camada, partes afectadas del vet independiente, lista para la temporada. Usar las listas de `docs/QA.md` en staging.
 - **Hecho cuando:** `TASKS.md` no tiene ningún ticket de alta prioridad en estado `QA`.
 
 #### E7 — Pase de QA completo previo al lanzamiento · QA · M
-- **Cómo:** correr `QA.md` completo en staging con 2 personas, **un celular Android y uno iPhone** (se usa en el campo), los roles admin, vet con y sin membresía, jugador/piloto/peticero y superadmin; registrar fallas en `TASKS.md`.
+- **Cómo:** correr `docs/QA.md` completo en staging con 2 personas, **un celular Android y uno iPhone** (se usa en el campo), los roles admin, vet con y sin membresía, jugador/piloto/peticero y superadmin; registrar fallas en `TASKS.md`.
 - **Hecho cuando:** cero fallas bloqueantes y las no bloqueantes tienen ticket y fecha.
 
 #### E8 — Triage de tickets pendientes · `código` · S
@@ -434,7 +434,7 @@ Para no inflar el alcance, esto queda **explícitamente fuera** del Hito 2:
 | Ticket actual (`TASKS.md`) | Tarea acá | Nota |
 |---|---|---|
 | Cobro de la membresía del vet con MercadoPago (Fase 2) | C1 | Falta configuración y QA |
-| Freemium vets / Downgrade (QA) | E6 | Cerrar con las listas de `QA.md` |
+| Freemium vets / Downgrade (QA) | E6 | Cerrar con las listas de `docs/QA.md` |
 | Definir roles y membresías — URGENTE (QA) | E6, A4 | Se valida con la matriz de roles |
 | House limit | C5 | Pasa de baja a **bloquea el Hito 2** |
 | Acceso al centro de embriones | DEC2 (decisión), C4 | Es la decisión de modelo del Centro de Cría |
