@@ -33,7 +33,13 @@ cp .env.example .env.local   # VITE_SUPABASE_URL=http://127.0.0.1:55321 y VITE_S
 npm run dev
 ```
 
-Hasta la F2 del plan de migración la base local está vacía (sin usuarios ni datos).
+La base local trae datos de prueba y 12 usuarios (ver `supabase/seeds/README.md`).
+
+El backend (en construcción, ver `backend/README.md`) se corre aparte; hoy el front no lo usa:
+
+```bash
+cd backend && uv sync && uv run uvicorn app.main:app --reload   # http://127.0.0.1:8000/docs
+```
 
 ---
 
@@ -46,6 +52,7 @@ HarasManager/
 ├── docs/SKILL.md           ← arquitectura completa (leer siempre)
 ├── docs/PLAN-MIGRACION-BACKEND.md ← plan por fases de la API (F0 a F30)
 ├── docs/ENTORNO-LOCAL.md   ← base local con Docker
+├── backend/                ← API FastAPI (en construcción; ver backend/README.md)
 └── frontend/src/
     ├── components/
     │   ├── domain/         ← componentes de negocio
