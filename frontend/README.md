@@ -1,73 +1,36 @@
-# React + TypeScript + Vite
+# Frontend — HarasManager
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+App web de gestión equina. React 19, Vite, TypeScript, Tailwind v4, Zustand y React Router v7.
+Hoy habla directo con Supabase; el plan para que pase a usar una API propia, fase por fase,
+está en [`docs/PLAN-MIGRACION-BACKEND.md`](../docs/PLAN-MIGRACION-BACKEND.md).
 
-Currently, two official plugins are available:
+## Correr
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Desde `frontend/`:
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+cp .env.example .env.local   # completar las variables (ver .env.example)
+npm run dev                  # http://localhost:5173
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+| Script | Qué hace |
+|---|---|
+| `npm run dev` | Servidor de desarrollo con recarga en caliente |
+| `npm run build` | Chequeo de tipos (`tsc -b`) y build de producción |
+| `npm run lint` | ESLint |
+| `npm test` | Tests (Vitest) |
+| `npm run preview` | Sirve el build de producción |
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Dónde está cada cosa
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Reglas del proyecto, estructura de carpetas y convenciones: [`CLAUDE.md`](../CLAUDE.md).
+Arquitectura, modelo de datos y permisos: [`docs/SKILL.md`](../docs/SKILL.md).
+
+- `src/services/`: todas las llamadas a Supabase
+- `src/store/`, `src/hooks/`: estado y lógica de negocio (nunca en los componentes)
+- `src/pages/`: una carpeta por sección
+- `public/`: archivos estáticos (logos, video de la landing). Lo que no se usa no se versiona.
+
+El deploy es en Vercel; su configuración (`vercel.json`, con la política de seguridad de
+contenido) vive en esta carpeta.

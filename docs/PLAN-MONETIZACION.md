@@ -391,7 +391,7 @@ Coherente con `CLAUDE.md` y con lo ya decidido:
 | `docs/specs/mercadopago-setup.md` ("Cosas que conviene tener claras") | Dice que no hay botón de baja en HarasManager; `MembresiaVetCard` ya llama a `cancelar-suscripcion-vet` |
 | `docs/specs/roles-freemium-veterinarios.md` | Define que la suscripción desbloquea caballos propios **ilimitados**; el SKILL y las migraciones `20260813120200`/`20260813120300` ya lo cambiaron a un tope pago de 25 |
 | `TASKS.md` | El ticket "Cobro de la membresía del vet con MercadoPago (Fase 2)" figura `falta configuración + QA` pero está marcado `[x]` |
-| `QA.md` (usuarios de prueba) | Referencias a "marca", modelo abandonado según el SKILL |
+| `docs/QA.md` (usuarios de prueba) | Referencias a "marca", modelo abandonado según el SKILL |
 | `CLAUDE.md` | Dice "sin producción aún" y pide `VITE_SUPABASE_ANON_KEY`; la app ya está en producción y el código usa `VITE_SUPABASE_ANON` |
 
 ---

@@ -242,7 +242,7 @@
   - [x] Edge Function `mercadopago-webhook`: valida la firma HMAC, re-consulta el estado contra la API de MercadoPago y sincroniza. Se despliega con `--no-verify-jwt`.
   - [x] Front: `suscripcionVetService`, botón habilitado en `LimiteCaballosVetModal`, tarjeta `MembresiaVetCard` en `/config-vet/suscripcion` (menú plegable **Configuración** al pie del sidebar, arriba de "Cerrar sesión", solo para rol veterinario), y página `/suscripcion/resultado`.
   - [ ] **Configuración pendiente (no es código):** crear la aplicación en MercadoPago, cargar los tres secrets, definir el precio real, desplegar las funciones y conectar el webhook. Paso a paso en `docs/specs/mercadopago-setup.md`.
-  - [ ] QA manual — checklist nuevo en `QA.md`.
+  - [ ] QA manual — checklist nuevo en `docs/QA.md`.
 - **Decisiones:** preapproval y no pago único, siguiendo lo ya definido en el spec. Checkout **redirect**, sin tokenizar tarjetas en nuestro frontend, para no entrar en el alcance de PCI. Cancelar **no** corta el acceso en el acto: el vet conserva la membresía hasta la `fecha_vencimiento` que ya pagó (esto cambió `vet_suscripcion_activa()`). Vencimiento con 3 días de gracia sobre `next_payment_date`, si no un vet al día se comía el modal bloqueante entre el vencimiento y el webhook del cobro nuevo.
 - **Ojo:** `/suscripcion/resultado` va **fuera** de `RequireAuth` a propósito — ese guard monta el modal bloqueante del límite y dejaría al vet que acaba de pagar atrapado detrás justo mientras se espera la confirmación. La reactivación de los caballos que dio de baja **sigue siendo manual** aunque pague: la baja por límite y la baja por venta/muerte no se distinguen en la base.
 
