@@ -215,7 +215,7 @@ Estimaciones de esfuerzo **gruesas** (S ≈ 1–2 días · M ≈ 3–5 · L ≈ 
 - [ ] Investigar competidores y alternativas locales (tarea pendiente, §3.5).
 
 *Técnico:*
-- [ ] **Terminar la Fase 2 de MercadoPago** siguiendo `docs/specs/mercadopago-setup.md` (pasos 1–10): secrets, deploy de las 3 funciones (`--no-verify-jwt` en el webhook), webhook con la URL completa, prueba end-to-end con el checklist de `QA.md`, pasaje a producción y **un cobro real propio**. *(S–M)*
+- [ ] **Terminar la Fase 2 de MercadoPago** siguiendo `docs/specs/mercadopago-setup.md` (pasos 1–10): secrets, deploy de las 3 funciones (`--no-verify-jwt` en el webhook), webhook con la URL completa, prueba end-to-end con el checklist de `docs/QA.md`, pasaje a producción y **un cobro real propio**. *(S–M)*
 - [ ] Auditar las suscripciones activadas manualmente: marcar cuáles son cortesía (`notas`, `proveedor_pago = 'manual'`) y cuáles deberían migrar a MercadoPago. *(S)*
 - [ ] **Infra de producción:** pasar Supabase a un plan con backups diarios/PITR y sin pausa por inactividad; revisar si Vercel requiere plan comercial para el uso real (el plan gratuito de Vercel es para uso no comercial: verificar sus términos vigentes); SMTP propio (el de Supabase por defecto es limitado y pensado para pruebas: verificar límites vigentes) con dominio verificado; monitoreo de errores. *(M)*
 - [ ] **Separar demo de producción:** hoy las cuentas de demo conviven con los clientes reales. Opciones: proyecto de staging aparte o branch de Supabase. *(M)*
