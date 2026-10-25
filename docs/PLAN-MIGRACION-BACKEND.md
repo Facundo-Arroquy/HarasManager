@@ -35,7 +35,8 @@ Además es una decisión de arquitectura del equipo. Esto **cambia el "Stack ina
 | Edge Functions | 5 (911 líneas) | — |
 | Migraciones en `supabase/migrations/` | 137, **con drift** respecto a prod | — |
 | Tests en el front | 4 archivos | — |
-| Tablas / policies / funciones / triggers | se miden en F1 con el dump | 30 / 100 / 24 / 20 |
+| Migraciones aplicadas en prod | 115 (el repo tiene 137: hay drift) | — |
+| Tablas / policies / funciones / triggers (`public`) | 55 / 165 / 92 / 51 (medido en F1) | 30 / 100 / 24 / 20 |
 
 Dominios del front (carpetas de `pages/`): admin, auth, caballos, calendario, centro-cría, config, dashboard, estadísticas, historial, sanidad, superadmin, torneos, transferencias, vet.
 
@@ -51,7 +52,7 @@ Dominios del front (carpetas de `pages/`): admin, auth, caballos, calendario, ce
 
 | Ambiente | Front | Base | Backend |
 |---|---|---|---|
-| Local (`feat/*`) | Vite `:5173` | Supabase en Docker (`:54321` API, `:54322` Postgres, `:54323` Studio) | `uvicorn :8000` |
+| Local (`feat/*`) | Vite `:5173` | Supabase en Docker (`:55321` API, `:55322` Postgres, `:55323` Studio; puertos propios porque otro stack local usa el rango 543xx) | `uvicorn :8000` |
 | Producción (`main`) | Vercel | Supabase prod | no existe hasta F28/F29 |
 
 - Cada fase sale de `develop` en su propia rama y vuelve por **PR a `develop`**.
@@ -119,8 +120,8 @@ Estimación gruesa en días de trabajo (±30%). Total: **≈45 días-persona**; 
 
 | Fase | Qué se hace | Terminado cuando | Días | Estado |
 |---|---|---|---|---|
-| **F0** | Cerrar las decisiones de §6. Actualizar `CLAUDE.md` (flujo `feat/*` → `develop` → `main`, migraciones, MCP de solo lectura en prod). Nota en `SKILL.md` que apunte a este plan | Decisiones 1 a 6 confirmadas (7 y 8 abiertas a propósito); `CLAUDE.md` y nota en `SKILL.md` actualizados; PR a `develop` mergeado | 0,5 | en proceso (faltan `CLAUDE.md` y la nota en `SKILL.md`) |
-| **F1** | Supabase local en Docker: `supabase init`; dump de **solo schema** de prod (lectura); archivar las 137 migraciones y reemplazarlas por una *baseline* contrastada con `list_migrations` de prod; `supabase start`; script que compara tablas, policies, funciones, triggers y buckets entre local y prod | `supabase start` levanta y el comparador da 0 diferencias | 1 | en proceso |
+| **F0** | Cerrar las decisiones de §6. Actualizar `CLAUDE.md` (flujo `feat/*` → `develop` → `main`, migraciones, MCP de solo lectura en prod). Nota en `SKILL.md` que apunte a este plan | Decisiones 1 a 6 confirmadas (7 y 8 abiertas a propósito); `CLAUDE.md` y nota en `SKILL.md` actualizados; PR a `develop` mergeado | 0,5 | hecha en `feat/plan-migracion-backend`; falta mergear a `develop` |
+| **F1** | Supabase local en Docker: `supabase init`; dump de **solo schema** de prod (lectura); archivar las 137 migraciones y reemplazarlas por una *baseline* contrastada con `list_migrations` de prod; `supabase start`; script que compara tablas, policies, funciones, triggers y buckets entre local y prod | `supabase start` levanta y el comparador da 0 diferencias | 1 | hecha en `feat/f1-supabase-local`; falta PR. Comparador: `scripts/db-compare.sh` (ver `docs/ENTORNO-LOCAL.md`) |
 | **F2** | Seed ficticio reescrito contra el schema real (el `seed.sql` actual usa el modelo de marca, que nunca se aplicó en prod). Usuarios demo en el Auth local con los emails de los demo de prod (lista a confirmar antes de escribirla en el repo público) y una contraseña de desarrollo. `frontend/.env.local` apuntando a local. Edge Functions locales con secretos de prueba | `supabase db reset` deja todo listo y se puede navegar la app completa contra local con cada rol | 1 | pendiente |
 
 ### Etapa 1 — Cimientos del backend (5,5 días)
