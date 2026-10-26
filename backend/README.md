@@ -3,10 +3,10 @@
 API en Python (FastAPI) que va a reemplazar, dominio por dominio, las llamadas directas del
 frontend a Supabase. Plan completo y orden de las fases: [`docs/PLAN-MIGRACION-BACKEND.md`](../docs/PLAN-MIGRACION-BACKEND.md).
 
-**Estado: F4 (autenticación).** Expone `GET /health` y `GET /me`. Valida el JWT de Supabase,
-corre cada request con la identidad del usuario (RLS aplica) y devuelve los errores con los
-mismos códigos que hoy ve el front. Todavía no hay endpoints de negocio (F5 en adelante) y el
-frontend no la usa.
+**Estado: F5 (autorización).** Expone `GET /health` y `GET /me`. Valida el JWT de Supabase,
+corre cada request con la identidad del usuario (RLS aplica), tiene las reglas de acceso
+portadas de Postgres con un banco de pruebas y devuelve los errores con los mismos códigos que
+hoy ve el front. Todavía no hay endpoints de negocio (F7 en adelante) y el frontend no la usa.
 
 ## Requisitos
 
@@ -41,8 +41,9 @@ backend/
 │   │   ├── database.py          conexión a la base y `get_db`
 │   │   ├── security.py          validación del JWT de Supabase
 │   │   ├── rls.py               corre la sesión con la identidad del usuario (modo A)
+│   │   ├── permisos.py          reglas de acceso (puras), portadas de las funciones de Postgres
 │   │   └── errors.py            formato de errores y traducción de los de Postgres
-│   ├── api/                     routers (uno por dominio, solo HTTP) y `deps.py`
+│   ├── api/                     routers (uno por dominio, solo HTTP), `deps.py` y `permisos.py`
 │   ├── schemas/                 modelos Pydantic de entrada y salida
 │   ├── services/                reglas de negocio y transacciones
 │   ├── repositories/            consultas a la base
@@ -79,6 +80,52 @@ autentica contra él igual que hoy. El backend solo valida el token que ya exist
 | `401 token_invalido` | Firma mala, de otro proyecto, otro emisor o audiencia, malformado, sin firma… |
 | `403 usuario_no_registrado` / `usuario_inactivo` | Token válido, pero no hay perfil en `usuario` o está desactivado |
 | `503 auth_no_disponible` | No se pudieron bajar las claves de Supabase: no es culpa del token, y un 401 desloguearía a todos |
+
+## Autorización
+
+Quién es el usuario lo resuelve la sección anterior; **qué puede tocar** lo resuelven las reglas de
+`app/core/permisos.py`, portadas 1 a 1 de las funciones auxiliares de Postgres, y las dependencies
+`require_*` de `app/api/permisos.py`. Las políticas RLS siguen aplicando: esto es la segunda red, y
+la que devuelve un `403` claro en vez de una lista vacía.
+
+| Postgres | Regla (`core/permisos.py`) | Dependency (`api/permisos.py`) | Ámbito |
+|---|---|---|---|
+| — (cualquier usuario activo) | — | `require_usuario` | usuario |
+| `is_superadmin()` | `es_superadmin` | `require_superadmin` | superadmin |
+| `tiene_membresia(sociedad)` | `tiene_membresia` | `require_membresia` | sociedad |
+| `es_admin(sociedad)` | `es_admin` | `require_admin` | sociedad |
+| `es_veterinario(sociedad)` | `es_veterinario` | `require_veterinario` | sociedad |
+| `puede_gestionar_campo(sociedad)` | `puede_gestionar_campo` | `require_gestion_campo` | sociedad |
+| `puede_gestionar_ficha_caballo(sociedad)` | `puede_gestionar_ficha_caballo` | `require_gestion_ficha_caballo` | sociedad |
+| `vet_tiene_acceso(caballo)` | `es_veterinario_activo` + `vet_tiene_acceso_a_caballo` | `require_acceso_caballo` | caballo |
+
+Cada dependency devuelve el `ContextoUsuario` o responde `403 sin_permiso`. El contexto (usuario y
+membresías) se carga **una vez por request**; solo `require_acceso_caballo` hace una consulta más.
+Un caballo que no existe da el mismo `403` que uno ajeno, para no contar qué ids existen.
+
+```python
+@router.get("/sociedades/{sociedad_id}/campos")
+def listar(sociedad_id: UUID, ctx: Annotated[ContextoUsuario, Depends(require_gestion_campo)]): ...
+```
+
+**Todo endpoint declara al menos una regla.** `tests/test_auditoria_rutas.py` recorre las rutas de la
+app y falla si alguna no tiene (salvo `RUTAS_PUBLICAS`: hoy solo `/health`), o si recibe
+`sociedad_id`/`caballo_id` y ninguna de sus reglas es de ese ámbito. `require_usuario` es una
+elección explícita ("cualquier usuario activo; el filtro lo hace RLS"), no un olvido.
+
+### Banco de pruebas
+
+- **Matriz de permisos** (`tests/test_matriz_permisos.py`): 8 perfiles del seed (superadmin, los
+  dos admins, vet con membresía, vet **sin** membresía, jugador, piloto, peticero) contra 17 pruebas
+  (cada regla sobre cada recurso), por HTTP real. Es la especificación legible de las reglas.
+- **Oráculo de permisos** (`tests/test_oraculo_permisos.py`): cada regla de Python contra su función
+  de Postgres corriendo como ese usuario, para los 12 usuarios y todos los recursos del seed, y
+  otra vez sobre 9 estados que el seed no tiene (membresía inactiva, acceso revocado, usuario
+  desactivado, veterinario que deja de serlo…). Es lo que impide que las dos implementaciones se
+  separen sin que nadie lo note. Verificado por mutación: si se rompe una regla en Python, falla.
+- **Oráculo para operaciones** (`tests/oraculo.py`, ejemplo en `tests/test_oraculo_ejemplo.py`):
+  corre la función vieja y el endpoint nuevo sobre la misma base y el mismo usuario, y compara la
+  respuesta y el estado final. Es la plantilla de las fases de dominio.
 
 ## Errores
 
@@ -137,6 +184,23 @@ Los tests que miran Postgres por dentro (rol, `auth.uid()`, errores) montan unas
   contexto RLS. Se puede revisar si hace falta.
 - **`httpx2` como cliente de tests.** Starlette 1.x dejó `httpx` como deprecado.
 - **Sin Dockerfile todavía.** El contenedor llega con el deploy (F28).
+
+**F5**
+- **Las reglas se portan a Python y se prueban contra Postgres.** La alternativa era llamar a las
+  funciones de la base desde el backend, pero entonces la "segunda red" sería la misma lógica que
+  RLS. Con el oráculo, tener la regla escrita dos veces deja de ser un riesgo.
+- **Las funciones de la base mandan sobre `docs/SKILL.md`.** `is_superadmin()` no chequea `activo`
+  (SKILL.md decía que sí): se porta tal cual. No es un hueco: un usuario inactivo ya queda afuera
+  con `403 usuario_inactivo` antes de evaluar ninguna regla.
+- **`es_veterinario(sociedad)` da True para cualquier sociedad si el usuario es veterinario
+  global** (su segunda mitad mira `usuario.rol`, no la sociedad). Se porta tal cual y la matriz lo
+  documenta; quien use la regla tiene que saberlo.
+- **Aviso para los dominios: las operaciones `SECURITY DEFINER` no se pueden copiar como un
+  `UPDATE` común.** Por ejemplo, `anular_consulta` pone `anulada_at`, y como la política de lectura
+  oculta las consultas anuladas, el `UPDATE` del propio autor falla con "new row violates
+  row-level security policy". En modo A esas operaciones necesitan validar en Python y ejecutar
+  con privilegios elevados solo en ese endpoint (el "modo B puntual" de la decisión 2 del plan).
+  Cada caso se resuelve en su fase y se anotó en el Registro de pendientes.
 
 **F4**
 - **Se decide por SQLSTATE, no por la clase de la excepción.** psycopg clasifica los códigos

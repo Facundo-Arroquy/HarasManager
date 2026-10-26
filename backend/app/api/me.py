@@ -1,9 +1,9 @@
 from fastapi import APIRouter
 
-from app.api.deps import ClaimsActuales, DbUsuario
+from app.api.permisos import Usuario
 from app.schemas.errores import ErrorResponse
 from app.schemas.perfil import PerfilResponse
-from app.services.perfil import obtener_perfil
+from app.services.perfil import perfil_desde_contexto
 
 router = APIRouter(tags=["usuario"])
 
@@ -19,6 +19,6 @@ router = APIRouter(tags=["usuario"])
         },
     },
 )
-def me(db: DbUsuario, claims: ClaimsActuales) -> PerfilResponse:
+def me(ctx: Usuario) -> PerfilResponse:
     """Datos del usuario logueado y sus membresías. Usa el mismo token que ya tiene el front."""
-    return obtener_perfil(db, claims.sub)
+    return perfil_desde_contexto(ctx)
