@@ -21,6 +21,9 @@ from sqlalchemy.orm import Session, SessionTransaction
 
 ROL_POSTGRES = "authenticated"
 
+_CLAVE_CLAIMS = "rls_claims_json"
+_CLAVE_ESCUCHA = "rls_escucha_registrada"
+
 _APLICAR_CONTEXTO = text(
     "SELECT set_config('role', :rol, true), set_config('request.jwt.claims', :claims, true)"
 )
@@ -30,15 +33,22 @@ def _aplicar(conexion: Connection, claims_json: str) -> None:
     conexion.execute(_APLICAR_CONTEXTO, {"rol": ROL_POSTGRES, "claims": claims_json})
 
 
-def enlazar_contexto_rls(db: Session, claims: Mapping[str, Any]) -> None:
-    """Deja la sesión corriendo como el usuario del token, ahora y en cada transacción nueva."""
-    claims_json = json.dumps(dict(claims))
-
-    @event.listens_for(db, "after_begin")
-    def _al_empezar(
-        _sesion: Session, _transaccion: SessionTransaction, conexion: Connection
-    ) -> None:
+def _al_empezar(sesion: Session, _transaccion: SessionTransaction, conexion: Connection) -> None:
+    claims_json = sesion.info.get(_CLAVE_CLAIMS)
+    if claims_json is not None:
         _aplicar(conexion, claims_json)
+
+
+def enlazar_contexto_rls(db: Session, claims: Mapping[str, Any]) -> None:
+    """Deja la sesión corriendo como el usuario del token, ahora y en cada transacción nueva.
+
+    Se puede volver a llamar con otros claims: queda un solo listener por sesión y gana el último.
+    """
+    claims_json = json.dumps(dict(claims))
+    db.info[_CLAVE_CLAIMS] = claims_json
+    if not db.info.get(_CLAVE_ESCUCHA):
+        event.listen(db, "after_begin", _al_empezar)
+        db.info[_CLAVE_ESCUCHA] = True
 
     if db.in_transaction():
         _aplicar(db.connection(), claims_json)  # la transacción ya había empezado
