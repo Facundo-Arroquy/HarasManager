@@ -3,10 +3,11 @@
 API en Python (FastAPI) que va a reemplazar, dominio por dominio, las llamadas directas del
 frontend a Supabase. Plan completo y orden de las fases: [`docs/PLAN-MIGRACION-BACKEND.md`](../docs/PLAN-MIGRACION-BACKEND.md).
 
-**Estado: F5 (autorización).** Expone `GET /health` y `GET /me`. Valida el JWT de Supabase,
+**Estado: F6 (contrato y cliente del front).** Expone `GET /health` y `GET /me`. Valida el JWT de Supabase,
 corre cada request con la identidad del usuario (RLS aplica), tiene las reglas de acceso
 portadas de Postgres con un banco de pruebas y devuelve los errores con los mismos códigos que
-hoy ve el front. Todavía no hay endpoints de negocio (F7 en adelante) y el frontend no la usa.
+hoy ve el front, y publica su contrato OpenAPI para generar el cliente TypeScript. Todavía no hay
+endpoints de negocio (F7 en adelante) y ninguna pantalla del frontend la usa.
 
 ## Requisitos
 
@@ -55,6 +56,19 @@ backend/
 Reglas de capas (se respetan desde la primera línea para no tener que desarmarlas después):
 el router no tiene lógica; el service no conoce HTTP; el repository no decide permisos; los
 permisos viven en *dependencies* de FastAPI.
+
+## Contrato con el front
+
+El contrato OpenAPI se versiona en `backend/openapi.json` y de ahí sale el cliente TypeScript del
+front (`frontend/src/api/schema.d.ts`). Cada vez que se cambia un endpoint o un schema:
+
+```bash
+./scripts/generar-cliente-api.sh          # desde la raíz: regenera los dos archivos
+./scripts/generar-cliente-api.sh --check  # solo verifica: falla si alguno está desactualizado
+```
+
+`tests/test_openapi.py` falla si `openapi.json` no coincide con el código, así que un endpoint
+cambiado sin regenerar no pasa. Cómo se usa del lado del front: `frontend/src/api/README.md`.
 
 ## Autenticación
 

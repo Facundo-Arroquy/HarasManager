@@ -96,6 +96,10 @@ FastAPI está decidida y se hace por fases cortas (máximo 2 días cada una):
 `docs/PLAN-MIGRACION-BACKEND.md` dice qué se hace y en qué orden, y
 `docs/BACKEND-API-TASKS.md` tiene el detalle técnico y el Registro de pendientes.
 
+- **El front llama a la API solo a través de `frontend/src/api/`**, detrás de un flag por dominio
+  (`conFlag`): apagado es el camino de Supabase de hoy. Al cambiar un endpoint o un schema del
+  backend, correr `./scripts/generar-cliente-api.sh` y commitear `backend/openapi.json` y
+  `frontend/src/api/schema.d.ts` (ver `frontend/src/api/README.md`).
 - **Si implementás algo que el día de mañana tendrá que existir en el backend,
   anotalo en la tabla "Registro de tasks pendientes de backend" al final de ese
   documento**, en el mismo PR. Una fila con fecha, de dónde salió, y qué habría

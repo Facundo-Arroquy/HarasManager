@@ -1,0 +1,5 @@
+export { getApi, crearClienteApi, desenvolver, type ClienteApi } from './cliente'
+export { conFlag } from './conFlag'
+export { ErrorApi } from './errores'
+export { CONFIG_API, DOMINIOS, usaApi, type Dominio } from './flags'
+export type { components, paths } from './schema'
