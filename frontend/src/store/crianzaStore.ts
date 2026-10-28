@@ -32,10 +32,14 @@ import { plazosDesdeConfiguracion } from '../types/crianza'
 // registro". Los valores entre paréntesis son los defaults.
 //
 // Donante:
-//   Strelin → IN           +1 día
+//   Strelin → IN           +1 día  (la IN registrada la cancela; ver abajo)
 //   IN      → OXI          +1 día
-//   OV (inseminada)     → Flushing  +6 días
+//   IN      → Chequeo OV   uno por día desde el día posterior a la Oxi, contado
+//                          desde la IN (no depende de que se registre la Oxi);
+//                          la OV cancela los que queden abiertos
+//   OV (inseminada)     → Flushing  +6 días desde la OVULACIÓN (fecha − ov_dias)
 //   OV (sin inseminar)  → Dar PG    +4 días
+//   OXI y OV no agendan ninguna Revisión.
 //   1PG     → Revisión 1PG  +N días (elegidos por el vet)
 //   PG      → Revisión PG   +3 días
 //   Flushing→ Rev.Flushing +4 días
@@ -83,6 +87,10 @@ function sumarDias(fecha: string, dias: number): string {
 export interface ReglaRecordatorio {
   tipo: TipoRecordatorio | string
   calcularFecha: (fecha: string) => string
+  /** Aclaración para el preview ("se repite cada día…"). */
+  nota?: string
+  /** Serie diaria: el corrimiento de sábado/domingo del preview no aplica. */
+  sinAjusteFinSemana?: boolean
 }
 
 /**
@@ -105,7 +113,7 @@ export const VENTANA_INSEMINACION_DIAS = 7
 /** @deprecated Solo preview. La generación real vive en registrar_acto_reproductivo. */
 export function reglasParaRegistro(
   registro: Pick<NuevoRegistroCriaPayload,
-    'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_dias' | 'fecha_flushing_programada'>,
+    'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_dias' | 'fecha_flushing_programada' | 'ov_dias'>,
   rolReproductivo: RolReproductivo,
   cfg: PlazosVet,
   /** Hubo IN en este registro o en los VENTANA_INSEMINACION_DIAS previos. */
@@ -121,18 +129,29 @@ export function reglasParaRegistro(
   if (rolReproductivo === 'Donante') {
     if (chips.includes('Strelin') && !chips.includes('IN'))
       reglas.push({ tipo: 'IN', calcularFecha: (f) => sumarDias(f, cfg.donante_strelin_a_in) })
-    if (chips.includes('IN'))
+    // 'OV' no es un obs_chip (es un chip de ovario), por eso se mira acá y no en `chips`.
+    const ovulo = registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV')
+    if (chips.includes('IN')) {
       reglas.push({ tipo: 'OXI', calcularFecha: (f) => sumarDias(f, cfg.donante_in_a_oxi) })
-    if (chips.includes('OXI'))
-      reglas.push({ tipo: 'Revisión', calcularFecha: (f) => sumarDias(f, 1) })
-    // Solo por el estado ovárico, igual que el preview de RegistroCriaModal:
-    // 'OV' no es un obs_chip (es un chip de ovario), así que chequearlo en
-    // `chips` era condición muerta y además divergía del preview.
+      // El chequeo sale de la IN, no de la OXI: el día posterior a la Oxi, y desde
+      // ahí uno por día hasta que se registre la OV. Si este mismo registro ya
+      // trae la OV, la yegua ovuló y no hay nada que chequear.
+      if (!ovulo)
+        reglas.push({
+          tipo: 'Chequeo OV',
+          calcularFecha: (f) => sumarDias(f, cfg.donante_in_a_oxi + 1),
+          nota: 'se repite cada día hasta registrar la ovulación',
+          sinAjusteFinSemana: true,
+        })
+    }
     // Sin IN previa no hay embrión que lavar: en vez de Flushing se agenda
     // Dar PG para cortar el ciclo (pedido de Facu, 2026-09-12).
-    if (registro.ovario_izq.includes('OV') || registro.ovario_der.includes('OV'))
+    // El Flushing cuenta desde la fecha de ovulación, que es la del registro menos
+    // los días post-OV cuando el vet indica que ovuló hace N días.
+    if (ovulo)
       reglas.push(inseminada
-        ? { tipo: 'Flushing', calcularFecha: (f) => registro.fecha_flushing_programada ?? sumarDias(f, cfg.donante_ov_a_flushing) }
+        ? { tipo: 'Flushing', calcularFecha: (f) => registro.fecha_flushing_programada
+            ?? sumarDias(sumarDias(f, -(registro.ov_dias ?? 0)), cfg.donante_ov_a_flushing) }
         : { tipo: 'Dar PG',   calcularFecha: (f) => sumarDias(f, cfg.donante_ov_sin_in_a_dar_pg) })
     // 1PG: días custom elegidos por el vet → "Revisión 1PG"
     if (chips.includes('1PG') && diasRevision1PG)
@@ -166,8 +185,8 @@ export function reglasParaRegistro(
     reglas.push({ tipo: p.accion_recordatorio, calcularFecha: (f) => sumarDias(f, p.dias) })
   }
 
-  // Igual que registrar_acto_reproductivo: si OXI ya agendó una Revisión (+1 día),
-  // los días de revisión del registro no agendan una segunda.
+  // Igual que registrar_acto_reproductivo: si una regla propia ya agendó una
+  // Revisión, los días de revisión del registro no agendan una segunda.
   if (registro.review_dias && !reglas.some((r) => r.tipo === 'Revisión'))
     reglas.push({ tipo: 'Revisión', calcularFecha: (f) => sumarDias(f, registro.review_dias!) })
 
