@@ -72,8 +72,14 @@ export default function RecordatoriosPage() {
   }
 
   async function cancelar(id: string) {
-    await actualizarEstadoRecordatorio(id, 'cancelado')
-    setCancelando(null)
+    setError(null)
+    try {
+      await actualizarEstadoRecordatorio(id, 'cancelado')
+    } catch (e) {
+      setError(mensajeError(e, 'No se pudo cancelar el recordatorio.'))
+    } finally {
+      setCancelando(null)
+    }
   }
 
   async function eliminar(r: RecordatorioCria) {

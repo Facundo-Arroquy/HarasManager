@@ -80,6 +80,27 @@ function sumarDias(fecha: string, dias: number): string {
   return d.toISOString().split('T')[0]
 }
 
+const RECORDATORIO_FUERA_DE_LISTA =
+  'El recordatorio ya no está en la lista. Actualizá la pantalla e intentá de nuevo.'
+
+/** Vuelca en la lista lo que la RPC `posponer_recordatorio` dejó guardado. */
+function aplicarPosposicion(
+  recordatorios: RecordatorioCria[],
+  id: string,
+  guardado: Pick<RecordatorioCria, 'fecha_vto' | 'fecha_original' | 'estado'>,
+): RecordatorioCria[] {
+  return recordatorios.map((r) =>
+    r.id === id
+      ? {
+          ...r,
+          fecha_vto:      guardado.fecha_vto,
+          fecha_original: guardado.fecha_original,
+          estado:         guardado.estado,
+        }
+      : r
+  )
+}
+
 export interface ReglaRecordatorio {
   tipo: TipoRecordatorio | string
   calcularFecha: (fecha: string) => string
@@ -380,10 +401,11 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
         .filter((r) => actoResuelveRecordatorio(r.tipo, acto))
         .map((r) => r.id)
       if (ids.length === 0) return
-      await crianzaService.marcarRecordatoriosHechos(ids)
+      // Solo los que la base confirmó: los que la RLS dejó afuera siguen abiertos.
+      const cerrados = new Set(await crianzaService.marcarRecordatoriosHechos(ids))
       set((s) => ({
         recordatorios: s.recordatorios.map((r) =>
-          ids.includes(r.id) ? { ...r, estado: 'hecho' as EstadoRecordatorio } : r
+          cerrados.has(r.id) ? { ...r, estado: 'hecho' as EstadoRecordatorio } : r
         ),
       }))
     } catch (e) {
@@ -391,50 +413,27 @@ export const useCrianzaStore = create<CrianzaState>((set, get) => ({
     }
   },
 
+  // El estado local se actualiza recién cuando la RPC confirma, y con lo que
+  // devolvió la base (no con lo que se pidió). Si falla —sin permiso, ya
+  // cerrado por otro— el error sube a la pantalla y la lista queda como estaba.
   posponerRecordatorio: async (id, dias = 1, motivo) => {
     const actual = get().recordatorios.find((r) => r.id === id)
-    if (!actual) return
-    const userId = useAuthStore.getState().user?.id
-    if (!userId) return
+    if (!actual) throw new Error(RECORDATORIO_FUERA_DE_LISTA)
     // Se corre desde hoy, no desde fecha_vto: posponer uno que quedó vencido
     // hace una semana tiene que caer mañana, no el día siguiente al original.
     const base = actual.fecha_vto > hoyAR() ? actual.fecha_vto : hoyAR()
     const nuevaFecha = sumarDias(base, dias)
     const motivoFinal = motivo ?? (dias === 1 ? 'pospuesto_1d' : `pospuesto_${dias}d`)
-    await crianzaService.posponerRecordatorio(id, nuevaFecha, motivoFinal, userId)
-    set((s) => ({
-      recordatorios: s.recordatorios.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              fecha_vto: nuevaFecha,
-              estado: 'pendiente' as EstadoRecordatorio,
-              fecha_original: r.fecha_original ?? actual.fecha_vto,
-            }
-          : r
-      ),
-    }))
+    const guardado = await crianzaService.posponerRecordatorio(id, nuevaFecha, motivoFinal)
+    set((s) => ({ recordatorios: aplicarPosposicion(s.recordatorios, id, guardado) }))
   },
 
   posponerRecordatorioAFecha: async (id, nuevaFecha, motivo) => {
     const actual = get().recordatorios.find((r) => r.id === id)
-    if (!actual) return
-    const userId = useAuthStore.getState().user?.id
-    if (!userId) return
+    if (!actual) throw new Error(RECORDATORIO_FUERA_DE_LISTA)
     if (nuevaFecha < hoyAR()) throw new Error('La fecha no puede ser anterior a hoy')
-    await crianzaService.posponerRecordatorio(id, nuevaFecha, motivo ?? 'manual', userId)
-    set((s) => ({
-      recordatorios: s.recordatorios.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              fecha_vto: nuevaFecha,
-              estado: 'pendiente' as EstadoRecordatorio,
-              fecha_original: r.fecha_original ?? actual.fecha_vto,
-            }
-          : r
-      ),
-    }))
+    const guardado = await crianzaService.posponerRecordatorio(id, nuevaFecha, motivo ?? 'manual')
+    set((s) => ({ recordatorios: aplicarPosposicion(s.recordatorios, id, guardado) }))
   },
 
   // ── Flushings ─────────────────────────────────────────────────────────────

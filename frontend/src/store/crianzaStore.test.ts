@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { sumarDias } from '../utils/fecha'
+import { hoyAR, sumarDias } from '../utils/fecha'
 import type { NuevoRegistroCriaPayload, PlazosVet, RecordatorioCria } from '../types/crianza'
 
 // `crianzaService` habla con Supabase (necesita VITE_SUPABASE_URL/ANON en
@@ -10,7 +10,8 @@ vi.mock('../services/crianzaService', () => ({
     registrarActoReproductivo: vi.fn(),
     huboInseminacionEntre:    vi.fn(),
     listarRecordatoriosAbiertosDelDia: vi.fn().mockResolvedValue([]),
-    marcarRecordatoriosHechos:         vi.fn().mockResolvedValue(undefined),
+    marcarRecordatoriosHechos:         vi.fn().mockResolvedValue([]),
+    posponerRecordatorio:              vi.fn(),
   },
 }))
 
@@ -301,5 +302,139 @@ describe('crearRegistro — cierra lo agendado del día que la consulta resolvi�
     expect(crianzaService.registrarActoReproductivo).toHaveBeenCalledOnce()
     const estados = Object.fromEntries(useCrianzaStore.getState().recordatorios.map((r) => [r.id, r.estado]))
     expect(estados).toEqual({ 'rec-flu': 'pendiente', 'rec-rpg': 'hecho' })
+  })
+})
+
+// ── Posponer: el estado local solo cambia si la base confirmó ───────────────
+
+describe('posponer un recordatorio — el store no miente cuando la base no lo guardó', () => {
+  const MANANA = sumarDias(hoyAR(), 1)
+
+  function recordatorio(id: string, extra: Partial<RecordatorioCria> = {}): RecordatorioCria {
+    return {
+      id, caballo_id: 'donante-1', sociedad_id: 'soc-1', tipo: 'Flushing', fecha_vto: '2099-01-01',
+      fecha_original: null, estado: 'pendiente', veterinario_id: 'otro-vet', notas: null,
+      auto_generado: true, origen_registro_id: null, cancel_motivo: null, created_at: '', updated_at: '',
+      ...extra,
+    }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useCrianzaStore.setState({ recordatorios: [recordatorio('rec-1')] })
+  })
+
+  const estadoDe = (id: string) => useCrianzaStore.getState().recordatorios.find((r) => r.id === id)!
+
+  it('éxito: aplica lo que la base devolvió, incluida la fecha_original', async () => {
+    vi.mocked(crianzaService.posponerRecordatorio).mockResolvedValue({
+      fecha_vto: '2099-01-03', fecha_original: '2099-01-01', estado: 'pendiente',
+    })
+
+    await useCrianzaStore.getState().posponerRecordatorio('rec-1', 2)
+
+    // El motivo por defecto lo arma el store; el usuario ya no viaja (lo pone la RPC con auth.uid()).
+    expect(crianzaService.posponerRecordatorio).toHaveBeenCalledWith('rec-1', '2099-01-03', 'pospuesto_2d')
+    expect(estadoDe('rec-1')).toMatchObject({
+      fecha_vto: '2099-01-03', fecha_original: '2099-01-01', estado: 'pendiente',
+    })
+  })
+
+  it('éxito: un vencido se corre desde hoy y vuelve a pendiente', async () => {
+    useCrianzaStore.setState({
+      recordatorios: [recordatorio('rec-1', { fecha_vto: '2020-01-01', estado: 'vencido' })],
+    })
+    vi.mocked(crianzaService.posponerRecordatorio).mockResolvedValue({
+      fecha_vto: MANANA, fecha_original: '2020-01-01', estado: 'pendiente',
+    })
+
+    await useCrianzaStore.getState().posponerRecordatorio('rec-1')
+
+    expect(crianzaService.posponerRecordatorio).toHaveBeenCalledWith('rec-1', MANANA, 'pospuesto_1d')
+    expect(estadoDe('rec-1')).toMatchObject({ fecha_vto: MANANA, estado: 'pendiente' })
+  })
+
+  it('fallo (sin permiso): el error sube a la pantalla y el recordatorio queda como estaba', async () => {
+    const antes = estadoDe('rec-1')
+    vi.mocked(crianzaService.posponerRecordatorio).mockRejectedValue(
+      new Error('No tenés permiso para posponer este recordatorio'),
+    )
+
+    await expect(useCrianzaStore.getState().posponerRecordatorio('rec-1', 2)).rejects.toThrow(/permiso/)
+
+    expect(estadoDe('rec-1')).toEqual(antes)
+  })
+
+  it('a fecha: éxito aplica lo devuelto por la base', async () => {
+    vi.mocked(crianzaService.posponerRecordatorio).mockResolvedValue({
+      fecha_vto: MANANA, fecha_original: '2099-01-01', estado: 'pendiente',
+    })
+
+    await useCrianzaStore.getState().posponerRecordatorioAFecha('rec-1', MANANA, 'edicion_manual')
+
+    expect(crianzaService.posponerRecordatorio).toHaveBeenCalledWith('rec-1', MANANA, 'edicion_manual')
+    expect(estadoDe('rec-1')).toMatchObject({ fecha_vto: MANANA, fecha_original: '2099-01-01' })
+  })
+
+  it('a fecha: si la base rechaza, el estado local no se toca', async () => {
+    const antes = estadoDe('rec-1')
+    vi.mocked(crianzaService.posponerRecordatorio).mockRejectedValue(new Error('Sin permiso'))
+
+    await expect(
+      useCrianzaStore.getState().posponerRecordatorioAFecha('rec-1', MANANA),
+    ).rejects.toThrow('Sin permiso')
+
+    expect(estadoDe('rec-1')).toEqual(antes)
+  })
+
+  it('una fecha anterior a hoy se rechaza antes de tocar la base', async () => {
+    await expect(
+      useCrianzaStore.getState().posponerRecordatorioAFecha('rec-1', sumarDias(hoyAR(), -1)),
+    ).rejects.toThrow(/anterior a hoy/)
+
+    expect(crianzaService.posponerRecordatorio).not.toHaveBeenCalled()
+  })
+
+  it('un recordatorio que no está en la lista es un error visible, no un return silencioso', async () => {
+    await expect(useCrianzaStore.getState().posponerRecordatorio('fantasma', 1)).rejects.toThrow(/ya no está en la lista/)
+    await expect(useCrianzaStore.getState().posponerRecordatorioAFecha('fantasma', MANANA)).rejects.toThrow(/ya no está en la lista/)
+
+    expect(crianzaService.posponerRecordatorio).not.toHaveBeenCalled()
+  })
+})
+
+describe('cerrarRecordatoriosResueltos — solo da por hecho lo que la base confirmó', () => {
+  function abierto(id: string): RecordatorioCria {
+    return {
+      id, caballo_id: 'donante-1', sociedad_id: 'soc-1', tipo: 'Flushing', fecha_vto: FECHA_BASE,
+      fecha_original: null, estado: 'pendiente', veterinario_id: 'otro-vet', notas: null,
+      auto_generado: false, origen_registro_id: null, cancel_motivo: null, created_at: '', updated_at: '',
+    }
+  }
+  const estados = () => Object.fromEntries(useCrianzaStore.getState().recordatorios.map((r) => [r.id, r.estado]))
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useCrianzaStore.setState({ recordatorios: [abierto('rec-a'), abierto('rec-b')] })
+    vi.mocked(crianzaService.listarRecordatoriosAbiertosDelDia).mockResolvedValue([abierto('rec-a'), abierto('rec-b')])
+  })
+
+  it('marca hechos únicamente los ids que devolvió la base', async () => {
+    vi.mocked(crianzaService.marcarRecordatoriosHechos).mockResolvedValue(['rec-a'])
+
+    await useCrianzaStore.getState().cerrarRecordatoriosResueltos('donante-1', FECHA_BASE, { clase: 'flushing' })
+
+    expect(estados()).toEqual({ 'rec-a': 'hecho', 'rec-b': 'pendiente' })
+  })
+
+  it('si la base no pudo cerrar ninguno (error), la lista queda intacta', async () => {
+    vi.mocked(crianzaService.marcarRecordatoriosHechos).mockRejectedValue(new Error('sin permiso'))
+    const consola = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await useCrianzaStore.getState().cerrarRecordatoriosResueltos('donante-1', FECHA_BASE, { clase: 'flushing' })
+
+    expect(estados()).toEqual({ 'rec-a': 'pendiente', 'rec-b': 'pendiente' })
+    expect(consola).toHaveBeenCalled()
+    consola.mockRestore()
   })
 })
