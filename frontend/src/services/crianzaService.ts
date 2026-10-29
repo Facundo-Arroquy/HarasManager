@@ -47,6 +47,19 @@ const SELECT_EMBRION_SEGUIMIENTO = `
   )
 `
 
+/**
+ * Cuando la RLS filtra un UPDATE, PostgREST no devuelve error: simplemente toca
+ * 0 filas. Para que eso no pase por éxito, los UPDATE directos piden las filas
+ * de vuelta (`.select('id')`) y pasan el resultado por acá.
+ */
+function exigirFilasActualizadas<T>(filas: T[] | null): asserts filas is T[] {
+  if (!filas || filas.length === 0) {
+    throw new Error(
+      'No se pudo modificar el recordatorio: ya no existe o no tenés permiso para cambiarlo.',
+    )
+  }
+}
+
 // =============================================================================
 // Service
 // =============================================================================
@@ -195,11 +208,13 @@ export const crianzaService = {
     cancelMotivo?: string
   ): Promise<void> {
     const supabase = getSupabaseClient()
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('cria_recordatorio')
       .update({ estado, ...(cancelMotivo ? { cancel_motivo: cancelMotivo } : {}) })
       .eq('id', id)
+      .select('id')
     if (error) throw error
+    exigirFilasActualizadas(data)
   },
 
   /** Los recordatorios todavía abiertos de un animal que vencen ese día. */
@@ -215,62 +230,45 @@ export const crianzaService = {
     return data as RecordatorioCria[]
   },
 
-  /** Marca hechos varios recordatorios de una vez; los ya cerrados no se tocan. */
-  async marcarRecordatoriosHechos(ids: string[]): Promise<void> {
-    if (ids.length === 0) return
+  /**
+   * Marca hechos varios recordatorios de una vez; los ya cerrados no se tocan.
+   * Devuelve los ids que realmente cambiaron: la RLS puede dejar afuera a los
+   * que el usuario no puede modificar, y el llamador no debe darlos por hechos.
+   */
+  async marcarRecordatoriosHechos(ids: string[]): Promise<string[]> {
+    if (ids.length === 0) return []
     const supabase = getSupabaseClient()
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('cria_recordatorio')
       .update({ estado: 'hecho' })
       .in('id', ids)
       .in('estado', ['pendiente', 'vencido'])
+      .select('id')
     if (error) throw error
+    exigirFilasActualizadas(data)
+    return data.map((r) => r.id as string)
   },
 
   /**
    * Corre la fecha de vencimiento de un recordatorio, registra la
-   * reprogramación en el historial y lo devuelve a 'pendiente'.
+   * reprogramación en el historial y lo devuelve a 'pendiente'. Es una RPC
+   * (SECURITY DEFINER) porque la policy de UPDATE de `cria_recordatorio` solo
+   * deja al vet creador o al admin, y un update directo de otro vet con acceso
+   * afectaba 0 filas sin error. Devuelve la fila ya guardada: es la fuente de
+   * verdad para el store.
    */
   async posponerRecordatorio(
     id: string,
     nuevaFecha: string,
     motivo: string | null,
-    creadoPor: string,
-  ): Promise<void> {
-    const supabase = getSupabaseClient()
-
-    // Leer fecha actual y fecha_original
-    const { data: rec, error: errRead } = await supabase
-      .from('cria_recordatorio')
-      .select('fecha_vto, fecha_original')
-      .eq('id', id)
-      .single()
-    if (errRead) throw errRead
-
-    const fechaAnterior = rec.fecha_vto as string
-
-    // Insertar historial de reprogramación
-    const { error: errHist } = await supabase
-      .from('cria_reprogramacion')
-      .insert({
-        recordatorio_id: id,
-        fecha_anterior: fechaAnterior,
-        fecha_nueva: nuevaFecha,
-        motivo,
-        creado_por: creadoPor,
-      })
-    if (errHist) throw errHist
-
-    // Actualizar recordatorio: fecha_original solo se graba la primera vez
-    const { error } = await supabase
-      .from('cria_recordatorio')
-      .update({
-        fecha_vto: nuevaFecha,
-        estado: 'pendiente',
-        ...(rec.fecha_original ? {} : { fecha_original: fechaAnterior }),
-      })
-      .eq('id', id)
+  ): Promise<Pick<RecordatorioCria, 'fecha_vto' | 'fecha_original' | 'estado'>> {
+    const { data, error } = await getSupabaseClient().rpc('posponer_recordatorio', {
+      p_id:          id,
+      p_nueva_fecha: nuevaFecha,
+      p_motivo:      motivo,
+    })
     if (error) throw error
+    return data as Pick<RecordatorioCria, 'fecha_vto' | 'fecha_original' | 'estado'>
   },
 
   /** Historial de reprogramaciones de un recordatorio, más reciente primero. */
@@ -475,8 +473,10 @@ export const crianzaService = {
     id: string,
     payload: Partial<Pick<RecordatorioCria, 'fecha_vto' | 'notas' | 'estado'>>,
   ): Promise<void> {
-    const { error } = await getSupabaseClient().from('cria_recordatorio').update(payload).eq('id', id)
+    const { data, error } = await getSupabaseClient()
+      .from('cria_recordatorio').update(payload).eq('id', id).select('id')
     if (error) throw error
+    exigirFilasActualizadas(data)
   },
 
   async actualizarEmbrion(

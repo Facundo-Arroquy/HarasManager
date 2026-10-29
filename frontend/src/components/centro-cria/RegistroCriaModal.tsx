@@ -305,8 +305,14 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 
       // Lo agendado ya se hizo: si no se cierra, el recordatorio queda
       // pendiente al lado del registro que lo resolvió y se vuelve a ofrecer.
+      // El registro ya está guardado: si esto falla (p. ej. un vet que no creó
+      // el recordatorio) no se frena el flujo, porque reintentar duplicaría el acto.
       if (recordatorio) {
-        await actualizarEstadoRecordatorio(recordatorio.id, 'hecho')
+        try {
+          await actualizarEstadoRecordatorio(recordatorio.id, 'hecho')
+        } catch (e) {
+          console.error('[RegistroCriaModal] no se pudo cerrar el recordatorio:', mensajeError(e))
+        }
       }
 
       onSuccess?.()
