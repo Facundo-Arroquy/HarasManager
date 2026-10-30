@@ -162,7 +162,7 @@
 - **Asignado:** -
 - **Semana:** 2
 - **Depende de:** B5 (credenciales de prueba) y D1 (staging)
-- **Descripción:** Seguir `docs/specs/mercadopago-setup.md` pasos 1–9 **en modo prueba y, de ser posible, contra staging**: secrets, deploy de las 3 funciones (`--no-verify-jwt` en el webhook), URL completa del webhook, pago con usuario y tarjeta de prueba, cancelación y el caso del límite. Correr el checklist de MercadoPago de `QA.md`. **El paso 10 (producción) NO se hace en esta semana:** requiere que estén cerrados B1, B2 y B5.
+- **Descripción:** Seguir `docs/specs/mercadopago-setup.md` pasos 1–9 **en modo prueba y, de ser posible, contra staging**: secrets, deploy de las 3 funciones (`--no-verify-jwt` en el webhook), URL completa del webhook, pago con usuario y tarjeta de prueba, cancelación y el caso del límite. Correr el checklist de MercadoPago de `docs/QA.md`. **El paso 10 (producción) NO se hace en esta semana:** requiere que estén cerrados B1, B2 y B5.
 - **Hecho cuando:** un pago de prueba aprobado activó la suscripción solo, la cancelación funcionó y el caso del límite se comportó como se espera.
 
 ### [ ] D2 (parte 2) · Backups y restauración probada
@@ -216,7 +216,7 @@
   - [x] Página pública `/registro-veterinario` (signup + T&C vía el modal genérico existente).
   - [x] `NuevoCaballoModal`/`utils/error.ts`: paywall claro (`esLimiteCaballosVet`) en vez del error genérico de Postgres.
   - [x] Tab "Veterinarios" de `/superadmin`: caballos propios + estado de suscripción + activar/desactivar, sobre el sistema de módulos ya existente (`superAdminService`/`moduloService`). `PanelVetPage` ya servía como dashboard reducido del vet, no hizo falta uno nuevo.
-- **Pendiente de QA manual:** flujo completo con un vet real (crear 5 caballos, confirmar bloqueo del 6to, activar suscripción, ver que desbloquea). Ver checklist en `QA.md`.
+- **Pendiente de QA manual:** flujo completo con un vet real (crear 5 caballos, confirmar bloqueo del 6to, activar suscripción, ver que desbloquea). Ver checklist en `docs/QA.md`.
 - **Ojo:** el flujo "vet crea/edita/lista/transfiere caballos propios sin sociedad" ya estaba construido de antes (RPCs, `/panel-vet`, `/transferir-vet`); lo nuevo acá fue solo el auto-registro y el límite. También se encontró un bug preexistente sin relación: `crearParaVet` intenta guardar genealogía con un `UPDATE` directo a `caballo` que la RLS actual (`es_admin(sociedad_id)`) rechaza en silencio para caballos de vet (`sociedad_id IS NULL`) — no se tocó, queda para otro ticket.
 
 ### [x] Downgrade del freemium de vets (caer del plan pago al gratuito)
@@ -242,7 +242,7 @@
   - [x] Edge Function `mercadopago-webhook`: valida la firma HMAC, re-consulta el estado contra la API de MercadoPago y sincroniza. Se despliega con `--no-verify-jwt`.
   - [x] Front: `suscripcionVetService`, botón habilitado en `LimiteCaballosVetModal`, tarjeta `MembresiaVetCard` en `/config-vet/suscripcion` (menú plegable **Configuración** al pie del sidebar, arriba de "Cerrar sesión", solo para rol veterinario), y página `/suscripcion/resultado`.
   - [ ] **Configuración pendiente (no es código):** crear la aplicación en MercadoPago, cargar los tres secrets, definir el precio real, desplegar las funciones y conectar el webhook. Paso a paso en `docs/specs/mercadopago-setup.md`.
-  - [ ] QA manual — checklist nuevo en `QA.md`.
+  - [ ] QA manual — checklist nuevo en `docs/QA.md`.
 - **Decisiones:** preapproval y no pago único, siguiendo lo ya definido en el spec. Checkout **redirect**, sin tokenizar tarjetas en nuestro frontend, para no entrar en el alcance de PCI. Cancelar **no** corta el acceso en el acto: el vet conserva la membresía hasta la `fecha_vencimiento` que ya pagó (esto cambió `vet_suscripcion_activa()`). Vencimiento con 3 días de gracia sobre `next_payment_date`, si no un vet al día se comía el modal bloqueante entre el vencimiento y el webhook del cobro nuevo.
 - **Ojo:** `/suscripcion/resultado` va **fuera** de `RequireAuth` a propósito — ese guard monta el modal bloqueante del límite y dejaría al vet que acaba de pagar atrapado detrás justo mientras se espera la confirmación. La reactivación de los caballos que dio de baja **sigue siendo manual** aunque pague: la baja por límite y la baja por venta/muerte no se distinguen en la base.
 
