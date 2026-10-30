@@ -54,6 +54,10 @@ const EstadisticasCaballoPage = lazy(() => import('./pages/estadisticas/Estadist
 const DescendenciaPage       = lazy(() => import('./pages/estadisticas/DescendenciaPage'))
 const CalendarioPage         = lazy(() => import('./pages/calendario/CalendarioPage'))
 const NotFoundPage           = lazy(() => import('./pages/NotFoundPage'))
+// Solo en desarrollo: el build de producción descarta esta rama y la página no llega al bundle.
+const ApiDiagnosticoPage     = import.meta.env.DEV
+  ? lazy(() => import('./pages/dev/ApiDiagnosticoPage'))
+  : null
 
 function RootRedirect() {
   const { isAuthenticated, loading, session } = useAuth()
@@ -262,6 +266,7 @@ export default function App() {
           }
         >
           <Route path="/dashboard" element={<DashboardPage />} />
+          {ApiDiagnosticoPage && <Route path="/dev/api" element={<ApiDiagnosticoPage />} />}
           <Route path="/calendario" element={<CalendarioPage />} />
           <Route path="/caballos" element={<CaballosPage />} />
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />

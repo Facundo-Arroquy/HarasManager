@@ -1,0 +1,232 @@
+{
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "description": "Forma de todos los errores de la API (la misma que los de Supabase: `code` y `message`).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "database": {
+            "enum": [
+              "ok",
+              "error"
+            ],
+            "title": "Database",
+            "type": "string"
+          },
+          "environment": {
+            "title": "Environment",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "database",
+          "environment"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "MembresiaPerfil": {
+        "properties": {
+          "activa": {
+            "title": "Activa",
+            "type": "boolean"
+          },
+          "rol": {
+            "title": "Rol",
+            "type": "string"
+          },
+          "sociedad": {
+            "title": "Sociedad",
+            "type": "string"
+          },
+          "sociedad_id": {
+            "format": "uuid",
+            "title": "Sociedad Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sociedad_id",
+          "sociedad",
+          "rol",
+          "activa"
+        ],
+        "title": "MembresiaPerfil",
+        "type": "object"
+      },
+      "PerfilResponse": {
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "boolean"
+          },
+          "apellido": {
+            "title": "Apellido",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "membresias": {
+            "items": {
+              "$ref": "#/components/schemas/MembresiaPerfil"
+            },
+            "title": "Membresias",
+            "type": "array"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "rol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rol"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "nombre",
+          "apellido",
+          "rol",
+          "activo",
+          "membresias"
+        ],
+        "title": "PerfilResponse",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Backend de HarasManager. Plan: docs/PLAN-MIGRACION-BACKEND.md",
+    "title": "HarasManager API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "description": "Estado del servicio y de su conexión a la base. Es público: no devuelve datos.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "La base no responde"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "salud"
+        ]
+      }
+    },
+    "/me": {
+      "get": {
+        "description": "Datos del usuario logueado y sus membresías. Usa el mismo token que ya tiene el front.",
+        "operationId": "me_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Falta el token, es inválido o venció"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "El usuario no está registrado o está inactivo"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Me",
+        "tags": [
+          "usuario"
+        ]
+      }
+    }
+  }
+}

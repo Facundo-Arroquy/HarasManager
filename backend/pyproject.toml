@@ -1,0 +1,49 @@
+[project]
+name = "harasmanager-api"
+version = "0.1.0"
+description = "API de HarasManager (FastAPI). Ver docs/PLAN-MIGRACION-BACKEND.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.162.0",
+    "psycopg[binary]>=3.3.6",
+    "pydantic-settings>=2.16.1",
+    "pyjwt[crypto]>=2.15.1",
+    "sqlalchemy>=2.1.6",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.16.0",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "ruff>=0.17.2",
+]
+
+[tool.uv]
+# Es una aplicación, no una librería: se corre con `uvicorn app.main:app`.
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "db: necesita la base local de Docker (supabase start); se saltea si no responde",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",  # pycodestyle y pyflakes
+    "I",            # imports ordenados
+    "B",            # errores comunes (flake8-bugbear)
+    "UP",           # sintaxis moderna de Python
+    "SIM",          # simplificaciones
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["app", "tests", "scripts"]
