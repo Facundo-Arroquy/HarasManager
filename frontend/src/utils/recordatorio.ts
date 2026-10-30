@@ -97,7 +97,8 @@ export function chipsDeRecordatorio(tipo: string): string[] {
  * consulta se cargó sin entrar por el recordatorio.
  *
  * - Una consulta es una revisión: cierra cualquier "Revisión …" salvo la de
- *   eco, que se hace cargando la ecografía.
+ *   eco, que se hace cargando la ecografía. También es el chequeo de ovulación
+ *   de ese día.
  * - El resto lo cierra la acción que pide (IN con el chip IN, Dar PG con PG,
  *   las reglas propias con el chip del mismo nombre).
  */
@@ -108,6 +109,7 @@ export function actoResuelveRecordatorio(tipo: string, acto: ActoCria): boolean 
     case 'ecografia':
       return tipo === `Eco ${acto.numero}` || tipo === 'Revisión Eco'
     case 'registro':
+      if (tipo === 'Chequeo OV') return true
       if (tipo === 'Revisión' || (tipo.startsWith('Revisión ') && tipo !== 'Revisión Eco')) return true
       return chipsDeRecordatorio(tipo).some((c) => acto.chips.includes(c))
   }

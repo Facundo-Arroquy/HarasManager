@@ -89,7 +89,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const [fechaFlushing, setFechaFlushing] = useState(
     registroEditar?.fecha_flushing_programada ??
       (registroEditar && registroEsOvulacion
-        ? sumarDias(registroEditar.fecha, plazos.donante_ov_a_flushing)
+        ? sumarDias(sumarDias(registroEditar.fecha, -(registroEditar.ov_dias ?? 0)), plazos.donante_ov_a_flushing)
         : ''),
   )
   const [observaciones, setObservaciones] = useState(registroEditar?.observaciones ?? '')
@@ -680,6 +680,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
               fecha={fecha}
               rol={rolEfectivo}
               reviewDias={reviewDias}
+              ovDias={mostrarOvDias && ovDias !== '' ? Number(ovDias) : null}
               inseminada={obsChips.includes('IN') || inseminadaPrevia}
               cfg={plazos}
               propias={reglasPropias}
@@ -728,7 +729,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
 // ── Preview de recordatorios automáticos ──────────────────────────────────────
 
 function RecordatoriosPreview({
-  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewDias, inseminada, cfg, propias,
+  obsChips, ovarioIzq, ovarioDer, fecha, rol, reviewDias, ovDias, inseminada, cfg, propias,
   ajustesFinDeSemana, onAjusteDomingo, dias1PG,
 }: {
   obsChips: string[]
@@ -737,6 +738,8 @@ function RecordatoriosPreview({
   fecha: string
   rol: RolReproductivo
   reviewDias: number | null
+  /** Días post-OV: la ovulación fue hace N días y el Flushing cuenta desde ahí. */
+  ovDias: number | null
   /** IN en este registro o en los días previos (ver VENTANA_INSEMINACION_DIAS). */
   inseminada: boolean
   /** Plazos del vet autenticado (los mismos que usará reglasParaRegistro). */
@@ -752,11 +755,12 @@ function RecordatoriosPreview({
   const tieneOV = ovarioIzq.includes('OV') || ovarioDer.includes('OV')
   const items = reglasParaRegistro(
     { fecha, obs_chips: obsChips, ovario_izq: ovarioIzq, ovario_der: ovarioDer,
-      review_dias: reviewDias, fecha_flushing_programada: null },
+      review_dias: reviewDias, fecha_flushing_programada: null, ov_dias: ovDias },
     rol, cfg, inseminada, propias, dias1PG,
   ).map((r) => {
     const fechaBase = r.calcularFecha(fecha)
-    const caeFinde = esFinDeSemana(fechaBase)
+    // Una serie diaria (Chequeo OV) no se corre: cada día cuenta, también el finde.
+    const caeFinde = !r.sinAjusteFinSemana && esFinDeSemana(fechaBase)
     const ajuste = ajustesFinDeSemana[r.tipo] ?? 0
     const fechaFinal = caeFinde && ajuste !== 0 ? sumarDias(fechaBase, ajuste) : fechaBase
     return {
@@ -767,7 +771,7 @@ function RecordatoriosPreview({
       esSab: esSabado(fechaBase),
       nota:  rol === 'Donante' && tieneOV && !inseminada && r.tipo === 'Dar PG'
         ? `sin IN en los últimos ${VENTANA_INSEMINACION_DIAS} días`
-        : undefined,
+        : r.nota,
     }
   })
 

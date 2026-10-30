@@ -29,7 +29,7 @@ const TEST_PLAZOS: PlazosVet = {
 }
 
 function registroBase(reviewDias: number | null): Pick<
-  NuevoRegistroCriaPayload, 'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_dias' | 'fecha_flushing_programada'
+  NuevoRegistroCriaPayload, 'fecha' | 'obs_chips' | 'ovario_izq' | 'ovario_der' | 'review_dias' | 'fecha_flushing_programada' | 'ov_dias'
 > {
   return {
     fecha:       FECHA_BASE,
@@ -38,6 +38,7 @@ function registroBase(reviewDias: number | null): Pick<
     ovario_der:  [],
     review_dias: reviewDias,
     fecha_flushing_programada: null,
+    ov_dias:     null,
   }
 }
 
@@ -75,27 +76,116 @@ describe('reglasParaRegistro — prioridad de acciones manuales', () => {
       .toBe(sumarDias(FECHA_BASE, TEST_PLAZOS.donante_in_a_oxi))
   })
 
-  it('OXI programa el primer chequeo de ovulación para el día siguiente', () => {
+  it('el chip OXI no agenda nada: el chequeo de ovulación no depende de registrar la Oxi', () => {
     const reglas = reglasParaRegistro({
       ...registroBase(null),
       obs_chips: ['OXI'],
     }, 'Donante', TEST_PLAZOS, true)
 
-    expect(reglas.find((r) => r.tipo === 'Revisión')?.calcularFecha(FECHA_BASE))
-      .toBe(sumarDias(FECHA_BASE, 1))
+    expect(reglas).toEqual([])
   })
 })
 
-describe('reglasParaRegistro — OXI y días de revisión en el mismo registro', () => {
-  it('agenda una sola Revisión (la de OXI, a +1 día) y no suma la de los días elegidos', () => {
-    const reglas = reglasParaRegistro({
-      ...registroBase(7),
-      obs_chips: ['OXI'],
-    }, 'Donante', TEST_PLAZOS, true)
+describe('reglasParaRegistro — circuito de la donante inseminada', () => {
+  const conIN = (extra: Partial<ReturnType<typeof registroBase>> = {}) => ({
+    ...registroBase(null),
+    obs_chips: ['IN'],
+    ...extra,
+  })
 
-    const revisiones = reglas.filter((r) => r.tipo === 'Revisión')
-    expect(revisiones).toHaveLength(1)
-    expect(revisiones[0].calcularFecha(FECHA_BASE)).toBe(sumarDias(FECHA_BASE, 1))
+  it('la IN agenda OXI al día siguiente y el primer chequeo de ovulación el día posterior a la Oxi', () => {
+    const reglas = reglasParaRegistro(conIN(), 'Donante', TEST_PLAZOS, true)
+    const fechas = Object.fromEntries(reglas.map((r) => [r.tipo, r.calcularFecha(FECHA_BASE)]))
+
+    expect(fechas).toEqual({
+      'OXI':        sumarDias(FECHA_BASE, 1),
+      'Chequeo OV': sumarDias(FECHA_BASE, 2),
+    })
+  })
+
+  it('el chequeo se cuenta desde la IN con el plazo IN→OXI configurado, no desde la Oxi', () => {
+    const reglas = reglasParaRegistro(conIN(), 'Donante', { ...TEST_PLAZOS, donante_in_a_oxi: 3 }, true)
+
+    expect(reglas.find((r) => r.tipo === 'OXI')!.calcularFecha(FECHA_BASE)).toBe(sumarDias(FECHA_BASE, 3))
+    expect(reglas.find((r) => r.tipo === 'Chequeo OV')!.calcularFecha(FECHA_BASE)).toBe(sumarDias(FECHA_BASE, 4))
+  })
+
+  it('el chequeo es una serie diaria: el preview no le ofrece correr el fin de semana', () => {
+    const reglas = reglasParaRegistro(conIN(), 'Donante', TEST_PLAZOS, true)
+    const chequeo = reglas.find((r) => r.tipo === 'Chequeo OV')!
+
+    expect(chequeo.sinAjusteFinSemana).toBe(true)
+    expect(chequeo.nota).toMatch(/cada día/)
+  })
+
+  it('si el mismo registro ya trae la OV no hay chequeos: la yegua ovuló', () => {
+    const reglas = reglasParaRegistro(conIN({ ovario_izq: ['OV'] }), 'Donante', TEST_PLAZOS, true)
+
+    expect(reglas.some((r) => r.tipo === 'Chequeo OV')).toBe(false)
+  })
+
+  it('Strelin + IN: no vuelve a pedir la IN pero sí arma el circuito', () => {
+    const reglas = reglasParaRegistro(conIN({ obs_chips: ['Strelin', 'IN'] }), 'Donante', TEST_PLAZOS, true)
+
+    expect(reglas.map((r) => r.tipo)).toEqual(['OXI', 'Chequeo OV'])
+  })
+
+  it('una receptora con IN no arma el circuito de la donante', () => {
+    expect(reglasParaRegistro(conIN(), 'Receptora', TEST_PLAZOS, true)).toEqual([])
+  })
+})
+
+describe('reglasParaRegistro — OV y Flushing', () => {
+  const conOV = (extra: Partial<ReturnType<typeof registroBase>> = {}) => ({
+    ...registroBase(null),
+    ovario_izq: ['OV'],
+    ...extra,
+  })
+
+  it('inseminada: el Flushing es la fecha de ovulación + los días configurados', () => {
+    const reglas = reglasParaRegistro(conOV(), 'Donante', TEST_PLAZOS, true)
+
+    expect(reglas.map((r) => r.tipo)).toEqual(['Flushing'])
+    expect(reglas[0].calcularFecha(FECHA_BASE)).toBe(sumarDias(FECHA_BASE, TEST_PLAZOS.donante_ov_a_flushing))
+  })
+
+  it('el intervalo sale de la configuración, no del código', () => {
+    const reglas = reglasParaRegistro(conOV(), 'Donante', { ...TEST_PLAZOS, donante_ov_a_flushing: 9 }, true)
+
+    expect(reglas[0].calcularFecha(FECHA_BASE)).toBe(sumarDias(FECHA_BASE, 9))
+  })
+
+  it('si ovuló hace N días (días post-OV) el Flushing cuenta desde la ovulación y no desde el registro', () => {
+    const reglas = reglasParaRegistro(conOV({ ov_dias: 2 }), 'Donante', TEST_PLAZOS, true)
+
+    expect(reglas[0].calcularFecha(FECHA_BASE)).toBe(sumarDias(FECHA_BASE, TEST_PLAZOS.donante_ov_a_flushing - 2))
+  })
+
+  it('la fecha de flushing elegida por el vet gana sobre el cálculo', () => {
+    const reglas = reglasParaRegistro(conOV({ ov_dias: 2, fecha_flushing_programada: '2026-10-30' }), 'Donante', TEST_PLAZOS, true)
+
+    expect(reglas[0].calcularFecha(FECHA_BASE)).toBe('2026-10-30')
+  })
+
+  it('la OV no agenda ninguna Revisión automática, ni sola ni con OXI en el mismo registro', () => {
+    for (const obs_chips of [[], ['OXI']]) {
+      const reglas = reglasParaRegistro(conOV({ obs_chips }), 'Donante', TEST_PLAZOS, true)
+
+      expect(reglas.some((r) => r.tipo === 'Revisión')).toBe(false)
+      expect(reglas.map((r) => r.tipo)).toEqual(['Flushing'])
+    }
+  })
+
+  it('sin inseminación previa sigue siendo Dar PG', () => {
+    const reglas = reglasParaRegistro(conOV(), 'Donante', TEST_PLAZOS, false)
+
+    expect(reglas.map((r) => r.tipo)).toEqual(['Dar PG'])
+  })
+
+  it('una Revisión pedida a mano por el vet (review_dias) sí se agenda', () => {
+    const reglas = reglasParaRegistro(conOV({ review_dias: 3 }), 'Donante', TEST_PLAZOS, true)
+
+    expect(reglas.find((r) => r.tipo === 'Revisión')!.calcularFecha(FECHA_BASE)).toBe(sumarDias(FECHA_BASE, 3))
   })
 })
 

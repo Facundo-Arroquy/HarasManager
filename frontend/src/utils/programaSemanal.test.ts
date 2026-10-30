@@ -43,6 +43,8 @@ describe('actoResuelveRecordatorio', () => {
     ['Revisión',     { clase: 'registro', chips: [] },      true],
     ['Revisión PG',  { clase: 'registro', chips: [] },      true],
     ['Revisión Eco', { clase: 'registro', chips: [] },      false],
+    ['Chequeo OV',   { clase: 'registro', chips: [] },      true],
+    ['Chequeo OV',   { clase: 'flushing' },                 false],
     ['IN',           { clase: 'registro', chips: [] },      false],
     ['IN',           { clase: 'registro', chips: ['IN'] },  true],
     ['Dar PG',       { clase: 'registro', chips: ['PG'] },  true],

@@ -272,6 +272,9 @@ export type TipoRecordatorio =
   | 'Revisión 1PG'
   | 'Revisión Flushing'
   | 'Revisión'
+  // Seguimiento diario de la donante inseminada hasta que se registra la OV.
+  // Lo agenda la IN (no la OXI) y lo cancela la OV (migración 20261028120000).
+  | 'Chequeo OV'
   // Las agenda registrar_transferencia_embrionaria con los plazos del vet
   | 'Eco 1'
   | 'Eco 2'

@@ -124,8 +124,12 @@
 - [ ] Al guardar se generan los recordatorios automáticos según las reglas:
   - [ ] Donante + Strelin → recordatorio IN en +1 día
   - [ ] Donante + IN → recordatorio OXI en +1 día
-  - [ ] Donante + OV → recordatorio Flushing en +6 días
+  - [ ] Donante + IN → "Chequeo OV" diario desde IN+2, sin necesidad de registrar la OXI
+  - [ ] Donante + OV → recordatorio Flushing en +6 días desde la ovulación (fecha − días post-OV), sin ninguna Revisión al día siguiente
   - [ ] Donante + PG → recordatorio Revisión PG en +3 días
+  - [ ] Donante: Strelin y después IN el mismo día → la IN del Strelin queda cancelada y al día siguiente aparece OXI
+  - [ ] Donante: segunda IN antes de ovular → OXI y Chequeos se reprograman desde la nueva IN, sin duplicados
+  - [ ] Donante: registrar la OV → los "Chequeo OV" futuros quedan cancelados y solo aparece el Flushing
   - [ ] Receptora + Strelin → recordatorio Revisión Strelin próximo Lun/Mié/Vie
   - [ ] Receptora + PG → recordatorio Revisión PG en +4 días
 
