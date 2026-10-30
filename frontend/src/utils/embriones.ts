@@ -1,4 +1,4 @@
-import type { Embrion } from '../types/crianza'
+import type { Embrion, EstadoEmbrion } from '../types/crianza'
 
 /**
  * Empresa dueña de un embrión.
@@ -35,7 +35,7 @@ export const OTRA_EMPRESA_ID = '__otra_empresa__'
 type ConDuenia = Pick<Embrion, 'sociedad_id'>
 type Nombres = ReadonlyMap<string, string>
 
-/** `nombres`: `sociedad_id` → nombre, de `empresaService.mapaNombres()`. */
+/** `nombres`: `sociedad_id` → nombre, de `useNombresEmpresa()`. */
 export function empresaDuenia(embrion: ConDuenia, nombres: Nombres): EmpresaDuenia {
   const nombre = nombres.get(embrion.sociedad_id)
   return nombre === undefined
@@ -43,28 +43,49 @@ export function empresaDuenia(embrion: ConDuenia, nombres: Nombres): EmpresaDuen
     : { id: embrion.sociedad_id, nombre }
 }
 
-/** Empresas dueñas distintas de la lista, ordenadas por nombre: opciones del filtro. */
+/**
+ * Empresas dueñas distintas de la lista, ordenadas por nombre: opciones del
+ * filtro. `sociedad.nombre` no es único, así que si dos empresas se llaman
+ * igual se les agrega un número ("Haras X (1)", "Haras X (2)", por orden de
+ * id) para que se puedan distinguir en el filtro y en la tabla.
+ */
 export function opcionesDuenia(embriones: ConDuenia[], nombres: Nombres): EmpresaDuenia[] {
   const porId = new Map<string, EmpresaDuenia>()
   for (const e of embriones) {
     const duenia = empresaDuenia(e, nombres)
     if (!porId.has(duenia.id)) porId.set(duenia.id, duenia)
   }
-  return [...porId.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+  const ordenadas = [...porId.values()].sort(
+    (a, b) => a.nombre.localeCompare(b.nombre, 'es') || a.id.localeCompare(b.id),
+  )
+
+  const repetidas = new Map<string, number>()
+  for (const o of ordenadas) repetidas.set(o.nombre, (repetidas.get(o.nombre) ?? 0) + 1)
+  const numerados = new Map<string, number>()
+  return ordenadas.map((o) => {
+    if ((repetidas.get(o.nombre) ?? 0) < 2) return o
+    const n = (numerados.get(o.nombre) ?? 0) + 1
+    numerados.set(o.nombre, n)
+    return { ...o, nombre: `${o.nombre} (${n})` }
+  })
+}
+
+/** `id` de empresa → rótulo, tal como lo ofrece el filtro (`opcionesDuenia`). */
+export function rotulosDuenia(opciones: EmpresaDuenia[]): ReadonlyMap<string, string> {
+  return new Map(opciones.map((o) => [o.id, o.nombre]))
 }
 
 /**
- * Deja en la selección solo las empresas que todavía tienen embriones en la
- * lista. Sin esto, tras recargar (por ejemplo al borrar el último embrión de
- * una empresa) quedaría activo un filtro que ya no se puede ver ni limpiar.
+ * Deja en la selección solo las empresas que todavía están entre las
+ * `opciones`. Sin esto, tras recargar (por ejemplo al borrar el último embrión
+ * de una empresa) quedaría activo un filtro que ya no se puede ver ni limpiar.
  */
 export function seleccionVigente(
   seleccion: ReadonlySet<string>,
-  embriones: ConDuenia[],
-  nombres: Nombres,
+  opciones: EmpresaDuenia[],
 ): Set<string> {
-  const presentes = new Set(embriones.map((e) => empresaDuenia(e, nombres).id))
-  return new Set([...seleccion].filter((id) => presentes.has(id)))
+  const ids = new Set(opciones.map((o) => o.id))
+  return new Set([...seleccion].filter((id) => ids.has(id)))
 }
 
 /** Embriones de las empresas elegidas. Selección vacía = no filtra. */
@@ -75,4 +96,31 @@ export function filtrarPorDuenia<T extends ConDuenia>(
 ): T[] {
   if (seleccion.size === 0) return embriones
   return embriones.filter((e) => seleccion.has(empresaDuenia(e, nombres).id))
+}
+
+export interface VistaEmbriones<T> {
+  /** Los de las empresas elegidas, sin mirar el estado: base de los contadores. */
+  deLaEmpresa: T[]
+  /** Los que muestra la tabla: empresas elegidas y, además, el estado elegido. */
+  visibles:    T[]
+  /** Cantidad por estado, dentro de `deLaEmpresa`. */
+  counts:      Record<string, number>
+}
+
+/**
+ * Lo que muestra la página de Embriones. El filtro por empresa acota también
+ * los contadores, para que los números de las tarjetas y de los chips
+ * coincidan con lo que lista la tabla.
+ */
+export function vistaEmbriones<T extends ConDuenia & { estado: EstadoEmbrion }>(
+  embriones: T[],
+  nombres: Nombres,
+  empresas: ReadonlySet<string>,
+  estado: EstadoEmbrion | 'todos',
+): VistaEmbriones<T> {
+  const deLaEmpresa = filtrarPorDuenia(embriones, empresas, nombres)
+  const visibles = estado === 'todos' ? deLaEmpresa : deLaEmpresa.filter((e) => e.estado === estado)
+  const counts: Record<string, number> = {}
+  for (const e of deLaEmpresa) counts[e.estado] = (counts[e.estado] ?? 0) + 1
+  return { deLaEmpresa, visibles, counts }
 }
