@@ -842,9 +842,19 @@ CREATE TABLE cria_transferencia (
 -- Excepción: el vitrificado cargado a mano (stock previo, comprado o de otro
 -- centro) no tiene flushing y guarda quién lo cargó en creado_por
 -- (migración 20260923160124).
+-- Empresa dueña: `sociedad_id` ES la empresa dueña del embrión, o sea la dueña
+-- de la donante al momento de la extracción. No hay columna aparte ni se deriva
+-- de `caballo.sociedad_id` en la consulta: si la donante se vende después
+-- (`ejecutar_venta_caballo` no toca `embrion`), lo ya extraído sigue siendo del
+-- vendedor. La donante se elige entre los animales de esa sociedad y, en el
+-- vitrificado manual, `embrion_insert` exige `caballo.sociedad_id = sociedad_id`;
+-- en el embrión de flushing esa igualdad no la verifica la RLS (solo
+-- `vet_tiene_acceso(caballo_donante_id)`), la sostiene el front. La página
+-- Embriones muestra la empresa (nombre vía `get_empresas_visibles()`) y la
+-- filtra con `utils/embriones.ts`.
 CREATE TABLE embrion (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  sociedad_id UUID NOT NULL REFERENCES sociedad(id),
+  sociedad_id UUID NOT NULL REFERENCES sociedad(id),   -- empresa dueña (ver arriba)
   flushing_id UUID REFERENCES cria_flushing(id),   -- NULL = vitrificado cargado a mano
   creado_por UUID REFERENCES usuario(id),           -- autor del embrión manual; NULL si sale de un flushing
   padrillo_id UUID REFERENCES caballo(id),        -- heredado del flushing
@@ -1232,7 +1242,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | `_cria_transferencia_vigente(p_transferencia_id)` | `true` si no hay otra transferencia posterior a la misma receptora (por `fecha`, desempata `created_at`). Es el único criterio de "vigente": lo usan el trigger de ecografías y `eliminar_ecografia_cria`. **Sin EXECUTE para nadie** (migración `ecografia_sincroniza_pipeline`) |
 | `_cria_cambiar_estado_reproductivo(p_caballo_id, p_sociedad_id, p_estado, p_motivo, p_creado_por)` | Mueve `caballo.estado_reproductivo` y deja la fila en `cria_estado_transicion`; no hace nada si ya estaba en ese estado. Existe porque el vet no puede escribir `caballo` desde el cliente (la policy de UPDATE es `es_admin`). **Sin EXECUTE para nadie** (migración `ecografia_sincroniza_pipeline`) |
 | `_cria_revertir_aborto(...)` | Deshace un aborto: vuelve la preñez de la transferencia y el pipeline al `estado_anterior` de la transición `'Ecografía N: abortada'`, solo si la yegua sigue en `vacia`. El que llama verifica antes que la transferencia es la vigente. **Sin EXECUTE para nadie** (migración `ecografia_sincroniza_pipeline`) |
-| `get_empresas_visibles()` | `(id, nombre)` de las sociedades donde el que pregunta tiene membresía **o** un `acceso_vet` activo sobre algún caballo **o** un `acceso_vet_sociedad` activo. Existe porque la RLS de `sociedad` es `tiene_membresia(id)`: sin esto el veterinario no puede leer el nombre de las empresas con las que trabaja, y en el calendario veía un trabajo sin saber de qué haras venía. Mismo criterio que `get_caballos_veterinario` (migración `20260815000002`, extendida en `20261018140000`) |
+| `get_empresas_visibles()` | `(id, nombre)` de las sociedades donde el que pregunta tiene membresía **o** un `acceso_vet` activo sobre algún caballo **o** un `acceso_vet_sociedad` activo. Existe porque la RLS de `sociedad` es `tiene_membresia(id)`: sin esto el veterinario no puede leer el nombre de las empresas con las que trabaja, y en el calendario veía un trabajo sin saber de qué haras venía. Mismo criterio que `get_caballos_veterinario` (migración `20260815000002`, extendida en `20261018140000`). También resuelve el nombre de la empresa dueña de cada embrión en la página Embriones (`embrion.sociedad_id`); las empresas que no devuelve se muestran como "Otra empresa" |
 | `caballos_sin_acceso_vet(p_vet_id, p_caballo_ids)` | Los caballos del array a los que el vet **no** tiene `acceso_vet` activo **ni** `acceso_vet_sociedad` activo para la sociedad del caballo. Lo consulta el front antes de crear o compartir un plan, para armar el cartel de confirmación. Filtra por `tiene_membresia` del que pregunta: no sirve para espiar el padrón de otra empresa (migración `20260815000001`, extendida en `20261018140000`) |
 | `compartir_trabajos_con_vet(p_trabajo_ids, p_vet_id, p_otorgar_acceso)` | Asigna `compartido_con` a un lote de trabajos, otorga los `acceso_vet` faltantes si `p_otorgar_acceso` y deja **una** `notificacion` por lote. Si faltan accesos y no se autorizó otorgarlos, aborta. Valida que el destinatario sea un vet activo y que el que comparte tenga membresía / sea el autor. **Rechaza los planes con `vet_owner_id`**: `caballos_sin_acceso_vet` filtra por membresía, así que sobre caballos propios de un vet no detectaría los accesos faltantes y el destinatario terminaría viendo el plan pero no los caballos (migraciones `20260815000001` / `20260815000003`) |
 | `crear_plan_sanitario_compartido(p_items, p_vet_id, p_otorgar_acceso)` | Crea el plan entero y lo comparte en **una sola transacción**: `trabajo_sanitario` × N + `trabajo_sanitario_caballo` + `acceso_vet` + `notificacion`. `p_items` es `[{sociedad_id, nombre, fecha_programada, tratamiento, observaciones, caballo_ids}]` con `sociedad_id` NULL = plan sobre los caballos propios del vet (les pone `vet_owner_id`); todos los trabajos comparten `plan_id`. Reemplaza los N inserts sueltos que hacía `sanidadService.crearTrabajos()` desde el front. Valida que cada caballo pertenezca al dueño del trabajo — la función es `SECURITY DEFINER`, así que la RLS de `trabajo_sanitario_caballo` no alcanza para impedir mezclar padrones. Si el vet no tiene acceso a algún caballo y no se autorizó otorgarlo, la excepción se lleva puesta también la creación del plan — que es el "rollback" del flujo, sin nada que deshacer del lado del cliente. Devuelve el `plan_id` (migraciones `20260815000001` / `20260815000003`) |

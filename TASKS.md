@@ -283,6 +283,12 @@
 - **Asignado:** -
 - **Descripción:** Agregar filtro en el panel de caballos para ver por camada. Incluir un selector de rango de fechas (calendario de → hasta) basado en la fecha de nacimiento para acotar los resultados por temporada o período.
 
+### [ ] Embriones: empresa dueña y filtro por empresa
+- **Estado:** QA
+- **Asignado:** -
+- **Descripción:** En la página Embriones del Centro de Cría, mostrar la empresa dueña de cada embrión (la dueña de la donante a la que se le extrajo) y poder filtrar por ella.
+- **Avance:** Sin migración: `embrion.sociedad_id` ya es la empresa dueña. Columna "Empresa" + filtro "Empresa:" (solo aparece si hay más de una dueña); los contadores por estado se acotan al filtro. Lógica en `utils/embriones.ts` con tests. `FiltroDropdown` pasó a `components/ui/` para compartirlo con Caballos.
+
 ### [ ] Tag de yeguas preñadas + Próximos partos
 - **Estado:** pendiente
 - **Asignado:** -

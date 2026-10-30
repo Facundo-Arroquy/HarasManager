@@ -1,11 +1,16 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FlaskConical, ArrowLeftRight, Plus, Trash2, Pencil, Snowflake } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
+import { empresaService } from '../../services/empresaService'
 import type { EmbrionConSeguimiento, EstadoEmbrion, ResultadoEcografia } from '../../types/crianza'
 import { mensajeError } from '../../utils/error'
+import { empresaDuenia, filtrarPorDuenia, opcionesDuenia, seleccionVigente } from '../../utils/embriones'
+import { useSetFilter } from '../../hooks/useSetFilter'
+import { useOutsideClick } from '../../hooks/useOutsideClick'
 import Spinner from '../../components/ui/Spinner'
+import FiltroDropdown from '../../components/ui/FiltroDropdown'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
 import TransferenciaModal from '../../components/centro-cria/TransferenciaModal'
 import FlushingModal from '../../components/centro-cria/FlushingModal'
@@ -66,6 +71,11 @@ export default function EmbrionesPage() {
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState<string | null>(null)
   const [filtro,    setFiltro]    = useState<EstadoEmbrion | 'todos'>('todos')
+  // sociedad_id → nombre, para mostrar la empresa dueña de cada embrión
+  const [nombresEmpresa, setNombresEmpresa] = useState<Map<string, string>>(new Map())
+  const filtroDuenia = useSetFilter<string>()
+  const [showDueniaDD, setShowDueniaDD] = useState(false)
+  const dueniaRef = useRef<HTMLDivElement>(null)
 
   const [embrionParaTransf,  setEmbrionParaTransf]  = useState<EmbrionConSeguimiento | null>(null)
   const [showNuevoFlushing,  setShowNuevoFlushing]  = useState(false)
@@ -88,11 +98,17 @@ export default function EmbrionesPage() {
     }
     setLoading(true)
     setError(null)
-    const promesa = sociedadId
+    const embrionesP = sociedadId
       ? crianzaService.listarTodosEmbriones(sociedadId)
       : crianzaService.listarTodosEmbrionesVet()
-    promesa
-      .then((data) => setEmbriones(data))
+    // Los nombres son un dato accesorio: si fallan, la lista se muestra igual
+    // (con "Otra empresa") en vez de dar por vacío el stock.
+    const nombresP = empresaService.mapaNombres().catch(() => new Map<string, string>())
+    Promise.all([embrionesP, nombresP])
+      .then(([data, nombres]) => {
+        setEmbriones(data)
+        setNombresEmpresa(nombres)
+      })
       // El error se muestra: si la consulta falla, "sin embriones" mentiría.
       .catch((e) => {
         setEmbriones([])
@@ -129,11 +145,29 @@ export default function EmbrionesPage() {
     else if (rol === 'veterinario') cargarParaVet()
   }, [sociedadId, rol]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const visibles = filtro === 'todos'
-    ? embriones
-    : embriones.filter((e) => e.estado === filtro)
+  useOutsideClick(dueniaRef, useCallback(() => setShowDueniaDD(false), []))
 
-  const counts = embriones.reduce<Record<string, number>>((acc, e) => {
+  const empresasDisponibles = useMemo(
+    () => opcionesDuenia(embriones, nombresEmpresa),
+    [embriones, nombresEmpresa],
+  )
+  const dueniasElegidas = useMemo(
+    () => seleccionVigente(filtroDuenia.set, embriones, nombresEmpresa),
+    [filtroDuenia.set, embriones, nombresEmpresa],
+  )
+
+  // El filtro por empresa acota también los contadores: así los números de los
+  // chips y del resumen coinciden con lo que muestra la tabla.
+  const deLaEmpresa = useMemo(
+    () => filtrarPorDuenia(embriones, dueniasElegidas, nombresEmpresa),
+    [embriones, dueniasElegidas, nombresEmpresa],
+  )
+
+  const visibles = filtro === 'todos'
+    ? deLaEmpresa
+    : deLaEmpresa.filter((e) => e.estado === filtro)
+
+  const counts = deLaEmpresa.reduce<Record<string, number>>((acc, e) => {
     acc[e.estado] = (acc[e.estado] ?? 0) + 1
     return acc
   }, {})
@@ -183,20 +217,39 @@ export default function EmbrionesPage() {
 
       {/* Filtros */}
       {embriones.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
-          {FILTROS.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFiltro(f)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
-                filtro === f
-                  ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-white text-slate-500 border-slate-300 hover:border-slate-400'
-              }`}
-            >
-              {f === 'todos' ? `Todos (${embriones.length})` : `${ESTADO_LABEL[f]} (${counts[f] ?? 0})`}
-            </button>
-          ))}
+        <div className="flex gap-x-4 gap-y-2 flex-wrap items-center">
+          {/* Con una sola empresa dueña no hay nada que elegir */}
+          {empresasDisponibles.length > 1 && (
+            <FiltroDropdown
+              label="Empresa:"
+              seleccionados={dueniasElegidas}
+              opciones={empresasDisponibles}
+              show={showDueniaDD}
+              onToggleShow={() => setShowDueniaDD((v) => !v)}
+              onToggleOpcion={filtroDuenia.toggle}
+              onLimpiar={filtroDuenia.clear}
+              textoTodos="Todas"
+              textoUno={(id) => empresasDisponibles.find((e) => e.id === id)?.nombre ?? '1 empresa'}
+              textoMultiple={(n) => `${n} empresas`}
+              containerRef={dueniaRef}
+              minWidth="min-w-[200px]"
+            />
+          )}
+          <div className="flex gap-2 flex-wrap">
+            {FILTROS.map((f) => (
+              <button
+                key={f}
+                onClick={() => setFiltro(f)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                  filtro === f
+                    ? 'bg-slate-800 text-white border-slate-800'
+                    : 'bg-white text-slate-500 border-slate-300 hover:border-slate-400'
+                }`}
+              >
+                {f === 'todos' ? `Todos (${deLaEmpresa.length})` : `${ESTADO_LABEL[f]} (${counts[f] ?? 0})`}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -218,6 +271,11 @@ export default function EmbrionesPage() {
           <FlaskConical size={28} className="mx-auto mb-2 opacity-30" />
           Sin embriones registrados.
         </div>
+      ) : visibles.length === 0 ? (
+        <div className="text-center py-16 text-slate-400 text-sm">
+          <FlaskConical size={28} className="mx-auto mb-2 opacity-30" />
+          Ningún embrión coincide con los filtros.
+        </div>
       ) : (
         <div className="rounded-lg border border-slate-200 bg-white overflow-x-auto">
           <table className="text-sm w-max min-w-full">
@@ -225,6 +283,7 @@ export default function EmbrionesPage() {
               <tr className="border-b border-slate-200 bg-slate-50 text-left">
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 sticky left-0 z-10 bg-slate-50 border-r border-slate-200">Receptora</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Estado</th>
+                <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Empresa</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Fecha extracción</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Lugar de almacenamiento</th>
                 <th className="px-4 py-2.5 text-xs font-medium text-slate-500 whitespace-nowrap">Pelaje</th>
@@ -308,6 +367,9 @@ export default function EmbrionesPage() {
                           <Trash2 size={12} />
                         </button>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                      {empresaDuenia(e, nombresEmpresa).nombre}
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                       {e.fecha_extraccion ? formatFecha(e.fecha_extraccion) : VACIO}
