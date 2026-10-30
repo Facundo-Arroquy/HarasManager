@@ -46,6 +46,14 @@ propietarios y usuarios con control total de permisos.
 
 **No cambiar el stack sin documentar la razón y actualizar este skill.**
 
+> **Nota 2026-10-25:** se decidió agregar un backend (Python + FastAPI) entre el
+> frontend y Supabase. Supabase Auth, la base y RLS se quedan. Esto va a cambiar
+> esta tabla y el principio 7 (hoy la lógica de negocio vive en funciones
+> `SECURITY DEFINER`). La razón y las fases están en
+> `docs/PLAN-MIGRACION-BACKEND.md`; este skill se actualiza en la F30, cuando el
+> cambio esté en producción. Mientras tanto, lo que dice este documento sigue
+> siendo lo que corre.
+
 ---
 
 ## Principios de Arquitectura — OBLIGATORIOS
