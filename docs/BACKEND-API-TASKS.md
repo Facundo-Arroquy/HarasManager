@@ -6,6 +6,10 @@ arrancarlo el día que se decida sin tener que re-investigar nada.
 **Estado: no iniciado.** Hoy el frontend habla directo con Supabase y no hay
 backend. Este documento no implica que la decisión esté tomada — ver Bloque 0.
 
+> **Actualización 2026-10-25:** se decidió encarar la migración. El orden y las
+> fases cortas están en `docs/PLAN-MIGRACION-BACKEND.md`; este documento queda
+> como referencia técnica y como Registro de pendientes de backend.
+
 Cada bloque es independiente y tiene su criterio de terminado. Se pueden hacer
 de a uno, con el sistema funcionando en producción todo el tiempo.
 
