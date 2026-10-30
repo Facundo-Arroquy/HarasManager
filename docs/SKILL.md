@@ -46,6 +46,14 @@ propietarios y usuarios con control total de permisos.
 
 **No cambiar el stack sin documentar la razón y actualizar este skill.**
 
+> **Nota 2026-10-25:** se decidió agregar un backend (Python + FastAPI) entre el
+> frontend y Supabase. Supabase Auth, la base y RLS se quedan. Esto va a cambiar
+> esta tabla y el principio 7 (hoy la lógica de negocio vive en funciones
+> `SECURITY DEFINER`). La razón y las fases están en
+> `docs/PLAN-MIGRACION-BACKEND.md`; este skill se actualiza en la F30, cuando el
+> cambio esté en producción. Mientras tanto, lo que dice este documento sigue
+> siendo lo que corre.
+
 ---
 
 ## Principios de Arquitectura — OBLIGATORIOS
@@ -1169,7 +1177,7 @@ CREATE TRIGGER auditar AFTER INSERT OR UPDATE OR DELETE ON <tabla>
 | `tiene_membresia(sociedad_id)` | El usuario tiene membresía activa en esa sociedad |
 | `es_admin(sociedad_id)` | Tiene rol 'admin' activo en esa sociedad |
 | `es_veterinario(sociedad_id)` | Tiene rol 'veterinario' en membresia **o** `usuario.rol = 'veterinario'` |
-| `is_superadmin()` | `usuario.rol = 'superadmin' AND activo = true` |
+| `is_superadmin()` | `usuario.rol = 'superadmin'`. **No chequea `activo`**: la función de prod nunca lo hizo (este documento decía lo contrario); el backend deja afuera a los usuarios inactivos antes de evaluar ninguna regla |
 | `puede_gestionar_campo(sociedad_id)` | Tiene rol admin, jugador, piloto o peticero activo en esa sociedad (peticero desde migración `20260923133759`) |
 | `puede_gestionar_ficha_caballo(sociedad_id)` | Tiene rol admin o piloto activo en esa sociedad; habilita alta/edición de `caballo` y gestión de `caballo_tag` |
 | `vet_tiene_acceso(caballo_id)` | Verifica fila activa en `acceso_vet` **o** fila activa en `acceso_vet_sociedad` para la sociedad del caballo, **y** que el usuario sea veterinario activo; usado en políticas de centro de embriones. Reescrita en `20261018140000` para soportar acceso total por sociedad (corregida originalmente en `20260611155651`) |
