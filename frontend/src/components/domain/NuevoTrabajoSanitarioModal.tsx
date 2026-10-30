@@ -441,7 +441,7 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
               {/* Filtros: empresa / camada / campo */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {empresas.length > 0 && (
-                  <FiltroDropdown
+                  <FiltroCaballosDropdown
                     icon={<Building2 size={12} />}
                     seleccion={filtroEmpresas}
                     onToggle={(k) => toggleEnSet(setFiltroEmpresas, k)}
@@ -452,7 +452,7 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
                   />
                 )}
                 {camadas.length > 0 && (
-                  <FiltroDropdown
+                  <FiltroCaballosDropdown
                     icon={<Layers size={12} />}
                     seleccion={filtroCamadas}
                     onToggle={(k) => toggleEnSet(setFiltroCamadas, k)}
@@ -463,7 +463,7 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
                   />
                 )}
                 {camposConCaballos.length > 0 && (
-                  <FiltroDropdown
+                  <FiltroCaballosDropdown
                     icon={<MapPin size={12} />}
                     seleccion={filtroCampos}
                     onToggle={(k) => toggleEnSet(setFiltroCampos, k)}
@@ -564,7 +564,7 @@ export default function NuevoTrabajoSanitarioModal({ onClose, onSuccess }: Props
  * Dropdown de selección múltiple que acota la lista de caballos (empresa,
  * camada, campo). Sin selección = no filtra.
  */
-function FiltroDropdown({
+function FiltroCaballosDropdown({
   icon, seleccion, onToggle, onLimpiar, placeholder, sustantivo, items,
 }: {
   icon: React.ReactNode

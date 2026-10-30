@@ -38,7 +38,10 @@ export default function FiltroDropdown({
       <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider shrink-0">{label}</span>
       <div className="relative" ref={containerRef}>
         <button
+          type="button"
           onClick={onToggleShow}
+          aria-expanded={show}
+          aria-haspopup="true"
           className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
             seleccionados.size > 0
               ? 'border-brand-500 bg-brand-50 text-brand-700'
@@ -49,7 +52,7 @@ export default function FiltroDropdown({
           <ChevronDown size={12} className={`transition-transform ${show ? 'rotate-180' : ''}`} />
         </button>
         {show && (
-          <div className={`absolute top-full mt-1 left-0 z-20 ${minWidth} rounded-xl border border-slate-200 bg-white shadow-lg py-1`}>
+          <div className={`absolute top-full mt-1 left-0 z-20 ${minWidth} max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg py-1`}>
             {opciones.map((op) => (
               <label
                 key={op.id}
@@ -69,7 +72,10 @@ export default function FiltroDropdown({
       </div>
       {seleccionados.size > 0 && (
         <button
+          type="button"
           onClick={onLimpiar}
+          aria-label={`Limpiar filtro ${label.replace(/:$/, '')}`}
+          title="Limpiar"
           className="rounded-lg border border-slate-300 p-1.5 text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors"
         >
           <X size={13} />

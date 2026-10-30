@@ -3,12 +3,12 @@ import { FlaskConical, ArrowLeftRight, Plus, Trash2, Pencil, Snowflake } from 'l
 import { useAuthStore } from '../../store/authStore'
 import { useCrianzaStore } from '../../store/crianzaStore'
 import { crianzaService } from '../../services/crianzaService'
-import { empresaService } from '../../services/empresaService'
 import type { EmbrionConSeguimiento, EstadoEmbrion, ResultadoEcografia } from '../../types/crianza'
 import { mensajeError } from '../../utils/error'
-import { empresaDuenia, filtrarPorDuenia, opcionesDuenia, seleccionVigente } from '../../utils/embriones'
+import { opcionesDuenia, rotulosDuenia, empresaDuenia, seleccionVigente, vistaEmbriones } from '../../utils/embriones'
 import { useSetFilter } from '../../hooks/useSetFilter'
 import { useOutsideClick } from '../../hooks/useOutsideClick'
+import { useNombresEmpresa } from '../../hooks/useNombresEmpresa'
 import Spinner from '../../components/ui/Spinner'
 import FiltroDropdown from '../../components/ui/FiltroDropdown'
 import NombreCaballoLink from '../../components/domain/NombreCaballoLink'
@@ -72,7 +72,7 @@ export default function EmbrionesPage() {
   const [error,     setError]     = useState<string | null>(null)
   const [filtro,    setFiltro]    = useState<EstadoEmbrion | 'todos'>('todos')
   // sociedad_id → nombre, para mostrar la empresa dueña de cada embrión
-  const [nombresEmpresa, setNombresEmpresa] = useState<Map<string, string>>(new Map())
+  const { nombres: nombresEmpresa, listos: nombresListos } = useNombresEmpresa()
   const filtroDuenia = useSetFilter<string>()
   const [showDueniaDD, setShowDueniaDD] = useState(false)
   const dueniaRef = useRef<HTMLDivElement>(null)
@@ -86,7 +86,14 @@ export default function EmbrionesPage() {
   const userId      = useAuthStore((s) => s.user?.id)
   const puedeOperar = rol === 'veterinario' || rol === 'admin'
 
+  // Numera cada carga: si una anterior termina después de una más nueva (cambio
+  // de empresa activa, recarga tras un alta), su respuesta se descarta en vez
+  // de pisar lo que ya se está mostrando.
+  const cargaRef = useRef(0)
+
   const recargar = useCallback(() => {
+    const carga = ++cargaRef.current
+    const vigente = () => carga === cargaRef.current
     // Sin sociedad activa y sin ser veterinario no hay a quién consultarle el
     // stock. Antes se cortaba acá sin apagar el spinner y la página quedaba
     // cargando para siempre, en blanco.
@@ -98,23 +105,18 @@ export default function EmbrionesPage() {
     }
     setLoading(true)
     setError(null)
-    const embrionesP = sociedadId
+    const promesa = sociedadId
       ? crianzaService.listarTodosEmbriones(sociedadId)
       : crianzaService.listarTodosEmbrionesVet()
-    // Los nombres son un dato accesorio: si fallan, la lista se muestra igual
-    // (con "Otra empresa") en vez de dar por vacío el stock.
-    const nombresP = empresaService.mapaNombres().catch(() => new Map<string, string>())
-    Promise.all([embrionesP, nombresP])
-      .then(([data, nombres]) => {
-        setEmbriones(data)
-        setNombresEmpresa(nombres)
-      })
+    promesa
+      .then((data) => { if (vigente()) setEmbriones(data) })
       // El error se muestra: si la consulta falla, "sin embriones" mentiría.
       .catch((e) => {
+        if (!vigente()) return
         setEmbriones([])
         setError(mensajeError(e))
       })
-      .finally(() => setLoading(false))
+      .finally(() => { if (vigente()) setLoading(false) })
   }, [sociedadId, rol])
 
   useEffect(() => { recargar() }, [recargar])
@@ -151,26 +153,17 @@ export default function EmbrionesPage() {
     () => opcionesDuenia(embriones, nombresEmpresa),
     [embriones, nombresEmpresa],
   )
+  const rotulos = useMemo(() => rotulosDuenia(empresasDisponibles), [empresasDisponibles])
   const dueniasElegidas = useMemo(
-    () => seleccionVigente(filtroDuenia.set, embriones, nombresEmpresa),
-    [filtroDuenia.set, embriones, nombresEmpresa],
+    () => seleccionVigente(filtroDuenia.set, empresasDisponibles),
+    [filtroDuenia.set, empresasDisponibles],
   )
 
-  // El filtro por empresa acota también los contadores: así los números de los
-  // chips y del resumen coinciden con lo que muestra la tabla.
-  const deLaEmpresa = useMemo(
-    () => filtrarPorDuenia(embriones, dueniasElegidas, nombresEmpresa),
-    [embriones, dueniasElegidas, nombresEmpresa],
+  // El filtro por empresa acota también los contadores (ver `vistaEmbriones`).
+  const { deLaEmpresa, visibles, counts } = useMemo(
+    () => vistaEmbriones(embriones, nombresEmpresa, dueniasElegidas, filtro),
+    [embriones, nombresEmpresa, dueniasElegidas, filtro],
   )
-
-  const visibles = filtro === 'todos'
-    ? deLaEmpresa
-    : deLaEmpresa.filter((e) => e.estado === filtro)
-
-  const counts = deLaEmpresa.reduce<Record<string, number>>((acc, e) => {
-    acc[e.estado] = (acc[e.estado] ?? 0) + 1
-    return acc
-  }, {})
 
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>
 
@@ -218,8 +211,9 @@ export default function EmbrionesPage() {
       {/* Filtros */}
       {embriones.length > 0 && (
         <div className="flex gap-x-4 gap-y-2 flex-wrap items-center">
-          {/* Con una sola empresa dueña no hay nada que elegir */}
-          {empresasDisponibles.length > 1 && (
+          {/* Con una sola empresa dueña no hay nada que elegir, y hasta que no
+              llegan los nombres todas se verían como "Otra empresa". */}
+          {nombresListos && empresasDisponibles.length > 1 && (
             <FiltroDropdown
               label="Empresa:"
               seleccionados={dueniasElegidas}
@@ -229,7 +223,7 @@ export default function EmbrionesPage() {
               onToggleOpcion={filtroDuenia.toggle}
               onLimpiar={filtroDuenia.clear}
               textoTodos="Todas"
-              textoUno={(id) => empresasDisponibles.find((e) => e.id === id)?.nombre ?? '1 empresa'}
+              textoUno={(id) => rotulos.get(id) ?? '1 empresa'}
               textoMultiple={(n) => `${n} empresas`}
               containerRef={dueniaRef}
               minWidth="min-w-[200px]"
@@ -369,7 +363,9 @@ export default function EmbrionesPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                      {empresaDuenia(e, nombresEmpresa).nombre}
+                      {nombresListos
+                        ? rotulos.get(empresaDuenia(e, nombresEmpresa).id)
+                        : VACIO}
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                       {e.fecha_extraccion ? formatFecha(e.fecha_extraccion) : VACIO}
