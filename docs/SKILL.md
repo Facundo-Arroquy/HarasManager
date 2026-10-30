@@ -848,10 +848,9 @@ CREATE TABLE cria_transferencia (
 -- (`ejecutar_venta_caballo` no toca `embrion`), lo ya extraído sigue siendo del
 -- vendedor. `embrion_insert` exige `caballo.sociedad_id = sociedad_id` tanto en
 -- el vitrificado manual (desde 20260923160124) como en el embrión de flushing
--- (migración 20261030130000 — pendiente de aplicar en producción al
--- momento de escribir esto; antes de esa migración, en el flushing
--- la igualdad la sostenía solo el front: `FlushingModal` usa
--- `sociedadActiva ?? recordatorio.sociedad_id`). La página Embriones muestra la
+-- (migración 20261030130000, aplicada en producción el 2026-10-30; antes de
+-- ella, en el flushing la igualdad la sostenía solo el front: `FlushingModal`
+-- usa `sociedadActiva ?? recordatorio.sociedad_id`). La página Embriones muestra la
 -- empresa (nombre vía `get_empresas_visibles()`) y la filtra con
 -- `utils/embriones.ts`.
 CREATE TABLE embrion (
@@ -1399,7 +1398,7 @@ roles jugador, piloto y peticero conservan la ruta independiente `/config`.
 
 **`embrion`**
 - SELECT: `tiene_membresia(sociedad_id)` o `vet_tiene_acceso(caballo_donante_id)` o `is_superadmin()` (migración `20260723231443`)
-- INSERT: la donante tiene que ser de `sociedad_id` (`caballo.sociedad_id = embrion.sociedad_id`) **y** además: con flushing, `vet_tiene_acceso(caballo_donante_id)`; sin flushing (vitrificado manual), `estado = 'congelado'`, `creado_por = auth.uid()` y `vet_tiene_acceso(caballo_donante_id)` o `es_admin(sociedad_id)`. La condición de la donante se pedía solo en el manual (migración `20260923160124`); `20261030130000` la extiende al embrión de flushing (pendiente de aplicar en producción al momento de escribir esto)
+- INSERT: la donante tiene que ser de `sociedad_id` (`caballo.sociedad_id = embrion.sociedad_id`) **y** además: con flushing, `vet_tiene_acceso(caballo_donante_id)`; sin flushing (vitrificado manual), `estado = 'congelado'`, `creado_por = auth.uid()` y `vet_tiene_acceso(caballo_donante_id)` o `es_admin(sociedad_id)`. La condición de la donante se pedía solo en el manual (migración `20260923160124`); `20261030130000` la extiende al embrión de flushing (aplicada en producción el 2026-10-30)
 - UPDATE: `vet_tiene_acceso(caballo_donante_id)` o `es_admin(sociedad_id)` o `is_superadmin()`
 - DELETE: sin policy. Solo por `eliminar_embrion_cria` (el autor del flushing o `creado_por`, si el embrión nunca se transfirió; migraciones `20260912220008`, `20260923160124`)
 
