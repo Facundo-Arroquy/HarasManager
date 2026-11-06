@@ -21,7 +21,7 @@ export default function Sidebar() {
           <img src={logoUrl} alt="HarasManager" className="h-8 w-8 object-contain" />
         </div>
         <div className="min-w-0">
-          <span className="block text-sm font-bold text-text-primary">HarasManager</span>
+          <span className="flex items-center gap-1.5 text-sm font-bold text-text-primary">HarasManager <span className="rounded bg-brand/10 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-brand">BETA</span></span>
           <span className="block text-[9px] font-semibold uppercase tracking-[0.18em] text-brand">Gestión ecuestre</span>
         </div>
         <div className="ml-auto"><CampanaNotificaciones /></div>
