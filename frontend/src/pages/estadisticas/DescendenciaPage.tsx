@@ -41,7 +41,6 @@ export default function DescendenciaPage() {
 
   const [seleccionado, setSeleccionado] = useState<Caballo | null>(null)
   const [busqueda, setBusqueda]         = useState('')
-  const [dropdownOpen, setDropdownOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const [hijos, setHijos]           = useState<HijoRow[]>([])
@@ -64,17 +63,16 @@ export default function DescendenciaPage() {
   }, [sociedadId, rol])
 
   const resultados = useMemo(() => {
-    if (!busqueda.trim()) return []
+    if (!busqueda.trim()) return caballos.slice(0, 30)
     const term = busqueda.toLowerCase()
     return caballos
       .filter((c) => c.nombre.toLowerCase().includes(term))
-      .slice(0, 15)
+      .slice(0, 30)
   }, [caballos, busqueda])
 
   const cargarDatos = useCallback((cab: Caballo) => {
     setSeleccionado(cab)
     setBusqueda(cab.nombre)
-    setDropdownOpen(false)
     setLoadingData(true)
     setError(null)
     setFiltro(null)
@@ -128,7 +126,7 @@ export default function DescendenciaPage() {
       </div>
 
       {/* Buscador */}
-      <div className="relative max-w-md">
+      <div className="max-w-md">
         <label htmlFor="buscar-progenitor" className="sr-only">Buscar caballo</label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -136,15 +134,13 @@ export default function DescendenciaPage() {
             ref={inputRef}
             id="buscar-progenitor"
             type="text"
-            placeholder={loadingCab ? 'Cargando caballos...' : 'Buscar padrillo, yegua o caballo...'}
+            placeholder={loadingCab ? 'Cargando caballos...' : 'Filtrar por nombre...'}
             disabled={loadingCab}
             value={busqueda}
             onChange={(e) => {
               setBusqueda(e.target.value)
-              setDropdownOpen(true)
               if (seleccionado) setSeleccionado(null)
             }}
-            onFocus={() => { if (busqueda && !seleccionado) setDropdownOpen(true) }}
             className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-9 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400"
           />
           {busqueda && (
@@ -153,29 +149,6 @@ export default function DescendenciaPage() {
             </button>
           )}
         </div>
-
-        {dropdownOpen && resultados.length > 0 && !seleccionado && (
-          <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-            {resultados.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => cargarDatos(c)}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-brand-50 focus:bg-brand-50 focus:outline-none"
-                >
-                  <span className="font-medium">{c.nombre}</span>
-                  <span className="ml-2 text-xs text-slate-400">{c.categoria}{c.rol_reproductivo ? ` · ${c.rol_reproductivo}` : ''}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {dropdownOpen && busqueda.trim() && resultados.length === 0 && !seleccionado && !loadingCab && (
-          <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white p-3 text-center text-sm text-slate-400 shadow-lg">
-            Sin resultados para &quot;{busqueda}&quot;
-          </div>
-        )}
       </div>
 
       {error && (
@@ -187,9 +160,43 @@ export default function DescendenciaPage() {
       )}
 
       {!seleccionado && !loadingData && (
-        <div className="rounded-lg border border-dashed border-slate-200 py-16 text-center text-slate-400">
-          Buscá un caballo para ver sus hijos registrados
-        </div>
+        loadingCab ? (
+          <div className="flex justify-center py-12"><Spinner size="lg" /></div>
+        ) : resultados.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-slate-200 py-16 text-center text-sm text-slate-400">
+            {busqueda.trim() ? `Sin resultados para "${busqueda}"` : 'No hay caballos registrados'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-xs font-medium uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-2">Nombre</th>
+                  <th className="px-4 py-2">Categoría</th>
+                  <th className="px-4 py-2">Rol</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {resultados.map((c) => (
+                  <tr
+                    key={c.id}
+                    onClick={() => cargarDatos(c)}
+                    className="cursor-pointer hover:bg-brand-50 transition-colors"
+                  >
+                    <td className="px-4 py-2 font-medium text-slate-800">{c.nombre}</td>
+                    <td className="px-4 py-2 text-slate-600">{c.categoria}</td>
+                    <td className="px-4 py-2 text-slate-500">{c.rol_reproductivo ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {caballos.length > resultados.length && !busqueda.trim() && (
+              <p className="px-4 py-2 text-xs text-slate-400">
+                Mostrando {resultados.length} de {caballos.length} — usá el buscador para encontrar otros.
+              </p>
+            )}
+          </div>
+        )
       )}
 
       {seleccionado && !loadingData && (
