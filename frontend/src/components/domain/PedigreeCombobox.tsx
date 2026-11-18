@@ -47,7 +47,7 @@ export default function PedigreeCombobox({ label, placeholder, value, onChange, 
   let displayLabel = ''
   if (value.id) {
     const found = caballos.find((c) => c.id === value.id)
-    displayLabel = found ? found.nombre : value.id
+    displayLabel = found ? found.nombre : (value.nombre ?? value.id)
   } else if (value.nombre) {
     displayLabel = value.nombre
   }

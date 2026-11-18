@@ -60,6 +60,14 @@ function exigirFilasActualizadas<T>(filas: T[] | null): asserts filas is T[] {
   }
 }
 
+/** Datos mínimos para reconstruir los progenitores de una preñez directa. */
+export interface InseminacionRegistrada {
+  caballo_id:  string
+  padrillo_id: string
+  fecha:       string
+  padrillo?:   { nombre: string } | null
+}
+
 // =============================================================================
 // Service
 // =============================================================================
@@ -83,6 +91,28 @@ export const crianzaService = {
       .order('id')
       .range(desde, hasta))
     return data as RegistroClinicoCria[]
+  },
+
+  /**
+   * Solo registros de inseminación con padrillo identificado. Evita traer el
+   * historial clínico completo para armar el listado de gestaciones.
+   * Sin `sociedadId`, la RLS devuelve las empresas a las que accede el vet.
+   */
+  async listarInseminaciones(sociedadId?: string): Promise<InseminacionRegistrada[]> {
+    const supabase = getSupabaseClient()
+    const data = await traerTodo((desde, hasta) => {
+      let q = supabase
+        .from('cria_registro_clinico')
+        .select('caballo_id, padrillo_id, fecha, padrillo:padrillo_id(nombre)')
+        .contains('obs_chips', ['IN'])
+        .not('padrillo_id', 'is', null)
+        .order('fecha', { ascending: false })
+        .order('id')
+        .range(desde, hasta)
+      if (sociedadId) q = q.eq('sociedad_id', sociedadId)
+      return q
+    })
+    return data as unknown as InseminacionRegistrada[]
   },
 
   async listarRegistrosPorCaballo(caballoId: string): Promise<RegistroClinicoCria[]> {
