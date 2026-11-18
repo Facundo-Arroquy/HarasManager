@@ -86,7 +86,7 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
   const registroEsOvulacion = Boolean(
     registroEditar?.ovario_izq.includes('OV') || registroEditar?.ovario_der.includes('OV'),
   )
-  const [fechaFlushing, setFechaFlushing] = useState(
+  const [fechaFlushing] = useState(
     registroEditar?.fecha_flushing_programada ??
       (registroEditar && registroEsOvulacion
         ? sumarDias(sumarDias(registroEditar.fecha, -(registroEditar.ov_dias ?? 0)), plazos.donante_ov_a_flushing)
@@ -456,8 +456,8 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
             />
           </div>
 
-          {/* Días post-OV — visible cuando se marcó OV */}
-          {mostrarOvDias && (
+          {/* Días post-OV solo se conserva para corregir registros históricos. */}
+          {mostrarOvDias && registroEditar && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-500">Días post-OV</label>
               <input
@@ -469,23 +469,6 @@ export default function RegistroCriaModal({ onClose, onSuccess, caballoIdInicial
                 placeholder="0"
                 className="w-24 rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
-            </div>
-          )}
-
-          {mostrarOvDias && rolEfectivo === 'Donante' && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Fecha de flushing programada</label>
-              <input
-                type="date"
-                value={fechaFlushing}
-                onChange={(e) => setFechaFlushing(e.target.value)}
-                className="w-full rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              />
-              {registroEditar && (
-                <p className="text-[11px] text-slate-400">
-                  Cambiarla mueve la actividad existente y deja auditoría; no crea otra ovulación.
-                </p>
-              )}
             </div>
           )}
 

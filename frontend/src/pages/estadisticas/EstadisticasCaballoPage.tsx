@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, Search, X } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { caballoService, type Caballo } from '../../services/caballoService'
@@ -149,10 +149,10 @@ export default function EstadisticasCaballoPage() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Datos del caballo seleccionado
-  const [flushings, setFlushings]   = useState<Flushing[]>([])
-  const [embriones, setEmbriones]   = useState<EmbrionConSeguimiento[]>([])
-  const [loadingData, setLoadingData] = useState(false)
+  // Datos completos del alcance actual; la selección solo filtra esta colección.
+  const [todosFlushings, setTodosFlushings] = useState<Flushing[]>([])
+  const [todosEmbriones, setTodosEmbriones] = useState<EmbrionConSeguimiento[]>([])
+  const [loadingData, setLoadingData] = useState(true)
   const [error, setError]           = useState<string | null>(null)
 
   // Cargar caballos al montar
@@ -169,6 +169,37 @@ export default function EstadisticasCaballoPage() {
       .finally(() => setLoadingCab(false))
   }, [sociedadId, rol])
 
+  // Cargar el resumen general al entrar. Si hay una sociedad activa se limita
+  // a ella; el veterinario sin sociedad ve todo lo que le permiten las RLS.
+  useEffect(() => {
+    setLoadingData(true)
+    setTodosFlushings([])
+    setTodosEmbriones([])
+    setSeleccionado(null)
+    setBusqueda('')
+    setError(null)
+
+    const promesa: Promise<[Flushing[], EmbrionConSeguimiento[]]> = sociedadId
+      ? Promise.all([
+          crianzaService.listarFlushings(sociedadId),
+          crianzaService.listarTodosEmbriones(sociedadId),
+        ])
+      : rol === 'veterinario'
+        ? Promise.all([
+            crianzaService.listarFlushingsVet(),
+            crianzaService.listarTodosEmbrionesVet(),
+          ])
+        : Promise.resolve([[], []])
+
+    promesa
+      .then(([f, e]) => {
+        setTodosFlushings(f)
+        setTodosEmbriones(e)
+      })
+      .catch((e) => setError(mensajeError(e)))
+      .finally(() => setLoadingData(false))
+  }, [sociedadId, rol])
+
   // Filtro local de búsqueda
   const resultados = useMemo(() => {
     if (!busqueda.trim()) return []
@@ -178,34 +209,35 @@ export default function EstadisticasCaballoPage() {
       .slice(0, 15)
   }, [caballos, busqueda])
 
-  // Cargar datos al seleccionar
-  const cargarDatos = useCallback((cab: Caballo) => {
+  // Seleccionar un caballo filtra los datos que ya están cargados.
+  const seleccionarCaballo = (cab: Caballo) => {
     setSeleccionado(cab)
     setBusqueda(cab.nombre)
     setDropdownOpen(false)
-    setLoadingData(true)
     setError(null)
-
-    Promise.all([
-      crianzaService.listarFlushingsPorCaballo(cab.id),
-      crianzaService.listarEmbrionesPorDonante(cab.id),
-    ])
-      .then(([f, e]) => { setFlushings(f); setEmbriones(e) })
-      .catch((e) => setError(mensajeError(e)))
-      .finally(() => setLoadingData(false))
-  }, [])
+  }
 
   const limpiar = () => {
     setSeleccionado(null)
     setBusqueda('')
-    setFlushings([])
-    setEmbriones([])
     setError(null)
     inputRef.current?.focus()
   }
 
   // Datos calculados
-  const resumen       = useMemo(() => seleccionado ? calcResumen(flushings, embriones) : null, [seleccionado, flushings, embriones])
+  const flushings = useMemo(
+    () => seleccionado
+      ? todosFlushings.filter((f) => f.caballo_id === seleccionado.id)
+      : todosFlushings,
+    [seleccionado, todosFlushings],
+  )
+  const embriones = useMemo(
+    () => seleccionado
+      ? todosEmbriones.filter((e) => e.caballo_donante_id === seleccionado.id)
+      : todosEmbriones,
+    [seleccionado, todosEmbriones],
+  )
+  const resumen       = useMemo(() => calcResumen(flushings, embriones), [flushings, embriones])
   const porPadrillo   = useMemo(() => calcPorPadrillo(embriones), [embriones])
   const transferidos  = useMemo(() => calcTransferidos(embriones), [embriones])
 
@@ -228,7 +260,7 @@ export default function EstadisticasCaballoPage() {
             ref={inputRef}
             id="buscar-caballo"
             type="text"
-            placeholder={loadingCab ? 'Cargando caballos...' : 'Buscar yegua / donante...'}
+            placeholder={loadingCab ? 'Cargando caballos...' : 'Buscar un caballo...'}
             disabled={loadingCab}
             value={busqueda}
             onChange={(e) => {
@@ -258,7 +290,7 @@ export default function EstadisticasCaballoPage() {
               <li key={c.id}>
                 <button
                   type="button"
-                  onClick={() => cargarDatos(c)}
+                  onClick={() => seleccionarCaballo(c)}
                   className="w-full px-4 py-2 text-left text-sm hover:bg-brand-50 focus:bg-brand-50 focus:outline-none"
                 >
                   <span className="font-medium">{c.nombre}</span>
@@ -276,6 +308,14 @@ export default function EstadisticasCaballoPage() {
         )}
       </div>
 
+      {!loadingData && (
+        <p className="text-xs text-slate-500">
+          {seleccionado
+            ? <>Mostrando estadísticas de <span className="font-medium text-slate-700">{seleccionado.nombre}</span></>
+            : 'Mostrando estadísticas de todos los caballos'}
+        </p>
+      )}
+
       {/* Error */}
       {error && (
         <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
@@ -286,15 +326,8 @@ export default function EstadisticasCaballoPage() {
         <div className="flex justify-center py-12"><Spinner size="lg" /></div>
       )}
 
-      {/* Sin selección */}
-      {!seleccionado && !loadingData && (
-        <div className="rounded-lg border border-dashed border-slate-200 py-16 text-center text-slate-400">
-          Buscá un caballo para ver sus estadísticas reproductivas
-        </div>
-      )}
-
       {/* Contenido */}
-      {seleccionado && !loadingData && resumen && (
+      {!loadingData && (
         <div className="space-y-8">
           {/* ── Cards de resumen ───────────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -360,6 +393,7 @@ export default function EstadisticasCaballoPage() {
                   <thead className="bg-slate-50 text-left text-xs font-medium uppercase text-slate-500">
                     <tr>
                       <th className="px-3 py-2">Fecha extr.</th>
+                      {!seleccionado && <th className="px-3 py-2">Donante</th>}
                       <th className="px-3 py-2">Padrillo</th>
                       <th className="px-3 py-2">Receptora</th>
                       <th className="px-3 py-2">Fecha transf.</th>
@@ -377,6 +411,11 @@ export default function EstadisticasCaballoPage() {
                           <td className="whitespace-nowrap px-3 py-2">
                             {embrion.fecha_extraccion ? formatFecha(embrion.fecha_extraccion) : VACIO}
                           </td>
+                          {!seleccionado && (
+                            <td className="px-3 py-2">
+                              <NombreCaballoLink id={embrion.caballo_donante_id} nombre={embrion.donante?.nombre} />
+                            </td>
+                          )}
                           <td className="px-3 py-2">
                             <NombreCaballoLink id={embrion.padrillo_id} nombre={embrion.padrillo?.nombre} />
                           </td>
@@ -420,7 +459,9 @@ export default function EstadisticasCaballoPage() {
           {/* Sin datos */}
           {embriones.length === 0 && flushings.length === 0 && (
             <div className="rounded-lg border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
-              Este caballo no tiene registros de flushing ni embriones
+              {seleccionado
+                ? 'Este caballo no tiene registros de flushing ni embriones'
+                : 'No hay registros de flushing ni embriones'}
             </div>
           )}
         </div>

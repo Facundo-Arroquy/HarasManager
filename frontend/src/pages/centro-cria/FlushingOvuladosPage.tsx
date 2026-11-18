@@ -134,7 +134,12 @@ export default function FlushingOvuladosPage() {
   const ovuladosMap = useMemo(() => {
     const desde = sumarDias(hoy, -3)
     const hasta = sumarDias(hoy, 7)
-    return ovuladosPorDia(registros, transferencias, desde, hasta)
+    const todos = ovuladosPorDia(registros, transferencias, desde, hasta)
+    return new Map(
+      [...todos.entries()]
+        .map(([fecha, items]) => [fecha, items.filter((item) => item.rol === 'Receptora')] as const)
+        .filter(([, items]) => items.length > 0),
+    )
   }, [registros, transferencias, hoy])
 
   // Recalcular diasDesdeOv con referencia a hoy
@@ -237,7 +242,7 @@ export default function FlushingOvuladosPage() {
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
       <div>
         <h1 className="text-lg font-semibold text-slate-900">Flushing y Ovulados</h1>
-        <p className="text-sm text-slate-500">Vista unificada de flushings pendientes y animales ovulados</p>
+        <p className="text-sm text-slate-500">Vista unificada de flushings pendientes y receptoras ovuladas</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -378,7 +383,7 @@ export default function FlushingOvuladosPage() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Egg size={16} className="text-purple-600" />
-            <h2 className="text-sm font-semibold text-slate-900">Ovulados por día</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Receptoras ovuladas por día</h2>
             <span className="text-[11px] font-medium rounded-full border border-purple-200 bg-purple-50 px-2.5 py-0.5 text-purple-700">
               {totalOvulados}
             </span>
@@ -386,13 +391,11 @@ export default function FlushingOvuladosPage() {
 
           {totalOvulados === 0 && (
             <p className="text-sm text-slate-400 py-6 text-center">
-              No hay animales ovulados en el rango de fechas.
+              No hay receptoras ovuladas en el rango de fechas.
             </p>
           )}
 
           {[...ovuladosConDias.entries()].map(([fechaOv, items]) => {
-            const donantes   = items.filter((i) => i.rol === 'Donante')
-            const receptoras = items.filter((i) => i.rol === 'Receptora')
             return (
               <div key={fechaOv} className="rounded-lg border border-slate-200 overflow-hidden">
                 <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
@@ -405,27 +408,12 @@ export default function FlushingOvuladosPage() {
                   <span className="text-[10px] text-slate-400 ml-auto">{items.length}</span>
                 </div>
 
-                {donantes.length > 0 && (
-                  <>
-                    <div className="px-3 py-1.5 bg-teal-50/50 border-b border-slate-100">
-                      <span className="text-[10px] font-semibold text-teal-700 uppercase tracking-wide">Donantes</span>
-                    </div>
-                    {donantes.map((ov) => (
-                      <FilaOvulado key={ov.caballoId} ov={ov} ubicaciones={ubicaciones} hoy={hoy} />
-                    ))}
-                  </>
-                )}
-
-                {receptoras.length > 0 && (
-                  <>
-                    <div className="px-3 py-1.5 bg-purple-50/50 border-b border-slate-100">
-                      <span className="text-[10px] font-semibold text-purple-700 uppercase tracking-wide">Receptoras</span>
-                    </div>
-                    {receptoras.map((ov) => (
-                      <FilaOvulado key={ov.caballoId} ov={ov} ubicaciones={ubicaciones} hoy={hoy} />
-                    ))}
-                  </>
-                )}
+                <div className="px-3 py-1.5 bg-purple-50/50 border-b border-slate-100">
+                  <span className="text-[10px] font-semibold text-purple-700 uppercase tracking-wide">Receptoras</span>
+                </div>
+                {items.map((ov) => (
+                  <FilaOvulado key={ov.caballoId} ov={ov} ubicaciones={ubicaciones} hoy={hoy} />
+                ))}
               </div>
             )
           })}
