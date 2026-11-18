@@ -25,11 +25,19 @@ interface Props {
   onClose: () => void
   onSuccess: () => void
   vetMode?: boolean
+  initialValues?: NuevoCaballoInitialValues
+}
+
+export interface NuevoCaballoInitialValues {
+  fecha_nacimiento?: string
+  categoria?: NuevoCaballoPayload['categoria']
+  padre?: HorseRef
+  madre?: HorseRef
 }
 
 const CATEGORIAS = ['Caballo', 'Yegua', 'Padrillo', 'Potrillo'] as const
 
-export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false }: Props) {
+export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false, initialValues }: Props) {
   const { sociedadActiva } = useAuth()
   const userId = useAuthStore((s) => s.user?.id)
 
@@ -42,8 +50,8 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
 
   const [form, setForm] = useState({
     nombre: '',
-    fecha_nacimiento: '',
-    categoria: 'Caballo' as NuevoCaballoPayload['categoria'],
+    fecha_nacimiento: initialValues?.fecha_nacimiento ?? '',
+    categoria: (initialValues?.categoria ?? 'Caballo') as NuevoCaballoPayload['categoria'],
     subcategoria: '' as string,
     sexo: '' as '' | Sexo,
     observaciones: '',
@@ -55,8 +63,8 @@ export default function NuevoCaballoModal({ onClose, onSuccess, vetMode = false 
     campo_id: '' as string,
   })
 
-  const [padre, setPadre] = useState<HorseRef>({ id: null, nombre: null })
-  const [madre, setMadre] = useState<HorseRef>({ id: null, nombre: null })
+  const [padre, setPadre] = useState<HorseRef>(initialValues?.padre ?? { id: null, nombre: null })
+  const [madre, setMadre] = useState<HorseRef>(initialValues?.madre ?? { id: null, nombre: null })
   const [tagIds, setTagIds] = useState<number[]>([])
 
   // Padre: solo machos. Madre: solo yeguas. En ambos casos se incluyen los

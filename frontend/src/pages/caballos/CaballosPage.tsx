@@ -16,7 +16,7 @@ import { TAG_JUGADOR, tagService, type Tag } from '../../services/tagService'
 import { catalogoService } from '../../services/catalogoService'
 import { textoBusquedaCaballo, getCamada } from '../../utils/caballo'
 import { mensajeError } from '../../utils/error'
-import NuevoCaballoModal from '../../components/domain/NuevoCaballoModal'
+import NuevoCaballoModal, { type NuevoCaballoInitialValues } from '../../components/domain/NuevoCaballoModal'
 import CargaMasivaProximamente from '../../components/domain/CargaMasivaProximamente'
 import Spinner from '../../components/ui/Spinner'
 import FiltroDropdown from '../../components/ui/FiltroDropdown'
@@ -81,8 +81,25 @@ export default function CaballosPage() {
   const [showCamadas,      setShowCamadas]      = useState(false)
   const camadasRef = useRef<HTMLDivElement>(null)
 
-  const [showNuevo,    setShowNuevo]    = useState(false)
+  const nuevoDesdeGestacion = (location.state as { nuevoCaballo?: NuevoCaballoInitialValues } | null)?.nuevoCaballo
+  const [showNuevo,    setShowNuevo]    = useState(() => Boolean(nuevoDesdeGestacion))
+  const [nuevoInicial, setNuevoInicial] = useState<NuevoCaballoInitialValues | undefined>(() => nuevoDesdeGestacion)
   const [showImportar, setShowImportar] = useState(false)
+
+  // El botón "Nació" de Yeguas preñadas llega por estado de navegación. Se
+  // consume enseguida para que recargar o volver con el navegador no reabra el
+  // alta, pero se conserva localmente mientras el modal está visible.
+  useEffect(() => {
+    if (!nuevoDesdeGestacion) return
+    setNuevoInicial(nuevoDesdeGestacion)
+    setShowNuevo(true)
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.pathname, navigate, nuevoDesdeGestacion])
+
+  function abrirNuevoCaballo() {
+    setNuevoInicial(undefined)
+    setShowNuevo(true)
+  }
 
   // Detalle rápido ("Ver ficha") y edición desde la tarjeta
   const [detalle,  setDetalle]  = useState<Caballo | null>(null)
@@ -412,7 +429,7 @@ export default function CaballosPage() {
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {rol === 'veterinario' && !modoSeleccion && !verBaja && (
             <button
-              onClick={() => setShowNuevo(true)}
+              onClick={abrirNuevoCaballo}
               className="flex items-center gap-1.5 rounded-lg border border-slate-300 hover:border-slate-400 px-3 py-2 text-sm font-medium text-slate-700 transition-colors"
               title="Agregar caballo"
             >
@@ -425,7 +442,7 @@ export default function CaballosPage() {
           )}
           {canManageCampos(rol) && !modoSeleccion && !verBaja && (
             <button
-              onClick={() => setShowNuevo(true)}
+              onClick={abrirNuevoCaballo}
               className="flex items-center gap-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 px-3 py-2 text-sm font-medium text-slate-900 transition-colors"
               title="Nuevo caballo"
             >
@@ -721,9 +738,10 @@ export default function CaballosPage() {
       )}
       {showNuevo && (
         <NuevoCaballoModal
-          onClose={() => setShowNuevo(false)}
-          onSuccess={() => { setShowNuevo(false); cargar() }}
+          onClose={() => { setShowNuevo(false); setNuevoInicial(undefined) }}
+          onSuccess={() => { setShowNuevo(false); setNuevoInicial(undefined); cargar() }}
           vetMode={esVet}
+          initialValues={nuevoInicial}
         />
       )}
       {detalle && (

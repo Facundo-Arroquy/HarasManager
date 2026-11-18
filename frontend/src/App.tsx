@@ -52,6 +52,7 @@ const TransferirVetPage      = lazy(() => import('./pages/vet/TransferirVetPage'
 const SanidadPage            = lazy(() => import('./pages/sanidad/SanidadPage'))
 const EstadisticasCaballoPage = lazy(() => import('./pages/estadisticas/EstadisticasCaballoPage'))
 const DescendenciaPage       = lazy(() => import('./pages/estadisticas/DescendenciaPage'))
+const PrenadasPage           = lazy(() => import('./pages/estadisticas/PrenadasPage'))
 const CalendarioPage         = lazy(() => import('./pages/calendario/CalendarioPage'))
 const NotFoundPage           = lazy(() => import('./pages/NotFoundPage'))
 
@@ -267,9 +268,10 @@ export default function App() {
           <Route path="/caballos/:id/historial" element={<HistorialPage />} />
           <Route path="/sanidad" element={<SanidadPage />} />
 
-          {/* Descendencia — admin, veterinario y piloto */}
+          {/* Descendencia y gestaciones — admin, veterinario y piloto */}
           <Route element={<RequireRol roles={['admin', 'veterinario', 'piloto']} />}>
             <Route path="/descendencia" element={<DescendenciaPage />} />
+            <Route path="/prenadas" element={<PrenadasPage />} />
           </Route>
           <Route path="/panel-vet" element={<PanelVetPage />} />
 

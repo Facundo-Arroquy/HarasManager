@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, LayoutGrid, Settings, SlidersHorizontal,
   ClipboardList, Bell, ArrowLeftRight, FlaskConical,
-  CalendarDays, Settings2, Syringe, Trophy, Droplets, BarChart3,
+  CalendarDays, Settings2, Syringe, Trophy, Droplets, BarChart3, Baby,
 } from 'lucide-react'
 import type { ModuloCodigo } from '../../types/modulo'
 
@@ -29,6 +29,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/caballos',          label: 'Caballos',           icon: <LayoutGrid size={18} /> },
       { to: '/sanidad',           label: 'Sanidad',            icon: <Syringe size={18} />,           roles: ['admin', 'jugador', 'piloto', 'veterinario'] },
       { to: '/descendencia',      label: 'Descendencia',       icon: <BarChart3 size={18} />,         roles: ['admin', 'veterinario', 'piloto'] },
+      { to: '/prenadas',          label: 'Yeguas preñadas',    icon: <Baby size={18} />,              roles: ['admin', 'veterinario', 'piloto'] },
       { to: '/revision-preventa', label: 'Revisión pre-venta', icon: <ClipboardList size={18} />, roles: ['veterinario'] },
       // Traspaso de caballos entre dueños/empresas. Una entrada por rol: el vet
       // mueve los caballos que creó él, el admin los de la sociedad.
