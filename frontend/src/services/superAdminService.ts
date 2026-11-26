@@ -214,6 +214,15 @@ export const superAdminService = {
     if (error) throw new Error(error.message)
   },
 
+  /**
+   * Cambia el email con el que el usuario inicia sesión. Va por Edge Function
+   * porque hay que tocar `auth.users` (solo con service_role) y `usuario.email`
+   * a la vez; la contraseña no cambia y el email nuevo queda confirmado.
+   */
+  async cambiarEmail(usuarioId: string, email: string): Promise<void> {
+    await invocarFuncion('actualizar-email-usuario', { usuario_id: usuarioId, email: email.trim() })
+  },
+
   async eliminarUsuario(membresiaId: string): Promise<void> {
     const supabase = getSupabaseClient()
     const { error } = await supabase.from('membresia').delete().eq('id', membresiaId)

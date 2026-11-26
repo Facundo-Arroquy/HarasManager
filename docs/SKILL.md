@@ -565,6 +565,27 @@ después de los caballos, porque `caballo.campo_id` los referencia (migración
 `20260816200000`; antes no se limpiaban y el `DELETE FROM usuario` reventaba con
 un error de FK crudo, después de haber pasado todas las validaciones).
 
+### Cambio de email de un usuario (superadmin)
+
+El email vive en dos lugares: `auth.users` (con el que se inicia sesión) y
+`usuario.email` (lo que muestra la app). El trigger de alta lo copia **una sola
+vez**, al crear el usuario; nada los sincroniza después. Y el usuario no puede
+cambiar el suyo desde su sesión: lo bloquea `bloquear_self_escalation`.
+
+Lo resuelve la Edge Function **`actualizar-email-usuario`** (`{ usuario_id, email }`),
+que el superadmin dispara con el lápiz de cada usuario en la pestaña Usuarios de
+empresa (`superAdminService.cambiarEmail`). Solo la puede llamar un superadmin,
+verificado con el JWT del caller.
+
+1. Actualiza `auth.users` con la Admin API, con `email_confirm: true`: el email
+   nuevo queda confirmado sin mandar mail, igual que en `create-user`. La
+   contraseña no cambia.
+2. Actualiza `usuario.email`. Si falla, vuelve `auth.users` al email anterior
+   para no dejarlos desincronizados; si también falla la vuelta atrás, lo dice
+   explícitamente en el error.
+
+El email se guarda en minúsculas y se rechaza si ya lo usa otro usuario.
+
 ### Torneos (asignación de caballos por jugador)
 
 ```sql
