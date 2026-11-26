@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, X, Eye, EyeOff } from 'lucide-react'
+import { Plus, Trash2, X, Eye, EyeOff, Pencil } from 'lucide-react'
 import { superAdminService, type UsuarioEmpresa, type NuevoUsuarioPayload } from '../../services/superAdminService'
 import { listarModulos } from '../../services/moduloService'
 import { useToastStore } from '../../store/toastStore'
@@ -207,6 +207,81 @@ function CrearUsuarioModal({ sociedadNombre, sociedadId, onClose, onCreado, cata
   )
 }
 
+// ── Modal cambiar email ───────────────────────────────────────────────────────
+
+interface CambiarEmailModalProps {
+  usuario: UsuarioEmpresa
+  onClose: () => void
+  onCambiado: () => void
+}
+
+function CambiarEmailModal({ usuario, onClose, onCambiado }: CambiarEmailModalProps) {
+  const [email, setEmail] = useState(usuario.email)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const valor = email.trim()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(valor)) { setError('Email inválido'); return }
+    if (valor.toLowerCase() === usuario.email.toLowerCase()) { setError('Es el mismo email que ya tiene'); return }
+    setSubmitting(true)
+    setError('')
+    try {
+      await superAdminService.cambiarEmail(usuario.usuario_id, valor)
+      onCambiado()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo cambiar el email.')
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-100">Cambiar email</h2>
+            <p className="text-[11px] text-zinc-500 mt-0.5">{usuario.nombre} {usuario.apellido}</p>
+          </div>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200"><X size={16} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-zinc-400">Email nuevo</label>
+            <input
+              autoFocus
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError('') }}
+              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+            />
+            <p className="text-[11px] text-zinc-500">
+              Pasa a ser el email para iniciar sesión. La contraseña no cambia y no se envía ningún mail de confirmación.
+            </p>
+          </div>
+
+          {error && <p className="text-xs text-rose-400 bg-rose-950/40 border border-rose-800/40 rounded-md px-3 py-2">{error}</p>}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" disabled={submitting}
+              className="px-4 py-2 text-sm font-medium rounded-md bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50">
+              {submitting ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Tab principal ─────────────────────────────────────────────────────────────
 
 export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
@@ -218,6 +293,7 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
   const [loadingUsuarios, setLoadingUsuarios] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [confirmandoEliminar, setConfirmandoEliminar] = useState<string | null>(null)
+  const [editandoEmail, setEditandoEmail] = useState<UsuarioEmpresa | null>(null)
   const [mutando, setMutando] = useState<string | null>(null) // membresiaId en mutación
   const pushToast = useToastStore((s) => s.pushToast)
 
@@ -409,6 +485,15 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
                       />
                     ))}
                     <button
+                      onClick={() => setEditandoEmail(u)}
+                      disabled={enMutacion}
+                      className="p-1.5 rounded-md text-zinc-600 hover:text-emerald-400 hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                      title="Cambiar email"
+                      aria-label="Cambiar email"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
                       onClick={() => setConfirmandoEliminar(u.id)}
                       disabled={enMutacion}
                       className="p-1.5 rounded-md text-zinc-600 hover:text-rose-400 hover:bg-zinc-800 transition-colors disabled:opacity-50"
@@ -447,6 +532,18 @@ export default function UsuariosEmpresaTab({ sociedadIdInicial }: Props) {
           catalogo={catalogo}
           onClose={() => setShowModal(false)}
           onCreado={() => { setShowModal(false); recargarUsuarios() }}
+        />
+      )}
+
+      {editandoEmail && (
+        <CambiarEmailModal
+          usuario={editandoEmail}
+          onClose={() => setEditandoEmail(null)}
+          onCambiado={() => {
+            setEditandoEmail(null)
+            recargarUsuarios()
+            pushToast('success', 'Email actualizado.')
+          }}
         />
       )}
     </div>
